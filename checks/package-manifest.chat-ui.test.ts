@@ -2,16 +2,20 @@ import { describe, expect, it } from 'bun:test';
 
 // Составы входов диалогового пакета и вход его общих помощников тестов
 // (D-UI-32): диалог, сообщение, помощники лимита, страж и схема возможностей
-// мессенджера — в `dmg-ui/chat-ui`; привязка примера и подставной мессенджер —
-// в `dmg-ui/chat-ui/testing`; шесть помощников ядра — в `dmg-ui/testing/fixtures`.
+// мессенджера, узел бесед, хранилище бесед в памяти и схема снимка беседы —
+// в `dmg-ui/chat-ui`; привязка примера и подставной мессенджер — в
+// `dmg-ui/chat-ui/testing`; шесть помощников ядра — в `dmg-ui/testing/fixtures`.
 
 const CHAT_UI = [
+  'ConversationSnapshotSchema',
+  'Conversations',
   'DIALOG_CHANNEL',
   'DialogChannel',
   'DialogGraphProvider',
   'DialogRenderer',
   'DialogViews',
   'LimitedMessenger',
+  'MemoryConversationStore',
   'MessageFit',
   'MessengerCapabilitiesSchema',
   'NotificationPresenter',
@@ -24,7 +28,7 @@ const CHAT_UI = [
 ];
 
 describe('вход dmg-ui/chat-ui', () => {
-  it('состав — канал, представления, наблюдатели, граф, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей', async () => {
+  it('состав — канал, представления, наблюдатели, граф, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед в памяти и схема снимка', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui')).sort()).toEqual(CHAT_UI);
   });
 

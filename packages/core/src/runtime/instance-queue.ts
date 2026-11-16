@@ -10,4 +10,9 @@ export class InstanceQueue {
     this.tail = next.catch(() => undefined);
     return next;
   }
+
+  /** Задачи, поставленные до вызова, отработали; отказ задачи ожидание не рвёт. */
+  idle(): Promise<void> {
+    return this.tail.then(() => undefined);
+  }
 }

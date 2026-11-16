@@ -1,10 +1,31 @@
-import type { ActionField, AddressJson } from 'dmg-ui';
-import type { FormattedText } from '../message/message.types';
-import type { MessageHandle } from '../messenger/messenger.types';
+import type { Identified, Trace } from 'dmg-core';
+import type {
+  ActionField,
+  AddressJson,
+  AnyUiAppDef,
+  CodeLoaders,
+  RenderContext,
+  ScreenRuntime,
+  UiObserver,
+} from 'dmg-ui';
+import type {
+  PersonPlaces,
+  RecipientCallers,
+  ServerContext,
+  UiServer,
+} from 'dmg-ui/server';
+import type { DialogReplies } from '../dialog/dialog-replies';
+import type { DialogViews } from '../dialog/dialog-views';
+import type { FormattedText, Message } from '../message/message.types';
+import type {
+  MessageHandle,
+  MessengerPort,
+} from '../messenger/messenger.types';
+import type { ConversationStore } from './conversation-store.types';
 
 // Данные беседы: сигналы мессенджера, записи таблицы ссылок (D-UI-44),
-// снимок беседы (D-UI-45) и показанный вид для отпечатка. Всё — простые
-// объекты JSON; классы работают над ними.
+// снимок беседы (D-UI-45) и показанный вид для отпечатка — простые объекты
+// JSON, классы работают над ними; спеки беседы и узла бесед.
 
 /** Вид вложения: только место, до действия не доводится. */
 export type AttachmentKind = 'file' | 'audio' | 'image' | 'video';
@@ -225,4 +246,65 @@ export type ConversationSnapshot = {
   readonly seen: readonly string[];
   readonly screen?: LiveScreenJson;
   readonly draft?: DraftJson;
+};
+
+/** Показ вида экрана: сообщение со ссылками и показанное — для отпечатка. */
+export type ScreenReply = {
+  readonly message: Message;
+  readonly shown: ShownScreen;
+};
+
+/** След на каждый сигнал беседы. */
+export type SignalTraces = {
+  next(): Trace;
+};
+
+/** Контекст рендера личности беседы на сигнал. */
+export type ConversationContexts = {
+  context(trace: Trace): Promise<RenderContext>;
+};
+
+/** Всё, что нужно одной беседе одного собеседника; собирает узел бесед. */
+export type ConversationSpec = {
+  readonly app: AnyUiAppDef;
+  readonly runtime: ScreenRuntime;
+  readonly contexts: ConversationContexts;
+  readonly traces: SignalTraces;
+  readonly replies: DialogReplies;
+  /** У узла бесед — `LimitedMessenger`. */
+  readonly messenger: MessengerPort;
+  readonly logger: ServerContext['logger'];
+  readonly peer: string;
+  /** uuid владельца беседы. */
+  readonly person: string;
+  /** Вход «в начало»: после выхода, отказа адреса и невосстановленного экрана. */
+  readonly home: string;
+  /** Эпоха ссылок на каждое воплощение беседы. */
+  readonly epochs: () => string;
+};
+
+/** Узел бесед одного приложения мессенджера. */
+export type ConversationsSpec<U extends Identified> = {
+  readonly app: AnyUiAppDef;
+  readonly codes: CodeLoaders;
+  readonly server: UiServer<U>;
+  readonly views: DialogViews;
+  readonly observer: UiObserver;
+  /** Узел сам оборачивает порт в `LimitedMessenger`. */
+  readonly messenger: MessengerPort;
+  /** Одно хранилище — на одно приложение мессенджера. */
+  readonly store: ConversationStore;
+  readonly logger: ServerContext['logger'];
+  /** Личность транспорта → uuid; не знаем — `undefined`. Единственный источник личности. */
+  readonly people: (sender: string) => Promise<string | undefined>;
+  readonly callers: RecipientCallers<U>;
+  readonly places: PersonPlaces;
+  /** Вход «в начало»; по умолчанию `start`. */
+  readonly home?: string;
+  /** Бесед в памяти; по умолчанию 1000. */
+  readonly limit?: number;
+  /** Id запросов следа; по умолчанию — `crypto.randomUUID`. */
+  readonly requestIds?: () => string;
+  /** Эпохи ссылок; по умолчанию — случайные. */
+  readonly epochs?: () => string;
 };

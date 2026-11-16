@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CoreErrors, ErrorDef, err, ok } from 'dmg-core';
+import { CoreErrors, ErrorDef, err, ok, type SerializedResult } from 'dmg-core';
 import {
   CompleteTaskUcDef,
   ListTasksUcDef,
@@ -198,5 +198,42 @@ describe('ScreenInstance — подписка и загрузка', () => {
     expect(outcome).toEqual({ kind: 'stayed', revision: 2 });
     expect(kit.observer.kinds().at(-1)).toBe('outcome');
     expect(kit.faults.map((fault) => fault.error)).toEqual([boom]);
+  });
+});
+
+describe('ScreenInstance.settled — ожидание очереди экземпляра', () => {
+  test('settled дожидается перечитывания, поставленного сигналом до вызова', async () => {
+    const kit = new RuntimeKit();
+    const list = await kit.openList();
+    const reached = Promise.withResolvers<void>();
+    const gate = Promise.withResolvers<SerializedResult>();
+    kit.ucs.answer(ListTasksUcDef, () => {
+      reached.resolve();
+      return gate.promise;
+    });
+    let done = false;
+
+    kit.refresh.emit(created);
+    const settled = list.settled().then(() => {
+      done = true;
+    });
+    await reached.promise;
+    await Promise.resolve();
+    const whileHeld = done;
+    gate.resolve(ok([...TASKS]));
+    await settled;
+
+    expect(whileHeld).toBe(false);
+    expect(done).toBe(true);
+    expect(list.view().revision).toBe(2);
+  });
+
+  test('settled без задач исполняется сразу', async () => {
+    const kit = new RuntimeKit();
+    const list = await kit.openList();
+
+    await list.settled();
+
+    expect(list.view().revision).toBe(1);
   });
 });

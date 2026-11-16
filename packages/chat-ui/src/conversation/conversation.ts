@@ -1,0 +1,437 @@
+import type { Trace } from 'dmg-core';
+import type {
+  ActionOutcome,
+  ActionView,
+  AddressJson,
+  AnyUiAppDef,
+  InstanceJson,
+  LocalView,
+  ScreenInstance,
+  UnavailableReason,
+} from 'dmg-ui';
+import { DIALOG_TEXTS } from '../dialog/dialog-replies';
+import type { MessengerCapabilities } from '../messenger/messenger.types';
+import {
+  CONVERSATION_TEXTS,
+  MAX_REF_LENGTH,
+  MAX_SIGNAL_ID,
+  MAX_SIGNAL_TEXT,
+  MIN_OPTIONS,
+} from './conversation.const';
+import type {
+  ConversationSignal,
+  ConversationSnapshot,
+  ConversationSpec,
+  Serial,
+} from './conversation.types';
+import { ConversationLog } from './conversation-log';
+import { ConversationQueue } from './conversation-queue';
+import { ConversationReplies } from './conversation-replies';
+import { ConversationScreens } from './conversation-screens';
+import { RefTable } from './ref-table';
+import { SeenSignals } from './seen-signals';
+
+/** Живой экран, на котором исполняется нажатие. */
+type OnScreen = {
+  readonly serial: Serial;
+  readonly instance: ScreenInstance;
+};
+
+/** Действие живого экрана: имя, ревизия показа, собранный вход. */
+type ActTarget = {
+  readonly action: string;
+  readonly revision: number;
+  readonly input: unknown;
+  readonly confirmed: boolean;
+};
+
+/**
+ * Беседа одного собеседника (D-UI-43): сигналы мессенджера и проактивные
+ * показы идут по одному через очередь, повтор id отсеивается, нажатие
+ * разбирается по записи таблицы ссылок, исходы ядра — по таблице политик
+ * (гайд `channel-package.md`). Всё показываемое — новым сообщением.
+ *
+ * @see conversation.test.ts
+ */
+export class Conversation {
+  private readonly spec: ConversationSpec;
+  private readonly queue = new ConversationQueue();
+  private readonly refs: RefTable;
+  private readonly seen: SeenSignals;
+  private readonly replies: ConversationReplies;
+  private readonly log: ConversationLog;
+  private readonly screens: ConversationScreens;
+  private closed = false;
+
+  /** Возможности не годятся (`options.max < 3`, `options.ref < 16`) или нет входа home — бросок. */
+  constructor(spec: ConversationSpec, snapshot?: ConversationSnapshot) {
+    Conversation.assertFits(spec.app, spec.home, spec.messenger.capabilities);
+    this.spec = spec;
+    this.refs = new RefTable(spec.epochs(), snapshot?.refs);
+    this.seen = new SeenSignals(snapshot?.seen);
+    this.log = new ConversationLog(
+      spec.logger,
+      spec.messenger.capabilities.name,
+    );
+    this.replies = new ConversationReplies(spec.replies, this.refs);
+    this.screens = new ConversationScreens(
+      {
+        spec,
+        replies: this.replies,
+        refs: this.refs,
+        log: this.log,
+        refreshed: (instance) => this.refreshed(instance),
+      },
+      snapshot?.serial ?? 0,
+      snapshot?.screen,
+    );
+  }
+
+  /** Сборка беседы с этими приложением, входом home и возможностями; не годится — бросок. */
+  static assertFits(
+    app: AnyUiAppDef,
+    home: string,
+    capabilities: MessengerCapabilities,
+  ): void {
+    const { max, ref } = capabilities.options;
+    if (max < MIN_OPTIONS) {
+      throw new Error(
+        `Conversation: вариантов ${max}, нужно не меньше ${MIN_OPTIONS}`,
+      );
+    }
+    if (ref < MAX_REF_LENGTH) {
+      throw new Error(
+        `Conversation: ссылка до ${ref} знаков, нужно ${MAX_REF_LENGTH}`,
+      );
+    }
+    if (app.entries[home] === undefined) {
+      throw new Error(
+        `Conversation: у приложения ${app.name} нет входа ${home}`,
+      );
+    }
+  }
+
+  /** Предел сигнала нарушен — причина; сигнал в пределах — `undefined`. */
+  static rejects(signal: ConversationSignal): 'signalId' | 'text' | undefined {
+    if (signal.id.length > MAX_SIGNAL_ID) return 'signalId';
+    if (signal.kind === 'text' && signal.text.length > MAX_SIGNAL_TEXT) {
+      return 'text';
+    }
+    return undefined;
+  }
+
+  /** Сигнал в очередь; повтор id — false и ничего. Дефект беседы — бросок наружу. */
+  receive(signal: ConversationSignal): Promise<boolean> {
+    if (!this.seen.accept(signal.id)) return Promise.resolve(false);
+    return this.queue.run(async () => {
+      try {
+        await this.handle(signal);
+      } finally {
+        if (signal.kind === 'press') await this.answer(signal.press);
+      }
+      return true;
+    });
+  }
+
+  /** Экран снимка — через `ScreenRuntime.restore`, отпечаток, перенос ссылок; не восстановлен — вход home. В очереди. */
+  restore(): Promise<void> {
+    return this.queue.run(async () => {
+      const trace = this.spec.traces.next();
+      if (!(await this.screens.wake(trace))) await this.screens.home(trace);
+    });
+  }
+
+  snapshot(): ConversationSnapshot {
+    const screen = this.screens.toJSON();
+    return {
+      version: 1,
+      person: this.spec.person,
+      serial: this.screens.last(),
+      refs: this.refs.toJSON(),
+      seen: this.seen.toJSON(),
+      ...(screen === undefined ? {} : { screen }),
+    };
+  }
+
+  /** Снимок живого экземпляра ядра; нет экрана — `undefined`. */
+  screen(): InstanceJson | undefined {
+    return this.screens.instance();
+  }
+
+  /** Открыть экран из снимка экземпляра (внешние данные): отказ — заметка и вход home. В очереди. */
+  resume(instance: unknown): Promise<void> {
+    return this.queue.run(() =>
+      this.screens.resume(instance, this.spec.traces.next()),
+    );
+  }
+
+  /** Ссылка «открыть адрес» в таблице беседы (ссылки уведомления). В очереди. */
+  link(address: AddressJson, label: string): Promise<string> {
+    return this.queue.run(async () =>
+      this.refs.add({ kind: 'open', address, label }),
+    );
+  }
+
+  /** Очередь беседы и очередь живого экземпляра отработали, новых задач не пришло (TST-04). */
+  async settled(): Promise<void> {
+    let mark: number;
+    do {
+      mark = this.queue.queued();
+      await this.queue.idle();
+      await this.screens.current()?.instance.settled();
+    } while (mark !== this.queue.queued());
+  }
+
+  /** Подписка живого экрана снята, экземпляр закрыт; проактивных показов больше нет. */
+  close(): void {
+    this.closed = true;
+    this.screens.close();
+  }
+
+  private async handle(signal: ConversationSignal): Promise<void> {
+    const trace = this.spec.traces.next();
+    // Экран снимка не восстановлен: вход исполняется, остальное поглощает home.
+    if (!(await this.screens.wake(trace)) && signal.kind !== 'enter') {
+      await this.screens.home(trace);
+      return;
+    }
+    switch (signal.kind) {
+      case 'enter':
+        await this.enter(signal.entry, trace);
+        return;
+      case 'text':
+        // Сбора входа здесь нет: текст на экране — «Выберите вариант.».
+        if (this.screens.current() === undefined)
+          await this.screens.home(trace);
+        else await this.screens.note(DIALOG_TEXTS.choose);
+        return;
+      case 'press':
+        await this.press(signal.ref, trace);
+        return;
+      case 'attachment':
+        await this.screens.note(CONVERSATION_TEXTS.attachment);
+        return;
+      case 'cancel':
+        await this.screens.show();
+        return;
+      default: {
+        const unknownKind: never = signal;
+        throw new Error(
+          `Conversation: неизвестный сигнал ${JSON.stringify(unknownKind)}`,
+        );
+      }
+    }
+  }
+
+  private async enter(name: string, trace: Trace): Promise<void> {
+    const entry = this.spec.app.entries[name];
+    if (entry === undefined) {
+      await this.screens.note(CONVERSATION_TEXTS.noEntry);
+      return;
+    }
+    await this.screens.open(entry.address, trace);
+  }
+
+  /** Нажатие по записи таблицы ссылок. */
+  private async press(ref: string, trace: Trace): Promise<void> {
+    const entry = this.refs.entry(ref);
+    if (entry === undefined) {
+      await this.screens.note(DIALOG_TEXTS.unknownRef);
+      return;
+    }
+    switch (entry.kind) {
+      case 'action': {
+        const on = await this.onScreen(entry.screen);
+        if (on === undefined) return;
+        if (Conversation.hasFields(on.instance.view().actions, entry.action)) {
+          await this.screens.note(DIALOG_TEXTS.choose);
+          return;
+        }
+        await this.act(
+          on,
+          { ...entry, input: undefined, confirmed: false },
+          trace,
+        );
+        return;
+      }
+      case 'local': {
+        const on = await this.onScreen(entry.screen);
+        if (on === undefined) return;
+        const view = on.instance.view();
+        if (entry.revision !== view.revision) {
+          await this.screens.show(DIALOG_TEXTS.stale);
+        } else if (Conversation.hasFields(view.locals, entry.local)) {
+          await this.screens.note(DIALOG_TEXTS.choose);
+        } else {
+          await this.local(on.instance, entry.local);
+        }
+        return;
+      }
+      case 'confirm': {
+        const on = await this.onScreen(entry.screen);
+        if (on === undefined) return;
+        if (!entry.yes) await this.screens.show();
+        else
+          await this.act(
+            on,
+            { ...entry, input: entry.input, confirmed: true },
+            trace,
+          );
+        return;
+      }
+      case 'choice':
+      case 'skip':
+      case 'page':
+        // Черновика входа здесь нет: шаг и страница не к чему приложить.
+        await this.screens.note(DIALOG_TEXTS.unavailable);
+        return;
+      case 'open':
+        await this.screens.openJson(entry.address, trace);
+        return;
+      default: {
+        const unknownKind: never = entry;
+        throw new Error(
+          `Conversation: неизвестная запись ${JSON.stringify(unknownKind)}`,
+        );
+      }
+    }
+  }
+
+  /** Живой экран с номером `serial`; чужой — «Экран уже закрыт.», ядро не вызывается. */
+  private async onScreen(serial: Serial): Promise<OnScreen | undefined> {
+    const live = this.screens.current();
+    if (live !== undefined && live.serial === serial) return live;
+    await this.screens.note(DIALOG_TEXTS.closed);
+    return undefined;
+  }
+
+  private async act(
+    on: OnScreen,
+    target: ActTarget,
+    trace: Trace,
+  ): Promise<void> {
+    const outcome = await on.instance.act({
+      action: target.action,
+      input: target.input,
+      revision: target.revision,
+      confirmed: target.confirmed,
+      trace: trace.toJSON(),
+    });
+    await this.settle(on, target, outcome, trace);
+  }
+
+  /** Политика по исходу действия. */
+  private async settle(
+    on: OnScreen,
+    target: ActTarget,
+    outcome: ActionOutcome,
+    trace: Trace,
+  ): Promise<void> {
+    const { instance } = on;
+    switch (outcome.kind) {
+      case 'moved':
+        await this.screens.openJson(outcome.address, trace);
+        return;
+      case 'stayed':
+        await this.screens.show();
+        return;
+      case 'exited':
+        await this.screens.send(
+          this.replies.exit(instance.view(), outcome.exit),
+        );
+        await this.screens.home(trace);
+        return;
+      case 'confirm':
+        await this.screens.send(
+          this.replies.confirm(outcome.label, outcome.description, {
+            screen: on.serial,
+            revision: target.revision,
+            action: target.action,
+            input: target.input,
+          }),
+        );
+        return;
+      case 'rejected':
+        await this.screens.show(
+          outcome.issues[0]?.text ?? DIALOG_TEXTS.unavailable,
+        );
+        return;
+      case 'refused':
+        await this.screens.show(
+          this.replies.refusal(instance.view(), outcome.refusal),
+        );
+        return;
+      case 'stale':
+        await this.screens.show(DIALOG_TEXTS.stale);
+        return;
+      case 'unavailable':
+        await this.unavailable(outcome.reason);
+        return;
+      default:
+        Conversation.unknown(outcome);
+    }
+  }
+
+  private async local(instance: ScreenInstance, name: string): Promise<void> {
+    const outcome = await instance.local({ name });
+    switch (outcome.kind) {
+      case 'changed':
+        await this.screens.show();
+        return;
+      case 'rejected':
+        await this.screens.show(
+          outcome.issues[0]?.text ?? DIALOG_TEXTS.unavailable,
+        );
+        return;
+      case 'refused':
+        await this.screens.show(outcome.refusal.text);
+        return;
+      case 'unavailable':
+        await this.unavailable(outcome.reason);
+        return;
+      default:
+        Conversation.unknown(outcome);
+    }
+  }
+
+  private async unavailable(reason: UnavailableReason): Promise<void> {
+    if (reason === 'unknown') {
+      throw new Error(
+        'Conversation: ссылка на действие, которого нет у экрана',
+      );
+    }
+    await this.screens.note(
+      reason === 'closed' ? DIALOG_TEXTS.closed : DIALOG_TEXTS.unavailable,
+    );
+  }
+
+  /** Исход, которого беседа не знает (новый в ядре), — дефект беседы, бросок (ERR-06). */
+  private static unknown(outcome: never): never {
+    throw new Error(
+      `Conversation: неизвестный исход ${JSON.stringify(outcome)}`,
+    );
+  }
+
+  /** У действия вида есть поля входа — без сбора входа его не исполнить. */
+  private static hasFields(
+    items: readonly (ActionView | LocalView)[],
+    name: string,
+  ): boolean {
+    return (items.find((item) => item.name === name)?.fields.length ?? 0) > 0;
+  }
+
+  /** Перечитанный экземпляр — показ в очередь беседы; дефект показа — в лог. */
+  private refreshed(instance: ScreenInstance): void {
+    if (this.closed) return;
+    this.queue
+      .run(() => this.screens.refreshed(instance))
+      .catch((error: unknown) => {
+        this.log.defect({ operation: 'refresh' }, error);
+      });
+  }
+
+  private async answer(press: string): Promise<void> {
+    const delivery = await this.spec.messenger.answer(this.spec.peer, press);
+    if (!delivery.ok) this.log.undelivered('answer', delivery.error.reason);
+  }
+}

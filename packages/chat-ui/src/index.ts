@@ -1,6 +1,23 @@
 // Вход dmg-ui/chat-ui: учебный диалоговый канал — зародыш пакета канала
 // на публичных входах ядра; сообщение, помощники лимита, порт мессенджера,
-// его возможности и страж лимитов.
+// его возможности и страж лимитов; узел бесед, хранилище бесед в памяти и
+// схема снимка беседы.
+
+export type {
+  Attachment,
+  AttachmentKind,
+  ConversationSignal,
+  ConversationSnapshot,
+  ConversationsSpec,
+  DraftJson,
+  LiveScreenJson,
+  RefEntry,
+  SignalHead,
+} from './conversation/conversation.types';
+export { ConversationSnapshotSchema } from './conversation/conversation-snapshot';
+export type { ConversationStore } from './conversation/conversation-store.types';
+export { Conversations } from './conversation/conversations';
+export { MemoryConversationStore } from './conversation/memory-conversation-store';
 
 export {
   DIALOG_CHANNEL,
