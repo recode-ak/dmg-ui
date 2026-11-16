@@ -13,4 +13,6 @@ export type UiSessionSpec<U extends Identified> = {
   readonly source: CallerSource<U>;
   /** Источник подписчика событий и записей лога: `ui:<набор>`. */
   readonly name: string;
+  /** Сколько выданных сигналов помнить; по умолчанию — 256. */
+  readonly issuedLimit?: number;
 };

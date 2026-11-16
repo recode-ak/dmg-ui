@@ -92,6 +92,8 @@ type Setup = {
   /** Ответы транспорта сверх `listTasks`. */
   readonly answers?: Readonly<Record<string, SerializedResult>>;
   readonly transport?: StubTransport;
+  /** Событие вместо `assigned`. */
+  readonly envelope?: ReturnType<typeof envelopeOf>;
 };
 
 /** Уведомитель на заглушках; событие `assigned` уже опубликовано и доставлено. */
@@ -118,7 +120,7 @@ const notify = async (over: Setup = {}) => {
     observer,
     context: { bus, logger },
   }).start();
-  bus.publish(assigned);
+  bus.publish(over.envelope ?? assigned);
   await bus.delivered();
   return { logger, transport, delivery, observer };
 };
@@ -326,5 +328,21 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
     expect(observer.records).toContainEqual(
       expect.objectContaining({ kind: 'defect', node: N_ID }),
     );
+  });
+});
+
+describe('UiNotifier — внутренний путь чтения', () => {
+  test('длинный correlationId события не срывает чтение и доставку', async () => {
+    const long = envelopeOf(
+      TaskEvents.assigned,
+      { taskId: TASK_A, ownerId: OWNER, assigneeId: ASSIGNEE },
+      'e-1',
+      'r'.repeat(300),
+    );
+
+    const { delivery, transport } = await notify({ envelope: long });
+
+    expect(transport.names()).toEqual(['listTasks']);
+    expect(delivery.delivered).toHaveLength(1);
   });
 });

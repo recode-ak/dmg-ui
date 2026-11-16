@@ -23,10 +23,13 @@ import {
   StubCallerSource,
   StubTransport,
 } from '../../testing/ui-server-fixture';
-import type { AddressJson } from '../address/address-codec';
+import { AddressCodec, type AddressJson } from '../address/address-codec';
 import type { RefreshSignal } from '../runtime/ports.types';
 import { ModuleApiDispatch } from './module-api-dispatch';
+import { ServerCalls } from './server-calls';
+import { UcRoutes } from './uc-routes';
 import { UiServer } from './ui-server';
+import { UiSession } from './ui-session';
 
 // Сессия сервера UI: вызывающий — на каждый вызов, след клиента сервер
 // пересобирает сам, command по событию не исполняется, перечитывание —
@@ -55,9 +58,38 @@ const setup = (source = new StubCallerSource(OWNER)) => {
   return { bus, logger, transport, source, session: server.session(source) };
 };
 
+/** Сессия напрямую, с пределом памяти выданных сигналов `limit`. */
+const limitedSession = (limit: number) => {
+  const bus = new AwaitingBus();
+  const logger = new MemoryLogger();
+  const transport = new StubTransport();
+  const name = 'ui:exampleUi';
+  const calls = new ServerCalls({
+    routes: UcRoutes.forSession(
+      { set: ExampleUiSetDef, logger, source: name },
+      [],
+    ),
+    dispatch: new ModuleApiDispatch([
+      new ModuleApi(TodoModuleDef, transport, logger),
+    ]),
+    logger,
+    source: name,
+  });
+  const session = new UiSession({
+    calls,
+    codec: new AddressCodec(ExampleUiSetDef),
+    listens: new Map(),
+    context: { bus, logger },
+    source: new StubCallerSource(OWNER),
+    name,
+    issuedLimit: limit,
+  });
+  return { bus, transport, session };
+};
+
 /** Подписка на адрес: сигналы — в массив. */
 const watched = (
-  session: ReturnType<typeof setup>['session'],
+  session: Pick<ReturnType<typeof setup>['session'], 'watch'>,
   address: AddressJson,
 ) => {
   const signals: RefreshSignal[] = [];
@@ -125,7 +157,7 @@ describe('UiSession.call — вызывающий и след', () => {
     expect(transport.sent).toEqual([]);
   });
 
-  test('command UC со следом события — SERVER_INTERNAL и error, UC не вызван', async () => {
+  test('command UC со следом события — SERVER_INTERNAL и warn, UC не вызван', async () => {
     const { logger, transport, session } = setup();
     const trace = Trace.fromEvent({
       eventId: 'e-1',
@@ -141,7 +173,7 @@ describe('UiSession.call — вызывающий и след', () => {
 
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(transport.sent).toEqual([]);
-    expect(logger.records.map((r) => r.level)).toContain('error');
+    expect(logger.records.map((r) => r.level)).toEqual(['warn']);
   });
 });
 
@@ -286,8 +318,8 @@ describe('UiSession.call — след клиента пересобирает с
     ]);
   });
 
-  test('eventId, которого сессия не выдавала, — отказ, UC не вызван', async () => {
-    const { transport, session } = setup();
+  test('eventId, которого сессия не выдавала, — вызов исполнен со следом запроса сервера, без лога', async () => {
+    const { logger, transport, session } = setup();
 
     const res = await session.call(
       listCall({
@@ -296,21 +328,41 @@ describe('UiSession.call — след клиента пересобирает с
       }),
     );
 
-    expect(res.ok).toBe(false);
-    expect(transport.sent).toEqual([]);
+    expect(res.ok).toBe(true);
+    expect(transport.sent.map((s) => s.trace.cause)).toEqual([
+      { kind: 'request', requestId: expect.any(String), generated: true },
+    ]);
+    expect(logger.records).toEqual([]);
   });
 
-  test('после close() выданные сигналы забыты — отказ', async () => {
+  test('после close() выданные сигналы забыты — след запроса, а не события', async () => {
     const { bus, transport, session } = setup();
     const { signals } = watched(session, LIST);
     bus.publish(created(OWNER));
     await bus.delivered();
 
     session.close();
-    const res = await session.call(listCall(signals[0]?.trace));
+    await session.call(listCall(signals[0]?.trace));
 
-    expect(res.ok).toBe(false);
-    expect(transport.sent).toEqual([]);
+    expect(transport.sent.map((s) => s.trace.cause.kind)).toEqual(['request']);
+  });
+
+  test('вытесненный из памяти сигнал — след запроса, свежий — след события', async () => {
+    const { bus, transport, session } = limitedSession(1);
+    const { signals } = watched(session, LIST);
+    bus.publish(created(OWNER));
+    bus.publish(
+      envelopeOf(TaskEvents.created, { taskId: TASK_B, ownerId: OWNER }, 'e-2'),
+    );
+    await bus.delivered();
+
+    await session.call(listCall(signals[0]?.trace));
+    await session.call(listCall(signals[1]?.trace));
+
+    expect(transport.sent.map((s) => s.trace.cause.kind)).toEqual([
+      'request',
+      'event',
+    ]);
   });
 });
 
@@ -384,6 +436,19 @@ describe('UiSession.call — недоверенный вызов', () => {
 
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(logger.records.map((r) => r.level)).toEqual(['error']);
+  });
+});
+
+describe('UiSession.watch — после close()', () => {
+  test('закрытая сессия не подписывает: сигнала нет', async () => {
+    const { bus, session } = setup();
+
+    session.close();
+    const { signals } = watched(session, LIST);
+    bus.publish(created(OWNER));
+    await bus.delivered();
+
+    expect(signals).toEqual([]);
   });
 });
 

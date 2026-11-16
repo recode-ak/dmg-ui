@@ -9,33 +9,21 @@ import {
 import * as v from 'valibot';
 import type { UcCall } from '../runtime/ports.types';
 import { CodeDefect } from '../screen/code-defect';
+import { ClientId } from './client-input';
 import type { CallScope, ServerCallsSpec } from './server-calls.types';
 
 export type {
   CallScope,
   ClaimedTrace,
+  ScopedTrace,
   ServerCallsSpec,
 } from './server-calls.types';
 
-/** Предел длины строк клиента: узел, UC и идентификаторы следа. */
-const MAX_LENGTH = 256;
-
-const Id = v.pipe(v.string(), v.minLength(1), v.maxLength(MAX_LENGTH));
-
-// `generated` и `channel` клиента схема не берёт; причина-прогон Job — отказ.
-const ClaimedTraceJson = v.object({
-  cause: v.variant('kind', [
-    v.object({ kind: v.literal('request'), requestId: Id }),
-    v.object({ kind: v.literal('event'), eventId: Id }),
-  ]),
-  correlationId: Id,
-});
-
 const UcCallJson = v.object({
-  node: Id,
-  uc: Id,
+  node: ClientId,
+  uc: ClientId,
   input: v.unknown(),
-  trace: ClaimedTraceJson,
+  trace: v.unknown(),
 });
 
 /**
@@ -50,20 +38,22 @@ export class ServerCalls<U extends Identified> {
   async call(raw: UcCall, scope: CallScope<U>): Promise<SerializedResult> {
     const parsed = v.safeParse(UcCallJson, raw);
     if (!parsed.success) return this.invalid('call', 'вызов UC не по схеме');
-    const { node, uc: name, input, trace: claimed } = parsed.output;
+    const { node, uc: name, input } = parsed.output;
     const route = this.spec.routes.route(node, name);
     if (!route.ok) return ServerCalls.refuse(route.error);
     const { uc, module } = route.value;
-    if (uc.type === 'command' && claimed.cause.kind === 'event') {
-      this.spec.logger.error(
+    const scoped = scope.trace(parsed.output.trace);
+    if (scoped === undefined) return this.invalid('trace', 'след не принят');
+    const { trace } = scoped;
+    // Ввод клиента, а не сбой сервера: `warn`, отказ — без подробностей.
+    if (uc.type === 'command' && scoped.event) {
+      this.spec.logger.warn(
         this.spec.source,
         'command UC со следом события не исполняется',
-        { node, uc: name, correlationId: claimed.correlationId },
+        { node, uc: name },
       );
       return ServerCalls.refuse(CoreErrors.SERVER_INTERNAL.make());
     }
-    const trace = scope.trace(claimed);
-    if (trace === undefined) return this.invalid('trace', 'след не принят');
     try {
       const caller = await scope.resolve(trace);
       if (!caller.ok) return ServerCalls.refuse(caller.error);

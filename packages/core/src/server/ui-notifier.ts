@@ -20,8 +20,9 @@ import type { NotifyEvent } from './ui-notifier.types';
 /**
  * Уведомления одного приложения UI: подписка на события его уведомлений,
  * на каждого получателя — данные от его имени со следом события, ссылки
- * только из `links()`, доставка каналу. Записи наблюдателя и лог — без
- * payload и данных; `message` чужого броска — только в `logger.error`.
+ * только из `links()`, доставка каналу. В записях наблюдателя значений нет;
+ * в лог payload не идёт, но `logger.error` несёт `message` чужого броска
+ * (как подписка событий платформы).
  */
 export class UiNotifier<U extends Identified> {
   private readonly spec: UiNotifierSpec<U>;
@@ -141,7 +142,7 @@ export class UiNotifier<U extends Identified> {
       ucs: {
         call: (call) =>
           this.calls.call(call, {
-            trace: () => trace,
+            trace: () => ({ trace, event: true }),
             resolve: async () => caller,
           }),
       },
@@ -175,7 +176,7 @@ export class UiNotifier<U extends Identified> {
     });
   }
 
-  /** Доставка каналу; сбой — `logger.error` без данных уведомления. */
+  /** Доставка каналу; сбой — `logger.error` с `message` броска канала. */
   private async deliver(
     event: NotifyEvent,
     notification: DeliveredNotification,

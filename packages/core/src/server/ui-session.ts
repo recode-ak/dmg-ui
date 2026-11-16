@@ -5,6 +5,7 @@ import {
   Trace,
 } from 'dmg-core';
 import { EventSubscriber, type TracedHandler } from 'dmg-core/app';
+import * as v from 'valibot';
 import type { AddressJson } from '../address/address-codec.types';
 import type { RefreshOn } from '../manifest/refresh-on';
 import type {
@@ -13,8 +14,9 @@ import type {
   UcCall,
   UcPort,
 } from '../runtime/ports.types';
+import { ClaimedTraceJson } from './client-input';
 import { jsonRecord } from './json-record';
-import type { ClaimedTrace } from './server-calls.types';
+import type { ScopedTrace } from './server-calls.types';
 import type { UiSessionSpec } from './ui-session.types';
 
 export type { UiSessionSpec } from './ui-session.types';
@@ -32,15 +34,18 @@ export class UiSession<U extends Identified> implements UcPort, RefreshPort {
   private readonly subscriber: EventSubscriber;
   /** Настоящие следы событий по `eventId` выданных сессии сигналов. */
   private readonly issued = new Map<string, Trace>();
+  private readonly issuedLimit: number;
+  private closed = false;
 
   constructor(private readonly spec: UiSessionSpec<U>) {
     this.subscriber = new EventSubscriber(spec.context, spec.name);
+    this.issuedLimit = spec.issuedLimit ?? ISSUED_LIMIT;
   }
 
   call(call: UcCall): Promise<SerializedResult> {
     const { source } = this.spec;
     return this.spec.calls.call(call, {
-      trace: (claimed) => this.traceOf(claimed),
+      trace: (raw) => this.traceOf(raw),
       resolve: (trace) => source.resolve(trace),
     });
   }
@@ -48,7 +53,8 @@ export class UiSession<U extends Identified> implements UcPort, RefreshPort {
   /**
    * Подписка экземпляра: по событию из `refresh` экрана. Сигнал — без
    * payload, след обезличен (`correlationId` — `eventId`), настоящий след
-   * сессия помнит. Адрес не декодируется — бросок.
+   * сессия помнит. Адрес не декодируется — бросок; после `close()` —
+   * пустая отписка без подписки.
    */
   watch(
     address: AddressJson,
@@ -60,6 +66,7 @@ export class UiSession<U extends Identified> implements UcPort, RefreshPort {
         `UiSession: адрес подписки не декодируется (${decoded.error.reason})`,
       );
     }
+    if (this.closed) return () => {};
     const { screen, params } = decoded.value;
     const values = jsonRecord(params);
     const byEvent = new Map<AnyEventDef, RefreshOn[]>();
@@ -103,24 +110,34 @@ export class UiSession<U extends Identified> implements UcPort, RefreshPort {
 
   /** Снимает все подписки сессии и забывает выданные сигналы. */
   close(): void {
+    this.closed = true;
     this.subscriber.close();
     this.issued.clear();
   }
 
   /**
    * Запрос — заново от `requestId` и `correlationId` клиента с каналом
-   * сессии; событие — только выданное этой сессии сигналом.
+   * сессии. Событие — настоящий след выданного сигнала; не выдан или забыт —
+   * свой след запроса сервера (`generated`): экземпляр не теряет экран.
    */
-  private traceOf(claimed: ClaimedTrace): Trace | undefined {
-    const { cause, correlationId } = claimed;
-    if (cause.kind === 'event') return this.issued.get(cause.eventId);
-    return Trace.fromRequest({
-      requestId: cause.requestId,
-      correlationId,
-      ...(this.spec.source.channel === undefined
-        ? {}
-        : { channel: this.spec.source.channel }),
-    });
+  private traceOf(raw: unknown): ScopedTrace | undefined {
+    const parsed = v.safeParse(ClaimedTraceJson, raw);
+    if (!parsed.success) return undefined;
+    const { cause, correlationId } = parsed.output;
+    const { channel } = this.spec.source;
+    const channelMeta = channel === undefined ? {} : { channel };
+    if (cause.kind === 'request') {
+      const trace = Trace.fromRequest({
+        requestId: cause.requestId,
+        correlationId,
+        ...channelMeta,
+      });
+      return { trace, event: false };
+    }
+    const issued = this.issued.get(cause.eventId);
+    // Без лога: вытеснение из памяти — обычный ход при всплеске событий.
+    const trace = issued ?? Trace.fromRequest(channelMeta, () => {});
+    return { trace, event: true };
   }
 
   /** Память ограничена: старейший выданный сигнал забывается первым. */
@@ -128,7 +145,7 @@ export class UiSession<U extends Identified> implements UcPort, RefreshPort {
     this.issued.delete(eventId);
     this.issued.set(eventId, trace);
     for (const oldest of this.issued.keys()) {
-      if (this.issued.size <= ISSUED_LIMIT) break;
+      if (this.issued.size <= this.issuedLimit) break;
       this.issued.delete(oldest);
     }
   }
