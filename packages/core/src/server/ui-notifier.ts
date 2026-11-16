@@ -104,7 +104,7 @@ export class UiNotifier<U extends Identified> {
     }
   }
 
-  /** Сбой бэкенда UC получателей — не дефект кода: `error` и `refused`. */
+  /** Сбой бэкенда UC получателей — не дефект кода: `error` без `message` броска и `refused`. */
   private async recipientsOf(
     event: NotifyEvent,
   ): Promise<readonly string[] | undefined> {
@@ -113,7 +113,11 @@ export class UiNotifier<U extends Identified> {
       const found = await this.recipients.of(def, envelope.payload, trace);
       return this.accepted(event, found);
     } catch (error) {
-      this.logError(event, 'сбой UC получателей уведомления', error);
+      this.logError(
+        event,
+        'сбой UC получателей уведомления',
+        CodeDefect.textOf(error, 'UC получателей'),
+      );
       const { code } = CoreErrors.SERVER_INTERNAL.make();
       this.spec.observer.record({
         kind: 'refused',
@@ -188,7 +192,8 @@ export class UiNotifier<U extends Identified> {
     try {
       await this.spec.delivery.deliver(notification);
     } catch (error) {
-      this.logError(event, 'доставка уведомления не удалась', error);
+      const cause = error instanceof Error ? error.message : String(error);
+      this.logError(event, 'доставка уведомления не удалась', cause);
       return;
     }
     this.spec.observer.record({
@@ -208,13 +213,14 @@ export class UiNotifier<U extends Identified> {
     try {
       return this.accepted(event, await run());
     } catch (error) {
+      const text = CodeDefect.textOf(error, `уведомление ${event.def.name}`);
       this.spec.observer.record({
         kind: 'defect',
         node: event.node,
         trace: event.json,
-        text: CodeDefect.textOf(error, `уведомление ${event.def.name}`),
+        text,
       });
-      this.logError(event, 'дефект кода уведомления', error);
+      this.logError(event, 'дефект кода уведомления', text);
       return undefined;
     }
   }
@@ -242,14 +248,17 @@ export class UiNotifier<U extends Identified> {
     return undefined;
   }
 
-  /** Лог сбоя: узел и событие без payload; `message` броска — как есть. */
-  private logError(event: NotifyEvent, text: string, error: unknown): void {
+  /**
+   * Лог сбоя: узел и событие без payload. `cause` — безопасный текст
+   * (`CodeDefect.textOf`); `message` броска как есть — только у доставки канала.
+   */
+  private logError(event: NotifyEvent, text: string, cause: string): void {
     const { node, envelope } = event;
     this.spec.context.logger.error(this.name, text, {
       notification: node,
       event: envelope.name,
       eventId: envelope.eventId,
-      error: error instanceof Error ? error.message : String(error),
+      error: cause,
     });
   }
 }

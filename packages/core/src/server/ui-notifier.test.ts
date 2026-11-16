@@ -367,7 +367,7 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
           notification: OWNER_N_ID,
           event: TaskEvents.assigned.name,
           eventId: 'e-1',
-          error: 'сеть',
+          error: 'UC получателей: бросок Error',
         },
       },
     ]);
@@ -388,7 +388,7 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
     });
 
     expect(JSON.stringify(observer.records)).not.toContain('секрет');
-    // Текст броска идёт в лог сервера как есть, наблюдателю — нет.
+    expect(JSON.stringify(logger.records)).not.toContain('секрет');
     expect(logger.records.map(({ level, meta }) => ({ level, meta }))).toEqual([
       {
         level: 'error',
@@ -396,7 +396,7 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
           notification: N_ID,
           event: TaskEvents.assigned.name,
           eventId: 'e-1',
-          error: 'секрет Хлеб',
+          error: 'уведомление taskAssigned: бросок Error',
         },
       },
     ]);
