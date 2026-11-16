@@ -27,19 +27,24 @@ describe('PackageManifest', () => {
       expect(await import('dmg-ui')).toBeDefined();
     });
 
-    it('состав входа dmg-ui — манифесты UI, адрес и логика экрана', async () => {
+    it('состав входа dmg-ui — манифесты UI, адрес, логика и исполнитель экрана', async () => {
       expect(Object.keys(await import('dmg-ui')).sort()).toEqual([
         'ActionInput',
         'Address',
         'AddressCodec',
+        'CodeLoader',
+        'CodeLoaders',
+        'NotificationCode',
         'NotificationDef',
         'RefreshOn',
         'ScreenAction',
         'ScreenCode',
         'ScreenDef',
         'ScreenExit',
+        'ScreenInstance',
         'ScreenLocal',
         'ScreenLogic',
+        'ScreenRuntime',
         'StoryDef',
         'UiAppDef',
         'UiIds',

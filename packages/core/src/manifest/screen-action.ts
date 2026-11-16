@@ -9,17 +9,19 @@ import type {
 
 /**
  * Действие экрана: тексты, вход, вызов command UC, переходы и подтверждение.
- * Узел графа под экраном; имя — ключ в `actions` спеки.
+ * Узел графа под экраном; имя — ключ в `actions` спеки. `U` — Def UC
+ * действия: по нему типизируются шаги кода (`ActionStep`).
  */
 export class ScreenAction<
   I extends InputSchema | undefined = InputSchema | undefined,
+  U extends AnyUseCaseDef | undefined = AnyUseCaseDef | undefined,
 > {
   readonly name: string;
   readonly label: string;
   readonly description: string;
   readonly visible: boolean;
   readonly input: I;
-  readonly uc: AnyUseCaseDef | undefined;
+  readonly uc: U;
   readonly confirm: ItemTexts | undefined;
   private readonly to: (() => readonly AnyScreenDef[]) | undefined;
 
@@ -31,7 +33,8 @@ export class ScreenAction<
     // Без `input` в спеке `I` — `undefined` (`InputSchemaOf`), то есть ровно
     // `spec.input`; TS не связывает отсутствие ключа с параметром типа.
     this.input = spec.input as I;
-    this.uc = spec.uc;
+    // То же для `U` (`UcOf`): без `uc` в спеке — `undefined`.
+    this.uc = spec.uc as U;
     this.confirm = spec.confirm;
     this.to = spec.to;
   }

@@ -121,10 +121,18 @@ export type InputSchemaOf<A extends LocalSpec> = A extends {
   ? I
   : undefined;
 
+/** Def UC действия по его спеке; действие без `uc` — `undefined`. */
+export type UcOf<A extends ActionSpec> = A extends {
+  readonly uc: infer U extends AnyUseCaseDef;
+}
+  ? U
+  : undefined;
+
 /** Действия экрана по ключам спеки. */
 export type ScreenActions<S extends ScreenSpec> = {
   readonly [K in keyof NonNullable<S['actions']>]: ScreenAction<
-    InputSchemaOf<NonNullable<S['actions']>[K]>
+    InputSchemaOf<NonNullable<S['actions']>[K]>,
+    UcOf<NonNullable<S['actions']>[K]>
   >;
 };
 

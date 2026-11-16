@@ -1,24 +1,39 @@
+import type { DomainError, Result } from 'dmg-core';
 import type {
   AnyScreenDef,
   DataOf,
   StateOf,
 } from '../manifest/screen-def.types';
-import type { FieldChoices, FieldValues, LocalFns } from './screen-code.types';
+import type {
+  ActionSteps,
+  FieldChoices,
+  FieldValues,
+  LoadContext,
+  LocalFns,
+} from './screen-code.types';
 
 export type {
+  ActionStep,
+  ActionSteps,
   Choice,
   FieldChoices,
   FieldValues,
   InputOf,
+  LoadContext,
   LocalFn,
   LocalFns,
+  ReadPort,
+  StepContext,
+  UcInputFor,
+  UcOutputFor,
 } from './screen-code.types';
 
 /**
- * Код экрана — чистая часть: начальное состояние, доступность, варианты и
- * начальные значения полей, функции локальных действий. Живёт отдельно от
- * манифеста и вызывающего не видит; методы необязательны, умолчания
- * применяет `ScreenLogic`.
+ * Код экрана: загрузка, шаги действий и чистая часть — начальное состояние,
+ * доступность, варианты и начальные значения полей, локальные действия.
+ * Живёт отдельно от манифеста и вызывающего не видит. `load` и `done`
+ * каждого действия обязательны (сверяет `ScreenUnit`), умолчания
+ * остального применяет `ScreenLogic`.
  */
 export abstract class ScreenCode<D extends AnyScreenDef> {
   /**
@@ -26,6 +41,12 @@ export abstract class ScreenCode<D extends AnyScreenDef> {
    * не задаёт; нет функции у объявленного действия — бросок в `ScreenLogic`.
    */
   readonly locals: Partial<LocalFns<D>> = {};
+
+  /** Шаги действий по именам манифеста; у каждого действия нужен `done`. */
+  readonly actions: Partial<ActionSteps<D>> = {};
+
+  /** Данные экрана через объявленные `reads`; отказ UC — `err`. */
+  load?(ctx: LoadContext<D>): Promise<Result<DataOf<D>, DomainError>>;
 
   /**
    * Начальное состояние по данным загрузки. Экран без `state` его не

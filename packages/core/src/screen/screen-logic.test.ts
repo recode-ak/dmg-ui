@@ -210,6 +210,20 @@ describe('ScreenLogic.fields и checkInput', () => {
     ).toThrow('create');
   });
 
+  test('поля локального действия: подпись из схемы, варианты — из кода', () => {
+    expect(logicOf().fields('toggle', data, { selected: [] })).toEqual([
+      {
+        name: 'taskId',
+        label: 'Идентификатор задачи',
+        optional: false,
+        choices: [
+          { value: TASK_A, label: 'Хлеб' },
+          { value: TASK_B, label: 'Молоко' },
+        ],
+      },
+    ]);
+  });
+
   test('checkInput проверяет вход по схеме своего действия', () => {
     expect(logicOf().checkInput('create', { title: 'Хлеб' })).toEqual({
       ok: true,

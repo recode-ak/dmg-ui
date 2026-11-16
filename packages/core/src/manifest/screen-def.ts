@@ -42,6 +42,7 @@ export type {
   StateOf,
   StateSchemaOf,
   StrictSchema,
+  UcOf,
 } from './screen-def.types';
 
 /**

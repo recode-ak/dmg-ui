@@ -10,9 +10,10 @@ export class CoreImportScanner {
   constructor(protected readonly zones: ImportZone[]) {}
 
   /**
-   * Зоны репо (TST-07): ядро (`packages/core/src`, кроме тестов и `graph/`) и
-   * граф (`packages/core/src/graph`, где один разрешён `dmg-core/graph`).
-   * Платформенные и тестовые входы запрещены в обеих.
+   * Зоны репо (TST-07): ядро (`packages/core/src`, кроме тестов, `graph/` и
+   * `server/`), граф (`src/graph`, где разрешён `dmg-core/graph`) и код
+   * экрана (`testing/*-code.ts`: только `valibot`, `dmg-core`, `dmg-ui` и
+   * контракты учебного примера — как у кода экрана приложения).
    */
   static standard(): CoreImportScanner {
     const forbidden = [
@@ -29,10 +30,14 @@ export class CoreImportScanner {
       {
         include: ['packages/core/src/'],
         exclude: ['.test.ts'],
-        excludeDirs: ['packages/core/src/graph/'],
+        excludeDirs: ['packages/core/src/graph/', 'packages/core/src/server/'],
         forbidden,
         allowed: ['valibot', 'dmg-core'],
-        forbiddenPaths: ['packages/core/testing', 'packages/core/src/graph'],
+        forbiddenPaths: [
+          'packages/core/testing',
+          'packages/core/src/graph',
+          'packages/core/src/server',
+        ],
       },
       {
         include: ['packages/core/src/graph/'],
@@ -40,6 +45,16 @@ export class CoreImportScanner {
         forbidden,
         allowed: ['valibot', 'dmg-core', 'dmg-core/graph'],
         forbiddenPaths: ['packages/core/testing'],
+      },
+      {
+        include: ['packages/core/testing/'],
+        suffixes: ['-code.ts'],
+        exclude: ['.test.ts'],
+        // Без `dmg-core/testing/*` из общего списка: контракты учебного
+        // примера (`dmg-core/testing/example`) коду экрана разрешены.
+        forbidden: forbidden.filter((spec) => spec !== 'dmg-core/testing/*'),
+        allowed: ['valibot', 'dmg-core', 'dmg-ui', 'dmg-core/testing/example'],
+        forbiddenPaths: ['packages/core/src'],
       },
     ]);
   }
@@ -60,6 +75,7 @@ export class CoreImportScanner {
   protected inZone(zone: ImportZone, path: string): boolean {
     return (
       zone.include.some((prefix) => path.startsWith(prefix)) &&
+      (zone.suffixes ?? ['']).some((suffix) => path.endsWith(suffix)) &&
       !zone.exclude.some((suffix) => path.endsWith(suffix)) &&
       !(zone.excludeDirs ?? []).some((dir) => path.startsWith(dir))
     );

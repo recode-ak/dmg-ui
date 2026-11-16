@@ -114,15 +114,18 @@ export class ScreenLogic<D extends AnyScreenDef> {
   }
 
   /**
-   * Поля входа действия: подпись и признак из схемы, варианты и начальные
-   * значения — из кода. Начальное значение не по схеме поля — бросок.
+   * Поля входа действия или локального действия: подпись и признак из
+   * схемы, варианты и начальные значения — из кода. Начальное значение не
+   * по схеме поля — бросок.
    */
   fields(
-    name: ActionName<D>,
+    name: ActionName<D> | LocalName<D>,
     data: DataOf<D>,
     state: StateOf<D>,
   ): readonly ActionField[] {
-    const input = this.actionInput(name);
+    const input = this.localInputs.has(name)
+      ? this.localInputs.get(name)
+      : this.actionInput(name);
     if (input === undefined) return [];
     const choices = this.code.choices?.(name, data, state) ?? {};
     const defaults = input.checkFields(

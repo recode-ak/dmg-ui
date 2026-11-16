@@ -122,6 +122,60 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
     });
   });
 
+  describe('runtime/ — часть ядра', () => {
+    const RUNTIME = `${SRC}/runtime/a.ts`;
+
+    for (const spec of ['dmg-core/app', 'dmg-core/graph']) {
+      it(`«${spec}» в runtime/ — вне белого списка`, () => {
+        expect(scan(`import { a } from '${spec}';`, RUNTIME)).toHaveLength(1);
+      });
+    }
+
+    for (const dir of ['server', 'graph']) {
+      it(`runtime/ не импортирует ${dir}/ относительным путём`, () => {
+        const text = `import { a } from '../${dir}/index';`;
+
+        expect(scan(text, RUNTIME)).toHaveLength(1);
+      });
+    }
+
+    it('файл ядра вне runtime/ не импортирует server/ относительным путём', () => {
+      expect(
+        scan("import { a } from '../server/index';", `${SRC}/screen/a.ts`),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe('код экрана (packages/core/testing/*-code.ts) — отдельная зона', () => {
+    const CODE = 'packages/core/testing/a-code.ts';
+
+    for (const text of [
+      "import { a } from 'dmg-core/app';",
+      "import { a } from 'dmg-core/graph';",
+      "import { a } from 'dmg-core/arch';",
+      "import { a } from 'dmg-core/testing';",
+      "import fs from 'node:fs';",
+      "import { test } from 'bun:test';",
+      "import { ScreenCode } from '../src/screen/screen-code';",
+    ]) {
+      it(`${text} в коде экрана — нарушение`, () => {
+        expect(scan(text, CODE)).toHaveLength(1);
+      });
+    }
+
+    it('в коде экрана разрешены valibot, dmg-core, dmg-ui, контракты примера и соседи по testing/', () => {
+      const text = [
+        "import * as v from 'valibot';",
+        "import { ok } from 'dmg-core';",
+        "import { ScreenCode } from 'dmg-ui';",
+        "import { ListTasksUcDef } from 'dmg-core/testing/example';",
+        "import { TaskListScreenDef } from './ui-fixture';",
+      ].join('\n');
+
+      expect(scan(text, CODE)).toEqual([]);
+    });
+  });
+
   describe('набор зон', () => {
     const custom = new CoreImportScanner([
       {

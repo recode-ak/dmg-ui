@@ -1,4 +1,4 @@
-// Публичный вход ядра dmg-ui: манифесты UI, адрес и чистая логика экрана.
+// Публичный вход ядра dmg-ui: манифесты UI, адрес, логика и исполнитель экрана.
 
 export { Address } from './address/address';
 export {
@@ -45,6 +45,7 @@ export {
   type StateOf,
   type StateSchemaOf,
   type StrictSchema,
+  type UcOf,
 } from './manifest/screen-def';
 export { type ExitValue, ScreenExit } from './manifest/screen-exit';
 export { ScreenLocal } from './manifest/screen-local';
@@ -76,6 +77,37 @@ export {
   UiSetDef,
   type UiSetSpec,
 } from './manifest/ui-set-def';
+export type { ActRequest, LocalRequest } from './runtime/action-run';
+export { CodeLoader, CodeLoaders } from './runtime/code-loaders';
+export type { ActionContext, RenderContext } from './runtime/context.types';
+export {
+  NotificationCode,
+  type NotificationDataOf,
+  type NotificationLoadContext,
+} from './runtime/notification-code';
+export type {
+  ActionOutcome,
+  ActionView,
+  InstanceJson,
+  InstanceView,
+  LocalOutcome,
+  LocalView,
+  Refusal,
+  UnavailableReason,
+} from './runtime/outcome.types';
+export type {
+  RefreshPort,
+  RefreshSignal,
+  UcCall,
+  UcPort,
+} from './runtime/ports.types';
+export { ScreenInstance } from './runtime/screen-instance';
+export {
+  type OpenOptions,
+  ScreenRuntime,
+  type ScreenRuntimeSpec,
+} from './runtime/screen-runtime';
+export type { UiObserver, UiRecord } from './runtime/ui-observer.types';
 export type { FieldIssue } from './schema/schema-check';
 export {
   type ActionField,
@@ -83,13 +115,20 @@ export {
   type InputRejection,
 } from './screen/action-input';
 export {
+  type ActionStep,
+  type ActionSteps,
   type Choice,
   type FieldChoices,
   type FieldValues,
   type InputOf,
+  type LoadContext,
   type LocalFn,
   type LocalFns,
+  type ReadPort,
   ScreenCode,
+  type StepContext,
+  type UcInputFor,
+  type UcOutputFor,
 } from './screen/screen-code';
 export {
   type ActionName,
