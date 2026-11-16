@@ -3,22 +3,29 @@ import type { RenderContext } from 'dmg-ui';
 import {
   type CallerSource,
   type RecipientCallers,
-  RenderFlags,
+  RenderContexts,
 } from 'dmg-ui/server';
-import type { DialogPlace, RenderContexts } from './dialog.types';
+import type { ConversationContexts } from '../conversation/conversation.types';
+import type { DialogPlace } from './dialog.types';
 import { DIALOG_CHANNEL } from './dialog-channel.const';
 
 /**
  * Личность диалога: `uuid` → `CallerSource` сессии сервера и контекст
- * рендера (место личности и признаки вызывающего). `uuid` уже
- * доказан транспортом: здесь проверки личности нет.
+ * рендера через `RenderContexts` ядра (место — константа канала, признаки —
+ * вызывающего). `uuid` уже доказан транспортом: здесь проверки личности нет.
  */
-export class DialogIdentity<U extends Identified> implements RenderContexts {
+export class DialogIdentity<U extends Identified>
+  implements ConversationContexts
+{
+  private readonly contexts: RenderContexts<U>;
+
   constructor(
     private readonly uuid: string,
     private readonly callers: RecipientCallers<U>,
-    private readonly place: DialogPlace,
-  ) {}
+    place: DialogPlace,
+  ) {
+    this.contexts = new RenderContexts(callers, { place: async () => place });
+  }
 
   source(): CallerSource<U> {
     return {
@@ -28,20 +35,8 @@ export class DialogIdentity<U extends Identified> implements RenderContexts {
     };
   }
 
-  /**
-   * Контекст рендера на сигнал. Вызывающий не разрешился — признаков нет:
-   * вызовы UC той же личности сервер всё равно отклонит.
-   */
-  async context(trace: Trace): Promise<RenderContext> {
-    const caller = await this.callers.resolve(this.uuid, trace);
-    const flags = caller.ok
-      ? RenderFlags.of(caller.value)
-      : { delegate: false, readOnly: false };
-    return {
-      locale: this.place.locale,
-      timeZone: this.place.timeZone,
-      delegate: flags.delegate,
-      readOnly: flags.readOnly,
-    };
+  /** Контекст рендера на сигнал; вызывающий не разрешился — признаков нет. */
+  context(trace: Trace): Promise<RenderContext> {
+    return this.contexts.of(this.uuid, trace);
   }
 }

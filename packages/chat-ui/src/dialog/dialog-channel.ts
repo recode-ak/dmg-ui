@@ -15,7 +15,8 @@ import { DialogTraces } from './dialog-traces';
 
 /**
  * Учебный диалоговый канал одного приложения UI: сервер одного процесса,
- * один живой экран на личность, вход действия по шагам. Знает
+ * диалог личности — фасад над беседой (один живой экран, вход действия по
+ * шагам). Знает
  * только публичные входы `dmg-ui`, `dmg-ui/server`, `dmg-ui/graph` и
  * `dmg-core` — так доказывает, что каналу хватает контракта ядра.
  *
@@ -81,6 +82,7 @@ export class DialogChannel<U extends Identified> {
       identity,
       traces: this.traces,
       replies: this.replies,
+      person: uuid,
     });
     this.dialogs.set(uuid, dialog);
     return dialog;

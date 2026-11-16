@@ -231,13 +231,13 @@ test('сторис на диалоговом канале: задачи A, по�
     .filter((r) => r.caller.subjectId === B)
     .map((r) => `${r.trace.cause.kind}:${r.trace.correlationId}`);
   const [complete] = records('completeTask');
-  // Ровно: открытие «Назначенных мне» (r-5 — пятый запрос сюжета: B start,
-  // A start, create, start после выхода, B assigned), перечитывание по
+  // Ровно: открытие «Назначенных мне» (r-4 — четвёртый запрос сюжета: B start,
+  // A start, create и start после выхода, B assigned), перечитывание по
   // назначению и чтение уведомления «назначена» — цепочка назначения A,
   // чтение уведомления «выполнено» — цепочка выполнения A.
   expect(readsB.toSorted()).toEqual(
     [
-      'request:r-5',
+      'request:r-4',
       `event:${assign?.trace.correlationId}`,
       `event:${assign?.trace.correlationId}`,
       `event:${complete?.trace.correlationId}`,

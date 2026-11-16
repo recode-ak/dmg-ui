@@ -22,7 +22,7 @@ export class DialogDelivery implements NotificationDelivery {
     ].join(' ');
     if (this.seen.has(key)) return;
     // Ключ — после доставки: бросок не должен отсеять повтор уведомления.
-    this.dialogs(notification.recipient).notify(notification);
+    await this.dialogs(notification.recipient).notify(notification);
     this.seen.add(key);
   }
 }
