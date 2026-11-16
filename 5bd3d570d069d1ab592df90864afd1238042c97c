@@ -1,0 +1,1 @@
+Срез Б Ф6 dmg-ui-core: testing/page/{graph,client}, PAGE_CHANNEL dmg-ui-pages; PageRouteDef, PageGraphProvider, PG-01/PG-02; PageViews, PageRenderer (+14 снимков); testing/example/pages (ExamplePagesAppDef, маршруты, ExamplePagesArch); зоны сканера client/wire/server/graph/root/pages. check: 688 pass.
