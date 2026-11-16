@@ -61,7 +61,7 @@
 - **Погашает:** `web-ui`.
 
 ### DEBT-UI-10: предел `RefTable` и срок жизни отсева `eventId` в учебных каналах
-- **Место:** `packages/core/testing/dialog/ref-table.ts` (`RefTable`), `packages/core/testing/dialog/dialog-delivery.ts` и `packages/core/testing/page/client/page-inbox.ts` (множество `seen`).
+- **Место:** `packages/chat-ui/src/dialog/ref-table.ts` (`RefTable`), `packages/chat-ui/src/dialog/dialog-delivery.ts` и `packages/core/testing/page/client/page-inbox.ts` (множество `seen`).
 - **Суть:** таблица коротких ссылок диалога растёт без предела и держит закрытые экземпляры; множества отсева повторной доставки по `eventId` тоже без предела и срока жизни. В долгом диалоге и при потоке уведомлений память процесса растёт. Политику отсева ядро отдаёт каналу (D-UI-24).
 - **Погашает:** `tg-bot`.
 
@@ -76,9 +76,9 @@
 - **Триггер:** второй набор UI в приложении.
 
 ### DEBT-UI-13: `task-lines.ts` дублируется в двух привязках примера
-- **Место:** `packages/core/testing/example/dialog/task-lines.ts`, `packages/core/testing/example/pages/task-lines.ts` — класс `TaskLines`.
-- **Суть:** строки задач в теле реплики и в теле страницы строятся одной и той же логикой; общий помощник не вынесен, потому что привязки примера к каналам друг друга не знают (`CoreImportScanner`).
-- **Погашает:** вынос помощника в `testing/example/` (с разрешением этого пути в зоне привязок примера в `CoreImportScanner`).
+- **Место:** `packages/chat-ui/testing/example/task-lines.ts`, `packages/core/testing/example/pages/task-lines.ts` — класс `TaskLines`.
+- **Суть:** строки задач в теле реплики и в теле страницы строятся одной и той же логикой; общий помощник не вынесен, потому что привязки примера к каналам друг друга не знают: они в разных пакетах, а соседа импортируют только по имени входа (`PackageDirections`, `CoreImportScanner`).
+- **Погашает:** вынос помощника во вход, доступный обеим привязкам (с разрешением этого входа в зонах привязок в `CoreImportScanner`).
 
 ### DEBT-UI-14: лишний тест (TST-08) в опоре на `dmg-core`
 - **Место:** `packages/core/testing/dmg-core-example.test.ts:82-102` — проверки `visible` у шести UC модуля todo и `getTaskAssignee`.

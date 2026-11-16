@@ -1,6 +1,6 @@
 # Пакет канала — гайд
 
-**Назначение:** что должен дать пакет канала (мессенджер, страница, консоль), как собрать его поверх ядра `dmg-ui`, какие политики выбрать по исходам, как встроиться в граф и где проходит граница безопасности. Образцы — учебные каналы в `dmg-ui/testing`: диалоговый [chat-ui/src/dialog/](../../packages/chat-ui/src/dialog/dialog.ts) и страничный [testing/page/](../../packages/core/testing/page/server/page-host.ts). Объявление экранов — [story-screen-notification.md](./story-screen-notification.md).
+**Назначение:** что должен дать пакет канала (мессенджер, страница, консоль), как собрать его поверх ядра `dmg-ui`, какие политики выбрать по исходам, как встроиться в граф и где проходит граница безопасности. Образцы — учебные каналы: диалоговый, вход `dmg-ui/chat-ui` ([packages/chat-ui/src/dialog/](../../packages/chat-ui/src/dialog/dialog.ts)) и страничный, вход `dmg-ui/testing` ([testing/page/](../../packages/core/testing/page/server/page-host.ts)). Объявление экранов — [story-screen-notification.md](./story-screen-notification.md).
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## 3. Сборка
 
-Все импорты — из публичных входов: `dmg-ui`, `dmg-ui/server`, `dmg-ui/graph`.
+Все импорты — из публичных входов: `dmg-ui`, `dmg-ui/server`, `dmg-ui/graph`. Пакет канала лежит в `packages/<имя>/` и видит соседей только по имени входа; канал поверх `chat-ui` (как `tg-bot`) берёт общую модель диалога из `dmg-ui/chat-ui`. Помощники тестов ядра для тестов канала — из `dmg-ui/testing/fixtures`.
 
 1. **Код.** `CodeLoaders` (реестр загрузчиков набора) создаёт корень сборки; образец — `exampleCodes()`. Загрузчики другого набора — бросок при сборке.
 2. **Сервер.** Один на набор: `new UiServer({ set, dispatch, context, nodes? })`. `dispatch` — бэкенд вызова UC: `new ApiAppDispatch(api)` в одном процессе или `new ModuleApiDispatch([...apis])` для модулей вне процесса; `context` — `{ bus, logger }` приложения; `nodes` — узлы канала (`ChannelNode`: `id`, `uses`, `listens`).
@@ -70,7 +70,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 2. **Свой вид узла** — точка входа канала. `PageRouteDef` — вид Def `pageRoute` (путь и имя входа приложения), узел под приложением, ребро `opens` к экрану входа. Достижимость экранов ядро считает от входов (UI-07), поэтому вход должен быть объявлен в `entries` приложения.
 3. **Свои правила — свой префикс** (ARC-13): префикс не из префиксов пакета `dmg-core` и не `UI`. У страничного канала — `PG` (PG-01 — маршрут ведёт на объявленный вход, PG-02 — у входа есть маршрут; [rules.md](../reference/rules.md)). Правило читает граф запросами (`outgoing`, `children`), не ветвится по виду Def.
 4. **Вызов UC из узла канала** (сигнал канала, не действие): узел объявляет `uses` и `listens` как `ChannelNode`, а ребро `invokes` ставит канал. Правило UI-10 защищает такие узлы, если у них есть ребро `refreshedBy` или `notifiedBy` к событию: граф ядра узлов канала не строит, и это ребро тоже ставит канал. Такие узлы не вызывают command UC по событию.
-5. **Вход графа.** `ArchApp` собирает `providers: [new UiGraphProvider({ set, apps }), new <Канал>GraphProvider(...)]` поверх доменного приложения; образцы — `ExampleDialogArch`, `ExamplePagesArch`. Имя поставщика `dmg-ui` уникально в графе: один `UiGraphProvider` на граф, два набора не поддержаны (DEBT-UI-12). Поставщик страниц ограничен одним приложением UI (DEBT-UI-6).
+5. **Вход графа.** `ArchApp` собирает `providers: [new UiGraphProvider({ set, apps }), new <Канал>GraphProvider(...)]` поверх доменного приложения; образцы — `ExampleDialogArch` (`dmg-ui/chat-ui/testing`), `ExamplePagesArch` (`dmg-ui/testing`). Имя поставщика `dmg-ui` уникально в графе: один `UiGraphProvider` на граф, два набора не поддержаны (DEBT-UI-12). Поставщик страниц ограничен одним приложением UI (DEBT-UI-6).
 
 ## 6. Граница JSON и провод
 

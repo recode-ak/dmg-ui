@@ -2,7 +2,7 @@
 
 Ядро UI на манифестах поверх `dmg-core` для TypeScript и Bun. Интерфейс описывается манифестами: сторис (кто и зачем), экран (что человек видит и делает), уведомление (что система сообщает сама). Из них ядро выводит адреса, исполнитель экранов, серверную часть, граф и проверки. Ядро о каналах не знает: мессенджер, веб-страница и консоль — отдельные пакеты каналов, а экраны и их код остаются общими.
 
-Документация на русском. Образец всех артефактов — учебный набор UI [`packages/core/testing/example`](packages/core/testing/example/example-ui.set.ts) и два учебных канала, диалоговый и страничный.
+Документация на русском. Образец всех артефактов — учебный набор UI [`packages/core/testing/example`](packages/core/testing/example/example-ui.set.ts) и два учебных канала: диалоговый (пакет `chat-ui`) и страничный.
 
 ## Кому что даёт
 
@@ -18,7 +18,7 @@
 | Слой | Что это | Знает |
 |---|---|---|
 | ядро `dmg-ui` | способ описать приложение UI и его правила: манифесты, исполнитель, граф, проверки | `dmg-core`; о каналах не знает |
-| пакет канала | мессенджер, веб-страница, консоль | ядро и модель своего канала |
+| пакет канала | мессенджер, веб-страница, консоль; в репо — `chat-ui` (общая модель диалога) и `tg-bot` (канал Telegram, пока пустой каркас) | ядро; `tg-bot` — ещё и `chat-ui` |
 | проект | манифесты и код сторис, экранов, представлений; библиотека транспорта | ядро, пакеты каналов, домен |
 
 Шесть видов Def: набор UI (`UiSetDef`), приложение UI (`UiAppDef`), UI-модуль (`UiModuleDef`), сторис (`StoryDef`), экран (`ScreenDef`), уведомление (`NotificationDef`). Манифест статичен, код экрана лежит отдельно и грузится лениво. Экран читает query UC, действие вызывает command UC и возвращает переход; адрес экрана от канала не зависит. Подробно — [гайд по сторис, экрану и уведомлению](docs/guides/story-screen-notification.md); причины решений — [decisions.md](docs/decisions.md).
@@ -44,17 +44,21 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui` | манифесты (`UiSetDef`, `UiAppDef`, `UiModuleDef`, `StoryDef`, `ScreenDef`, `NotificationDef`), адрес (`Address`, `AddressCodec`, `UiIds`), код экрана и уведомления (`ScreenCode`, `NotificationCode`, `CodeLoaders`), исполнитель (`ScreenRuntime`, `ScreenPreview`), порты и типы вида | `dmg-core/app` и `dmg-core/graph`: работает и в браузере |
 | `dmg-ui/graph` | поставщик графа `UiGraphProvider`, виды узлов и рёбер (`UI_KINDS`, `UI_NODE_KINDS`, `UI_EDGE_KINDS`), префикс правил `UI_RULE_PREFIX`, типы свойств узлов | исполнитель и код экрана |
 | `dmg-ui/server` | `UiServer` и `UiSession`, уведомитель `UiNotifier`, привязки к `ApiApp` и `ModuleApi` (`ApiAppDispatch`, `ModuleApiDispatch`), `RenderFlags`, типы портов канала (`CallerSource`, `RecipientCallers`, `NotificationDelivery`) | граф ядра |
-| `dmg-ui/testing` | учебный набор UI и его код (`ExampleUiSetDef`, `exampleCodes`), диалоговый канал (`DialogChannel`), страничный канал (`PageClient`, `PageHost`, `PageWire`), помощник примеров `ExamplePreview`, наблюдатель `MemoryUiObserver` | — (берёт `dmg-core/testing` и `dmg-core/testing/example`, ставится вместе с `dmg-core`) |
+| `dmg-ui/testing` | учебный набор UI и его код (`ExampleUiSetDef`, `exampleCodes`), страничный канал (`PageClient`, `PageHost`, `PageWire`), помощник примеров `ExamplePreview`, наблюдатель `MemoryUiObserver` | — (берёт `dmg-core/testing` и `dmg-core/testing/example`, ставится вместе с `dmg-core`) |
+| `dmg-ui/testing/fixtures` | ровно шесть помощников тестов ядра для тестов пакетов каналов: `T0`, `oplogRecords`, `RuntimeKit`, `testRenderContext`, `StubViewProvider`, `ArchReport` | — |
+| `dmg-ui/chat-ui` | диалоговый канал: `DialogChannel`, `DialogRenderer`, `DialogViews`, `ScreenPresenter`, `NotificationPresenter`, поставщик графа `DialogGraphProvider`, `DIALOG_CHANNEL` | слова конкретного мессенджера, граф ядра, тестовые входы |
+| `dmg-ui/chat-ui/testing` | привязка учебного примера к диалоговому каналу: `ExampleDialogAppDef`, `ExampleDialogArch`, `exampleDialogViews` | — |
+| `dmg-ui/tg-bot` | пустой каркас пакета канала Telegram; имя `dmg-ui/tg-bot/testing` зарезервировано | — |
 
-Полный список имён — в файлах входов; причины деления на четыре входа — [D-UI-4](docs/decisions.md).
+Полный список имён — в файлах входов; причины деления на входы — [D-UI-4](docs/decisions.md) и [D-UI-34](docs/decisions.md).
 
 ## Образец
 
 - [`packages/core/testing/example/`](packages/core/testing/example/example-ui.set.ts) — набор UI поверх учебного приложения `dmg-core`: экраны, сторис, уведомления, код, привязки к каналам.
-- [`packages/chat-ui/src/dialog/`](packages/chat-ui/src/dialog/dialog.ts) — диалоговый канал: один живой экран, ответ на каждое действие.
+- [`packages/chat-ui/src/dialog/`](packages/chat-ui/src/dialog/dialog.ts) — диалоговый канал (вход `dmg-ui/chat-ui`): один живой экран, ответ на каждое действие; привязка примера — `packages/chat-ui/testing/`.
 - [`packages/core/testing/page/`](packages/core/testing/page/server/page-host.ts) — страничный канал: несколько областей, между клиентом и сервером только JSON.
 
-Оба канала проводят одну и ту же сторис при общем коде экранов; так проверяется нейтральность ядра ([D-UI-31](docs/decisions.md)).
+Оба канала проводят одну и ту же сторис при общем коде экранов; так проверяется нейтральность ядра ([D-UI-31](docs/decisions.md)). Сквозная проверка «одна сторис — два канала» лежит на уровне монорепо, в [`acceptance/`](acceptance/channels-story.test.ts).
 
 ## Документы
 
@@ -71,14 +75,14 @@ bun add valibot @valibot/to-json-schema \
 
 ## Разработка пакета
 
-Репо — монорепо с одним устанавливаемым пакетом `dmg-ui`: код в `packages/core` (`src/` — ядро, `testing/` — вход `dmg-ui/testing`), проверки разработчика пакета — в `checks/`.
+Репо — монорепо с одним устанавливаемым пакетом `dmg-ui`: код в `packages/core` (`src/` — ядро, `testing/` — входы `dmg-ui/testing` и `dmg-ui/testing/fixtures`), `packages/chat-ui` и `packages/tg-bot` (пакеты каналов), приёмочные тесты поверх нескольких пакетов — в `acceptance/`, проверки разработчика пакета — в `checks/`. Направление импортов: ядро ← `chat-ui` ← `tg-bot`, только по имени входа ([D-UI-34](docs/decisions.md)).
 
 ```sh
 bun install
 bun run check
 ```
 
-`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.1.0`), импортирует четыре входа и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
+`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.1.0`), импортирует восемь входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
 ## Статус
 

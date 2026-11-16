@@ -1,6 +1,6 @@
 # Сторис, экран, уведомление — гайд
 
-**Назначение:** как автор UI объявляет сторис, экран и уведомление манифестами, пишет код экрана и как всё это исполняется. Пример — учебный набор [testing/example/todo/](../../packages/core/testing/example/todo/task-card.screen.ts) (импортируется из `dmg-ui/testing`). Пакет канала — в [channel-package.md](./channel-package.md).
+**Назначение:** как автор UI объявляет сторис, экран и уведомление манифестами, пишет код экрана и как всё это исполняется. Пример — учебный набор [testing/example/todo/](../../packages/core/testing/example/todo/task-card.screen.ts) (импортируется из `dmg-ui/testing`; привязка к диалоговому каналу — `dmg-ui/chat-ui/testing`). Пакет канала — в [channel-package.md](./channel-package.md).
 
 ---
 
@@ -120,7 +120,7 @@
 
 ## 9. Как тестировать
 
-- Состав и связи — `arch:check` и граф (`ExampleDialogArch`, `ExamplePagesArch` из `dmg-ui/testing` — образец сборки `ArchApp`); отдельные тесты манифестов не нужны (TST-09).
+- Состав и связи — `arch:check` и граф (`ExampleDialogArch` из `dmg-ui/chat-ui/testing`, `ExamplePagesArch` из `dmg-ui/testing` — образец сборки `ArchApp`); отдельные тесты манифестов не нужны (TST-09).
 - Код экрана — тестом через `ScreenRuntime` с `MemoryUiObserver` из `dmg-ui/testing`: открыть, выполнить действие, проверить исход и записи (`kinds()`).
 - Примеры — снимками: `ExamplePreview` из `dmg-ui/testing` рендерит пример через представление канала.
 - Тесты изолированы и короткие (TST-04), проверяют код экрана, а не платформу или схемы (TST-09).
