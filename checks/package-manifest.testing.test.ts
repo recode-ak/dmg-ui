@@ -43,6 +43,29 @@ describe('вход dmg-ui/testing', () => {
     );
   });
 
+  it('страничный канал и привязка примера к нему', async () => {
+    expect(await keys()).toEqual(
+      expect.arrayContaining([
+        'PAGE_CHANNEL',
+        'PageWire',
+        'PageClient',
+        'PageHost',
+        'PageViews',
+        'PagePresenter',
+        'PageNotePresenter',
+        'PageRenderer',
+        'PageGraphProvider',
+        'PageRouteDef',
+        'ClientMessage',
+        'ServerMessage',
+        'ExamplePagesAppDef',
+        'examplePageViews',
+        'examplePageRoutes',
+        'ExamplePagesArch',
+      ]),
+    );
+  });
+
   it('заглушки портов, сцены правил и заглушки сервера не экспортируются', async () => {
     const exported = await keys();
 
@@ -59,6 +82,10 @@ describe('вход dmg-ui/testing', () => {
       'StubCallerSource',
       'StubRecipientCallers',
       'StubDelivery',
+      'WirePorts',
+      'PageConnection',
+      'PageRegions',
+      'PageForms',
     ]) {
       expect(exported).not.toContain(internal);
     }
