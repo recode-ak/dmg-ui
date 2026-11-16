@@ -9,33 +9,33 @@ import type {
 import * as v from 'valibot';
 import { ClientMessage } from '../wire/page-messages';
 import type { CallMessage } from '../wire/page-messages.types';
+import { MAX_CLIENT_TEXT } from '../wire/page-wire.const';
 import type { ClientEnd } from '../wire/page-wire.types';
-import type { PortMessage } from './page-client.types';
+import type { PendingCall, PortMessage } from './page-client.types';
 
 /**
  * Порты исполнителя экранов поверх клиентского конца провода: `call` —
- * сообщение `call` и ожидание `result` с тем же `id`; `watch` — сообщение
- * `watch` и сигналы по `watchId`. Отписка синхронная, как требует
- * исполнитель; подписка уходит раньше `call` загрузки — провод сохраняет
- * порядок (расхождение 4 брифа Ф6).
+ * сообщение `call` и ожидание `result` (или `refused`) с тем же `id`;
+ * `watch` — сообщение `watch` и сигналы по `watchId`. Обрыв провода
+ * отказывает все ожидающие вызовы. Подписка уходит раньше `call` загрузки —
+ * провод сохраняет порядок (расхождение 4 брифа Ф6).
  */
 export class WirePorts implements UcPort, RefreshPort {
   private readonly listeners = new Map<
     string,
     (signal: RefreshSignal) => void
   >();
-  private readonly pending = new Map<
-    string,
-    (result: SerializedResult) => void
-  >();
+  private readonly pending = new Map<string, PendingCall>();
   private next = 0;
 
-  constructor(private readonly end: ClientEnd) {}
+  constructor(private readonly end: ClientEnd) {
+    end.onBreak((error) => this.fail(error));
+  }
 
   /**
-   * Вызов не по схеме провода (имя длиннее предела, `requestId` пуст) сервер
-   * отказал бы `refused` без `id` — ответ не пришёл бы никогда. Это дефект
-   * сборки клиента: отказ промиса, исполнитель превращает его в отказ экрана.
+   * Вызов не по схеме провода или длиннее предела строки — дефект сборки
+   * клиента: отказ промиса до отправки (длинному сервер не ответил бы по
+   * `id`); исполнитель превращает его в отказ экрана.
    */
   call(call: UcCall): Promise<SerializedResult> {
     const id = this.id('c');
@@ -45,8 +45,13 @@ export class WirePorts implements UcPort, RefreshPort {
         new Error(`WirePorts: вызов ${call.uc} не по схеме провода`),
       );
     }
-    return new Promise((resolve) => {
-      this.pending.set(id, resolve);
+    if (JSON.stringify(message).length > MAX_CLIENT_TEXT) {
+      return Promise.reject(
+        new Error(`WirePorts: вызов ${call.uc} длиннее предела провода`),
+      );
+    }
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
       this.end.send(message);
     });
   }
@@ -69,12 +74,17 @@ export class WirePorts implements UcPort, RefreshPort {
   /** Сообщение сервера портам: неизвестный `id` или `watchId` — молча. */
   receive(message: PortMessage): void {
     switch (message.kind) {
-      case 'result': {
-        const resolve = this.pending.get(message.id);
-        this.pending.delete(message.id);
-        resolve?.(message.result);
+      case 'result':
+        this.take(message.id)?.resolve(message.result);
         return;
-      }
+      case 'refused':
+        // Без `id` сопоставить не с чем: клиент шлёт только по схеме.
+        if (message.id !== undefined) {
+          this.take(message.id)?.reject(
+            new Error(`WirePorts: сервер отклонил вызов (${message.reason})`),
+          );
+        }
+        return;
       case 'signal':
         this.listeners.get(message.watch)?.(message.signal);
         return;
@@ -85,6 +95,20 @@ export class WirePorts implements UcPort, RefreshPort {
       default:
         WirePorts.unknown(message);
     }
+  }
+
+  /** Ожидающий вызов `id`, снятый с ожидания; неизвестный — `undefined`. */
+  private take(id: string): PendingCall | undefined {
+    const call = this.pending.get(id);
+    this.pending.delete(id);
+    return call;
+  }
+
+  /** Обрыв провода: ответов не будет — отказ всех ожидающих. */
+  private fail(error: Error): void {
+    const calls = [...this.pending.values()];
+    this.pending.clear();
+    for (const call of calls) call.reject(error);
   }
 
   private id(prefix: string): string {

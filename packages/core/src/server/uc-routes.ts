@@ -84,7 +84,8 @@ export class UcRoutes {
       if (module === undefined) {
         throw new Error(`UcRoutes: UC ${uc.name} узла ${id} вне приложения`);
       }
-      const byName = this.modules.get(module.name) ?? new Map();
+      const byName =
+        this.modules.get(module.name) ?? new Map<string, UcRoute>();
       const known = byName.get(uc.name);
       if (known !== undefined && known.uc !== uc) {
         throw new Error(

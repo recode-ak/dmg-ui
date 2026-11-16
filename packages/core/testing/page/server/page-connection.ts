@@ -1,26 +1,31 @@
-import type { Identified } from 'dmg-core';
+import { CoreErrors, ErrorDef, err, type Identified } from 'dmg-core';
 import * as v from 'valibot';
-import { ClientMessage } from '../wire/page-messages';
+import { CallEnvelope, ClientMessage } from '../wire/page-messages';
 import type {
   CallMessage,
-  ClientMessage as ClientMessageType,
   NotificationMessage,
   WatchMessage,
 } from '../wire/page-messages.types';
-import type { PageConnectionSpec, PageRecipient } from './page-server.types';
-
-/** Предел подписок одного соединения (Т-17). */
-const WATCH_LIMIT = 64;
+import { MAX_CLIENT_TEXT } from '../wire/page-wire.const';
+import { CALL_LIMIT, WATCH_LIMIT } from './page-server.const';
+import type {
+  PageConnectionSpec,
+  PageRecipient,
+  ParsedLine,
+} from './page-server.types';
 
 /**
  * Одно соединение страничного канала на сервере: строки клиента — внешний
- * вход. Мусор, неизвестный `kind`, лишнее поле — ответ `refused`, не бросок
- * (ERR-01); `call` — в сессию личности, `watch`/`unwatch` — подписки по
- * `watchId`. Лог — без данных клиента (ERR-07). Закрытие снимает подписки
- * и сессию.
+ * вход. Мусор и строка длиннее предела — `refused`, не бросок (ERR-01);
+ * `call` — в сессию личности (не больше `CALL_LIMIT` разом), `watch` —
+ * подписки по `watchId`. `warn` — без данных клиента (ERR-07); на мусор
+ * и предел вызовов — раз на соединение.
  */
 export class PageConnection<U extends Identified> implements PageRecipient {
   private readonly watches = new Map<string, () => void>();
+  /** Тексты `warn`, уже записанные этим соединением. */
+  private readonly warned = new Set<string>();
+  private calls = 0;
   private closed = false;
 
   constructor(private readonly spec: PageConnectionSpec<U>) {}
@@ -32,12 +37,17 @@ export class PageConnection<U extends Identified> implements PageRecipient {
    */
   async receive(raw: string): Promise<void> {
     if (this.closed) return;
-    const message = PageConnection.parse(raw);
-    if (message === undefined) {
-      this.spec.logger.warn(this.spec.source, 'сообщение клиента не по схеме');
-      this.spec.push({ kind: 'refused', reason: 'malformed' });
+    const parsed = PageConnection.parse(raw);
+    if ('refused' in parsed) {
+      this.warnOnce(
+        parsed.refused.reason === 'too-large'
+          ? 'строка клиента длиннее предела'
+          : 'сообщение клиента не по схеме',
+      );
+      this.spec.push(parsed.refused);
       return;
     }
+    const { message } = parsed;
     switch (message.kind) {
       case 'call':
         await this.call(message);
@@ -66,19 +76,33 @@ export class PageConnection<U extends Identified> implements PageRecipient {
     this.spec.session.close();
   }
 
-  /** Вызывающий и след — от сессии: из сообщения берётся только простая команда. */
+  /**
+   * Вызывающий и след — от сессии: из сообщения берётся только простая
+   * команда. Сверх предела одновременных — `SERVER_INTERNAL` без вызова.
+   */
   private async call({ id, call }: CallMessage): Promise<void> {
-    const result = await this.spec.session.call(call);
-    if (!this.closed) this.spec.push({ kind: 'result', id, result });
+    if (this.calls >= CALL_LIMIT) {
+      this.warnOnce('предел одновременных вызовов соединения');
+      const busy = ErrorDef.serialize(CoreErrors.SERVER_INTERNAL.make());
+      this.spec.push({ kind: 'result', id, result: err(busy) });
+      return;
+    }
+    this.calls += 1;
+    try {
+      const result = await this.spec.session.call(call);
+      if (!this.closed) this.spec.push({ kind: 'result', id, result });
+    } finally {
+      this.calls -= 1;
+    }
   }
 
   private watch({ watch, address }: WatchMessage): void {
     if (this.watches.has(watch)) {
-      this.refuseWatch(watch, 'повтор id подписки');
+      this.refuseWatch(watch, 'подписка не принята: повтор id');
       return;
     }
     if (this.watches.size >= WATCH_LIMIT) {
-      this.refuseWatch(watch, 'предел подписок соединения');
+      this.refuseWatch(watch, 'подписка не принята: предел соединения');
       return;
     }
     let off: () => void;
@@ -88,8 +112,8 @@ export class PageConnection<U extends Identified> implements PageRecipient {
         if (!this.closed) this.spec.push({ kind: 'signal', watch, signal });
       });
     } catch {
-      // Адрес клиента не декодируется: бросок ядра на внешнем входе (Т-9).
-      this.refuseWatch(watch, 'адрес подписки не декодируется');
+      // Бросок ядра на внешнем входе (Т-9): причина — не только адрес.
+      this.refuseWatch(watch, 'подписка отклонена');
       return;
     }
     this.watches.set(watch, off);
@@ -101,22 +125,41 @@ export class PageConnection<U extends Identified> implements PageRecipient {
     this.watches.delete(watch);
   }
 
-  /** Отказ подписки: в лог — только причина, без адреса и id клиента. */
-  private refuseWatch(watch: string, reason: string): void {
-    this.spec.logger.warn(this.spec.source, `подписка не принята: ${reason}`);
+  /** Отказ подписки: в лог — фиксированный текст, без адреса и id клиента. */
+  private refuseWatch(watch: string, text: string): void {
+    this.spec.logger.warn(this.spec.source, text);
     this.spec.push({ kind: 'watch-refused', watch });
   }
 
-  /** Строка клиента → сообщение по схеме; не JSON или не по схеме — `undefined`. */
-  private static parse(raw: string): ClientMessageType | undefined {
+  /** `warn` с фиксированным текстом — один раз на соединение. */
+  private warnOnce(text: string): void {
+    if (this.warned.has(text)) return;
+    this.warned.add(text);
+    this.spec.logger.warn(this.spec.source, text);
+  }
+
+  /**
+   * Строка клиента → сообщение по схеме. Длиннее предела — `too-large` без
+   * разбора; не по схеме — `malformed` с `id`, если разобрался конверт `call`.
+   */
+  private static parse(raw: string): ParsedLine {
+    if (raw.length > MAX_CLIENT_TEXT) {
+      return { refused: { kind: 'refused', reason: 'too-large' } };
+    }
     let json: unknown;
     try {
       json = JSON.parse(raw);
     } catch {
-      return undefined;
+      return { refused: { kind: 'refused', reason: 'malformed' } };
     }
     const parsed = v.safeParse(ClientMessage, json);
-    return parsed.success ? parsed.output : undefined;
+    if (parsed.success) return { message: parsed.output };
+    const envelope = v.safeParse(CallEnvelope, json);
+    return {
+      refused: envelope.success
+        ? { kind: 'refused', reason: 'malformed', id: envelope.output.id }
+        : { kind: 'refused', reason: 'malformed' },
+    };
   }
 
   /** Сообщение по схеме, которого не знает `switch`, — дефект канала, бросок (ERR-06). */

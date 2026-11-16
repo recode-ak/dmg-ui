@@ -65,13 +65,15 @@ export type NotificationMessage = {
   readonly eventId: string;
 };
 
-/** Почему сервер не принял сообщение клиента. */
-export type PageRefusal = 'malformed';
+/** Почему сервер не принял строку клиента: не по схеме или длиннее предела. */
+export type PageRefusal = 'malformed' | 'too-large';
 
-/** Сервер → клиент: сообщение клиента не по схеме; соединение живо. */
+/** Сервер → клиент: строка клиента не принята; соединение живо. */
 export type RefusedMessage = {
   readonly kind: 'refused';
   readonly reason: PageRefusal;
+  /** `id` вызова, если конверт `call` разобрался: клиент отказывает этот вызов. */
+  readonly id?: string;
 };
 
 /** Сообщение сервера. */

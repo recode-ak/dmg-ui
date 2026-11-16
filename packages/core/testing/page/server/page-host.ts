@@ -8,6 +8,7 @@ import type { ServerMessage } from '../wire/page-messages.types';
 import type { PageServerPort, ServerLink } from '../wire/page-wire.types';
 import { PageConnection } from './page-connection';
 import { PageDelivery } from './page-delivery';
+import { CONNECTION_LIMIT } from './page-server.const';
 import type { PageHostSpec, PagePlace } from './page-server.types';
 
 export type {
@@ -21,14 +22,10 @@ const DEFAULT_PLACE: PagePlace = { locale: 'ru-RU', timeZone: 'Asia/Oral' };
 
 /**
  * Серверная половина страничного канала: держит `UiServer`, экранов не
- * исполняет. Соединение — по токену: токен → `uuid` → сессия сервера →
- * `PageConnection` и `hello` с контекстом рендера (один раз на соединение,
- * Т-7). Уведомления `UiNotifier` отдаёт в `delivery`.
- *
- * Допущения учебного канала: токен живёт всё соединение — отзыв токена
- * открытое соединение не рвёт; признаки заместителя в `hello` — на момент
- * соединения (устаревшие влияют только на вид: команду всё равно сверяет
- * `dmg-core`).
+ * исполняет. Соединение — токен → `uuid` → сессия → `PageConnection` и
+ * `hello` с контекстом (Т-7); уведомления — в `delivery`. Допущения: отзыв
+ * токена открытое соединение не рвёт; признаки заместителя в `hello` — на
+ * момент соединения (команду всё равно сверяет `dmg-core`).
  */
 export class PageHost<U extends Identified> implements PageServerPort {
   readonly delivery = new PageDelivery();
@@ -42,7 +39,10 @@ export class PageHost<U extends Identified> implements PageServerPort {
     }
   }
 
-  /** Токен не по схеме или неизвестен — `refused`, клиенту ничего не отправлено. */
+  /**
+   * Токен не по схеме или неизвестен, у личности уже `CONNECTION_LIMIT`
+   * соединений — `refused`, клиенту ничего не отправлено.
+   */
   async connect(
     token: string,
     push: (message: ServerMessage) => void,
@@ -52,6 +52,10 @@ export class PageHost<U extends Identified> implements PageServerPort {
     if (uuid === undefined) return err('refused');
     const source = this.source(uuid);
     const context = await this.context(source);
+    // Проверка — после последнего `await`: до `attach` соединений не прибудет.
+    if (this.delivery.connections(uuid) >= CONNECTION_LIMIT) {
+      return err('refused');
+    }
     const connection = new PageConnection({
       session: this.spec.server.session(source),
       push,

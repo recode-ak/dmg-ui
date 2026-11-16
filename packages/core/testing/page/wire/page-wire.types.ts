@@ -25,11 +25,13 @@ export type PageServerPort = {
 
 /**
  * Клиентский конец провода — всё, что видит клиент о сервере: контекст из
- * `hello`, отправка, сообщения сервера (уже проверенные схемой) и закрытие.
+ * `hello`, отправка, сообщения сервера (уже проверенные схемой), обрыв
+ * (отброшенное сообщение сервера или закрытие) и закрытие.
  */
 export type ClientEnd = {
   readonly context: RenderContext;
   send(message: ClientMessage): void;
   onMessage(handler: (message: ServerMessage) => void): void;
+  onBreak(handler: (error: Error) => void): void;
   close(): void;
 };

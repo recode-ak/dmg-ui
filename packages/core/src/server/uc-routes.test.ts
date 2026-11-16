@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { AppDef, ModuleDef, UseCaseDef } from 'dmg-core';
+import { AppDef, ModuleDef, type SerializedResult, UseCaseDef } from 'dmg-core';
 import { ModuleApi } from 'dmg-core/app';
 import { AwaitingBus, MemoryLogger } from 'dmg-core/testing';
 import {
@@ -50,11 +50,8 @@ const call = (module: string, uc: string) => ({
   requestId: 'r-call',
 });
 
-/** Отказ вызова: код и payload `OPERATION_NOT_FOUND`. */
-const refusal = (res: { ok: boolean; error?: unknown }) =>
-  res.ok
-    ? undefined
-    : (res.error as { code: string; payload: Record<string, unknown> });
+/** Отказ вызова: код и payload ошибки; успех — `undefined`. */
+const refusal = (res: SerializedResult) => (res.ok ? undefined : res.error);
 
 /** Query-UC `name` своего модуля: тот же агрегат, что у `listTasks`. */
 const queryUc = (name: string) =>
@@ -199,23 +196,40 @@ describe('UcRoutes — маршрут UC по паре (module, uc)', () => {
     expect(transport.sent.map((s) => s.module)).toEqual(['todo', 'sibling']);
   });
 
-  test('два одноимённых UC в узле — бросок с именем UC', () => {
-    const twin = UseCaseDef.define({
-      name: 'listTasks',
-      label: 'Двойник',
-      description: 'Другой UC с тем же именем.',
-      type: 'query',
-      aggregate: ListTasksUcDef.aggregate,
-      callers: ['user'],
-      policy: ListTasksUcDef.policy,
-      input: v.object({}),
-      output: v.object({}),
-      errors: [],
+  test('два одноимённых UC одного модуля в узле — бросок с модулем и именем UC', () => {
+    const first = queryUc('listTasks');
+    const second = queryUc('listTasks');
+    const twins = ModuleDef.define({
+      name: 'twins',
+      label: 'Двойники',
+      description: 'Модуль с двумя UC одного имени.',
+      dependsOn: [],
+      aggregates: [ListTasksUcDef.aggregate],
+      useCases: [first, second],
+      reactions: [],
+      jobs: [],
     });
+    const logger = new MemoryLogger();
+    const build = () =>
+      new UiServer({
+        set: UiSetDef.define({
+          name: 'twinsUi',
+          label: 'UI с двойниками',
+          description: 'Набор UI с одноимёнными UC одного модуля.',
+          app: AppDef.define({
+            name: 'twins',
+            label: 'Приложение',
+            description: 'Приложение с одноимёнными UC одного модуля.',
+            modules: [TodoModuleDef, UsersModuleDef, twins],
+          }),
+          modules: [TodoUiModuleDef],
+        }),
+        dispatch: new ModuleApiDispatch([]),
+        context: { bus: new AwaitingBus(), logger },
+        nodes: [{ id: NODE, uses: [first, second], listens: [] }],
+      });
 
-    expect(() =>
-      setup([{ id: NODE, uses: [ListTasksUcDef, twin], listens: [] }]),
-    ).toThrow('listTasks');
+    expect(build).toThrow('в модуле twins два UC с именем listTasks');
   });
 
   test('узел канала с id экрана — бросок с id узла', () => {

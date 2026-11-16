@@ -6,14 +6,10 @@ import type { NotificationMessage } from '../wire/page-messages.types';
 import type { PageRecipient } from './page-server.types';
 
 /**
- * Доставка уведомлений страничным каналом: сообщение `notification` во все
- * открытые соединения получателя. Через провод не идут `trace` доставки и
- * `recipient` (получатель — само соединение); причина — только `eventId`
- * для отсева повтора на клиенте (Т-6).
- *
- * Допущение учебного канала: у получателя нет открытого соединения —
- * уведомление не доставлено и не копится; подключившийся позже его не
- * получит. Боевой канал решает это сам (очередь, push, письмо).
+ * Доставка уведомлений: сообщение `notification` во все открытые соединения
+ * получателя — без `trace` и `recipient`, причина — только `eventId` для
+ * отсева повтора (Т-6). Допущение: нет соединения — не доставлено и не
+ * копится; боевой канал решает это сам (очередь, push, письмо).
  */
 export class PageDelivery implements NotificationDelivery {
   private readonly recipients = new Map<string, Set<PageRecipient>>();
@@ -23,6 +19,11 @@ export class PageDelivery implements NotificationDelivery {
     const known = this.recipients.get(uuid);
     if (known === undefined) this.recipients.set(uuid, new Set([recipient]));
     else known.add(recipient);
+  }
+
+  /** Сколько открытых соединений у личности `uuid`. */
+  connections(uuid: string): number {
+    return this.recipients.get(uuid)?.size ?? 0;
   }
 
   /** Соединение закрыто: уведомлений больше не получает. */

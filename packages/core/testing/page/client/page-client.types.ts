@@ -1,3 +1,4 @@
+import type { SerializedResult } from 'dmg-core';
 import type {
   AddressJson,
   AnyUiAppDef,
@@ -8,6 +9,7 @@ import type {
   UiObserver,
 } from 'dmg-ui';
 import type {
+  RefusedMessage,
   ResultMessage,
   SignalMessage,
   WatchRefusedMessage,
@@ -100,4 +102,14 @@ export type PageSnapshot = {
 };
 
 /** Сообщения сервера, которые разбирают порты исполнителя. */
-export type PortMessage = ResultMessage | SignalMessage | WatchRefusedMessage;
+export type PortMessage =
+  | ResultMessage
+  | SignalMessage
+  | WatchRefusedMessage
+  | RefusedMessage;
+
+/** Вызов UC, ждущий ответа сервера. */
+export type PendingCall = {
+  readonly resolve: (result: SerializedResult) => void;
+  readonly reject: (error: Error) => void;
+};

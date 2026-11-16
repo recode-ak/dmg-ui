@@ -19,8 +19,11 @@ export class RouteEntryRule implements GraphRule {
           graph.outgoing(node.id, PAGE_EDGE_KINDS.opens).length === 0,
       )
       .map((node) => {
-        const { entry } = v.parse(PAGE_ROUTE_PROPS, node.props);
-        return `маршрут ${node.id}: вход ${entry} не объявлен приложением`;
+        // `check` не бросает (graph-extension §6): свойства не по схеме — строкой.
+        const props = v.safeParse(PAGE_ROUTE_PROPS, node.props);
+        return props.success
+          ? `маршрут ${node.id}: вход ${props.output.entry} не объявлен приложением`
+          : `маршрут ${node.id}: свойства узла не по схеме`;
       });
   }
 }

@@ -30,6 +30,7 @@ const end: ClientEnd = {
   },
   send: () => {},
   onMessage: () => {},
+  onBreak: () => {},
   close: () => {},
 };
 

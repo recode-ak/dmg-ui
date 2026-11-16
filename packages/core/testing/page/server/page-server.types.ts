@@ -7,7 +7,9 @@ import type {
   UiSession,
 } from 'dmg-ui/server';
 import type {
+  ClientMessage,
   NotificationMessage,
+  RefusedMessage,
   ServerMessage,
 } from '../wire/page-messages.types';
 
@@ -49,3 +51,8 @@ export type PageConnectionSpec<U extends Identified> = {
 export type PageRecipient = {
   notify(message: NotificationMessage): void;
 };
+
+/** Разбор строки клиента: сообщение по схеме или отказ ей. */
+export type ParsedLine =
+  | { readonly message: ClientMessage }
+  | { readonly refused: RefusedMessage };

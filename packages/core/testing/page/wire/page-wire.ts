@@ -6,30 +6,20 @@ import type {
   ClientMessage,
   ServerMessage as ServerMessageType,
 } from './page-messages.types';
+import { QUIET_TURNS } from './page-wire.const';
 import type { ClientEnd, PageServerPort, ServerLink } from './page-wire.types';
 
 /**
- * Сколько ходов микрозадач провод ждёт реакцию клиента на доставленное
- * сообщение. Реакция (сигнал → перечитывание → `call`) — цепочка микрозадач
- * без ввода-вывода: её не видно в промисах провода, но за этот запас она
- * успевает отправить следующее сообщение.
- */
-const QUIET_TURNS = 100;
-
-/**
- * Провод в памяти между половинами страничного канала — одно соединение.
- * Между концами ходят только строки JSON; журнал `messages` хранит их в
- * порядке отправки обеими сторонами. Доставка асинхронная, порядок в
- * каждую сторону сохраняется: строки клиента сервер начинает обрабатывать
- * в порядке отправки (на этом держится «подписка до загрузки», расхождение
- * 4 брифа Ф6), а обрабатывает — параллельно, как настоящий транспорт.
- *
- * Сообщение сервера, не прошедшее схему `ServerMessage`, клиенту не
- * доставляется: для клиента сервер — тоже внешний вход.
+ * Провод в памяти — одно соединение; между концами только строки JSON,
+ * журнал `messages` — в порядке отправки. Порядок в каждую сторону
+ * сохраняется: сервер начинает строки по порядку, обрабатывает параллельно.
+ * Сообщение сервера не по схеме клиенту не доставляется: это ошибка провода
+ * (`settled()` бросает) и обрыв для клиента — как и `close`.
  */
 export class PageWire {
   private readonly journal: string[] = [];
   private readonly handlers: ((message: ServerMessageType) => void)[] = [];
+  private readonly breaks: ((error: Error) => void)[] = [];
   /** Незавершённые доставки и обработки обеих сторон — для `settled()`. */
   private readonly running = new Set<Promise<void>>();
   private readonly errors: unknown[] = [];
@@ -75,6 +65,9 @@ export class PageWire {
       onMessage: (handler) => {
         this.handlers.push(handler);
       },
+      onBreak: (handler) => {
+        this.breaks.push(handler);
+      },
       close: () => this.close(link),
     });
   }
@@ -104,6 +97,7 @@ export class PageWire {
     if (this.closed) return;
     this.closed = true;
     this.toServer = this.later(this.toServer, () => link.close());
+    this.broken(new Error('PageWire: соединение закрыто'));
   }
 
   private fromServer(message: ServerMessageType): void {
@@ -127,8 +121,18 @@ export class PageWire {
   private deliver(text: string): void {
     if (this.closed) return;
     const message = PageWire.parse(text);
-    if (message === undefined) return;
+    if (message === undefined) {
+      const error = new Error('PageWire: сообщение сервера не по схеме');
+      this.errors.push(error);
+      this.broken(error);
+      return;
+    }
     for (const handler of [...this.handlers]) handler(message);
+  }
+
+  /** Обрыв для клиента: ожидающие ответа узнают о нём сразу. */
+  private broken(error: Error): void {
+    for (const handler of [...this.breaks]) handler(error);
   }
 
   /**

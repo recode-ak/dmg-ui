@@ -37,6 +37,13 @@ export class UcCalls {
         throw new CodeDefect(
           `след прогона Job ${cause.job} — не причина вызова UC`,
         );
+      default:
+        return UcCalls.unknown(cause);
     }
+  }
+
+  /** Причина, которой нет в `switch` (новая в `dmg-core`), — дефект, бросок (ERR-06). */
+  private static unknown(cause: never): never {
+    throw new CodeDefect(`неизвестная причина следа ${JSON.stringify(cause)}`);
   }
 }

@@ -61,8 +61,9 @@ describe('PG-02: у входа приложения есть маршрут', ()
     const lines = report.rule('PG-02');
 
     expect(report.code).toBe(1);
-    expect(lines).toHaveLength(1);
-    expect(lines[0]).toContain('exampleUi/todo/assignedTasks');
+    expect(lines).toEqual([
+      'PG-02: вход приложения examplePages: экран exampleUi/todo/assignedTasks не открыт ни одним маршрутом',
+    ]);
     expect(report.rule('PG-01')).toEqual([]);
   });
 

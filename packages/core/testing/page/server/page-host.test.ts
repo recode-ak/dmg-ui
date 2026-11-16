@@ -21,8 +21,10 @@ import { ExampleUiSetDef } from '../../example';
 import { ExamplePagesAppDef } from '../../example/pages';
 import { exampleUser, oplogRecords, T0 } from '../../ui-server-fixture';
 import type { ServerMessage as ServerMsg } from '../wire/page-messages.types';
+import { MAX_CLIENT_TEXT } from '../wire/page-wire.const';
 import type { ServerLink } from '../wire/page-wire.types';
 import { PageHost } from './page-host';
+import { CALL_LIMIT, CONNECTION_LIMIT } from './page-server.const';
 
 // Серверная половина страничного канала на настоящем `UiServer`: соединение
 // по токену, `hello` с контекстом рендера, `call`/`watch`/`unwatch`, мусор —
@@ -229,41 +231,61 @@ describe('PageConnection — call', () => {
 
 describe('PageConnection — мусор на входе (ERR-01)', () => {
   const valid = callOf('c1', 'listTasks', {}, 'r-1');
-  const garbage: [string, string][] = [
-    ['не JSON', '{не json'],
-    ['число', '42'],
-    ['null', 'null'],
-    ['массив', '[]'],
-    ['неизвестный kind', JSON.stringify({ kind: 'ping' })],
-    ['лишнее поле сообщения', JSON.stringify({ ...valid, uuid: B })],
-    [
-      'след внутри вызова',
-      JSON.stringify({ ...valid, call: { ...valid.call, trace: {} } }),
-    ],
-    [
-      'вызывающий внутри вызова',
-      JSON.stringify({ ...valid, call: { ...valid.call, caller: B } }),
-    ],
-    [
-      'id длиннее 256 символов',
-      JSON.stringify({ ...valid, id: 'x'.repeat(257) }),
-    ],
+  const garbage: { name: string; raw: string; id?: string }[] = [
+    { name: 'не JSON', raw: '{не json' },
+    { name: 'число', raw: '42' },
+    { name: 'null', raw: 'null' },
+    { name: 'массив', raw: '[]' },
+    { name: 'неизвестный kind', raw: JSON.stringify({ kind: 'ping' }) },
+    {
+      name: 'лишнее поле сообщения',
+      raw: JSON.stringify({ ...valid, uuid: B }),
+      id: 'c1',
+    },
+    {
+      name: 'след внутри вызова',
+      raw: JSON.stringify({ ...valid, call: { ...valid.call, trace: {} } }),
+      id: 'c1',
+    },
+    {
+      name: 'вызывающий внутри вызова',
+      raw: JSON.stringify({ ...valid, call: { ...valid.call, caller: B } }),
+      id: 'c1',
+    },
+    {
+      name: 'id длиннее 256 символов',
+      raw: JSON.stringify({ ...valid, id: 'x'.repeat(257) }),
+    },
   ];
 
   test.each(garbage)(
-    '%s — один refused, без броска, UC не вызван',
-    async (_n, raw) => {
+    '$name — один refused (с id, если конверт call разобрался), без броска, UC не вызван',
+    async ({ raw, id }) => {
       const w = world();
       const { pushed, link } = await open(w, 'tA');
 
       await link.receive(raw);
 
       expect(pushed.messages.slice(1)).toStrictEqual([
-        { kind: 'refused', reason: expect.any(String) },
+        {
+          kind: 'refused',
+          reason: 'malformed',
+          ...(id === undefined ? {} : { id }),
+        },
       ]);
       expect(records('listTasks')).toEqual([]);
     },
   );
+
+  test('мусор подряд — refused на каждый, warn один раз на соединение', async () => {
+    const w = world();
+    const { pushed, link } = await open(w, 'tA');
+
+    for (const raw of ['{не json', '42', 'null']) await link.receive(raw);
+
+    expect(pushed.of('refused')).toHaveLength(3);
+    expect(w.logger.records.filter((r) => r.level === 'warn')).toHaveLength(1);
+  });
 
   test('после мусора соединение работает', async () => {
     const w = world();
@@ -275,6 +297,95 @@ describe('PageConnection — мусор на входе (ERR-01)', () => {
     expect(pushed.of('result')).toMatchObject([
       { id: 'c1', result: { ok: true } },
     ]);
+  });
+});
+
+describe('PageConnection — пределы соединения', () => {
+  const valid = callOf('c1', 'listTasks', {}, 'r-1');
+
+  test('строка длиннее предела — refused too-large до разбора, UC не вызван', async () => {
+    const w = world();
+    const { pushed, link } = await open(w, 'tA');
+
+    await link.receive(JSON.stringify(valid).padEnd(MAX_CLIENT_TEXT + 1, ' '));
+
+    expect(pushed.messages.slice(1)).toStrictEqual([
+      { kind: 'refused', reason: 'too-large' },
+    ]);
+    expect(records('listTasks')).toEqual([]);
+  });
+
+  test('строка ровно на пределе — разбирается и исполняется', async () => {
+    const w = world();
+    const { pushed, link } = await open(w, 'tA');
+
+    await link.receive(JSON.stringify(valid).padEnd(MAX_CLIENT_TEXT, ' '));
+
+    expect(pushed.of('result')).toMatchObject([
+      { id: 'c1', result: { ok: true } },
+    ]);
+  });
+
+  test(`одновременных call — ${CALL_LIMIT}: следующий — result с SERVER_INTERNAL и один warn, остальные исполнены`, async () => {
+    const w = world();
+    const { pushed, link } = await open(w, 'tA');
+    const ids = Array.from({ length: CALL_LIMIT + 2 }, (_, n) => `c${n + 1}`);
+
+    await Promise.all(
+      ids.map((id) => send(link, callOf(id, 'listTasks', {}, `r-${id}`))),
+    );
+
+    const results = pushed.of('result');
+    const refused = results.filter((m) => m.kind === 'result' && !m.result.ok);
+    expect(results).toHaveLength(CALL_LIMIT + 2);
+    expect(refused).toMatchObject([
+      {
+        id: `c${CALL_LIMIT + 1}`,
+        result: { error: { code: 'SERVER_INTERNAL' } },
+      },
+      {
+        id: `c${CALL_LIMIT + 2}`,
+        result: { error: { code: 'SERVER_INTERNAL' } },
+      },
+    ]);
+    expect(records('listTasks')).toHaveLength(CALL_LIMIT);
+    expect(w.logger.records.filter((r) => r.level === 'warn')).toHaveLength(1);
+  });
+
+  test('завершённые call освобождают место под новые', async () => {
+    const w = world();
+    const { pushed, link } = await open(w, 'tA');
+    const ids = Array.from({ length: CALL_LIMIT }, (_, n) => `c${n + 1}`);
+    await Promise.all(
+      ids.map((id) => send(link, callOf(id, 'listTasks', {}, `r-${id}`))),
+    );
+
+    await send(link, callOf('after', 'listTasks', {}, 'r-after'));
+
+    expect(pushed.of('result')).toContainEqual({
+      kind: 'result',
+      id: 'after',
+      result: { ok: true, value: [] },
+    });
+  });
+
+  test(`соединений одной личности — ${CONNECTION_LIMIT}: следующее refused, другой личности — можно; close освобождает место`, async () => {
+    const w = world();
+    const links = [];
+    for (let n = 0; n < CONNECTION_LIMIT; n += 1) {
+      links.push((await open(w, 'tA')).link);
+    }
+    const extra = new Pushed();
+
+    const refused = await w.host.connect('tA', extra.push);
+    const other = await w.host.connect('tB', new Pushed().push);
+    links[0]?.close();
+    const again = await w.host.connect('tA', new Pushed().push);
+
+    expect(refused).toEqual({ ok: false, error: 'refused' });
+    expect(extra.messages).toEqual([]);
+    expect(other.ok).toBe(true);
+    expect(again.ok).toBe(true);
   });
 });
 

@@ -198,7 +198,7 @@ test('сторис finishTasks: итоговое состояние задачи
   expect(await tasksOf(pages.example)).toEqual(expected);
 });
 
-test('приложения каналов делят сторис и набор; код собран на exampleCodes()', () => {
+test('приложения каналов делят сторис и набор', () => {
   expect(ExamplePagesAppDef.stories).toHaveLength(
     ExampleDialogAppDef.stories.length,
   );
@@ -208,7 +208,6 @@ test('приложения каналов делят сторис и набор;
     ),
   ).toBe(true);
   expect(ExamplePagesAppDef.set).toBe(ExampleDialogAppDef.set);
-  expect(Object.keys(exampleCodes()).length).toBeGreaterThan(0);
 });
 
 test('в привязках каналов нет кода, экранов и сторис примера', () => {

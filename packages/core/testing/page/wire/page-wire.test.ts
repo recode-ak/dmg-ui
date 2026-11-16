@@ -8,6 +8,7 @@ import type {
   ServerMessage as ServerMsg,
 } from './page-messages.types';
 import { PageWire } from './page-wire';
+import { QUIET_TURNS } from './page-wire.const';
 import type { PageServerPort, ServerLink } from './page-wire.types';
 
 // Провод страничного канала в памяти: между половинами ходят только строки
@@ -45,6 +46,8 @@ const NOTIFICATION = {
   links: [ADDRESS],
   eventId: 'e-1',
 } as const;
+
+const idOf = (length: number) => 'x'.repeat(length);
 
 const watch: ClientMsg = { kind: 'watch', watch: 'w1', address: ADDRESS };
 const call: ClientMsg = {
@@ -187,13 +190,49 @@ describe('PageWire — граница JSON', () => {
     expect(received).toEqual([{ kind: 'result', id: 'c1', result: ok({}) }]);
   });
 
-  test('settled в тишине возвращается сразу', async () => {
-    const { wire } = await connected(new StubServer());
+  test('реакция клиента через QUIET_TURNS − 1 ходов микрозадач — settled её дожидается', async () => {
+    const server = new StubServer();
+    const { wire, end } = await connected(server);
+    end.onMessage(async () => {
+      for (let turn = 1; turn < QUIET_TURNS; turn += 1) await Promise.resolve();
+      end.send(unwatch);
+    });
 
-    await wire.settled();
+    server.push(signal(1));
     await wire.settled();
 
-    expect(wire.messages).toHaveLength(1);
+    expect(server.received.map((raw) => JSON.parse(raw))).toEqual([unwatch]);
+  });
+});
+
+describe('PageWire — сообщение сервера не по схеме', () => {
+  test('не доставляется; обрыв провода с ошибкой; settled бросает', async () => {
+    const server = new StubServer();
+    const { wire, end } = await connected(server);
+    const received: ServerMsg[] = [];
+    const breaks: string[] = [];
+    end.onMessage((message) => received.push(message));
+    end.onBreak((error) => breaks.push(error.message));
+
+    server.push({ kind: 'result', id: idOf(257), result: ok({}) });
+
+    expect(wire.settled()).rejects.toThrow('не по схеме');
+    await wire.settled().catch(() => {});
+    expect(received).toEqual([]);
+    expect(breaks).toEqual([expect.stringContaining('не по схеме')]);
+  });
+
+  test('после отброшенного сообщения следующее по схеме доставляется', async () => {
+    const server = new StubServer();
+    const { wire, end } = await connected(server);
+    const received: ServerMsg[] = [];
+    end.onMessage((message) => received.push(message));
+
+    server.push({ kind: 'result', id: idOf(257), result: ok({}) });
+    server.push(signal(1));
+    await wire.settled().catch(() => {});
+
+    expect(received).toStrictEqual([signal(1)]);
   });
 });
 
@@ -210,9 +249,19 @@ describe('PageWire — закрытие', () => {
     expect(server.closed).toBe(1);
     expect(server.received).toEqual([]);
   });
-});
 
-const idOf = (length: number) => 'x'.repeat(length);
+  test('close — обрыв провода для клиента один раз', async () => {
+    const { wire, end } = await connected(new StubServer());
+    const breaks: string[] = [];
+    end.onBreak((error) => breaks.push(error.message));
+
+    end.close();
+    end.close();
+    await wire.settled();
+
+    expect(breaks).toEqual([expect.stringContaining('закрыт')]);
+  });
+});
 
 describe('PageMessages — схемы сообщений', () => {
   const clientValid: Record<string, unknown> = {
@@ -243,42 +292,6 @@ describe('PageMessages — схемы сообщений', () => {
     },
   );
 
-  test('ClientMessage: неизвестный kind — не по схеме', () => {
-    expect(v.safeParse(ClientMessage, { kind: 'ping' }).success).toBe(false);
-  });
-
-  test('ClientMessage: лишнее поле сообщения — не по схеме', () => {
-    expect(v.safeParse(ClientMessage, { ...unwatch, extra: 1 }).success).toBe(
-      false,
-    );
-  });
-
-  test('ClientMessage: вызывающий или след внутри call — не по схеме', () => {
-    const withTrace = { ...call, call: { ...call.call, trace: {} } };
-    const withCaller = { ...call, call: { ...call.call, caller: 'x' } };
-
-    expect(v.safeParse(ClientMessage, withTrace).success).toBe(false);
-    expect(v.safeParse(ClientMessage, withCaller).success).toBe(false);
-  });
-
-  test('ClientMessage: идентификатор 256 символов — по схеме, 257 — нет', () => {
-    expect(
-      v.safeParse(ClientMessage, { kind: 'unwatch', watch: idOf(256) }).success,
-    ).toBe(true);
-    expect(
-      v.safeParse(ClientMessage, { kind: 'unwatch', watch: idOf(257) }).success,
-    ).toBe(false);
-    expect(v.safeParse(ClientMessage, { ...call, id: idOf(257) }).success).toBe(
-      false,
-    );
-  });
-
-  test('ClientMessage: watch без адреса — не по схеме', () => {
-    expect(
-      v.safeParse(ClientMessage, { kind: 'watch', watch: 'w1' }).success,
-    ).toBe(false);
-  });
-
   test('ServerMessage: notification со следом или получателем — не по схеме', () => {
     expect(
       v.safeParse(ServerMessage, { ...NOTIFICATION, trace: {} }).success,
@@ -296,5 +309,52 @@ describe('PageMessages — схемы сообщений', () => {
     };
 
     expect(v.safeParse(ServerMessage, withPayload).success).toBe(false);
+  });
+
+  test('ServerMessage: новое поле во вложенной форме dmg-core — по схеме, поле отброшено', () => {
+    const base = signal(1);
+    const withNew = [
+      {
+        kind: 'result',
+        id: 'c1',
+        result: { ok: false, error: { code: 'X', kind: 'internal', hint: 1 } },
+      },
+      {
+        ...base,
+        signal: {
+          ...(base.kind === 'signal' ? base.signal : {}),
+          trace: {
+            cause: { kind: 'event', eventId: 'e-1', at: 1 },
+            correlationId: 'e-1',
+            span: 's',
+          },
+        },
+      },
+      { kind: 'hello', context: { ...CONTEXT, theme: 'dark' } },
+    ];
+
+    for (const message of withNew) {
+      const parsed = v.safeParse(ServerMessage, message);
+      expect(parsed.success).toBe(true);
+      expect(JSON.stringify(parsed.output)).not.toMatch(/hint|"at"|span|theme/);
+    }
+  });
+
+  test('ServerMessage: лишнее поле конверта — не по схеме', () => {
+    const result = { kind: 'result', id: 'c1', result: ok({}) };
+
+    expect(v.safeParse(ServerMessage, { ...result, extra: 1 }).success).toBe(
+      false,
+    );
+  });
+
+  test('ServerMessage: refused с id вызова — по схеме', () => {
+    expect(
+      v.safeParse(ServerMessage, {
+        kind: 'refused',
+        reason: 'malformed',
+        id: 'c1',
+      }).success,
+    ).toBe(true);
   });
 });

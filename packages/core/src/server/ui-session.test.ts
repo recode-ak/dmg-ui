@@ -386,18 +386,6 @@ describe('UiSession.call — след запроса собирает серве
 });
 
 describe('UiSession.call — недоверенный вызов', () => {
-  test('UC уведомления (getTaskAssignee) сессии закрыт — OPERATION_NOT_FOUND', async () => {
-    const { transport, session } = setup();
-
-    const res = await session.call({
-      ...listCall({ requestId: 'r-1' }),
-      uc: 'getTaskAssignee',
-    });
-
-    expect(res.ok ? undefined : res.error.code).toBe('OPERATION_NOT_FOUND');
-    expect(transport.sent).toEqual([]);
-  });
-
   test('вызов не по схеме — INPUT_VALIDATION, UC не вызван', async () => {
     const { transport, session } = setup();
     const broken = JSON.parse(

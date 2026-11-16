@@ -28,7 +28,7 @@ export class EntryRouteRule implements GraphRule {
       .filter((screen) => !opened.has(screen))
       .map(
         (screen) =>
-          `вход приложения ${this.appId}: экран ${screen} не открывает ни один маршрут`,
+          `вход приложения ${this.appId}: экран ${screen} не открыт ни одним маршрутом`,
       );
   }
 }

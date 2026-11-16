@@ -58,16 +58,12 @@ type Act = {
 };
 
 /**
- * Вкладка страничного канала одной личности — «браузерная» половина.
- * Исполнитель экранов (`ScreenRuntime`, код экранов) живёт здесь, порты
- * исполнителя — поверх провода (`WirePorts`); сервер вкладке не виден.
- * Входящие сигналы — `route`, `submit`, `confirm`, `local`, `openLink`,
- * `retry`; исходы ядра разбираются по таблице политик (бриф Ф6, раздел 1).
- *
- * Допущения учебного канала:
- * - сигналы вкладки сериализует вызывающий: два параллельных открытия в
- *   одну область — последняя завершившаяся побеждает;
- * - контекст рендера — из `hello` на всё соединение (Т-7).
+ * Вкладка одной личности — «браузерная» половина: исполнитель экранов здесь,
+ * его порты — поверх провода (`WirePorts`), сервер не виден. Сигналы —
+ * `route`, `submit`, `confirm`, `local`, `openLink`, `retry`; исходы — по
+ * таблице политик (бриф Ф6, раздел 1). Допущения: сигналы сериализует
+ * вызывающий (из двух открытий в область побеждает последнее); контекст
+ * рендера — из `hello` на всё соединение (Т-7).
  */
 export class PageClient {
   private readonly spec: PageClientSpec;
@@ -133,7 +129,7 @@ export class PageClient {
     this.codec = new AddressCodec(app.set);
     this.ids = new UiIds(app.set);
     this.regions = new PageRegions(new PageRenderer(views));
-    this.notes = new PageInbox(views);
+    this.notes = new PageInbox(views, spec.observer, this.traces);
     spec.end.onMessage((message) => this.receive(message));
   }
 
@@ -375,6 +371,7 @@ export class PageClient {
       case 'result':
       case 'signal':
       case 'watch-refused':
+      case 'refused':
         this.ports.receive(message);
         return;
       case 'notification':
@@ -382,10 +379,6 @@ export class PageClient {
         return;
       case 'hello':
         // Контекст пришёл при соединении; повтор вид не меняет (Т-7).
-        return;
-      case 'refused':
-        // Ответ на сообщение не по схеме: клиент шлёт только по схеме
-        // (`WirePorts`), а `id` в отказе нет — сопоставить не с чем.
         return;
       default:
         PageClient.unknown(message);

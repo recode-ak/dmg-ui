@@ -113,13 +113,18 @@ export class PageViews {
     return presenter;
   }
 
-  /** Представление уведомления по `id`. */
+  /** Представление уведомления по `id`; нет — бросок. */
   notification(id: string): AnyPageNotePresenter {
-    const presenter = this.notifications.get(id);
+    const presenter = this.findNotification(id);
     if (presenter === undefined) {
       throw new Error(`PageViews: нет представления уведомления ${id}`);
     }
     return presenter;
+  }
+
+  /** Представление уведомления по `id` из внешних данных; нет — `undefined`. */
+  findNotification(id: string): AnyPageNotePresenter | undefined {
+    return this.notifications.get(id);
   }
 
   /** `id` экранов и уведомлений с представлением — для рёбер `presents`. */

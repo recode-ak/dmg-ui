@@ -6,6 +6,7 @@ import {
   err,
   ok,
   type Result,
+  Trace,
 } from 'dmg-core';
 import {
   CreateTaskUcDef,
@@ -21,6 +22,7 @@ import {
   LIST_ID,
   LIST_START,
   TASK_A,
+  TaskCardScreenDef,
   type TaskListScreenDef,
 } from '../../testing/example';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
@@ -235,6 +237,30 @@ describe('ScreenRuntime.open — дефекты кода экрана', () => {
     expect(instance.view().refusal?.code).toBe('SERVER_INTERNAL');
     expect(kit.ucs.names()).not.toContain('createTask');
     expect(defectsOf(kit)).toHaveLength(1);
+  });
+
+  test('открытие со следом прогона Job — SERVER_INTERNAL, defect, UC не вызван', async () => {
+    const kit = new RuntimeKit();
+
+    const instance = await kit.runtime.open(
+      TaskCardScreenDef.at({ taskId: TASK_A }),
+      {
+        ...RuntimeKit.options(),
+        trace: Trace.forJob({ name: 'cleanup' }).toJSON(),
+      },
+    );
+
+    expect(instance.view().refusal).toMatchObject({
+      code: 'SERVER_INTERNAL',
+      caught: false,
+    });
+    expect(kit.ucs.calls).toEqual([]);
+    expect(defectsOf(kit)).toEqual([
+      expect.objectContaining({
+        node: CARD_ID,
+        text: expect.stringContaining('след прогона Job cleanup'),
+      }),
+    ]);
   });
 
   test('данные загрузки не по схеме — SERVER_INTERNAL и defect', async () => {

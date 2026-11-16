@@ -6,10 +6,12 @@ import type {
   ServerMessage as ServerMessageType,
 } from './page-messages.types';
 
-// Схемы сообщений страничного канала. Все объекты строгие: лишнее поле —
-// не по схеме (так через провод не проходят `trace`, `caller`, `recipient`,
-// payload). Аннотация `GenericSchema<unknown, …>` сверяет выход схемы с
-// типами `page-messages.types.ts` при компиляции.
+// Схемы сообщений страничного канала. Сообщения клиента и конверты сообщений
+// сервера строгие: лишнее поле — не по схеме (так через провод не проходят
+// `trace`, `caller`, `recipient`, payload). Вложенные формы `dmg-core` в
+// сообщениях сервера (ошибка результата, след, контекст) — без строгости:
+// новое поле `dmg-core` отбрасывается, а не роняет сообщение. Аннотация
+// `GenericSchema<unknown, …>` сверяет выход схемы с типами `.types.ts`.
 
 /** Предел длины строк-идентификаторов провода (Т-17). */
 const MAX_ID = 256;
@@ -42,19 +44,19 @@ const Call = v.pipe(
   v.transform((call): UcCall => ({ ...call, input: call.input })),
 );
 
-const Trace = v.strictObject({
+const Trace = v.object({
   cause: v.variant('kind', [
-    v.strictObject({
+    v.object({
       kind: v.literal('request'),
       requestId: PageId,
       generated: v.optional(v.literal(true)),
     }),
-    v.strictObject({ kind: v.literal('event'), eventId: PageId }),
-    v.strictObject({ kind: v.literal('job'), job: PageId, runId: PageId }),
+    v.object({ kind: v.literal('event'), eventId: PageId }),
+    v.object({ kind: v.literal('job'), job: PageId, runId: PageId }),
   ]),
   correlationId: PageId,
   channel: v.optional(
-    v.strictObject({ name: PageId, visitorId: v.optional(PageId) }),
+    v.object({ name: PageId, visitorId: v.optional(PageId) }),
   ),
 });
 
@@ -66,7 +68,7 @@ const Result = v.union([
   ),
   v.strictObject({
     ok: v.literal(false),
-    error: v.strictObject({
+    error: v.object({
       code: PageId,
       kind: v.picklist(ERROR_KINDS),
       payload: v.optional(v.unknown()),
@@ -91,7 +93,7 @@ export const ServerMessage: v.GenericSchema<unknown, ServerMessageType> =
   v.variant('kind', [
     v.strictObject({
       kind: v.literal('hello'),
-      context: v.strictObject({
+      context: v.object({
         locale: PageId,
         timeZone: PageId,
         delegate: v.boolean(),
@@ -114,6 +116,10 @@ export const ServerMessage: v.GenericSchema<unknown, ServerMessageType> =
     }),
     v.strictObject({
       kind: v.literal('refused'),
-      reason: v.picklist(['malformed']),
+      reason: v.picklist(['malformed', 'too-large']),
+      id: v.optional(PageId),
     }),
   ]);
+
+/** Конверт вызова без проверки `call`: `id`, которому сервер адресует отказ. */
+export const CallEnvelope = v.object({ kind: v.literal('call'), id: PageId });

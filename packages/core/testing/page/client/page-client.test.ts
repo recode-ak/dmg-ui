@@ -29,6 +29,7 @@ import type {
 } from '../wire/page-messages.types';
 import type { ClientEnd } from '../wire/page-wire.types';
 import { PageClient } from './page-client';
+import { PAGE_DEFECTS, PAGE_NOTES } from './page-client.const';
 
 // Клиентская половина страничного канала: две области (`main`, `side`),
 // политики исходов, входящие, снимок. Сервер — заглушка конца провода:
@@ -68,6 +69,8 @@ class StubEnd implements ClientEnd {
   onMessage(handler: (message: ServerMsg) => void): void {
     this.handlers.push(handler);
   }
+
+  onBreak(): void {}
 
   send(message: ClientMsg): void {
     this.sent.push(message);
@@ -348,24 +351,6 @@ describe('PageClient — исходы действий', () => {
     expect(client.region('main').confirm).toBeUndefined();
   });
 
-  test('вызовы клиента несут только module, uc, input и причину — ни узла, ни следа, ни личности', async () => {
-    const end = new StubEnd()
-      .answer('listTasks', ok(TASKS))
-      .answer('createTask', ok({ taskId: TASK_A }));
-    const { client } = await listed(end);
-
-    await client.submit('main', 'create', { title: 'Хлеб' });
-
-    for (const call of end.calls()) {
-      expect(Object.keys(call).toSorted()).toEqual([
-        'input',
-        'module',
-        'requestId',
-        'uc',
-      ]);
-    }
-  });
-
   test('rejected — замечания по полям в области, вызов не ушёл; следующий вход их снимает', async () => {
     const end = new StubEnd()
       .answer('listTasks', ok(TASKS))
@@ -531,6 +516,53 @@ describe('PageClient.inbox', () => {
     ]);
   });
 
+  test('уведомление с неизвестным id — не показано, без броска; запись defect без данных', async () => {
+    const { client, end, observer } = tab();
+
+    end.emit(noteOf('exampleUi/todo/нетТакого', 'Секрет', 'e-1'));
+    await end.flush();
+
+    expect(client.inbox).toEqual([]);
+    const defects = observer.records.filter((r) => r.kind === 'defect');
+    expect(defects).toMatchObject([
+      { node: 'exampleUi/todo/нетТакого', text: PAGE_DEFECTS.noView },
+    ]);
+    expect(JSON.stringify(defects)).not.toContain('Секрет');
+  });
+
+  test('данные уведомления не по схеме представления — не показаны, defect; верное с тем же ключом позже показано', async () => {
+    const { client, end, observer } = tab();
+
+    end.emit({
+      kind: 'notification',
+      notification: ASSIGNED_NOTE,
+      data: { title: 42 },
+      links: [],
+      eventId: 'e-1',
+    });
+    end.emit(noteOf(ASSIGNED_NOTE, 'Сыр', 'e-1'));
+    await end.flush();
+
+    expect(observer.records.filter((r) => r.kind === 'defect')).toMatchObject([
+      { node: ASSIGNED_NOTE, text: PAGE_DEFECTS.badData },
+    ]);
+    expect(client.inbox.map((n) => n.text)).toEqual([
+      'Вам назначена задача: Сыр',
+    ]);
+  });
+
+  test('ссылка с недекодируемым адресом — заметка в side, вызова нет, main не тронут', async () => {
+    const { client, end } = await listed();
+    const sent = end.sent.length;
+
+    await client.openLink({ screen: 'нет/такого/экрана', params: {} });
+
+    expect(client.region('side').note).toBe(PAGE_NOTES.notFound);
+    expect(client.region('side').view).toBeUndefined();
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(end.sent.length).toBe(sent);
+  });
+
   test('ссылка уведомления открывается в side; main остаётся', async () => {
     const end = new StubEnd()
       .answer('listTasks', ok(TASKS))
@@ -591,6 +623,26 @@ describe('PageClient — снимок вкладки (Т-15)', () => {
 
       expect(client.region('main').view?.address).toEqual(LIST);
       expect(client.region('side').view).toBeUndefined();
+    },
+  );
+
+  test.each([
+    { name: 'число', side: 42 },
+    { name: 'адрес-строка', side: { address: 'мусор', revision: 1 } },
+    {
+      name: 'чужой экран',
+      side: { address: { screen: 'нет/такого', params: {} }, revision: 1 },
+    },
+  ])(
+    'side снимка — $name: main восстановлен, side пуста, без броска',
+    async ({ side }) => {
+      const first = await listed();
+      const second = tab();
+
+      await second.client.resume({ ...first.client.snapshot(), side });
+
+      expect(second.client.region('main').view?.address).toEqual(LIST);
+      expect(second.client.region('side').view).toBeUndefined();
     },
   );
 

@@ -11,3 +11,9 @@ export const PAGE_NOTES = {
   confirm: 'Подтвердить',
   inbox: 'Входящие',
 } as const;
+
+/** Тексты записей `defect` вкладки: фиксированные, без данных сервера. */
+export const PAGE_DEFECTS = {
+  noView: 'нет представления уведомления',
+  badData: 'представление уведомления не показало данные',
+} as const;
