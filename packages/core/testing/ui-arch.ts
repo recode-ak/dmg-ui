@@ -228,7 +228,7 @@ export class UiScene {
     };
   }
 
-  /** Чистая фикстура Ф2 с тестовым представлением «набор целиком». */
+  /** Чистая фикстура примера с тестовым представлением «набор целиком». */
   static fixture(): ArchApp {
     const view = new StubViewProvider(ExampleUiSetDef, ExampleUiAppDef, [
       ExampleUiSetDef,

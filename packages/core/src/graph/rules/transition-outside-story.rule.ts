@@ -14,6 +14,7 @@ export class TransitionOutsideStoryRule implements GraphRule {
     const found: string[] = [];
     for (const edge of graph.edges()) {
       if (edge.kind !== UI_EDGE_KINDS.leadsTo) continue;
+      if (reader.kindOf(edge.from) !== UI_NODE_KINDS.action) continue;
       const source = graph.node(edge.from)?.parent;
       if (
         source === undefined ||

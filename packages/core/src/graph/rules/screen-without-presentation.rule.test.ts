@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { UiScene } from '../../../testing/ui-arch';
+import { ArchReport, UiScene } from '../../../testing/ui-arch';
 import {
   StubSignalProvider,
   StubViewProvider,
 } from '../../../testing/ui-graph-fixture';
+import { UiAppDef } from '../../manifest/ui-app-def';
 
 const a = UiScene.screen('a');
 const n = UiScene.notification('n');
@@ -61,5 +62,34 @@ describe('UI-06: экран и уведомление приложения UI и
     });
 
     expect(bare.report().rule('UI-06')).toEqual([]);
+  });
+
+  test('по приложению: представление первого приложения не закрывает второе', () => {
+    const b = UiScene.screen('b');
+    const [s1, s2] = [UiScene.story('s1', [a]), UiScene.story('s2', [b])];
+    const two = new UiScene({
+      screens: [a, b],
+      stories: [s1, s2],
+      appStories: [s1],
+    });
+    const other = UiAppDef.define({
+      name: 'other',
+      label: 'Другое приложение',
+      description: 'Второе приложение UI того же набора.',
+      set: two.set,
+      channel: 'mini-channel',
+      stories: [s2],
+      notifications: [],
+      entries: { start: UiScene.entry(b) },
+    });
+    const view = new StubViewProvider(two.set, two.app, [two.set]);
+
+    const lines = ArchReport.of(
+      UiScene.appOf(two.set, [two.app, other], [view]),
+    ).rule('UI-06');
+
+    expect(lines).toEqual([
+      'UI-06: приложение other: у экрана miniUi/todo/b нет представления в канале',
+    ]);
   });
 });

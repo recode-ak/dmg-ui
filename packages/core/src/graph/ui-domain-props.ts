@@ -3,6 +3,9 @@ import * as v from 'valibot';
 /** Вид узла UC в графе домена. */
 export const UC_KIND = 'useCase';
 
+/** Вид ребра домена «UC отказывает ошибкой». */
+export const FAILS_WITH_KIND = 'failsWith';
+
 /** Вид узла события в графе домена. */
 export const EVENT_KIND = 'event';
 

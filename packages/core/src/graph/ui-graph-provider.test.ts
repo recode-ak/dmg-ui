@@ -426,9 +426,10 @@ describe('UiGraphProvider: документ', () => {
 
   test('имя поставщика — dmg-ui, версия равна version из package.json', () => {
     const file = join(import.meta.dir, '../../../../package.json');
-    const { version } = JSON.parse(readFileSync(file, 'utf8')) as {
-      version: string;
-    };
+    const { version } = v.parse(
+      v.object({ version: v.string() }),
+      JSON.parse(readFileSync(file, 'utf8')),
+    );
 
     expect(provider().name).toBe('dmg-ui');
     expect(provider().version).toBe(version);
@@ -467,21 +468,6 @@ describe('UiGraphProvider: ошибки UiIds в графе', () => {
       screens,
       stories: [],
     });
-
-  test('повтор id экрана — GraphError duplicate-node, а не исключение', () => {
-    const set = UiSetDef.define({
-      name: 'twins',
-      label: 'Повтор',
-      description: 'Набор с повтором id экрана.',
-      app: ExampleAppDef,
-      modules: [module('todo', [TaskListScreenDef, twin])],
-    });
-    const twins = new UiGraphProvider({ set, apps: [] });
-
-    expect(() => twins.contribute()).toThrow(
-      expect.objectContaining({ code: 'duplicate-node' }),
-    );
-  });
 
   test('повтор id экрана — в arch:check ARC-13 «граф не собран»', () => {
     const set = UiSetDef.define({

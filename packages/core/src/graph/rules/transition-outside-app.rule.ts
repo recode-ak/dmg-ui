@@ -3,9 +3,9 @@ import { UiGraphReader } from '../ui-graph-reader';
 import { UI_EDGE_KINDS, UI_NODE_KINDS } from '../ui-kinds';
 
 /**
- * UI-05: переход и вход приложения UI ведут на экран из его сторис. Цель вне
- * сторис называется один раз: переход — с экраном-источником, вход — только
- * если перехода на ту же цель нет.
+ * UI-05: переход и вход приложения UI ведут на экран из его сторис. Пара
+ * (экран, цель) называется один раз; цель входа — только если перехода на
+ * неё нет.
  */
 export class TransitionOutsideAppRule implements GraphRule {
   readonly id = 'UI-05';
@@ -18,6 +18,7 @@ export class TransitionOutsideAppRule implements GraphRule {
       const outside = (to: string) =>
         reader.kindOf(to) === UI_NODE_KINDS.screen && !inside.has(to);
       const reported = new Set<string>();
+      const named = new Set<string>();
       for (const screen of reader.inGraphOrder(inside)) {
         for (const action of reader.actionsOf(screen.id)) {
           for (const to of reader.targets(
@@ -26,6 +27,8 @@ export class TransitionOutsideAppRule implements GraphRule {
           )) {
             if (!outside(to)) continue;
             reported.add(to);
+            if (named.has(`${screen.id} ${to}`)) continue;
+            named.add(`${screen.id} ${to}`);
             found.push(
               `приложение ${app.id}: экран ${screen.id} ведёт на ${to}, которого нет в его сторис`,
             );

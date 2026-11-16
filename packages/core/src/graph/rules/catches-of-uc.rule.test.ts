@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { CoreErrors } from 'dmg-core';
 import { DomainIds } from 'dmg-core/graph';
 import {
   CreateTaskUcDef,
@@ -41,6 +42,15 @@ describe('UI-15: перехваченная ошибка есть среди о�
     const report = run({
       reads: [GetTaskUcDef],
       catches: [TaskErrors.NOT_FOUND],
+    });
+
+    expect(report.rule('UI-15')).toEqual([]);
+  });
+
+  test('без нарушения: базовая ошибка ядра есть у любого UC', () => {
+    const report = run({
+      reads: [ListTasksUcDef],
+      catches: [CoreErrors.UNAUTHORIZED],
     });
 
     expect(report.rule('UI-15')).toEqual([]);

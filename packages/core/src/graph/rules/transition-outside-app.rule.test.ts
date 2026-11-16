@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { UiScene } from '../../../testing/ui-arch';
+import { ArchReport, UiScene } from '../../../testing/ui-arch';
+import { UiAppDef } from '../../manifest/ui-app-def';
 
 const b = UiScene.screen('b');
 const a = UiScene.screen('a', { actions: { go: UiScene.jump(b) } });
@@ -41,5 +42,43 @@ describe('UI-05: переход и вход — на экран из стори�
     const scene = new UiScene({ screens: [a, b], stories: [s1, s2] });
 
     expect(scene.report().rule('UI-05')).toEqual([]);
+  });
+
+  test('нарушение один раз: два действия экрана ведут на одну цель вне сторис', () => {
+    const jump = UiScene.jump(b);
+    const from = UiScene.screen('from', { actions: { one: jump, two: jump } });
+    const one = UiScene.story('s1', [from]);
+    const scene = new UiScene({
+      screens: [from, b],
+      stories: [one, s2],
+      appStories: [one],
+    });
+
+    expect(scene.report().rule('UI-05')).toHaveLength(1);
+  });
+
+  test('по приложению: цель в сторис приложения B — нарушение только у приложения A', () => {
+    const scene = new UiScene({
+      screens: [a, b],
+      stories: [s1, s2],
+      appStories: [s1],
+    });
+    const other = UiAppDef.define({
+      name: 'other',
+      label: 'Другое приложение',
+      description: 'Второе приложение UI того же набора.',
+      set: scene.set,
+      channel: 'mini-channel',
+      stories: [s2],
+      notifications: [],
+      entries: { start: UiScene.entry(b) },
+    });
+
+    const lines = ArchReport.of(
+      UiScene.appOf(scene.set, [scene.app, other]),
+    ).rule('UI-05');
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toStartWith('UI-05: приложение miniConsole: ');
   });
 });

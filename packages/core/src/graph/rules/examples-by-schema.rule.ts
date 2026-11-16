@@ -4,16 +4,7 @@ import { UiIds } from '../../address/ui-ids';
 import type { AnyUiSetDef } from '../../manifest/ui-set-def.types';
 import { UiGraphReader } from '../ui-graph-reader';
 import { UI_NODE_KINDS } from '../ui-kinds';
-
-/** Что проверяется в примере: имя схемы, схема и значение. */
-type Part = {
-  readonly schema: string;
-  readonly def: v.GenericSchema | undefined;
-  readonly value: unknown;
-};
-
-/** Пример: имя и проверяемые части. */
-type Sample = { readonly name: string; readonly parts: readonly Part[] };
+import type { ExampleSample } from './examples-by-schema.types';
 
 /**
  * UI-20: примеры проходят схемы своего экрана или уведомления. Единственное
@@ -48,9 +39,9 @@ export class ExamplesBySchemaRule implements GraphRule {
   }
 
   /** Примеры экранов и уведомлений набора по `id` узла. */
-  private samples(): Map<string, Sample[]> {
+  private samples(): Map<string, ExampleSample[]> {
     const ids = new UiIds(this.set);
-    const found = new Map<string, Sample[]>();
+    const found = new Map<string, ExampleSample[]>();
     for (const module of this.set.modules) {
       for (const screen of module.screens) {
         found.set(

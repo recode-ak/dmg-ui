@@ -1,10 +1,7 @@
-import type { Graph, GraphNode, GraphRule } from 'dmg-core/graph';
+import type { Graph, GraphRule } from 'dmg-core/graph';
 import { UiGraphReader } from '../ui-graph-reader';
-import { UI_NODE_KINDS, UI_PROVIDER } from '../ui-kinds';
-import type { UiItemProps } from '../ui-props.types';
-
-/** Подпись элемента `props` для текста нарушения: `у исхода finished`. */
-type Item = { readonly what: string; readonly texts: UiItemProps };
+import { UI_PROVIDER } from '../ui-kinds';
+import type { TextItem } from './filled-texts.types';
 
 /**
  * UI-13: тексты заполнены. Узлы поставщика `dmg-ui` и элементы их `props`
@@ -17,15 +14,15 @@ export class FilledTextsRule implements GraphRule {
   private static readonly UNFILLED = /^\s*(?:TODO(?![\p{L}\p{N}_])|$)/u;
 
   check(graph: Graph): readonly string[] {
-    const reader = new UiGraphReader(graph);
+    const items = this.itemsByNode(new UiGraphReader(graph));
     const found: string[] = [];
     for (const node of graph.nodes()) {
       if (node.provider !== UI_PROVIDER) continue;
-      const items: Item[] = [
+      const own: TextItem[] = [
         { what: 'узла', texts: node },
-        ...this.itemsOf(reader, node),
+        ...(items.get(node.id) ?? []),
       ];
-      for (const { what, texts } of items) {
+      for (const { what, texts } of own) {
         for (const field of ['label', 'description'] as const) {
           if (FilledTextsRule.UNFILLED.test(texts[field])) {
             found.push(
@@ -38,51 +35,36 @@ export class FilledTextsRule implements GraphRule {
     return found;
   }
 
-  /** Элементы `props` узла, у которых есть свои тексты. */
-  private itemsOf(reader: UiGraphReader, node: GraphNode): Item[] {
-    switch (node.kind) {
-      case UI_NODE_KINDS.story:
-        return reader
-          .stories()
-          .filter((s) => s.node.id === node.id)
-          .flatMap((s) =>
-            s.props.outcomes.map((o) => ({
-              what: `исхода ${o.name}`,
-              texts: o,
-            })),
-          );
-      case UI_NODE_KINDS.screen:
-        return reader
-          .screens()
-          .filter((s) => s.node.id === node.id)
-          .flatMap((s) => [
-            ...s.props.exits.map((e) => ({
-              what: `выхода ${e.name}`,
-              texts: e,
-            })),
-            ...s.props.locals.map((l) => ({
-              what: `локального действия ${l.name}`,
-              texts: l,
-            })),
-          ]);
-      case UI_NODE_KINDS.action:
-        return reader
-          .actions()
-          .filter((a) => a.node.id === node.id)
-          .flatMap((a) =>
-            a.props.confirm
-              ? [{ what: 'подтверждения', texts: a.props.confirm }]
-              : [],
-          );
-      case UI_NODE_KINDS.app:
-        return reader
-          .apps()
-          .filter((a) => a.node.id === node.id)
-          .flatMap((a) =>
-            a.props.entries.map((e) => ({ what: `входа ${e.name}`, texts: e })),
-          );
-      default:
-        return [];
+  /** Элементы `props` с собственными текстами, по `id` узла; разбор — один раз. */
+  private itemsByNode(reader: UiGraphReader): Map<string, TextItem[]> {
+    const byNode = new Map<string, TextItem[]>();
+    for (const { node, props } of reader.stories()) {
+      byNode.set(
+        node.id,
+        props.outcomes.map((o) => ({ what: `исхода ${o.name}`, texts: o })),
+      );
     }
+    for (const { node, props } of reader.screens()) {
+      byNode.set(node.id, [
+        ...props.exits.map((e) => ({ what: `выхода ${e.name}`, texts: e })),
+        ...props.locals.map((l) => ({
+          what: `локального действия ${l.name}`,
+          texts: l,
+        })),
+      ]);
+    }
+    for (const { node, props } of reader.actions()) {
+      byNode.set(
+        node.id,
+        props.confirm ? [{ what: 'подтверждения', texts: props.confirm }] : [],
+      );
+    }
+    for (const { node, props } of reader.apps()) {
+      byNode.set(
+        node.id,
+        props.entries.map((e) => ({ what: `входа ${e.name}`, texts: e })),
+      );
+    }
+    return byNode;
   }
 }
