@@ -1,19 +1,11 @@
 import { err, ok, type Result } from 'dmg-core';
-import * as v from 'valibot';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
+import { SchemaCheck } from '../schema/schema-check';
 import { Address } from './address';
-import type {
-  AddressJson,
-  AddressRejection,
-  FieldIssue,
-} from './address-codec.types';
+import type { AddressJson, AddressRejection } from './address-codec.types';
 import { UiIds } from './ui-ids';
 
-export type {
-  AddressJson,
-  AddressRejection,
-  FieldIssue,
-} from './address-codec.types';
+export type { AddressJson, AddressRejection } from './address-codec.types';
 
 /**
  * Перенос адреса через JSON в пределах набора UI. `encode` — свой адрес,
@@ -41,21 +33,10 @@ export class AddressCodec {
     const def = this.ids.findScreen(screen);
     if (def === undefined) return err({ reason: 'unknownScreen', screen });
     const params = 'params' in json ? json.params : undefined;
-    const parsed = v.safeParse(def.params, params);
-    if (!parsed.success) {
-      return err({
-        reason: 'invalidParams',
-        screen,
-        issues: parsed.issues.map((issue) => this.issueOf(issue)),
-      });
+    const parsed = new SchemaCheck(def.params).run(params);
+    if (!parsed.ok) {
+      return err({ reason: 'invalidParams', screen, issues: parsed.error });
     }
-    return ok(new Address(def, parsed.output));
-  }
-
-  private issueOf(issue: v.BaseIssue<unknown>): FieldIssue {
-    const key = issue.path?.[0]?.key;
-    return key === undefined
-      ? { text: issue.message }
-      : { field: String(key), text: issue.message };
+    return ok(new Address(def, parsed.value));
   }
 }

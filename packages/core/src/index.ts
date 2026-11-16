@@ -1,11 +1,10 @@
-// Публичный вход ядра dmg-ui: манифесты UI и адрес экрана (Ф2).
+// Публичный вход ядра dmg-ui: манифесты UI, адрес и чистая логика экрана (Ф2).
 
 export { Address } from './address/address';
 export {
   AddressCodec,
   type AddressJson,
   type AddressRejection,
-  type FieldIssue,
 } from './address/address-codec';
 export { UiIds } from './address/ui-ids';
 export type { NormalizedSchema } from './manifest/normalized.types';
@@ -77,3 +76,20 @@ export {
   UiSetDef,
   type UiSetSpec,
 } from './manifest/ui-set-def';
+export type { FieldIssue } from './schema/schema-check';
+export {
+  type ActionField,
+  ActionInput,
+  type InputRejection,
+} from './screen/action-input';
+export {
+  type Choice,
+  type FieldChoices,
+  type FieldValues,
+  type InputOf,
+  type LocalFn,
+  type LocalFns,
+  ScreenCode,
+} from './screen/screen-code';
+export { ScreenLogic } from './screen/screen-logic';
+export type { Transition } from './screen/transition.types';
