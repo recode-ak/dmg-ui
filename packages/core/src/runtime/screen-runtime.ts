@@ -4,6 +4,7 @@ import { AddressCodec } from '../address/address-codec';
 import type { AddressRejection } from '../address/address-codec.types';
 import { UiIds } from '../address/ui-ids';
 import { ScreenInstance } from './screen-instance';
+import { MAX_REVISION } from './screen-runtime.const';
 import type { OpenOptions, ScreenRuntimeSpec } from './screen-runtime.types';
 import { UcCalls } from './uc-calls';
 
@@ -40,7 +41,8 @@ export class ScreenRuntime {
 
   /**
    * Экземпляр из снимка канала (внешние данные): адрес не восстановлен
-   * или ревизия не целое `≥ 0` — отказ, состояние не по схеме — начальное.
+   * или ревизия не целое `≥ 0` либо больше `MAX_REVISION` — отказ,
+   * состояние не по схеме — начальное.
    */
   async restore(
     json: unknown,
@@ -55,7 +57,8 @@ export class ScreenRuntime {
     if (
       typeof revision !== 'number' ||
       !Number.isSafeInteger(revision) ||
-      revision < 0
+      revision < 0 ||
+      revision > MAX_REVISION
     ) {
       return err({ reason: 'malformed' });
     }

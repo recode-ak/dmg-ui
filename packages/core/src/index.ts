@@ -121,7 +121,7 @@ export type {
   UiRecord,
 } from './runtime/ui-observer.types';
 export type { FieldIssue } from './schema/schema-check';
-export type { ActionContext } from './screen/action-context.types';
+export type { ActionContext, Place } from './screen/action-context.types';
 export {
   type ActionField,
   ActionInput,

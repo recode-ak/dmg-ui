@@ -87,6 +87,7 @@ describe('PackageManifest', () => {
           'ApiAppDispatch',
           'ModuleApiDispatch',
           'RenderFlags',
+          'RenderContexts',
         ]),
       );
     });

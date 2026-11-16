@@ -15,6 +15,7 @@ import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import type { CodeLoaders } from '../runtime/code-loaders';
 import type { UiObserver } from '../runtime/ui-observer.types';
+import type { Place } from '../screen/action-context.types';
 import type { UcDispatch } from './ucs-dispatch.types';
 
 /**
@@ -31,6 +32,11 @@ export type CallerSource<U extends Identified> = {
 /** Вызывающий получателя уведомления по его `uuid` и следу события. */
 export type RecipientCallers<U extends Identified> = {
   resolve(uuid: string, trace: Trace): Promise<Result<Caller<U>, DomainError>>;
+};
+
+/** Место личности по её uuid на сигнал; источник (профиль, язык транспорта) — проекта. */
+export type PersonPlaces = {
+  place(uuid: string, trace: Trace): Promise<Place>;
 };
 
 /** Уведомление одному получателю; `cause.eventId` — для отсева повторов каналом. */

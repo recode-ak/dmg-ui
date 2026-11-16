@@ -4,12 +4,14 @@
 
 export { ApiAppDispatch } from './api-app-dispatch';
 export { ModuleApiDispatch } from './module-api-dispatch';
+export { RenderContexts } from './render-contexts';
 export { RenderFlags } from './render-flags';
 export type {
   CallerSource,
   ChannelNode,
   DeliveredNotification,
   NotificationDelivery,
+  PersonPlaces,
   RecipientCallers,
   ServerContext,
   UiNotifierSpec,

@@ -371,6 +371,34 @@ describe('ScreenRuntime.restore', () => {
       expect(kit.ucs.calls).toEqual([]);
     });
   }
+
+  test('ревизия снимка на пределе — восстановлен, ревизия предел + 1', async () => {
+    const json = {
+      address: LIST_START,
+      state: { selected: [] },
+      revision: 2 ** 31 - 1,
+    };
+
+    const restored = restoredOf(
+      await new RuntimeKit().runtime.restore(json, RuntimeKit.options()),
+    );
+
+    expect(restored.view().revision).toBe(2 ** 31);
+  });
+
+  test('ревизия снимка сверх предела — отказ malformed, UC не вызван', async () => {
+    const kit = new RuntimeKit();
+    const json = {
+      address: LIST_START,
+      state: { selected: [] },
+      revision: 2 ** 31,
+    };
+
+    const res = await kit.runtime.restore(json, RuntimeKit.options());
+
+    expect(res.ok ? undefined : res.error.reason).toBe('malformed');
+    expect(kit.ucs.calls).toEqual([]);
+  });
 });
 
 describe('ScreenRuntime — сборка и загрузчик', () => {

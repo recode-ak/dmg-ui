@@ -14,7 +14,7 @@
 
 1. **Представления** экранов и уведомлений: вид (`InstanceView`, в типах экрана — `ScreenViewOf<D>`) в разметку канала. Ядро ничего не рисует.
 2. **Сбор входа** действия по полям (`ActionView.fields`: подпись, признак необязательности, варианты, начальные значения) и показ подтверждения и отказов.
-3. **Личность**: как человек канала становится `Caller` и `RenderContext` (язык, пояс, `delegate`, `readOnly` из `RenderFlags`).
+3. **Личность и её место**: как человек канала становится `Caller` и откуда берётся его место `Place` (язык и пояс) — порт `PersonPlaces.place(uuid, trace)`, источник места (профиль, язык транспорта) — дело проекта. Место — того, кто работает (личность транспорта), а не замещаемого. `RenderContext` из места и признаков `delegate`, `readOnly` собирает `RenderContexts` (D-UI-41).
 4. **Хранение** открытых экранов и их состояния (`ScreenInstance.snapshot()` / `ScreenRuntime.restore`); куда вести, если адрес не восстановился.
 5. **Точки входа** — команда, маршрут, ссылка — на входы, которые объявило приложение UI.
 6. **След**: на каждый входящий сигнал канал рождает `Trace.fromRequest({ requestId, channel })`.
@@ -28,7 +28,7 @@
 1. **Код.** `CodeLoaders` (реестр загрузчиков набора) создаёт корень сборки; образец — `exampleCodes()`. Загрузчики другого набора — бросок при сборке.
 2. **Сервер.** Один на набор: `new UiServer({ set, dispatch, context, nodes? })`. `dispatch` — бэкенд вызова UC: `new ApiAppDispatch(api)` в одном процессе или `new ModuleApiDispatch([...apis])` для модулей вне процесса; `context` — `{ bus, logger }` приложения; `nodes` — узлы канала (`ChannelNode`: `id`, `uses`, `listens`).
 3. **Сессия личности.** `server.session(source)` даёт `UiSession`: она же `UcPort` и `RefreshPort` для исполнителя. `CallerSource`: `subjectId` (субъект для сопоставления событий; у заместителя — замещаемый), `channel` (канал следа), `resolve(trace)` → `Result<Caller>`; порт канал реализует сам. Образец — `DialogIdentity.source()`.
-4. **Исполнитель.** `new ScreenRuntime({ set, codes, ucs: session, refresh: session, observer })`. Дальше `open(address, { context, trace })`, `restore(json, options)`. Контекст рендера канал строит сам: `{ locale, timeZone, delegate, readOnly }`, признаки — `RenderFlags.of(caller.value)`.
+4. **Исполнитель.** `new ScreenRuntime({ set, codes, ucs: session, refresh: session, observer })`. Дальше `open(address, { context, trace })`, `restore(json, options)`. Контекст рендера — `new RenderContexts(callers, places).of(uuid, trace)`: место из `PersonPlaces`, признаки — `RenderFlags` вызывающего (`RecipientCallers`); вызывающий не разрешился — `delegate` и `readOnly` `false`. Канал вправе собрать `{ locale, timeZone, delegate, readOnly }` и сам через `RenderFlags.of(caller.value)`. Снимок с ревизией больше `2³¹ − 1` `restore` отвергает отказом `malformed` (D-UI-42).
 5. **Уведомления.** `new UiNotifier({ app, codes, dispatch, callers, delivery, observer, context }).start()`; `callers` — `RecipientCallers` (`resolve(uuid, trace)` → `Result<Caller>`), `delivery` — `NotificationDelivery.deliver(notification)`. Запуск один: повторный `start()` без остановки бросает, подписка одна на приложение; `start()` возвращает отписку — храни её.
 6. **Наблюдатель.** `UiObserver.record(entry)` синхронный и не бросает; в записи нет входа, данных и payload. Для тестов — `MemoryUiObserver`.
 
@@ -122,7 +122,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 - ARC-13 — свой префикс правил; UI-06 — ребро `presents` на каждый экран и уведомление приложения.
 - ERR-01, ERR-06, ERR-07 — внешний вход не бросает, неизвестный исход — дефект канала, `warn` без данных клиента.
 - Нейтральность: в коде экрана и ядра нет слов канала; в пакете это проверяют тест импортов и сканер слов канала — образец такой проверки для своего канала.
-- Личность — из транспорта; `CallerSource.channel` задан; `requestId` новый на сигнал; `RenderContext` строится из `RenderFlags`.
+- Личность — из транспорта; `CallerSource.channel` задан; `requestId` новый на сигнал; `RenderContext` строится `RenderContexts` (или из `RenderFlags`).
 - Каждый исход `ActionOutcome` и `LocalOutcome` разобран в `switch` с веткой `never`.
 - Отсев повтора уведомлений и предел памяти (`RefTable`, входящие, отсеянные ключи) решены явно.
 
