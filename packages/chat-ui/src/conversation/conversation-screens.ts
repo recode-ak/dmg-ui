@@ -46,6 +46,8 @@ type ScreensParts = {
   readonly log: ConversationLog;
   /** Экземпляр перечитан по событию: беседа ставит показ в свою очередь. */
   readonly refreshed: (instance: ScreenInstance) => void;
+  /** Вид экрана снимка совпал с показанным: ревизия `to` вместо прежней — для черновика беседы. */
+  readonly rebased: (serial: Serial, from: number, to: number) => void;
 };
 
 /**
@@ -75,9 +77,32 @@ export class ConversationScreens {
     return this.live;
   }
 
-  /** Последний выданный номер экрана. */
+  /** Живой экран с номером `serial`; чужой — «Экран уже закрыт.», ядро не вызывается. */
+  async onScreen(
+    serial: Serial,
+  ): Promise<
+    { readonly serial: Serial; readonly instance: ScreenInstance } | undefined
+  > {
+    const live = this.live;
+    if (live !== undefined && live.serial === serial) return live;
+    await this.note(DIALOG_TEXTS.closed);
+    return undefined;
+  }
+
+  /** Последний выданный номер экрана и черновика. */
   last(): Serial {
     return this.serial;
+  }
+
+  /** Следующий номер беседы — для черновика: экраны и черновики нумеруются одним счётчиком. */
+  issue(): Serial {
+    this.serial += 1;
+    return this.serial;
+  }
+
+  /** Номер живого экрана или ещё не поднятого экрана снимка. */
+  shownSerial(): Serial | undefined {
+    return (this.live ?? this.pending)?.serial;
   }
 
   /** Экран снимка — через `restore` ядра и отпечаток; нет снимка — true, не восстановлен — заметка и false. */
@@ -93,7 +118,9 @@ export class ConversationScreens {
     const view = restored.view();
     const shown = await ScreenFingerprint.of(this.parts.replies.shown(view));
     if (shown === pending.shown) {
-      this.parts.refs.rebase(pending.serial, view.revision - 1, view.revision);
+      const from = view.revision - 1;
+      this.parts.refs.rebase(pending.serial, from, view.revision);
+      this.parts.rebased(pending.serial, from, view.revision);
     }
     this.attach(restored, pending.serial, pending);
     return true;
@@ -152,11 +179,23 @@ export class ConversationScreens {
       live.instance.view(),
       live.serial,
       lead,
+      live.page,
     );
     live.shown = await ScreenFingerprint.of(reply.shown);
     const handle = await this.send(reply.message, send);
     if (handle === undefined) return;
     live.handles = [...live.handles, handle].slice(-MAX_HANDLES);
+  }
+
+  /** Страница вариантов живого экрана `serial` («Ещё»); чужой экран — «Экран уже закрыт.». */
+  async turn(serial: Serial, page: number): Promise<void> {
+    const live = this.live;
+    if (live === undefined || live.serial !== serial) {
+      await this.note(DIALOG_TEXTS.closed);
+      return;
+    }
+    live.page = page;
+    await this.show();
   }
 
   /** Перечитанный экземпляр ещё живой — его вид по инициативе. */
@@ -221,8 +260,7 @@ export class ConversationScreens {
 
   /** Новый живой экран со следующим номером; прежний закрыт. */
   private replace(instance: ScreenInstance): void {
-    this.serial += 1;
-    this.attach(instance, this.serial, { shown: '', handles: [], page: 0 });
+    this.attach(instance, this.issue(), { shown: '', handles: [], page: 0 });
   }
 
   private attach(

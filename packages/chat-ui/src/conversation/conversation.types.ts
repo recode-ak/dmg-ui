@@ -248,6 +248,15 @@ export type ConversationSnapshot = {
   readonly draft?: DraftJson;
 };
 
+/** Раскладка вариантов под лимит мессенджера (`OptionLayout`). */
+export type Layout =
+  /** Все варианты — кнопками. */
+  | { readonly kind: 'all' }
+  /** Кнопки страницы и «Ещё» по кругу. */
+  | { readonly kind: 'pages'; readonly size: number; readonly count: number }
+  /** Номера в тексте и «Ещё», если страниц больше одной. */
+  | { readonly kind: 'numbers'; readonly size: number; readonly count: number };
+
 /** Показ вида экрана: сообщение со ссылками и показанное — для отпечатка. */
 export type ScreenReply = {
   readonly message: Message;

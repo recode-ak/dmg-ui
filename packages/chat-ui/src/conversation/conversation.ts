@@ -1,13 +1,12 @@
 import type { Trace } from 'dmg-core';
 import type {
-  ActionOutcome,
+  ActionField,
   ActionView,
   AddressJson,
   AnyUiAppDef,
   InstanceJson,
   LocalView,
   ScreenInstance,
-  UnavailableReason,
 } from 'dmg-ui';
 import { DIALOG_TEXTS } from '../dialog/dialog-replies';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
@@ -22,34 +21,22 @@ import type {
   ConversationSignal,
   ConversationSnapshot,
   ConversationSpec,
-  Serial,
 } from './conversation.types';
+import { ConversationInput } from './conversation-input';
 import { ConversationLog } from './conversation-log';
+import { ConversationOutcomes } from './conversation-outcomes';
 import { ConversationQueue } from './conversation-queue';
 import { ConversationReplies } from './conversation-replies';
 import { ConversationScreens } from './conversation-screens';
+import { OptionLayout } from './option-layout';
 import { RefTable } from './ref-table';
 import { SeenSignals } from './seen-signals';
-
-/** Живой экран, на котором исполняется нажатие. */
-type OnScreen = {
-  readonly serial: Serial;
-  readonly instance: ScreenInstance;
-};
-
-/** Действие живого экрана: имя, ревизия показа, собранный вход. */
-type ActTarget = {
-  readonly action: string;
-  readonly revision: number;
-  readonly input: unknown;
-  readonly confirmed: boolean;
-};
 
 /**
  * Беседа одного собеседника (D-UI-43): сигналы мессенджера и проактивные
  * показы идут по одному через очередь, повтор id отсеивается, нажатие
- * разбирается по записи таблицы ссылок, исходы ядра — по таблице политик
- * (гайд `channel-package.md`). Всё показываемое — новым сообщением.
+ * разбирается по записи таблицы ссылок, вход действия с полями собирает
+ * черновик, исходы ядра — по таблице политик (гайд `channel-package.md`).
  *
  * @see conversation.test.ts
  */
@@ -61,6 +48,8 @@ export class Conversation {
   private readonly replies: ConversationReplies;
   private readonly log: ConversationLog;
   private readonly screens: ConversationScreens;
+  private readonly input: ConversationInput;
+  private readonly outcomes: ConversationOutcomes;
   private closed = false;
 
   /** Возможности не годятся (`options.max < 3`, `options.ref < 16`) или нет входа home — бросок. */
@@ -73,7 +62,11 @@ export class Conversation {
       spec.logger,
       spec.messenger.capabilities.name,
     );
-    this.replies = new ConversationReplies(spec.replies, this.refs);
+    this.replies = new ConversationReplies(
+      spec.replies,
+      this.refs,
+      new OptionLayout(spec.messenger.capabilities.options.max),
+    );
     this.screens = new ConversationScreens(
       {
         spec,
@@ -81,10 +74,24 @@ export class Conversation {
         refs: this.refs,
         log: this.log,
         refreshed: (instance) => this.refreshed(instance),
+        rebased: (serial, from, to) => this.input.rebase(serial, from, to),
       },
       snapshot?.serial ?? 0,
       snapshot?.screen,
     );
+    this.input = new ConversationInput(
+      {
+        screens: this.screens,
+        replies: this.replies,
+        run: (draft, input, trace) => this.outcomes.run(draft, input, trace),
+      },
+      snapshot?.draft,
+    );
+    this.outcomes = new ConversationOutcomes({
+      screens: this.screens,
+      replies: this.replies,
+      input: this.input,
+    });
   }
 
   /** Сборка беседы с этими приложением, входом home и возможностями; не годится — бросок. */
@@ -143,6 +150,7 @@ export class Conversation {
 
   snapshot(): ConversationSnapshot {
     const screen = this.screens.toJSON();
+    const draft = this.input.toJSON();
     return {
       version: 1,
       person: this.spec.person,
@@ -150,6 +158,7 @@ export class Conversation {
       refs: this.refs.toJSON(),
       seen: this.seen.toJSON(),
       ...(screen === undefined ? {} : { screen }),
+      ...(draft === undefined ? {} : { draft }),
     };
   }
 
@@ -200,10 +209,9 @@ export class Conversation {
         await this.enter(signal.entry, trace);
         return;
       case 'text':
-        // Сбора входа здесь нет: текст на экране — «Выберите вариант.».
         if (this.screens.current() === undefined)
           await this.screens.home(trace);
-        else await this.screens.note(DIALOG_TEXTS.choose);
+        else await this.input.text(signal.text, trace);
         return;
       case 'press':
         await this.press(signal.ref, trace);
@@ -212,7 +220,9 @@ export class Conversation {
         await this.screens.note(CONVERSATION_TEXTS.attachment);
         return;
       case 'cancel':
-        await this.screens.show();
+        await this.screens.show(
+          this.input.cancel() ? CONVERSATION_TEXTS.cancelled : undefined,
+        );
         return;
       default: {
         const unknownKind: never = signal;
@@ -239,15 +249,31 @@ export class Conversation {
       await this.screens.note(DIALOG_TEXTS.unknownRef);
       return;
     }
+    // Шаг черновика — его дело; любой другой вариант черновик сбрасывает.
+    const step =
+      entry.kind === 'choice' ||
+      entry.kind === 'skip' ||
+      (entry.kind === 'page' && entry.of === 'field');
+    if (step) {
+      await this.input.step(entry, trace);
+      return;
+    }
+    this.input.drop();
     switch (entry.kind) {
       case 'action': {
-        const on = await this.onScreen(entry.screen);
+        const on = await this.screens.onScreen(entry.screen);
         if (on === undefined) return;
-        if (Conversation.hasFields(on.instance.view().actions, entry.action)) {
-          await this.screens.note(DIALOG_TEXTS.choose);
+        const { action, revision } = entry;
+        const fields = Conversation.fieldsOf(
+          on.instance.view().actions,
+          action,
+        );
+        if (fields.length > 0) {
+          const target = { kind: 'action', action, revision } as const;
+          await this.input.start(on.serial, target, fields, trace);
           return;
         }
-        await this.act(
+        await this.outcomes.act(
           on,
           { ...entry, input: undefined, confirmed: false },
           trace,
@@ -255,35 +281,35 @@ export class Conversation {
         return;
       }
       case 'local': {
-        const on = await this.onScreen(entry.screen);
+        const on = await this.screens.onScreen(entry.screen);
         if (on === undefined) return;
         const view = on.instance.view();
-        if (entry.revision !== view.revision) {
+        const { local, revision } = entry;
+        const fields = Conversation.fieldsOf(view.locals, local);
+        if (revision !== view.revision) {
           await this.screens.show(DIALOG_TEXTS.stale);
-        } else if (Conversation.hasFields(view.locals, entry.local)) {
-          await this.screens.note(DIALOG_TEXTS.choose);
+        } else if (fields.length > 0) {
+          const target = { kind: 'local', local, revision } as const;
+          await this.input.start(on.serial, target, fields, trace);
         } else {
-          await this.local(on.instance, entry.local);
+          await this.outcomes.local(on.instance, local);
         }
         return;
       }
       case 'confirm': {
-        const on = await this.onScreen(entry.screen);
+        const on = await this.screens.onScreen(entry.screen);
         if (on === undefined) return;
         if (!entry.yes) await this.screens.show();
         else
-          await this.act(
+          await this.outcomes.act(
             on,
             { ...entry, input: entry.input, confirmed: true },
             trace,
           );
         return;
       }
-      case 'choice':
-      case 'skip':
       case 'page':
-        // Черновика входа здесь нет: шаг и страница не к чему приложить.
-        await this.screens.note(DIALOG_TEXTS.unavailable);
+        await this.screens.turn(entry.owner, entry.page);
         return;
       case 'open':
         await this.screens.openJson(entry.address, trace);
@@ -297,127 +323,12 @@ export class Conversation {
     }
   }
 
-  /** Живой экран с номером `serial`; чужой — «Экран уже закрыт.», ядро не вызывается. */
-  private async onScreen(serial: Serial): Promise<OnScreen | undefined> {
-    const live = this.screens.current();
-    if (live !== undefined && live.serial === serial) return live;
-    await this.screens.note(DIALOG_TEXTS.closed);
-    return undefined;
-  }
-
-  private async act(
-    on: OnScreen,
-    target: ActTarget,
-    trace: Trace,
-  ): Promise<void> {
-    const outcome = await on.instance.act({
-      action: target.action,
-      input: target.input,
-      revision: target.revision,
-      confirmed: target.confirmed,
-      trace: trace.toJSON(),
-    });
-    await this.settle(on, target, outcome, trace);
-  }
-
-  /** Политика по исходу действия. */
-  private async settle(
-    on: OnScreen,
-    target: ActTarget,
-    outcome: ActionOutcome,
-    trace: Trace,
-  ): Promise<void> {
-    const { instance } = on;
-    switch (outcome.kind) {
-      case 'moved':
-        await this.screens.openJson(outcome.address, trace);
-        return;
-      case 'stayed':
-        await this.screens.show();
-        return;
-      case 'exited':
-        await this.screens.send(
-          this.replies.exit(instance.view(), outcome.exit),
-        );
-        await this.screens.home(trace);
-        return;
-      case 'confirm':
-        await this.screens.send(
-          this.replies.confirm(outcome.label, outcome.description, {
-            screen: on.serial,
-            revision: target.revision,
-            action: target.action,
-            input: target.input,
-          }),
-        );
-        return;
-      case 'rejected':
-        await this.screens.show(
-          outcome.issues[0]?.text ?? DIALOG_TEXTS.unavailable,
-        );
-        return;
-      case 'refused':
-        await this.screens.show(
-          this.replies.refusal(instance.view(), outcome.refusal),
-        );
-        return;
-      case 'stale':
-        await this.screens.show(DIALOG_TEXTS.stale);
-        return;
-      case 'unavailable':
-        await this.unavailable(outcome.reason);
-        return;
-      default:
-        Conversation.unknown(outcome);
-    }
-  }
-
-  private async local(instance: ScreenInstance, name: string): Promise<void> {
-    const outcome = await instance.local({ name });
-    switch (outcome.kind) {
-      case 'changed':
-        await this.screens.show();
-        return;
-      case 'rejected':
-        await this.screens.show(
-          outcome.issues[0]?.text ?? DIALOG_TEXTS.unavailable,
-        );
-        return;
-      case 'refused':
-        await this.screens.show(outcome.refusal.text);
-        return;
-      case 'unavailable':
-        await this.unavailable(outcome.reason);
-        return;
-      default:
-        Conversation.unknown(outcome);
-    }
-  }
-
-  private async unavailable(reason: UnavailableReason): Promise<void> {
-    if (reason === 'unknown') {
-      throw new Error(
-        'Conversation: ссылка на действие, которого нет у экрана',
-      );
-    }
-    await this.screens.note(
-      reason === 'closed' ? DIALOG_TEXTS.closed : DIALOG_TEXTS.unavailable,
-    );
-  }
-
-  /** Исход, которого беседа не знает (новый в ядре), — дефект беседы, бросок (ERR-06). */
-  private static unknown(outcome: never): never {
-    throw new Error(
-      `Conversation: неизвестный исход ${JSON.stringify(outcome)}`,
-    );
-  }
-
-  /** У действия вида есть поля входа — без сбора входа его не исполнить. */
-  private static hasFields(
+  /** Поля входа действия вида; действия нет — полей нет. */
+  private static fieldsOf(
     items: readonly (ActionView | LocalView)[],
     name: string,
-  ): boolean {
-    return (items.find((item) => item.name === name)?.fields.length ?? 0) > 0;
+  ): readonly ActionField[] {
+    return items.find((item) => item.name === name)?.fields ?? [];
   }
 
   /** Перечитанный экземпляр — показ в очередь беседы; дефект показа — в лог. */

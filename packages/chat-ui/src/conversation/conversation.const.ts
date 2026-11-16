@@ -25,6 +25,9 @@ export const MAX_SIGNAL_TEXT = 65_536;
 /** Наименьший лимит вариантов мессенджера, с которым собирается беседа. */
 export const MIN_OPTIONS = 3;
 
+/** Вариантов поля на страницу, когда они идут номерами в тексте вопроса. */
+export const NUMBERED_PAGE = 10;
+
 /** Сообщений живого экрана, что помнит беседа; старые забываются. */
 export const MAX_HANDLES = 32;
 
@@ -38,6 +41,8 @@ export const CONVERSATION_LIMIT = 1000;
 export const CONVERSATION_TEXTS = {
   noEntry: 'Такого входа нет.',
   attachment: 'Вложения здесь не принимаются.',
+  cancelled: 'Ввод отменён.',
+  more: 'Ещё',
   signalRejected: 'сигнал беседы отвергнут по пределу',
   noPerson: 'отправитель сигнала без личности — сигнал не исполнен',
   foreign: 'личность сигнала не владелец беседы — сигнал не исполнен',
