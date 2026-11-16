@@ -55,6 +55,13 @@ describe('PackageManifest', () => {
       });
     });
 
+    it('каталог цели входа — по exports', () => {
+      expect(PackageManifest.parse(text).entryDirs()).toEqual({
+        'dmg-ui': 'packages/core/src',
+        'dmg-ui/tg-bot': 'packages/tg-bot/src',
+      });
+    });
+
     it('цель вне packages — исключение', () => {
       const bad = JSON.stringify({
         name: 'dmg-ui',

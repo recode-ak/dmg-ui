@@ -1,18 +1,21 @@
 import { describe, expect, it } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Trace } from 'dmg-core/app';
+import type { PersonCaller } from 'dmg-core';
 import { AppGraph } from 'dmg-core/graph';
 import {
   AwaitingBus,
   ExampleGraph,
   expectOk,
   MemoryLogger,
+  testTrace,
+  testUuid,
   useTempDir,
 } from 'dmg-core/testing';
 import {
   CreateTaskUcDef,
   ExampleApp,
+  type ExampleUser,
   ListTasksUcDef,
   TodoModuleDef,
 } from 'dmg-core/testing/example';
@@ -22,16 +25,35 @@ import {
 // и признаком `visible` (v0.5.1). Это осознанное отклонение от TST-09
 // (тест не про код пакета, а про платформу), его требуют spec и план трека.
 
-const USER_A = '5e3d1c2b-7a6f-4e8d-b9c0-a1f2e3d4c5b6';
-const USER_B = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+const USER_A = testUuid(1);
+const USER_B = testUuid(2);
 const T0 = Date.UTC(2026, 9, 1);
 
 const tmp = useTempDir('dmg-core-example-');
 
 async function userCaller(app: ExampleApp, uuid: string) {
+  return expectOk(await app.callers.resolve(uuid, testTrace()));
+}
+
+async function listOf(app: ExampleApp, caller: PersonCaller<ExampleUser>) {
   return expectOk(
-    await app.callers.resolve(uuid, Trace.fromRequest({ requestId: 'r' })),
+    await app.api.dispatch(
+      TodoModuleDef,
+      ListTasksUcDef.command({}),
+      caller,
+      testTrace(),
+    ),
   );
+}
+
+function oplogOps(dataDir: string): string[] {
+  const oplog = join(dataDir, 'oplog');
+  return readdirSync(oplog)
+    .filter((file) => file.endsWith('.jsonl'))
+    .flatMap((file) =>
+      readFileSync(join(oplog, file), 'utf8').trim().split('\n'),
+    )
+    .map((line) => JSON.parse(line).op);
 }
 
 describe('опора на dmg-core/testing/example', () => {
@@ -48,33 +70,13 @@ describe('опора на dmg-core/testing/example', () => {
         TodoModuleDef,
         CreateTaskUcDef.command({ title: 'Хлеб' }),
         a,
-        Trace.fromRequest({ requestId: 'create' }),
+        testTrace(),
       ),
     );
 
-    const listOf = async (
-      caller: Awaited<ReturnType<typeof userCaller>>,
-      requestId: string,
-    ) =>
-      expectOk(
-        await app.api.dispatch(
-          TodoModuleDef,
-          ListTasksUcDef.command({}),
-          caller,
-          Trace.fromRequest({ requestId }),
-        ),
-      );
-    expect(await listOf(a, 'list-a')).toHaveLength(1);
-    expect(await listOf(b, 'list-b')).toEqual([]);
-
-    const oplog = join(tmp().path, 'oplog');
-    const ops = readdirSync(oplog)
-      .filter((file) => file.endsWith('.jsonl'))
-      .flatMap((file) =>
-        readFileSync(join(oplog, file), 'utf8').trim().split('\n'),
-      )
-      .map((line) => JSON.parse(line).op);
-    expect(ops).toContain('createTask');
+    expect(await listOf(app, a)).toHaveLength(1);
+    expect(await listOf(app, b)).toEqual([]);
+    expect(oplogOps(tmp().path)).toContain('createTask');
   });
 
   it('граф учебного приложения: четыре UC todo с visible: true', () => {

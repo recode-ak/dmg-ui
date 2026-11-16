@@ -3,11 +3,10 @@ import type { Violation } from './violation.types';
 
 /** Поиск слов канала (сообщение, кнопка, страница, URL, мессенджеры) в ядре: текст режется на слова, сравнение по целым словам. */
 export class ChannelWordScanner {
-  /** Точные слова. Расширяется решением в `decisions` пакета. */
-  protected static readonly WORDS = new Set([
+  /** Латинские слова: токен равен слову, допускается множественное `s`/`es`. Расширяется решением в `decisions` пакета. */
+  protected static readonly EXACT = [
     'button',
     'page',
-    'pages',
     'url',
     'uri',
     'href',
@@ -21,30 +20,28 @@ export class ChannelWordScanner {
     'discord',
     'tg',
     'chat',
-    'chats',
-    'бот',
-    'бота',
-    'боту',
-    'ботом',
-    'боте',
-    'боты',
-    'ботов',
-    'ботам',
-    'ботами',
-    'ботах',
-  ]);
+    'bot',
+    'chatbot',
+  ];
 
-  /** Русские основы: слово начинается с основы (сообщение, кнопку, страницу, чата, телеграмм). */
+  /** Русские слова: токен равен слову с падежным окончанием (бот, бота, ботов). */
+  protected static readonly EXACT_RU = ['бот', 'чат'];
+
+  /** Русские основы: токен начинается с основы (сообщение, кнопок, страницу, телеграмм). */
   protected static readonly STEMS = [
-    'сообщен',
+    'сообщени',
     'кнопк',
+    'кнопок',
     'страниц',
-    'чат',
     'телеграм',
   ];
 
-  protected static readonly SPLIT =
-    /(?<=[\p{Ll}\p{N}])(?=\p{Lu})|(?<=\p{Lu})(?=\p{Lu}\p{Ll})/u;
+  protected static readonly TOKEN =
+    /\p{Lu}{2,}s?(?!\p{Ll})|\p{Lu}?\p{Ll}+|\p{Lu}+/gu;
+
+  protected static readonly EXACT_PATTERN = new RegExp(
+    `^(?:${ChannelWordScanner.EXACT.join('|')})(?:s|es)?$|^(?:${ChannelWordScanner.EXACT_RU.join('|')})(?:а|у|ом|е|ы|ов|ам|ами|ах)?$`,
+  );
 
   /** Нарушение на каждую строку, где есть слово канала. */
   scan(files: SourceFile[]): Violation[] {
@@ -60,15 +57,14 @@ export class ChannelWordScanner {
   }
 
   protected hasChannelWord(line: string): boolean {
-    return (line.match(/[\p{L}\p{N}]+/gu) ?? [])
-      .flatMap((chunk) => chunk.split(ChannelWordScanner.SPLIT))
-      .map((word) => word.toLowerCase())
-      .some((word) => this.isChannelWord(word));
+    return (line.match(ChannelWordScanner.TOKEN) ?? []).some((token) =>
+      this.isChannelWord(token.toLowerCase()),
+    );
   }
 
   protected isChannelWord(word: string): boolean {
     return (
-      ChannelWordScanner.WORDS.has(word) ||
+      ChannelWordScanner.EXACT_PATTERN.test(word) ||
       ChannelWordScanner.STEMS.some((stem) => word.startsWith(stem))
     );
   }

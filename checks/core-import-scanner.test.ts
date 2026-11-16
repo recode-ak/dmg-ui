@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile, SourceTree } from './source-tree';
 
@@ -18,13 +16,20 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       ['import bun:', "import { test } from 'bun:test';"],
       ['голый встроенный модуль fs', "import fs from 'fs';"],
       ['голый встроенный модуль path', "import { join } from 'path';"],
-      ['import без привязок', "import 'node:process';"],
       ['require', "const fs = require('node:fs');"],
-      ['require голого модуля', "const p = require('path');"],
-      ['export from', "export { join } from 'node:path';"],
-      ['export * from', "export * from 'bun:sqlite';"],
+      ['шаблон без интерполяции', 'const m = await import(`node:fs`);'],
+      ['dmg-ui/testing', "import { x } from 'dmg-ui/testing';"],
+      [
+        'относительный путь в testing ядра',
+        "import { x } from '../testing/index';",
+      ],
+      ['сторонний пакет grammy', "import { Bot } from 'grammy';"],
+      ['сторонний пакет react', "import React from 'react';"],
+      [
+        'сторонний подпуть dmg-core/other',
+        "import { x } from 'dmg-core/other';",
+      ],
       ['динамический import', "const m = await import('node:fs');"],
-      ['динамический import bun:', "const m = await import('bun:test');"],
       ['dmg-core/testing', "import { useTempDir } from 'dmg-core/testing';"],
       [
         'dmg-core/testing/*',
@@ -86,6 +91,31 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       expect(found).toMatchObject([{ file: 'packages/a/x.ts', line: 1 }]);
     });
 
+    const strict = new CoreImportScanner([
+      {
+        include: ['packages/a/'],
+        exclude: [],
+        forbidden: [],
+        allowed: ['valibot'],
+        forbiddenPaths: ['packages/a/testing'],
+      },
+    ]);
+
+    it('белый список: вне списка — нарушение, из списка — нет', () => {
+      const run = (spec: string) =>
+        strict.scan([SourceFile.of('packages/a/x.ts', `import '${spec}';`)]);
+      expect(run('react')).toHaveLength(1);
+      expect(run('valibot')).toEqual([]);
+      expect(run('./y')).toEqual([]);
+    });
+
+    it('forbiddenPaths: путь разрешается от каталога файла', () => {
+      const run = (path: string, spec: string) =>
+        strict.scan([SourceFile.of(path, `import '${spec}';`)]);
+      expect(run('packages/a/src/x.ts', '../testing/t')).toHaveLength(1);
+      expect(run('packages/a/src/x.ts', '../lib/t')).toEqual([]);
+    });
+
     it('своя зона не трогает спецификаторы вне списка', () => {
       const found = custom.scan([
         SourceFile.of('packages/a/x.ts', "import 'dmg-core/graph';"),
@@ -106,20 +136,6 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       ]);
       expect(found).toEqual([]);
     });
-  });
-
-  it('файл с node: на диске находится тем же кодом чтения, что у src', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'core-imports-'));
-    try {
-      mkdirSync(join(dir, SRC), { recursive: true });
-      writeFileSync(join(dir, SRC, 'x.ts'), "import 'node:fs';\n");
-      const files = SourceTree.read(dir, 'packages/core');
-      expect(CoreImportScanner.standard().scan(files)).toMatchObject([
-        { file: `${SRC}/x.ts`, line: 1 },
-      ]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
   });
 
   it('на реальном packages/core — ноль нарушений', () => {

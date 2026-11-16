@@ -12,15 +12,21 @@ export class PackageDirections {
   /**
    * @param directions пакет → разрешённые пакеты
    * @param entries имя входа (`dmg-ui/x`) → каталог пакета
+   * @param entryDirs имя входа → каталог его цели от корня репо
    */
   constructor(
     protected readonly directions: Record<string, string[]>,
     protected readonly entries: Record<string, string>,
+    protected readonly entryDirs: Record<string, string> = {},
   ) {}
 
   /** Таблица репо и входы из `exports` корневого манифеста. */
   static standard(manifest: PackageManifest): PackageDirections {
-    return new PackageDirections(PackageDirections.TABLE, manifest.entries());
+    return new PackageDirections(
+      PackageDirections.TABLE,
+      manifest.entries(),
+      manifest.entryDirs(),
+    );
   }
 
   scan(files: SourceFile[]): Violation[] {
@@ -62,6 +68,10 @@ export class PackageDirections {
     }
     const entry = this.entries[specifier];
     if (entry !== undefined) {
+      const dir = this.entryDirs[specifier];
+      if (dir !== undefined && path.startsWith(`${dir}/`)) {
+        return `«${specifier}» не импортируют из его же каталога: внутри входа — относительные пути`;
+      }
       return entry === pkg || allowed.includes(entry)
         ? undefined
         : `нет направления «${pkg}» → «${entry}» («${specifier}»)`;

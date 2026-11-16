@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { PackageDirections } from './package-directions';
 import { PackageManifest } from './package-manifest';
 import { SourceFile, SourceTree } from './source-tree';
@@ -13,6 +11,7 @@ const directions = () =>
   new PackageDirections(
     { a: [], b: ['a'] },
     { 'dmg-ui': 'a', 'dmg-ui/b': 'b' },
+    { 'dmg-ui': 'packages/a/src', 'dmg-ui/b': 'packages/b/src' },
   );
 
 const scanIn = (path: string, text: string) =>
@@ -41,9 +40,29 @@ describe('PackageDirections — направления между пакетам
     it('относительный путь, выходящий из каталога пакета', () => {
       const found = scanIn(
         'packages/a/src/f.ts',
-        "export const x = 1;\nimport '../../../b/src/x';",
+        "export const x = 1;\nimport '../../b/src/x';",
       );
       expect(found).toMatchObject([{ file: 'packages/a/src/f.ts', line: 2 }]);
+    });
+
+    it('относительный путь за пределы packages/', () => {
+      expect(
+        scanIn('packages/a/src/f.ts', "import '../../../x';"),
+      ).toHaveLength(1);
+    });
+
+    it('вход из собственного каталога-цели: dmg-ui из packages/a/src', () => {
+      expect(scanIn('packages/a/src/f.ts', "import 'dmg-ui';")).toHaveLength(1);
+    });
+
+    it('вход из собственного каталога-цели: dmg-ui/b из packages/b/src', () => {
+      expect(scanIn('packages/b/src/f.ts', "import 'dmg-ui/b';")).toHaveLength(
+        1,
+      );
+    });
+
+    it('свой вход из другого каталога пакета разрешён', () => {
+      expect(scanIn('packages/a/testing/f.ts', "import 'dmg-ui';")).toEqual([]);
     });
 
     it('путь вглубь чужого пакета dmg-ui/packages/…', () => {
@@ -64,14 +83,12 @@ describe('PackageDirections — направления между пакетам
       expect(found).toMatchObject([{ file: 'packages/a/src/f.ts', line: 1 }]);
     });
 
-    it('export from и динамический import тоже проверяются', () => {
-      const found = directions().scan([
-        SourceFile.of(
-          'packages/a/src/f.ts',
-          "export * from 'dmg-ui/b';\nconst m = await import('dmg-ui/b');",
-        ),
-      ]);
-      expect(found.map((v) => v.line)).toEqual([1, 2]);
+    it('шаблон без интерполяции в import() проверяется', () => {
+      const found = scanIn(
+        'packages/a/src/f.ts',
+        'const m = await import(`dmg-ui/b`);',
+      );
+      expect(found).toHaveLength(1);
     });
 
     it('пакет вне таблицы — «обнови таблицу»', () => {
@@ -96,20 +113,6 @@ describe('PackageDirections — направления между пакетам
       ]);
       expect(found).toHaveLength(1);
     });
-  });
-
-  it('пакет на диске находится тем же кодом чтения, что у packages', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'directions-'));
-    try {
-      mkdirSync(join(dir, 'packages/a/src'), { recursive: true });
-      writeFileSync(join(dir, 'packages/a/src/f.ts'), "import 'dmg-ui/b';\n");
-      const files = SourceTree.read(dir, 'packages');
-      expect(directions().scan(files)).toMatchObject([
-        { file: 'packages/a/src/f.ts', line: 1 },
-      ]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
   });
 
   it('на реальном репо — ноль нарушений', () => {

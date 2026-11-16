@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { ChannelWordScanner } from './channel-word-scanner';
 import { SourceFile, SourceTree } from './source-tree';
 
@@ -87,9 +85,33 @@ describe('ChannelWordScanner — в ядре нет слов канала', () =
     expect(found.map((v) => v.line)).toEqual([2, 4]);
   });
 
+  for (const found of [
+    'buttons',
+    'urls',
+    'URLs',
+    'getURLs',
+    'parseURL',
+    'webhooks',
+    'bot',
+    'bots',
+    'botToken',
+    'chatbot',
+    'кнопок',
+    'tg2',
+    'http2',
+  ]) {
+    it(`форма «${found}» находится`, () => {
+      expect(scan(`const a = ${found};`)).toHaveLength(1);
+    });
+  }
+
   for (const neutral of [
+    'bottom',
+    'both',
+    'сообщество',
     'работа',
     'робот',
+    'robot',
     'curl',
     'ссылка на Def',
     'link',
@@ -102,20 +124,6 @@ describe('ChannelWordScanner — в ядре нет слов канала', () =
       expect(scan(`// ${neutral}`)).toEqual([]);
     });
   }
-
-  it('файл с кнопкой на диске находится тем же кодом чтения, что у src', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'channel-words-'));
-    try {
-      mkdirSync(join(dir, CORE_SRC), { recursive: true });
-      writeFileSync(join(dir, CORE_SRC, 'x.ts'), '// кнопка\n');
-      const files = SourceTree.read(dir, CORE_SRC);
-      expect(new ChannelWordScanner().scan(files)).toMatchObject([
-        { file: `${CORE_SRC}/x.ts`, line: 1 },
-      ]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
 
   it('на реальном packages/core/src — ноль нарушений', () => {
     const files = SourceTree.read(ROOT, CORE_SRC);

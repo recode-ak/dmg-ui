@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 
 /** Корневой `package.json`: `exports`, зависимости и сопоставление «вход → каталог пакета». */
 export class PackageManifest {
@@ -42,6 +42,18 @@ export class PackageManifest {
         );
       }
       result[key === '.' ? name : `${name}/${key.slice(2)}`] = match[1];
+    }
+    return result;
+  }
+
+  /** Имя входа → каталог его цели (`packages/core/src`): внутри него вход не импортируют. */
+  entryDirs(): Record<string, string> {
+    const name = String(this.json.name);
+    const result: Record<string, string> = {};
+    for (const [key, target] of Object.entries(this.exports())) {
+      result[key === '.' ? name : `${name}/${key.slice(2)}`] = posix.dirname(
+        target.replace(/^\.\//, ''),
+      );
     }
     return result;
   }
