@@ -15,7 +15,7 @@ import { PageRenderer } from '../page/client/page-renderer';
 // Помощник рендера примеров: вид примера из Def через представление
 // канала — здесь `PageRenderer` страничного канала: ему нужны только
 // представления, без канала, сервера и приложения. Снимки — в
-// `__snapshots__/` рядом; снимки диалогового канала — в пакете `chat-ui`.
+// `__snapshots__/` рядом; снимки другого канала — в его пакете.
 
 const pagePreviewOf = (delegate = false, readOnly = false) =>
   new ExamplePreview({

@@ -46,7 +46,7 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui/server` | `UiServer` и `UiSession`, уведомитель `UiNotifier`, привязки к `ApiApp` и `ModuleApi` (`ApiAppDispatch`, `ModuleApiDispatch`), `RenderFlags`, типы портов канала (`CallerSource`, `RecipientCallers`, `NotificationDelivery`) | граф ядра |
 | `dmg-ui/testing` | учебный набор UI и его код (`ExampleUiSetDef`, `exampleCodes`), страничный канал (`PageClient`, `PageHost`, `PageWire`), помощник примеров `ExamplePreview`, наблюдатель `MemoryUiObserver` | — (берёт `dmg-core/testing` и `dmg-core/testing/example`, ставится вместе с `dmg-core`) |
 | `dmg-ui/testing/fixtures` | ровно шесть помощников тестов ядра для тестов пакетов каналов: `T0`, `oplogRecords`, `RuntimeKit`, `testRenderContext`, `StubViewProvider`, `ArchReport` | — |
-| `dmg-ui/chat-ui` | диалоговый канал: `DialogChannel`, `DialogRenderer`, `DialogViews`, `ScreenPresenter`, `NotificationPresenter`, поставщик графа `DialogGraphProvider`, `DIALOG_CHANNEL` | слова конкретного мессенджера, граф ядра, тестовые входы |
+| `dmg-ui/chat-ui` | диалоговый канал: `DialogChannel`, `DialogRenderer`, `DialogViews`, `ScreenPresenter`, `NotificationPresenter`, поставщик графа `DialogGraphProvider`, `DIALOG_CHANNEL` | слова конкретного мессенджера, `dmg-core/app`, `node:`, тестовые входы, код ядра по относительному пути |
 | `dmg-ui/chat-ui/testing` | привязка учебного примера к диалоговому каналу: `ExampleDialogAppDef`, `ExampleDialogArch`, `exampleDialogViews` | — |
 | `dmg-ui/tg-bot` | пустой каркас пакета канала Telegram; имя `dmg-ui/tg-bot/testing` зарезервировано | — |
 

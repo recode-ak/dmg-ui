@@ -17,7 +17,7 @@ import { PageHost } from './server/page-host';
 import type { ClientEnd } from './wire/page-wire.types';
 
 // Сборка половин страничного канала: приложение другого канала — ошибка
-// сборки, бросок (ERR-01), как у диалогового канала пакета `chat-ui`.
+// сборки, бросок (ERR-01), как у диалогового канала.
 
 const tmp = useTempDir('dmg-ui-page-assembly-');
 

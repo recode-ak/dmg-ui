@@ -45,6 +45,14 @@ describe('PackageDirections — направления между пакетам
       expect(found).toMatchObject([{ file: 'packages/a/src/f.ts', line: 2 }]);
     });
 
+    it('ядро: относительный путь в src соседнего пакета (охранный тест, правило общее)', () => {
+      const found = scanIn(
+        'packages/a/src/x.ts',
+        "import '../../b/src/dialog/dialog';",
+      );
+      expect(found).toMatchObject([{ file: 'packages/a/src/x.ts', line: 1 }]);
+    });
+
     it('относительный путь за пределы packages/', () => {
       expect(
         scanIn('packages/a/src/f.ts', "import '../../../x';"),
@@ -135,6 +143,15 @@ describe('PackageDirections — направления между пакетам
         expect(scanRepo(path, `import '${spec}';`)).toEqual([]);
       });
     }
+
+    it('packages/core/src/x.ts → ../../chat-ui/src/dialog/dialog — нарушение', () => {
+      expect(
+        scanRepo(
+          'packages/core/src/x.ts',
+          "import '../../chat-ui/src/dialog/dialog';",
+        ),
+      ).toHaveLength(1);
+    });
 
     for (const [path, spec, why] of [
       ['packages/core/src/f.ts', 'dmg-ui/chat-ui', 'ядро → chat-ui'],

@@ -100,11 +100,8 @@ describe('ChannelWordScanner.chatUi — в chat-ui нет слов конкре�
     expect(scan('// page')).toEqual([]);
   });
 
-  it('на реальном packages/chat-ui (src и testing) — ноль нарушений', () => {
-    const files = [
-      ...SourceTree.read(ROOT, 'packages/chat-ui/src'),
-      ...SourceTree.read(ROOT, 'packages/chat-ui/testing'),
-    ];
+  it('на реальном packages/chat-ui (весь каталог) — ноль нарушений', () => {
+    const files = SourceTree.read(ROOT, 'packages/chat-ui');
     expect(files.length).toBeGreaterThan(0);
     expect(ChannelWordScanner.chatUi().scan(files)).toEqual([]);
   });

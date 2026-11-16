@@ -19,4 +19,9 @@ export type ImportZone = {
    * импорт, разрешающийся вне всех префиксов, — нарушение.
    */
   allowedPaths?: string[];
+  /**
+   * Закрытый префикс: спецификатор, равный `prefix` или начинающийся с
+   * `prefix/`, обязан быть в `names` (имена входов пакета), иначе — нарушение.
+   */
+  entriesOnly?: { prefix: string; names: string[] };
 };

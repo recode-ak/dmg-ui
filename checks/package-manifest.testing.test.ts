@@ -64,6 +64,7 @@ describe('вход dmg-ui/testing', () => {
       'jsonPorts',
       'UiScene',
       'ArchReport',
+      'ExampleStubAppDef',
       'StubViewProvider',
       'StubSignalProvider',
       'StubTransport',

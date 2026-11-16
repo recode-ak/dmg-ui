@@ -185,7 +185,58 @@ describe('CoreImportScanner — приёмочный каталог моноре
     });
   }
 
+  for (const text of [
+    "import { a } from 'dmg-ui/packages/core/src/x';",
+    "import { a } from 'dmg-ui/chat-ui/src/x';",
+    "import { a } from 'dmg-ui/chat-ui/testing/example';",
+    "import { a } from 'dmg-ui/nope';",
+  ]) {
+    it(`${text} в acceptance — не имя входа, нарушение`, () => {
+      expect(scan(text, STORY)).toHaveLength(1);
+    });
+  }
+
   it('относительный импорт соседа внутри acceptance проходит', () => {
     expect(scan("import { a } from './helper';", STORY)).toEqual([]);
+  });
+});
+
+describe('CoreImportScanner — тестовый каталог пакета tg-bot (packages/tg-bot/testing/)', () => {
+  const TESTING = 'packages/tg-bot/testing/example.ts';
+
+  it('тестовые входы, пример, dmg-ui/chat-ui/testing и dmg-ui/tg-bot разрешены; соседи внутри каталога тоже', () => {
+    const text = [
+      "import * as v from 'valibot';",
+      "import { Trace } from 'dmg-core';",
+      "import { ExampleArch } from 'dmg-core/testing';",
+      "import { ExampleApp } from 'dmg-core/testing/example';",
+      "import { ArchApp } from 'dmg-core/arch';",
+      "import { ExampleUiSetDef } from 'dmg-ui/testing';",
+      "import { T0 } from 'dmg-ui/testing/fixtures';",
+      "import { ExampleDialogArch } from 'dmg-ui/chat-ui/testing';",
+      "import { DialogChannel } from 'dmg-ui/chat-ui';",
+      "import { TgChannel } from 'dmg-ui/tg-bot';",
+      "import { a } from './helper';",
+    ].join('\n');
+
+    expect(scan(text, TESTING)).toEqual([]);
+  });
+
+  for (const text of [
+    "import fs from 'node:fs';",
+    "import { a } from 'grammy';",
+    "import { a } from 'dmg-core/app';",
+    "import { a } from '../src/index';",
+    "import { a } from '../../core/src/index';",
+  ]) {
+    it(`${text} в tg-bot/testing — нарушение`, () => {
+      expect(scan(text, TESTING)).toHaveLength(1);
+    });
+  }
+
+  it('*.test.ts каталога — вне зоны', () => {
+    expect(
+      scan("import 'node:fs';", 'packages/tg-bot/testing/a.test.ts'),
+    ).toEqual([]);
   });
 });

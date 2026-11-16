@@ -1,7 +1,8 @@
 import { builtinModules } from 'node:module';
-import { posix } from 'node:path';
+import { posix, resolve } from 'node:path';
 import type { ImportZone } from './core-import-scanner.types';
 import { ModuleSpecifiers } from './module-specifiers';
+import { PackageManifest } from './package-manifest';
 import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
@@ -23,6 +24,13 @@ const CHAT_UI = 'packages/chat-ui/src';
 const CHAT_UI_TESTING = 'packages/chat-ui/testing';
 /** Пакет канала Telegram: код входа `dmg-ui/tg-bot`. */
 const TG_BOT = 'packages/tg-bot/src';
+/** Пакет канала Telegram: тестовый вход `dmg-ui/tg-bot/testing` (зарезервирован). */
+const TG_BOT_TESTING = 'packages/tg-bot/testing';
+/** Пакеты каналов: каждый файл лежит в каталоге с зоной (`src/` или `testing/`). */
+const CHANNEL_PACKAGES = ['packages/chat-ui', 'packages/tg-bot'];
+const CHANNEL_DIRS = ['src', 'testing'];
+/** Корень репо: из него читается манифест по умолчанию. */
+const ROOT = resolve(import.meta.dir, '..');
 /** Приёмочные тесты монорепо: поверх нескольких пакетов, импорт по именам входов. */
 const ACCEPTANCE = 'acceptance';
 
@@ -44,10 +52,15 @@ export class CoreImportScanner {
    * `chat-ui/src` (публичные входы ядра; относительные — внутри пакета,
    * ARC-08), `chat-ui/testing` (плюс тестовые входы и пример, `dmg-ui/chat-ui`),
    * `tg-bot/src` (как `chat-ui/src`, плюс `dmg-ui/chat-ui`, без внешних
-   * библиотек). Приёмочный каталог `acceptance/` не ограничен, но в `packages/`
-   * заходит только по именам входов.
+   * библиотек), `tg-bot/testing` (как `chat-ui/testing`, плюс
+   * `dmg-ui/chat-ui/testing` и `dmg-ui/tg-bot`). Приёмочный каталог
+   * `acceptance/` не ограничен, но в `packages/` заходит только по именам
+   * входов: относительно и по `dmg-ui/...`, не совпадающему с входом из
+   * `exports`.
    */
-  static standard(): CoreImportScanner {
+  static standard(
+    manifest: PackageManifest = PackageManifest.read(ROOT),
+  ): CoreImportScanner {
     const forbidden = [
       'node:*',
       'bun:*',
@@ -238,12 +251,65 @@ export class CoreImportScanner {
         allowedPaths: [TG_BOT],
       },
       {
+        include: [`${TG_BOT_TESTING}/`],
+        exclude: ['.test.ts'],
+        forbidden: forbidden.filter(
+          (spec) =>
+            spec !== 'dmg-core/testing/*' &&
+            spec !== 'dmg-core/testing' &&
+            spec !== 'dmg-ui/testing',
+        ),
+        allowed: [
+          'valibot',
+          'dmg-core',
+          'dmg-core/graph',
+          'dmg-core/arch',
+          'dmg-core/testing',
+          'dmg-core/testing/example',
+          'dmg-ui',
+          'dmg-ui/server',
+          'dmg-ui/graph',
+          'dmg-ui/testing',
+          'dmg-ui/testing/fixtures',
+          'dmg-ui/chat-ui',
+          'dmg-ui/chat-ui/testing',
+          'dmg-ui/tg-bot',
+        ],
+        allowedPaths: [TG_BOT_TESTING],
+      },
+      {
         include: [`${ACCEPTANCE}/`],
         exclude: [],
         forbidden: [],
         forbiddenPaths: ['packages'],
+        entriesOnly: {
+          prefix: 'dmg-ui',
+          names: Object.keys(manifest.entries()),
+        },
       },
     ]);
+  }
+
+  /** Страж раскладки: файл пакета канала вне `src/` и `testing/` не попал бы ни в одну зону. */
+  static scanLayout(files: SourceFile[]): Violation[] {
+    return files.flatMap((file) => {
+      const pkg = CHANNEL_PACKAGES.find((dir) =>
+        file.path.startsWith(`${dir}/`),
+      );
+      if (!pkg) return [];
+      const known = CHANNEL_DIRS.some((dir) =>
+        file.path.startsWith(`${pkg}/${dir}/`),
+      );
+      return known
+        ? []
+        : [
+            {
+              file: file.path,
+              line: 1,
+              text: `файл вне известных каталогов ${CHANNEL_DIRS.map((d) => `${d}/`).join(', ')} пакета «${pkg}»: добавь зону в CoreImportScanner.standard`,
+            },
+          ];
+    });
   }
 
   scan(files: SourceFile[]): Violation[] {
@@ -283,6 +349,15 @@ export class CoreImportScanner {
       return hit || outside
         ? `запрещённый относительный импорт «${specifier}»`
         : undefined;
+    }
+    const closed = zone.entriesOnly;
+    if (
+      closed &&
+      (specifier === closed.prefix ||
+        specifier.startsWith(`${closed.prefix}/`)) &&
+      !closed.names.includes(specifier)
+    ) {
+      return `импорт «${specifier}» — не имя входа из exports`;
     }
     if (this.matches(zone.forbidden, specifier)) {
       return `запрещённый импорт «${specifier}»`;
