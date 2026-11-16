@@ -1,0 +1,45 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`ExamplePreview через DialogRenderer — снимки примеров taskList empty 1`] = `
+"Мои задачи
+Задач пока нет. Напишите название — создам задачу.
+
+[Создать задачу] [Закрыть]"
+`;
+
+exports[`ExamplePreview через DialogRenderer — снимки примеров taskList full 1`] = `
+"Мои задачи
+[x] Хлеб
+[ ] Молоко — выполнена
+
+[Открыть задачу] [Создать задачу] [Выполнить выбранные] [Дальше] [Закрыть] [Отметить задачу]"
+`;
+
+exports[`ExamplePreview через DialogRenderer — снимки примеров taskCard done — «Выполнить» недоступно по данным 1`] = `
+"Задача: Молоко
+Статус: выполнена
+
+[К списку] [Назначить]"
+`;
+
+exports[`ExamplePreview через DialogRenderer — снимки примеров assignedTasks two 1`] = `
+"Назначенные мне
+• Хлеб
+• Молоко — выполнена
+
+[Закрыть]"
+`;
+
+exports[`ExamplePreview через DialogRenderer — снимки примеров уведомление taskAssigned sample 1`] = `"Вам назначена задача: Хлеб"`;
+
+exports[`ExamplePreview через DialogRenderer — снимки примеров уведомление taskCompleted sample 1`] = `"Поручение выполнено: Сыр"`;
+
+exports[`ExamplePreview через DialogRenderer — снимки примеров заместитель с readOnly — шапка и без действий с uc (ФР-7) 1`] = `
+"(Вы работаете за другого человека, только чтение)
+
+Мои задачи
+[x] Хлеб
+[ ] Молоко — выполнена
+
+[Открыть задачу] [Дальше] [Закрыть] [Отметить задачу]"
+`;

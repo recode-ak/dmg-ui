@@ -7,6 +7,7 @@ export {
   ExampleDialogAppDef,
 } from './dialog/example-dialog.app';
 export { ExampleDialogArch } from './dialog/example-dialog.arch';
+export { exampleDialogViews } from './dialog/example-dialog.views';
 export { type ExampleCodeOverrides, exampleCodes } from './example-codes';
 export { ExampleUiSetDef } from './example-ui.set';
 export { AssignedTasksScreenDef } from './todo/assigned-tasks.screen';

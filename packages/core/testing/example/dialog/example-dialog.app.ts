@@ -1,4 +1,5 @@
 import { UiAppDef } from 'dmg-ui';
+import { DIALOG_CHANNEL } from '../../dialog';
 import { ExampleUiSetDef } from '../example-ui.set';
 import { AssignedTasksScreenDef } from '../todo/assigned-tasks.screen';
 import { FinishTasksStoryDef } from '../todo/finish-tasks.story';
@@ -9,7 +10,7 @@ import { TaskCompletedNotificationDef } from '../todo/task-completed.notificatio
 import { TaskListScreenDef } from '../todo/task-list.screen';
 
 /** Канал приложения UI — учебный диалоговый канал. */
-export const DIALOG_CHANNEL = 'dmg-ui-dialog';
+export { DIALOG_CHANNEL };
 
 /** Приложение UI учебного примера в диалоговом канале: все сторис и уведомления, два входа. */
 export const ExampleDialogAppDef = UiAppDef.define({

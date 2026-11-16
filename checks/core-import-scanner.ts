@@ -11,12 +11,8 @@ const EXAMPLE = 'packages/core/testing/example';
 const BINDING = 'packages/core/testing/example/dialog';
 /** Учебный диалоговый канал. */
 const CHANNEL = 'packages/core/testing/dialog';
-/**
- * Временно (K5): граф примера ставит `presents` тестовым представлением
- * «набор целиком», пока нет `DialogGraphProvider`. Срез 4 удаляет и
- * исключение, и импорт в `example/dialog/example-dialog.arch.ts`.
- */
-const BINDING_STUB = ['packages/core/testing/ui-graph-fixture'];
+/** Помощник рендера примеров: от канала и сервера не зависит. */
+const PREVIEW = 'packages/core/testing/preview';
 
 /** Проверка импортов ядра по набору зон: `node:`, `bun:`, встроенные модули и тестовые входы `dmg-core` запрещены. */
 export class CoreImportScanner {
@@ -30,7 +26,11 @@ export class CoreImportScanner {
    * `dmg-core`, `dmg-ui` и контракты учебного приложения — как у проекта;
    * относительные — внутри `example/`) и привязка примера к каналу
    * (`testing/example/dialog/`: плюс граф и сборка `ArchApp`; относительные —
-   * в `example/` и учебный канал `testing/dialog/`).
+   * в `example/` и учебный канал `testing/dialog/`), учебный канал
+   * (`testing/dialog/`: только публичные входы `dmg-ui`, `dmg-ui/server`,
+   * `dmg-ui/graph`, `dmg-core`, `dmg-core/graph`; относительные — внутри
+   * канала, ARC-08) и помощник рендера (`testing/preview/`: как канал, без
+   * сервера и графа).
    */
   static standard(): CoreImportScanner {
     const forbidden = [
@@ -98,7 +98,28 @@ export class CoreImportScanner {
           'dmg-ui',
           'dmg-ui/graph',
         ],
-        allowedPaths: [EXAMPLE, CHANNEL, ...BINDING_STUB],
+        allowedPaths: [EXAMPLE, CHANNEL],
+      },
+      {
+        include: [`${CHANNEL}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: [
+          'valibot',
+          'dmg-core',
+          'dmg-core/graph',
+          'dmg-ui',
+          'dmg-ui/server',
+          'dmg-ui/graph',
+        ],
+        allowedPaths: [CHANNEL],
+      },
+      {
+        include: [`${PREVIEW}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-ui'],
+        allowedPaths: [PREVIEW],
       },
     ]);
   }
