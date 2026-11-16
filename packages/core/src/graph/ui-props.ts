@@ -57,10 +57,18 @@ export const UI_PROPS = {
     confirm: v.optional(v.strictObject(item)),
   }),
   notification: v.strictObject({
-    recipients: v.strictObject({
-      from: v.string(),
-      fields: v.array(v.string()),
-    }),
+    recipients: v.variant('from', [
+      v.strictObject({
+        from: v.literal('payload'),
+        fields: v.array(v.string()),
+      }),
+      // UC получателей — конец ребра `recipients`, а не свойство.
+      v.strictObject({
+        from: v.literal('query'),
+        input: v.record(v.string(), v.string()),
+        fields: v.array(v.string()),
+      }),
+    ]),
     examples: v.array(v.string()),
   }),
   uiApp: v.strictObject({

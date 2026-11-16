@@ -5,13 +5,31 @@ import type { NotificationDef } from './notification-def';
 import type { AnyScreenDef } from './screen-def.types';
 
 /**
- * Получатели уведомления — поля payload с `uuid` получателя. Что поля есть
- * в payload — правило графа; вариант `from: 'query'` появится с исполнителем.
+ * Получатели уведомления: `payload` — поля payload с `uuid` получателя;
+ * `query` — поля выхода query UC (объект или элементы массива), вызванного
+ * системой; `input` — поле входа UC → поле payload. Сверка — правило графа.
  */
-export type RecipientsSpec = {
-  readonly from: 'payload';
-  readonly fields: readonly string[];
-};
+export type RecipientsSpec =
+  | {
+      readonly from: 'payload';
+      readonly fields: readonly string[];
+    }
+  | {
+      readonly from: 'query';
+      readonly uc: AnyUseCaseDef;
+      readonly input: Readonly<Record<string, string>>;
+      readonly fields: readonly string[];
+    };
+
+/** Получатели в нормализованной форме: UC — именем. */
+export type NormalizedRecipients =
+  | { readonly from: 'payload'; readonly fields: readonly string[] }
+  | {
+      readonly from: 'query';
+      readonly uc: string;
+      readonly input: Readonly<Record<string, string>>;
+      readonly fields: readonly string[];
+    };
 
 /** Пример уведомления; соответствие схеме проверяет правило графа, а не конструктор. */
 export type NotificationExampleSpec = {
@@ -42,7 +60,7 @@ export type NormalizedNotification = DefTexts & {
   readonly dmg: 'notification';
   readonly visible: boolean;
   readonly event: string;
-  readonly recipients: RecipientsSpec;
+  readonly recipients: NormalizedRecipients;
   readonly reads: readonly string[];
   readonly data: NormalizedSchema;
   readonly links: readonly string[];

@@ -1,6 +1,7 @@
 import { type AnyEventDef, Def, type DefSchemas, toJsonSchema } from 'dmg-core';
 import type {
   NormalizedNotification,
+  NormalizedRecipients,
   NotificationExampleSpec,
   NotificationSpec,
   RecipientsSpec,
@@ -10,6 +11,7 @@ import type { AnyScreenDef } from './screen-def.types';
 export type {
   AnyNotificationDef,
   NormalizedNotification,
+  NormalizedRecipients,
   NotificationExampleSpec,
   NotificationSpec,
   RecipientsSpec,
@@ -54,11 +56,19 @@ export class NotificationDef<
       ...this.texts(),
       visible: this.visible,
       event: this.event.name,
-      recipients: this.recipients,
+      recipients: NotificationDef.normalizedRecipients(this.recipients),
       reads: this.reads.map((uc) => uc.name),
       data: toJsonSchema(this.data),
       links: this.links().map((s) => s.name),
       examples: Object.keys(this.examples),
     };
+  }
+
+  private static normalizedRecipients(
+    recipients: RecipientsSpec,
+  ): NormalizedRecipients {
+    return recipients.from === 'payload'
+      ? recipients
+      : { ...recipients, uc: recipients.uc.name };
   }
 }

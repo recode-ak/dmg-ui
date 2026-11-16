@@ -92,6 +92,9 @@ export class UiEdges {
     const from = this.ids.notification(notification);
     return [
       ...notification.reads.map((uc) => this.operation('reads', from, uc)),
+      ...(notification.recipients.from === 'query'
+        ? [this.operation('recipients', from, notification.recipients.uc)]
+        : []),
       this.event('notifiedBy', from, notification.event),
       ...notification.links().map((to) => this.edge('links', from, to)),
     ];

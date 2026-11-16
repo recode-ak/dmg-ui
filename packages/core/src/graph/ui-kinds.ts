@@ -32,6 +32,7 @@ export const UI_EDGE_KINDS = {
   includes: 'includes',
   entry: 'entry',
   reads: 'reads',
+  recipients: 'recipients',
   invokes: 'invokes',
   leadsTo: 'leadsTo',
   refreshedBy: 'refreshedBy',
@@ -103,6 +104,12 @@ export const UI_KINDS: GraphKinds = {
       kind: UI_EDGE_KINDS.reads,
       label: 'Читает UC',
       description: 'Экран или уведомление читает данные query UC.',
+    },
+    {
+      kind: UI_EDGE_KINDS.recipients,
+      label: 'Получатели из UC',
+      description:
+        'Уведомление берёт получателей из выхода query UC, вызванного системой.',
     },
     {
       kind: UI_EDGE_KINDS.invokes,

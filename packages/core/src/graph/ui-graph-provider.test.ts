@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { toJsonSchema } from 'dmg-core';
 import { AppGraph, GraphError } from 'dmg-core/graph';
-import { ExampleAppDef, TaskEvents } from 'dmg-core/testing/example';
+import {
+  ExampleAppDef,
+  GetTaskUcDef,
+  TaskEvents,
+} from 'dmg-core/testing/example';
 import { ScreenProvider } from 'dmg-core/testing/example/screen/screen-provider';
 import { TasksScreenDef } from 'dmg-core/testing/example/screen/tasks.screen';
 import * as v from 'valibot';
@@ -134,6 +138,7 @@ describe('UiGraphProvider: узлы', () => {
       'notifiedBy',
       'presents',
       'reads',
+      'recipients',
       'refreshedBy',
     ]);
   });
@@ -375,6 +380,29 @@ describe('UiGraphProvider: рёбра', () => {
     expect(built.node('miniConsole')?.props).toMatchObject({
       entries: [{ name: 'one' }, { name: 'two' }],
     });
+  });
+});
+
+describe('UiGraphProvider: получатели из query UC (С-6 брифа Ф4)', () => {
+  test('recipients — уведомление → query UC получателей, не reads', () => {
+    const notification = UiScene.notification('n', {
+      recipients: {
+        from: 'query',
+        uc: GetTaskUcDef,
+        input: { taskId: 'taskId' },
+        fields: ['ownerId'],
+      },
+    });
+    const scene = new UiScene({ screens: [], notifications: [notification] });
+    const built = new AppGraph({
+      def: ExampleAppDef,
+      providers: [new UiGraphProvider({ set: scene.set, apps: [scene.app] })],
+    }).build();
+    const targets = (kind: string) =>
+      built.outgoing('miniUi/todo/n', kind).map((edge) => edge.to);
+
+    expect(targets('recipients')).toEqual(['example/todo/getTask']);
+    expect(targets('reads')).toEqual(['example/todo/listTasks']);
   });
 });
 

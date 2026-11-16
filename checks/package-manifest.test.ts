@@ -9,10 +9,11 @@ const manifest = () => PackageManifest.read(ROOT);
 
 describe('PackageManifest', () => {
   describe('корневой package.json', () => {
-    it('ключи exports — ровно вход, graph и testing', () => {
+    it('ключи exports — ровно вход, graph, server и testing', () => {
       expect(Object.keys(manifest().exports()).sort()).toEqual([
         '.',
         './graph',
+        './server',
         './testing',
       ]);
     });
@@ -68,6 +69,30 @@ describe('PackageManifest', () => {
 
       expect(root).not.toContain('UiGraphProvider');
       expect(root).not.toContain('UI_KINDS');
+    });
+
+    it('вход dmg-ui/server резолвится по имени пакета', async () => {
+      expect(await import('dmg-ui/server')).toBeDefined();
+    });
+
+    it('состав входа dmg-ui/server — сервер, уведомления, бэкенды вызова', async () => {
+      expect(Object.keys(await import('dmg-ui/server'))).toEqual(
+        expect.arrayContaining([
+          'UiServer',
+          'UiNotifier',
+          'ApiAppDispatch',
+          'ModuleApiDispatch',
+          'RenderFlags',
+        ]),
+      );
+    });
+
+    it('сервер в корень dmg-ui не попадает', async () => {
+      const root = Object.keys(await import('dmg-ui'));
+
+      for (const name of ['UiServer', 'UiNotifier', 'ApiAppDispatch']) {
+        expect(root).not.toContain(name);
+      }
     });
 
     it('вход dmg-ui/testing резолвится по имени пакета', async () => {

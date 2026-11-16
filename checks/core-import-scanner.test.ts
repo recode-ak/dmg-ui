@@ -122,6 +122,35 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
     });
   });
 
+  describe('server/ — отдельная зона', () => {
+    const SERVER = `${SRC}/server/a.ts`;
+
+    for (const spec of ['dmg-core/app', 'dmg-core/graph']) {
+      it(`«${spec}» разрешён в src/server/`, () => {
+        expect(scan(`import { a } from '${spec}';`, SERVER)).toEqual([]);
+      });
+    }
+
+    for (const text of [
+      "import { a } from 'dmg-core/arch';",
+      "import fs from 'node:fs';",
+      "import { x } from 'dmg-core/testing';",
+      "import { a } from '../graph/index';",
+      "import { a } from '../../testing/ui-fixture';",
+    ]) {
+      it(`${text} в server/ — нарушение`, () => {
+        expect(scan(text, SERVER)).toHaveLength(1);
+      });
+    }
+
+    it('в server/ разрешены соседи по src/ кроме graph/', () => {
+      const text =
+        "import { a } from '../runtime/a';\nimport { b } from '../manifest/b';";
+
+      expect(scan(text, SERVER)).toEqual([]);
+    });
+  });
+
   describe('runtime/ — часть ядра', () => {
     const RUNTIME = `${SRC}/runtime/a.ts`;
 

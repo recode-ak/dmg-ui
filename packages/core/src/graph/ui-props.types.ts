@@ -64,12 +64,18 @@ export type UiActionProps = {
   readonly confirm?: UiItemProps;
 };
 
+/** Получатели в `props` уведомления; UC варианта `query` — ребро `recipients`. */
+export type UiRecipientsProps =
+  | { readonly from: 'payload'; readonly fields: readonly string[] }
+  | {
+      readonly from: 'query';
+      readonly input: Readonly<Record<string, string>>;
+      readonly fields: readonly string[];
+    };
+
 /** `props` узла `notification`. */
 export type UiNotificationProps = {
-  readonly recipients: {
-    readonly from: string;
-    readonly fields: readonly string[];
-  };
+  readonly recipients: UiRecipientsProps;
   readonly examples: readonly string[];
 };
 

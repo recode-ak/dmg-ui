@@ -16,6 +16,7 @@
   "exports": {
     ".": "./packages/core/src/index.ts",
     "./graph": "./packages/core/src/graph/index.ts",
+    "./server": "./packages/core/src/server/index.ts",
     "./testing": "./packages/core/testing/index.ts"
   },
   "peerDependencies": {

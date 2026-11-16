@@ -11,7 +11,8 @@ export class CoreImportScanner {
 
   /**
    * Зоны репо (TST-07): ядро (`packages/core/src`, кроме тестов, `graph/` и
-   * `server/`), граф (`src/graph`, где разрешён `dmg-core/graph`) и код
+   * `server/`), граф (`src/graph`, где разрешён `dmg-core/graph`), сервер
+   * (`src/server`: плюс `dmg-core/app` и `/graph`, без `graph/` ядра) и код
    * экрана (`testing/*-code.ts`: только `valibot`, `dmg-core`, `dmg-ui` и
    * контракты учебного примера — как у кода экрана приложения).
    */
@@ -45,6 +46,13 @@ export class CoreImportScanner {
         forbidden,
         allowed: ['valibot', 'dmg-core', 'dmg-core/graph'],
         forbiddenPaths: ['packages/core/testing'],
+      },
+      {
+        include: ['packages/core/src/server/'],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-core/app', 'dmg-core/graph'],
+        forbiddenPaths: ['packages/core/testing', 'packages/core/src/graph'],
       },
       {
         include: ['packages/core/testing/'],

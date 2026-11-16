@@ -11,6 +11,7 @@ export type { NormalizedSchema } from './manifest/normalized.types';
 export {
   type AnyNotificationDef,
   type NormalizedNotification,
+  type NormalizedRecipients,
   NotificationDef,
   type NotificationExampleSpec,
   type NotificationSpec,

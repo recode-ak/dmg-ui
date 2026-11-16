@@ -1,7 +1,10 @@
 import { toJsonSchema } from 'dmg-core';
 import type { GraphNodeInput } from 'dmg-core/graph';
 import type { UiIds } from '../address/ui-ids';
-import type { AnyNotificationDef } from '../manifest/notification-def.types';
+import type {
+  AnyNotificationDef,
+  RecipientsSpec,
+} from '../manifest/notification-def.types';
 import type { ScreenAction } from '../manifest/screen-action';
 import type { AnyScreenDef } from '../manifest/screen-def.types';
 import type { ScreenExit } from '../manifest/screen-exit';
@@ -17,6 +20,7 @@ import type {
   UiExitProps,
   UiLocalProps,
   UiNotificationProps,
+  UiRecipientsProps,
   UiScreenProps,
   UiSetProps,
   UiStoryProps,
@@ -143,7 +147,7 @@ export class UiNodes {
 
   private notificationNode(notification: AnyNotificationDef): GraphNodeInput {
     const props: UiNotificationProps = {
-      recipients: notification.recipients,
+      recipients: UiNodes.recipientsOf(notification.recipients),
       examples: Object.keys(notification.examples),
     };
     return {
@@ -196,5 +200,12 @@ export class UiNodes {
       description: exit.description,
       ...(exit.data === undefined ? {} : { data: toJsonSchema(exit.data) }),
     };
+  }
+
+  /** UC получателей уходит в ребро `recipients`, в свойствах — вход и поля. */
+  private static recipientsOf(recipients: RecipientsSpec): UiRecipientsProps {
+    if (recipients.from === 'payload') return recipients;
+    const { from, input, fields } = recipients;
+    return { from, input, fields };
   }
 }
