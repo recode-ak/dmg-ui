@@ -1,0 +1,4 @@
+Задача: беседа — данные (первая часть): таблица ссылок, отсев сигналов, снимок, хранилище, отпечаток.
+Файлы: packages/chat-ui/src/conversation/{conversation.types.ts,conversation.const.ts,seen-signals.ts,ref-table.ts,ref-epochs.ts,screen-fingerprint.ts,conversation-snapshot.ts,conversation-store.types.ts,memory-conversation-store.ts} и тесты рядом; docs/decisions.md (D-UI-44, D-UI-45); dialog/ref-table.test.ts переехал в conversation/.
+Причина: беседа мессенджера хранит состояние данными и переживает перезапуск; ссылка не повторяется.
+Гейт: bun run check — 1308 pass, 0 fail, 109 файлов, 14 снимков.
