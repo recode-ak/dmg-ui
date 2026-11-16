@@ -113,6 +113,9 @@ describe('UcRoutes — маршрут UC по паре (module, uc)', () => {
     });
     expect(transport.sent).toEqual([]);
     expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+    expect(logger.records.map((r) => r.meta)).toEqual([
+      { module: 'todo', uc: 'getTask' },
+    ]);
   });
 
   test('UC уведомления (getTaskAssignee) недоступен сессии — OPERATION_NOT_FOUND { module: todo, uc }', async () => {
@@ -138,6 +141,9 @@ describe('UcRoutes — маршрут UC по паре (module, uc)', () => {
     });
     expect(transport.sent).toEqual([]);
     expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+    expect(logger.records.map((r) => r.meta)).toEqual([
+      { module: 'users', uc: 'listTasks' },
+    ]);
   });
 
   test('неизвестный модуль — OPERATION_NOT_FOUND с этим модулем, диспетчер не вызван', async () => {
@@ -151,6 +157,9 @@ describe('UcRoutes — маршрут UC по паре (module, uc)', () => {
     });
     expect(transport.sent).toEqual([]);
     expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+    expect(logger.records.map((r) => r.meta)).toEqual([
+      { module: 'missing', uc: 'listTasks' },
+    ]);
   });
 
   test('одноимённые UC двух модулей различаются модулем вызова', async () => {

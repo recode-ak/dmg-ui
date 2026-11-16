@@ -158,6 +158,9 @@ describe('UiSession.call — вызывающий и след', () => {
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(transport.sent).toEqual([]);
     expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+    expect(logger.records.map((r) => r.meta)).toEqual([
+      { module: 'todo', uc: 'completeTask' },
+    ]);
   });
 
   test('command UC по выданному eventId — SERVER_INTERNAL и warn, UC не вызван', async () => {
@@ -176,6 +179,9 @@ describe('UiSession.call — вызывающий и след', () => {
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(transport.sent).toEqual([]);
     expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+    expect(logger.records.map((r) => r.meta)).toEqual([
+      { module: 'todo', uc: 'completeTask' },
+    ]);
   });
 
   test('command UC по requestId — исполнен', async () => {
@@ -447,6 +453,14 @@ describe('UiSession.call — недоверенный вызов', () => {
 
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(logger.records.map((r) => r.level)).toEqual(['error']);
+    expect(logger.records.map((r) => r.meta)).toEqual([
+      {
+        module: 'todo',
+        uc: 'listTasks',
+        correlationId: 'r-1',
+        error: 'вызов UC: бросок Error',
+      },
+    ]);
   });
 
   test('бросок бэкенда вызова — SERVER_INTERNAL и error', async () => {
@@ -459,6 +473,14 @@ describe('UiSession.call — недоверенный вызов', () => {
 
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(logger.records.map((r) => r.level)).toEqual(['error']);
+    expect(logger.records.map((r) => r.meta)).toEqual([
+      {
+        module: 'todo',
+        uc: 'listTasks',
+        correlationId: 'r-1',
+        error: 'вызов UC: бросок Error',
+      },
+    ]);
   });
 });
 

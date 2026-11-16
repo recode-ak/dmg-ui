@@ -47,6 +47,7 @@ const ASSIGNEE = testUuid(7);
 /** Выход `listAssignedTasks` получателя: задачи владельца `OWNER`. */
 const ASSIGNED_TASKS = TASKS.map((task) => ({ ...task, ownerId: OWNER }));
 const N_ID = 'exampleUi/todo/taskAssigned';
+const OWNER_N_ID = 'miniUi/todo/taskOwner';
 const eventTrace: TraceJson = {
   cause: { kind: 'event', eventId: 'e-1' },
   correlationId: 'r-assign',
@@ -246,8 +247,18 @@ describe('UiNotifier — дефекты, сбои и записи', () => {
 
     const { logger } = await notify({ delivery: new FailingDelivery() });
 
-    expect(logger.records.map((r) => r.level)).toContain('error');
     expect(JSON.stringify(logger.records)).not.toContain('Хлеб');
+    expect(logger.records.map(({ level, meta }) => ({ level, meta }))).toEqual([
+      {
+        level: 'error',
+        meta: {
+          notification: N_ID,
+          event: TaskEvents.assigned.name,
+          eventId: 'e-1',
+          error: 'канал недоступен',
+        },
+      },
+    ]);
   });
 
   test('запись notified — получатель, eventId и след, без payload и данных', async () => {
@@ -321,7 +332,17 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
     });
 
     expect(delivery.delivered).toEqual([]);
-    expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+    expect(JSON.stringify(logger.records)).not.toContain('нет человека');
+    expect(logger.records.map(({ level, meta }) => ({ level, meta }))).toEqual([
+      {
+        level: 'warn',
+        meta: {
+          notification: OWNER_N_ID,
+          eventId: 'e-1',
+          code: 'ACCESS_DENIED',
+        },
+      },
+    ]);
     expect(observer.records).toContainEqual(
       expect.objectContaining({ kind: 'refused', code: 'ACCESS_DENIED' }),
     );
@@ -339,7 +360,17 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
     });
 
     expect(observer.kinds()).toEqual(['refused']);
-    expect(logger.records.map((r) => r.level)).toEqual(['error']);
+    expect(logger.records.map(({ level, meta }) => ({ level, meta }))).toEqual([
+      {
+        level: 'error',
+        meta: {
+          notification: OWNER_N_ID,
+          event: TaskEvents.assigned.name,
+          eventId: 'e-1',
+          error: 'сеть',
+        },
+      },
+    ]);
     expect(observer.records).toContainEqual(
       expect.objectContaining({ kind: 'refused', code: 'SERVER_INTERNAL' }),
     );
@@ -357,7 +388,18 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
     });
 
     expect(JSON.stringify(observer.records)).not.toContain('секрет');
-    expect(logger.records.map((r) => r.level)).toEqual(['error']);
+    // Текст броска идёт в лог сервера как есть, наблюдателю — нет.
+    expect(logger.records.map(({ level, meta }) => ({ level, meta }))).toEqual([
+      {
+        level: 'error',
+        meta: {
+          notification: N_ID,
+          event: TaskEvents.assigned.name,
+          eventId: 'e-1',
+          error: 'секрет Хлеб',
+        },
+      },
+    ]);
     expect(observer.records).toContainEqual(
       expect.objectContaining({ kind: 'defect', node: N_ID }),
     );
