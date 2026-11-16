@@ -1,7 +1,7 @@
 import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
-/** Поиск ссылок на локальные номера и слова трека разработки (Т-N, ФР-N, «бриф», «фаза N») и, в документах, на `conductor/` и `u7-school`. */
+/** Поиск ссылок на локальные номера и слова трека разработки (Т-N, ФР-N, «бриф», «фаза N», «design §N») и, в документах, на `conductor/` и `u7-school`. */
 export class TrackReferenceScanner {
   /** `Т`, `С` — кириллические Т и С: латинские в `TST-04`, `UTC-8` не считаются. */
   protected static readonly TRACK = new RegExp(
@@ -15,6 +15,7 @@ export class TrackReferenceScanner {
       'расхождени(?:е|я|ю) [0-9]+',
       'аудит(?:а)? (?:№|Ф)',
       'ревью Ф',
+      '[Dd]esign §[0-9]+',
     ].join('|'),
     'gu',
   );

@@ -8,7 +8,7 @@ import type { PageRecipient } from './page-server.types';
 /**
  * Доставка уведомлений: сообщение `notification` во все открытые соединения
  * получателя — без `trace` и `recipient`, причина — только `eventId` для
- * отсева повтора (D-UI-33). Допущение: нет соединения — не доставлено и не
+ * отсева повтора (D-UI-24; форма сообщения — D-UI-33). Допущение: нет соединения — не доставлено и не
  * копится; боевой канал решает это сам (очередь, push, письмо).
  */
 export class PageDelivery implements NotificationDelivery {

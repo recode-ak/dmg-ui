@@ -13,7 +13,7 @@
 ## 2. Что канал обязан дать
 
 1. **Представления** экранов и уведомлений: вид (`InstanceView`, в типах экрана — `ScreenViewOf<D>`) в разметку канала. Ядро ничего не рисует.
-2. **Сбор входа** действия по полям (`ActionView.fields`: подпись, признак, варианты, начальные значения) и показ подтверждения и отказов.
+2. **Сбор входа** действия по полям (`ActionView.fields`: подпись, признак необязательности, варианты, начальные значения) и показ подтверждения и отказов.
 3. **Личность**: как человек канала становится `Caller` и `RenderContext` (язык, пояс, `delegate`, `readOnly` из `RenderFlags`).
 4. **Хранение** открытых экранов и их состояния (`ScreenInstance.snapshot()` / `ScreenRuntime.restore`); куда вести, если адрес не восстановился.
 5. **Точки входа** — команда, маршрут, ссылка — на входы, которые объявило приложение UI.
@@ -27,9 +27,9 @@
 
 1. **Код.** `CodeLoaders` (реестр загрузчиков набора) создаёт корень сборки; образец — `exampleCodes()`. Загрузчики другого набора — бросок при сборке.
 2. **Сервер.** Один на набор: `new UiServer({ set, dispatch, context, nodes? })`. `dispatch` — бэкенд вызова UC: `new ApiAppDispatch(api)` в одном процессе или `new ModuleApiDispatch([...apis])` для модулей вне процесса; `context` — `{ bus, logger }` приложения; `nodes` — узлы канала (`ChannelNode`: `id`, `uses`, `listens`).
-3. **Сессия личности.** `server.session(source)` даёт `UiSession`: она же `UcPort` и `RefreshPort` для исполнителя. `CallerSource`: `subjectId` (субъект для сопоставления событий; у заместителя — замещаемый), `channel` (канал следа), `resolve(trace)` → `Caller`. Образец — `DialogIdentity.source()`.
+3. **Сессия личности.** `server.session(source)` даёт `UiSession`: она же `UcPort` и `RefreshPort` для исполнителя. `CallerSource`: `subjectId` (субъект для сопоставления событий; у заместителя — замещаемый), `channel` (канал следа), `resolve(trace)` → `Result<Caller>`; порт канал реализует сам. Образец — `DialogIdentity.source()`.
 4. **Исполнитель.** `new ScreenRuntime({ set, codes, ucs: session, refresh: session, observer })`. Дальше `open(address, { context, trace })`, `restore(json, options)`. Контекст рендера канал строит сам: `{ locale, timeZone, delegate, readOnly }`, признаки — `RenderFlags.of(caller.value)`.
-5. **Уведомления.** `new UiNotifier({ app, codes, dispatch, callers, delivery, observer, context }).start()`; `callers` — `RecipientCallers` (`resolve(uuid, trace)` → `Caller`), `delivery` — `NotificationDelivery.deliver(notification)`. Запуск один: повторный `start()` без остановки бросает; `start()` возвращает отписку.
+5. **Уведомления.** `new UiNotifier({ app, codes, dispatch, callers, delivery, observer, context }).start()`; `callers` — `RecipientCallers` (`resolve(uuid, trace)` → `Result<Caller>`), `delivery` — `NotificationDelivery.deliver(notification)`. Запуск один: повторный `start()` без остановки бросает, подписка одна на приложение; `start()` возвращает отписку — храни её.
 6. **Наблюдатель.** `UiObserver.record(entry)` синхронный и не бросает; в записи нет входа, данных и payload. Для тестов — `MemoryUiObserver`.
 
 Две части канала (D-UI-16): исполнитель экранов (клиент, `dmg-ui`) и серверная (`dmg-ui/server`). Между ними только JSON (раздел 6). Исполнитель не тянет `dmg-core/app` и `/graph`, поэтому работает в браузере.
@@ -58,7 +58,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 
 Локальное действие: `changed` — показать вид, `rejected` — как выше, `refused` — текст отказа (экземпляр прежний), `unavailable` — заметка.
 
-Страничный канал отличается тем, что экранов несколько (области `main` и `side`): `moved` открывает адрес в области назначения; `exited` в `main` ведёт на вход `start` с заметкой, в `side` — очищает область; `confirm` и `rejected` хранятся в области до следующего действия. Остальное — как в диалоге ([page-client.ts](../../packages/core/testing/page/client/page-client.ts), метод `settle`). «Один живой экран» — политика диалога, а не ядра.
+Страничный канал отличается тем, что экранов несколько (области `main` и `side`): `moved` открывает адрес в области назначения; `exited` в `main` ведёт на вход `start` с заметкой, в `side` — очищает область; `confirm` и `rejected` хранятся в области до следующего действия. Остальное — как в диалоге, кроме отличий: `unavailable: unknown` даёт заметку, а не бросок; у `refused` нет отдельного текста для `caught`; адрес, который не декодировался, очищает область, а не ведёт на вход ([page-client.ts](../../packages/core/testing/page/client/page-client.ts), метод `settle`). «Один живой экран» — политика диалога, а не ядра.
 
 Подписи действий и выходов канал берёт из Def: `UiIds.findScreen(id)` даёт `AnyScreenDef` с `actions`, `locals` и `exits` (у каждого `label`); `normalize()` для этого не нужен.
 
@@ -69,18 +69,18 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 1. **Ребро `presents`.** Приложение UI `presents` каждый экран и уведомление, у которых в канале есть представление; ставит его пакет канала (`UI_EDGE_KINDS.presents`, `UiIds.app(app)` — откуда, `UiIds.screen/notification` — куда). Без него срабатывает UI-06. Образец — [dialog-graph-provider.ts](../../packages/core/testing/dialog/dialog-graph-provider.ts): своих видов и правил нет, `kinds()` пуст.
 2. **Свой вид узла** — точка входа канала. `PageRouteDef` — вид Def `pageRoute` (путь и имя входа приложения), узел под приложением, ребро `opens` к экрану входа. Достижимость экранов ядро считает от входов (UI-07), поэтому вход должен быть объявлен в `entries` приложения.
 3. **Свои правила — свой префикс** (ARC-13): префикс не из префиксов пакета `dmg-core` и не `UI`. У страничного канала — `PG` (PG-01 — маршрут ведёт на объявленный вход, PG-02 — у входа есть маршрут; [rules.md](../reference/rules.md)). Правило читает граф запросами (`outgoing`, `children`), не ветвится по виду Def.
-4. **Вызов UC из узла канала** (сигнал канала, не действие): узел объявляет `uses` и `listens` как `ChannelNode`, а ребро `invokes` ставит канал. Правило UI-10 защищает такие узлы: они не вызывают command UC по событию.
-5. **Вход графа.** `ArchApp` собирает `providers: [new UiGraphProvider({ set, apps }), new <Канал>GraphProvider(...)]` поверх доменного приложения; образцы — `ExampleDialogArch`, `ExamplePagesArch`. Имя поставщика `dmg-ui` уникально: один `UiGraphProvider` на набор. Поставщик страниц ограничен одним приложением UI.
+4. **Вызов UC из узла канала** (сигнал канала, не действие): узел объявляет `uses` и `listens` как `ChannelNode`, а ребро `invokes` ставит канал. Правило UI-10 защищает такие узлы, если у них есть ребро `refreshedBy` или `notifiedBy` к событию: граф ядра узлов канала не строит, и это ребро тоже ставит канал. Такие узлы не вызывают command UC по событию.
+5. **Вход графа.** `ArchApp` собирает `providers: [new UiGraphProvider({ set, apps }), new <Канал>GraphProvider(...)]` поверх доменного приложения; образцы — `ExampleDialogArch`, `ExamplePagesArch`. Имя поставщика `dmg-ui` уникально в графе: один `UiGraphProvider` на граф, два набора не поддержаны (DEBT-UI-12). Поставщик страниц ограничен одним приложением UI (DEBT-UI-6).
 
 ## 6. Граница JSON и провод
 
 Между исполнителем (клиент) и сервером — только JSON; клиент недоверен. Сервер сверяет каждый вызов сам (D-UI-28, D-UI-33).
 
 - **Вызов UC** — простая команда `UcCall`: `{ module, uc, input, requestId }` или `{ …, eventId }`. Ни узла графа, ни следа, ни `Caller`. Сервер сверяет пару `(module, uc)` с объединением объявленного узлами сессии (`UcRoutes`), сам подставляет след и вызывающего. Command UC по `eventId` не исполняется.
-- **Сообщения** страничного канала ([page-messages.types.ts](../../packages/core/testing/page/wire/page-messages.types.ts)): клиент → сервер `call`, `watch`, `unwatch`; сервер → клиент `hello`, `result`, `signal`, `watch-refused`, `notification`, `refused`. Схемы строгие: через провод не проходят `trace`, `caller`, `recipient` и payload события.
+- **Сообщения** страничного канала ([page-messages.types.ts](../../packages/core/testing/page/wire/page-messages.types.ts)): клиент → сервер `call`, `watch`, `unwatch`; сервер → клиент `hello`, `result`, `signal`, `watch-refused`, `notification`, `refused`. Схемы строгие: через провод не проходят след вызова и доставки, `caller`, `recipient` и payload события; сигнал несёт обезличенный след.
 - **Порядок.** `watch` до `call` загрузки: подписка раньше чтения не пропускает событие между ними. Провод обязан быть упорядоченным в каждую сторону (WebSocket такой; независимые запросы HTTP — нет).
 - **Личность — по токену соединения.** `PageHost.connect(token, push)`: токен → `uuid` → сессия; клиент `uuid` не шлёт. Контекст рендера приходит в `hello` один раз.
-- **Пределы** (константы в `*.const.ts`): строка клиента 64 КиБ (до `JSON.parse`), 16 одновременных вызовов и 64 подписки на соединение, 8 соединений на личность, идентификаторы до 256 символов. Мусор и превышение — `refused`, не бросок (ERR-01); `warn` без данных клиента (ERR-07), на мусор и предел вызовов — раз на соединение.
+- **Пределы** (константы: `MAX_CLIENT_TEXT` в `page-wire.const.ts`, `MAX_ID` в `testing/page/wire/page-messages.ts`, `MAX_LENGTH` в `src/server/client-input.ts`): строка клиента 64 Ки символов (65 536, до `JSON.parse`), 16 одновременных вызовов и 64 подписки на соединение, 8 соединений на личность, идентификаторы до 256 символов. Мусор и превышение — `refused`, не бросок (ERR-01); `warn` без данных клиента (ERR-07), на мусор и предел вызовов — раз на соединение.
 - **Сигнал перечитывания** — без payload, след обезличен: `correlationId` — `eventId`. Настоящий след сессия помнит по `eventId` (не больше 256 выданных).
 - **Выход.** `exited.data` провод не пересекает: исполнитель на клиенте; JSON-формы выхода на проводе нет.
 
@@ -102,24 +102,23 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 - **`correlationId` клиента — заявление,** а не доказательство; доверенный только тот, что собрал сервер.
 - **Запись `refresh` без `subject`** — оракул: подписчик узнаёт, что событие с такими параметрами случилось у кого-то. Для личных данных задавай `subject`.
 - **Различимость отказов.** «Нет» (`TASK_NOT_FOUND`) и «не твоё» (`ACCESS_DENIED`) не показывай по-разному там, где идентификатор угадывается.
-- **`InputRejection.text`** повторяет введённое значение (сообщение схемы): показывай его только автору значения; свои тексты — лучше эха valibot (DEBT-3 `dmg-core`, [debt.md](../../debt.md)).
+- **`InputRejection.issues[].text`** (`FieldIssue.text`) повторяет введённое значение (сообщение схемы): показывай его только автору значения; свои тексты — лучше эха valibot (DEBT-3 `dmg-core`, [debt.md](../../debt.md)).
 - **Личность.** `uuid` в сессию попадает только из аутентифицированного транспорта, не из данных запроса.
 
 ## 8. Идентификаторы запросов
 
-`requestId` каждого входящего сигнала — новый (`crypto.randomUUID()`). Повторный `requestId` платформа считает повтором запроса: «Запрос уже принят». В тестах id задаётся счётчиком (`requestIds: () => 'r-' + (++n)`).
+`requestId` каждого входящего сигнала — новый (`crypto.randomUUID()`). Повторный `requestId` платформа считает повтором запроса. С тем же входом клиент получает прежний итог; с другим входом или пока первый запрос исполняется — `REQUEST_CONFLICT` («Запрос уже принят»). Поэтому постоянный `requestId` в тесте даёт отказ. В гостевой сессии отсев повторов ключуется по `channel.visitorId`: без `CallerSource.channel` у гостя его нет. В тестах id задаётся счётчиком (`requestIds: () => 'r-' + (++n)`).
 
 ## 9. Доставка уведомлений
 
 - `UiNotifier` отдаёт каналу `DeliveredNotification`: `notification` (`id` узла), `recipient`, `data`, `links` (`AddressJson`), `cause: { event, eventId }`, `trace`.
 - **Отсев повтора и предел** — политика канала: ядро только передаёт `cause.eventId`. Ключ — `notification + recipient + eventId` (диалог, [dialog-delivery.ts](../../packages/core/testing/dialog/dialog-delivery.ts)); ключ ставь после успешной доставки, чтобы бросок не отсеял повтор.
-- Без `CallerSource.channel` у гостя отсева повторов нет.
 - Сбой `deliver` — бросок: сервер его логирует и идёт к следующему получателю; уведомление не копится. Очередь, push и письмо — дело канала (страничный канал при отсутствии соединений не доставляет и не копит).
 - В сообщение клиенту кладут `data`, `links` и `eventId`; `trace` и `recipient` — нет ([page-delivery.ts](../../packages/core/testing/page/server/page-delivery.ts)).
 
 ## 10. Чеклист
 
-- ARC-04, ARC-08 — канал импортирует только публичные входы `dmg-ui`, `dmg-core`; UC вызывает через `dispatch` сервера.
+- ARC-08 — канал импортирует только публичные входы `dmg-ui`, `dmg-core`; UC вызывает через `dispatch` сервера.
 - ARC-13 — свой префикс правил; UI-06 — ребро `presents` на каждый экран и уведомление приложения.
 - ERR-01, ERR-06, ERR-07 — внешний вход не бросает, неизвестный исход — дефект канала, `warn` без данных клиента.
 - Нейтральность: в коде экрана и ядра нет слов канала; в пакете это проверяют тест импортов и сканер слов канала — образец такой проверки для своего канала.
@@ -129,7 +128,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 
 ## 11. Как тестировать
 
-- Граф — `reportArchCheck([ArchApp])` с поставщиками; сцена с нарушением даёт код 1 и строку `ID: …` ([page-graph-provider.test.ts](../../packages/core/testing/page/graph/page-graph-provider.test.ts) — образец).
+- Граф — `reportArchCheck([app], print)` с поставщиками; сцена с нарушением даёт код 1 и строку `ID: …` ([page-rules.test.ts](../../packages/core/testing/page/graph/page-rules.test.ts) — образец).
 - Сквозной сценарий (TST-09, один): приложение `ExampleApp` из `dmg-core/testing/example`, `UiServer`, `UiNotifier` с доставкой канала, два пользователя — [dialog-story.test.ts](../../packages/core/testing/dialog-story.test.ts), [page-story.test.ts](../../packages/core/testing/page-story.test.ts).
 - Провод — в памяти, строки JSON и журнал сообщений; тишину ждёт `PageWire.settled()` без таймеров (TST-04).
 - Политики — тестом на каждый исход с `MemoryUiObserver`; примеры рендера — `ExamplePreview` и снимки.

@@ -314,7 +314,7 @@ export class PageClient {
         this.regions.mark(region, { note: outcome.refusal.text });
         return;
       case 'stale':
-        // Вид уже на перечитанных данных — форма заново по нему (design §4).
+        // Вид уже на перечитанных данных — форма заново по нему.
         this.regions.mark(region, { note: PAGE_NOTES.stale });
         return;
       case 'unavailable':

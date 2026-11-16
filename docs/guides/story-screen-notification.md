@@ -47,7 +47,10 @@
      goal: 'чтобы закрыть сделанное',
      start: TaskListScreenDef,
      screens: [TaskListScreenDef, TaskCardScreenDef],
-     outcomes: { closed: { label: 'Список закрыт', description: '…', exits: [TaskListScreenDef.exits.closed] } },
+     outcomes: {
+       closed: { label: 'Список закрыт', description: '…', exits: [TaskListScreenDef.exits.closed] },
+       created: { label: 'Задача создана', description: '…', exits: [TaskListScreenDef.exits.created] },
+     },
    });
    ```
 7. **Уведомление** — `NotificationDef.define`: `event`, `recipients`, `reads`, `data`, `links`, `examples`. Получатели — `{ from: 'payload', fields: ['assigneeId'] }` или `{ from: 'query', uc, input, fields }`: query UC вызывает система (`SystemCaller` с `kind: 'app'`, `module` — имя набора UI, D-UI-23).
@@ -67,7 +70,7 @@
 
 `NotificationCode<D>`: `load({ payload, read })` собирает данные уведомления от имени получателя, `links(data, payload)` возвращает адреса из `links()` манифеста. Образец — [task-assigned.code.ts](../../packages/core/testing/example/todo/task-assigned.code.ts).
 
-Код подключает корень сборки реестром `CodeLoaders.of(set, [CodeLoader.screen(def, () => import(...)), CodeLoader.notification(...)])`; загрузчик нужен каждому экрану и уведомлению набора (образец — [example-codes.ts](../../packages/core/testing/example/example-codes.ts)).
+Код подключает корень сборки реестром `CodeLoaders.of(set, [CodeLoader.screen(def, async () => new (await import('./x.code')).XScreenCode()), CodeLoader.notification(...)])`; загрузчик возвращает объект кода, а не модуль, и нужен каждому экрану и уведомлению набора (образец — [example-codes.ts](../../packages/core/testing/example/example-codes.ts)).
 
 ## 5. Исполнение
 
@@ -90,7 +93,7 @@
 
 Уведомление исполняет сервер на каждого получателя: данные читаются от его имени, ссылки берутся только из `links()` (D-UI-23). Событие перечитывает экран, но только читает; command UC по событию не исполняется (D-UI-22).
 
-Каталог для документации и снимков: `ScreenPreview.screen(def, 'имя примера', context)` и `.notification(def, 'имя')` строят вид и данные по `examples`, не зовя `load` и порты.
+Каталог для документации и снимков: `new ScreenPreview({ set, codes })` даёт `screen(def, 'имя примера', context)` и `notification(def, 'имя')`; они строят вид и данные по `examples`, не зовя `load` и порты.
 
 ## 6. Два пути данных
 
@@ -101,22 +104,19 @@
 Граф проверяет `bun run arch:check` с поставщиком `UiGraphProvider` (`dmg-ui/graph`). Каталог — [rules.md](../reference/rules.md).
 
 - Сторис: UI-01 (вызывающие допущены к UC экранов), UI-02, UI-03, UI-04, UI-23.
-- Экран: UI-05, UI-07, UI-08 (`reads` — только query), UI-09 (`uc` — только command), UI-12 (только UC для человека), UI-15, UI-16, UI-17, UI-19, UI-21.
+- Экран: UI-08 (`reads` — только query), UI-09 (`uc` — только command), UI-12 (только UC для человека), UI-15, UI-16, UI-17, UI-19, UI-21.
 - Тексты и примеры: UI-13 (заполнены), UI-14 (`description` у полей), UI-20 (примеры по схемам).
 - Уведомление: UI-18 (поля получателей).
-- Канал: UI-06 (представление), UI-10; общее — UI-11, UI-22.
+- Канал и приложение: UI-05, UI-06 (представление), UI-07, UI-10; общее — UI-11, UI-22.
 
 ## 8. Ловушки
 
-- **Постоянный `requestIds` в тесте.** Канал с одним и тем же id запроса получает «Запрос уже принят»: id каждого входящего сигнала должен быть новым.
 - **`toMatchObject` с асимметричным матчером** мутирует проверяемый объект (Bun) — сравнивай поля по одному или через `toEqual`.
-- **«Нет» и «не твоё».** `TASK_NOT_FOUND` и `ACCESS_DENIED` различимы для клиента: там, где идентификатор угадывается, не показывай разницу.
 - **Код без `done`** обнаружится только при первом `open` экрана: проверь каждый экран тестом открытия.
 - **`stayed` при отказе перечитывания.** Команда уже выполнена, а вид покажет `status: 'refused'`: не считай `stayed` «всё прошло».
 - **«Назначенные мне» не перечитывается по `completed`:** в payload нет исполнителя, `subject` не из чего взять.
-- **Повторный `UiNotifier.start()`** бросает: подписка одна на приложение, храни отписку.
 - **Данные уведомления не копируют payload** — читай через `read` от имени получателя.
-- **Строки полей отказа** (`InputRejection.text`) несут сообщение схемы и могут повторять введённое значение; ядро для `refused` берёт только главную строку `ErrorText` (DEBT-3 `dmg-core`, [debt.md](../../debt.md)).
+- **Ловушки канала** — постоянный `requestId`, различимость «нет» и «не твоё», тексты замечаний `InputRejection.issues[].text`, повторный `UiNotifier.start()` — описаны в [channel-package.md](./channel-package.md) (разделы 3, 7, 8).
 
 ## 9. Как тестировать
 

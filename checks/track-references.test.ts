@@ -31,6 +31,8 @@ describe('TrackReferenceScanner — шаблоны трека', () => {
     ['аудит Ф3', 'аудит Ф'],
     ['аудита №2', 'аудита №'],
     ['ревью Ф5', 'ревью Ф'],
+    ['design §4', 'design §4'],
+    ['Design §12', 'Design §12'],
   ];
 
   for (const [phrase, fragment] of forbidden) {
@@ -55,6 +57,8 @@ describe('TrackReferenceScanner — шаблоны трека', () => {
     'фазы работы',
     'эфир',
     'описание правила',
+    'design',
+    'design системы',
   ]) {
     it(`чистый текст «${clean}» не срабатывает`, () => {
       expect(code(`// ${clean}`)).toEqual([]);
