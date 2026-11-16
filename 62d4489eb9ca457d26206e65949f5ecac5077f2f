@@ -1,0 +1,4 @@
+Задача: фасад диалога — учебный Dialog работает через беседу.
+Файлы: packages/chat-ui/src/dialog/{dialog.ts,dialog.types.ts,dialog-channel.ts,dialog-identity.ts,dialog-delivery.ts,dialog-replies.ts,reply-messenger.ts}; удалены dialog/ref-table.ts, dialog/input-draft.ts; packages/chat-ui/src/index.ts (шапка); packages/chat-ui/testing/dialog-story.test.ts (счёт запросов r-5 → r-4, решение владельца: след один на сигнал); docs/decisions.md (D-UI-48, правило следа в D-UI-43); debt.md; docs/guides/channel-package.md; README.md; llms.txt.
+Причина: логика диалога не дублируется; тесты диалога, сторис и приёмка — сверка беседы.
+Гейт: bun run check — 1362 pass, 0 fail, 113 файлов, 14 снимков (два прогона).
