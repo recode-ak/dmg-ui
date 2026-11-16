@@ -40,7 +40,9 @@ const scenario = async (wrap: boolean) => {
     revision: 1,
     trace: requestTrace('r-act'),
   });
-  const changed = new Promise<void>((resolve) => card.onChange(resolve));
+  const changed = new Promise<void>((resolve) =>
+    card.onChange(() => resolve()),
+  );
   kit.refresh.emit(refreshSignal(TaskEvents.completed.name, 'e-1'));
   await changed;
   return { acted, view: card.view(), calls: kit.ucs.calls };

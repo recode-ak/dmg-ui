@@ -24,6 +24,7 @@ describe('CoreImportScanner — учебный пример (packages/core/testi
     "import { test } from 'bun:test';",
     "import { ScreenDef } from '../../../src/manifest/screen-def';",
     "import { DialogChannel } from '../../dialog/dialog-channel';",
+    "import { ExampleDialogAppDef } from '../dialog/example-dialog.app';",
   ]) {
     it(`${text} в примере — нарушение`, () => {
       expect(scan(text, EXAMPLE)).toHaveLength(1);
@@ -41,6 +42,15 @@ describe('CoreImportScanner — учебный пример (packages/core/testi
     ].join('\n');
 
     expect(scan(text, EXAMPLE)).toEqual([]);
+  });
+
+  it('вход примера (example/index.ts) — привязку по относительному пути не импортирует', () => {
+    const text =
+      "export { ExampleDialogArch } from './dialog/example-dialog.arch';";
+
+    expect(scan(text, 'packages/core/testing/example/index.ts')).toHaveLength(
+      1,
+    );
   });
 
   it('*.test.ts примера — вне зоны', () => {

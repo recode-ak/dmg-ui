@@ -12,12 +12,12 @@ import { ScreenProvider } from 'dmg-core/testing/example/screen/screen-provider'
 import { TasksScreenDef } from 'dmg-core/testing/example/screen/tasks.screen';
 import * as v from 'valibot';
 import {
-  ExampleDialogAppDef,
   ExampleUiSetDef,
   LIST_START,
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
+import { ExampleDialogAppDef } from '../../testing/example/dialog/example-dialog.app';
 import { ArchReport, UiScene } from '../../testing/ui-arch';
 import { type AnyScreenDef, ScreenDef } from '../manifest/screen-def';
 import { UiModuleDef } from '../manifest/ui-module-def';

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { ExampleDialogAppDef, LIST_START } from '../../testing/example';
+import { LIST_START } from '../../testing/example';
+import { ExampleDialogAppDef } from '../../testing/example/dialog/example-dialog.app';
 
 describe('UiAppDef', () => {
   test('форма: набор, канал, сторис, уведомления и входы с адресом', () => {

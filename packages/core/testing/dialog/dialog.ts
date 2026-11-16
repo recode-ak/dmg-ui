@@ -31,6 +31,15 @@ import { RefTable } from './ref-table';
  * вариантов и вход действия по шагам. Входящие сигналы — `start`, `say`,
  * `press`; выход — реплики `replies` и уведомления `inbox`. Исходы ядра
  * разбирает по таблице политик (бриф Ф5, раздел 5).
+ *
+ * Допущения учебного канала (боевой канал решает их сам):
+ * - очереди сигналов нет: параллельные `say`/`press` делят живой экран и
+ *   черновик, проактивная реплика может встать между вопросом поля и
+ *   ответом — сигналы одной личности сериализует вызывающий;
+ * - `close` нет: подписка живого экрана не снимается, `RefTable` растёт без
+ *   предела и держит закрытые экземпляры;
+ * - в реплику отвергнутого входа идёт сообщение схемы как есть — боевой
+ *   канал обязан дать свои тексты (не эхо valibot).
  */
 export class Dialog {
   readonly replies: DialogReply[] = [];
@@ -67,13 +76,19 @@ export class Dialog {
       await this.advance();
       return;
     }
+    // Основному действию — только если текст заполняет его первое поле:
+    // действие без полей случайный текст не запускает.
     const target = this.primary();
-    if (target === undefined) {
+    const draft =
+      target === undefined ? undefined : new InputDraft(target.fields);
+    if (target === undefined || draft === undefined || draft.done()) {
       this.note(DIALOG_TEXTS.choose);
       return;
     }
-    const draft = new InputDraft(target.fields);
-    if (!draft.done()) draft.answer(text);
+    if (!draft.answer(text)) {
+      this.note(DIALOG_TEXTS.choose);
+      return;
+    }
     this.active = { draft, target };
     await this.advance();
   }
@@ -125,8 +140,17 @@ export class Dialog {
 
   private async follow(target: RefTarget): Promise<void> {
     if (target.kind === 'choice' || target.kind === 'skip') {
-      if (this.active?.draft !== target.draft) {
-        this.note(DIALOG_TEXTS.unavailable);
+      // Ссылка своего шага: тот же черновик и то же поле (у «Пропустить» —
+      // необязательное); старая кнопка другого шага поле не заполняет.
+      const field = this.active?.draft.current();
+      if (
+        this.active?.draft !== target.draft ||
+        field?.name !== target.field ||
+        (target.kind === 'skip' && !field.optional)
+      ) {
+        // Черновик жив — тот же вопрос заново, с новыми ссылками своего шага.
+        if (this.active === undefined) this.note(DIALOG_TEXTS.unavailable);
+        else this.ask(this.active.draft, DIALOG_TEXTS.unavailable);
         return;
       }
       if (target.kind === 'choice') target.draft.choose(target.value);
@@ -244,6 +268,8 @@ export class Dialog {
       case 'unavailable':
         this.unavailable(outcome.reason);
         return;
+      default:
+        Dialog.unknown(outcome);
     }
   }
 
@@ -269,7 +295,14 @@ export class Dialog {
       case 'unavailable':
         this.unavailable(outcome.reason);
         return;
+      default:
+        Dialog.unknown(outcome);
     }
+  }
+
+  /** Исход, которого канал не знает (новый в ядре), — дефект канала, бросок (ERR-06). */
+  private static unknown(outcome: never): never {
+    throw new Error(`Dialog: неизвестный исход ${JSON.stringify(outcome)}`);
   }
 
   /** Отвергнутый вход: повтор поля из первого замечания с его текстом. */
@@ -306,10 +339,21 @@ export class Dialog {
     const field: ActionField | undefined = draft.current();
     if (field === undefined) return;
     const options: DialogOption[] = (field.choices ?? []).map((choice) =>
-      this.option(choice.label, { kind: 'choice', draft, value: choice.value }),
+      this.option(choice.label, {
+        kind: 'choice',
+        draft,
+        field: field.name,
+        value: choice.value,
+      }),
     );
     if (field.optional) {
-      options.push(this.option(DIALOG_TEXTS.skip, { kind: 'skip', draft }));
+      options.push(
+        this.option(DIALOG_TEXTS.skip, {
+          kind: 'skip',
+          draft,
+          field: field.name,
+        }),
+      );
     }
     this.push({ text: this.spec.replies.field(field, note), options });
   }

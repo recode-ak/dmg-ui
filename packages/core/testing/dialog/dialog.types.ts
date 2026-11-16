@@ -84,9 +84,15 @@ export type RefTarget =
   | {
       readonly kind: 'choice';
       readonly draft: InputDraft;
+      /** Поле шага, на котором выдан вариант. */
+      readonly field: string;
       readonly value: Choice['value'];
     }
-  | { readonly kind: 'skip'; readonly draft: InputDraft }
+  | {
+      readonly kind: 'skip';
+      readonly draft: InputDraft;
+      readonly field: string;
+    }
   | {
       readonly kind: 'confirm';
       readonly yes: boolean;

@@ -20,11 +20,8 @@ export {
 export {
   AssignedTasksScreenDef,
   type ExampleCodeOverrides,
-  ExampleDialogAppDef,
-  ExampleDialogArch,
   ExampleUiSetDef,
   exampleCodes,
-  exampleDialogViews,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
   PlanTasksStoryDef,
@@ -34,6 +31,11 @@ export {
   TaskListScreenDef,
   TodoUiModuleDef,
 } from './example';
+export {
+  ExampleDialogAppDef,
+  ExampleDialogArch,
+  exampleDialogViews,
+} from './example/dialog';
 export { MemoryUiObserver } from './memory-ui-observer';
 export {
   ExamplePreview,

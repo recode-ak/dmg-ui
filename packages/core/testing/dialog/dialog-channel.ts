@@ -18,6 +18,12 @@ import { DialogTraces } from './dialog-traces';
  * один живой экран на личность, вход действия по шагам (ФР-12). Знает
  * только публичные входы `dmg-ui`, `dmg-ui/server`, `dmg-ui/graph` и
  * `dmg-core` — так доказывает, что каналу хватает контракта ядра.
+ *
+ * Допущения учебного канала:
+ * - личность — `uuid` аргументом `person`/`resume`; `identities` личность
+ *   не доказывает, а лишь строит вызывающего. Боевой канал берёт `uuid`
+ *   только из аутентифицированной личности транспорта, не из данных запроса;
+ * - `close` нет: карта диалогов и сессии сервера не освобождаются.
  */
 export class DialogChannel<U extends Identified> {
   readonly delivery: DialogDelivery;
@@ -85,8 +91,8 @@ export class DialogChannel<U extends Identified> {
     return this.person(uuid).resume(json);
   }
 
-  /** Рендер видов и уведомлений в текст без живого диалога. */
+  /** Рендер видов и уведомлений в текст без живого диалога (удобство: `new DialogRenderer(views)`). */
   renderer(): DialogRenderer {
-    return new DialogRenderer(this.replies);
+    return new DialogRenderer(this.spec.views);
   }
 }

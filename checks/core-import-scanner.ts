@@ -79,6 +79,9 @@ export class CoreImportScanner {
         forbidden: forbidden.filter((spec) => spec !== 'dmg-core/testing/*'),
         allowed: ['valibot', 'dmg-core', 'dmg-ui', 'dmg-core/testing/example'],
         allowedPaths: [EXAMPLE],
+        // Привязка лежит внутри `example/`, но пример её не знает: через неё
+        // пример дотянулся бы до канала, сервера и графа.
+        forbiddenPaths: [BINDING],
       },
       {
         include: [`${BINDING}/`],

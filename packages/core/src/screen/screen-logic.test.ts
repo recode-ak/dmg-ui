@@ -11,8 +11,8 @@ import type { DataOf } from '../manifest/screen-def';
 import { ScreenCode } from './screen-code';
 import { ScreenLogic } from './screen-logic';
 
-// Чистая логика экрана без исполнителя: импорты — только manifest/, screen/
-// и учебный пример: логика проверяется без исполнителя.
+// Чистая логика экрана: под тестом `ScreenLogic` и код экрана примера;
+// исполнитель, сервер и канал не участвуют (вход примера их не грузит).
 
 const data: DataOf<typeof TaskListScreenDef> = {
   tasks: [

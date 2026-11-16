@@ -221,13 +221,7 @@ export class ScreenInstance {
     return { address: this.json, state: this.state, revision: this.revision };
   }
 
-  /**
-   * Подписка на изменение вида с причиной и ревизией. Возвращает отписку.
-   * Вторая сигнатура — для прежних слушателей без параметра с иным типом
-   * параметра (например, `resolve` промиса): причину они не читают.
-   */
-  onChange(listener: (change: ViewChange) => void): () => void;
-  onChange(listener: () => void): () => void;
+  /** Подписка на изменение вида с причиной и ревизией. Возвращает отписку. */
   onChange(listener: (change: ViewChange) => void): () => void {
     this.listeners.add(listener);
     return () => {

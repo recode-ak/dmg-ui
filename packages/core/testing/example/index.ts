@@ -1,13 +1,7 @@
-// Учебный пример (ФР-11): набор UI поверх учебного приложения `dmg-core`,
-// загрузчики кода и привязка к диалоговому каналу. Вход `dmg-ui/testing`
-// собирает его в `testing/index.ts`.
+// Учебный пример (ФР-11): набор UI поверх учебного приложения `dmg-core` и
+// загрузчики кода. Привязка к диалоговому каналу — свой вход `./dialog`;
+// оба собирает вход `dmg-ui/testing` (`testing/index.ts`).
 
-export {
-  DIALOG_CHANNEL,
-  ExampleDialogAppDef,
-} from './dialog/example-dialog.app';
-export { ExampleDialogArch } from './dialog/example-dialog.arch';
-export { exampleDialogViews } from './dialog/example-dialog.views';
 export { type ExampleCodeOverrides, exampleCodes } from './example-codes';
 export { ExampleUiSetDef } from './example-ui.set';
 export { AssignedTasksScreenDef } from './todo/assigned-tasks.screen';

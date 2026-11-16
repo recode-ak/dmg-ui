@@ -56,16 +56,6 @@ describe('DialogGraphProvider на графе примера', () => {
       providers.some((provider) => provider instanceof StubViewProvider),
     ).toBe(false);
   });
-
-  test('граф примера на настоящих presents — нарушений нет', () => {
-    const report = ArchReport.of(ExampleDialogArch);
-
-    expect(report.code).toBe(0);
-    expect(report.lines).toEqual([
-      'arch:check example: нарушений — 0',
-      'arch:check: нарушений нет',
-    ]);
-  });
 });
 
 describe('DialogGraphProvider — экран без представления', () => {

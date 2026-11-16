@@ -21,7 +21,8 @@ export class DialogDelivery implements NotificationDelivery {
       notification.cause.eventId,
     ].join(' ');
     if (this.seen.has(key)) return;
-    this.seen.add(key);
+    // Ключ — после доставки: бросок не должен отсеять повтор уведомления.
     this.dialogs(notification.recipient).notify(notification);
+    this.seen.add(key);
   }
 }

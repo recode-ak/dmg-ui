@@ -16,12 +16,12 @@ import {
 } from 'dmg-core/testing/example';
 import {
   ASSIGNED_ID,
-  ExampleDialogAppDef,
   exampleCodes,
   OWNER,
   TASK_A,
   TaskCardScreenDef,
 } from '../../testing/example';
+import { ExampleDialogAppDef } from '../../testing/example/dialog/example-dialog.app';
 import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.code';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
 import { UiScene } from '../../testing/ui-arch';

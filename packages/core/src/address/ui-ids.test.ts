@@ -2,13 +2,13 @@ import { describe, expect, test } from 'bun:test';
 import { ExampleAppDef, TaskEvents } from 'dmg-core/testing/example';
 import * as v from 'valibot';
 import {
-  ExampleDialogAppDef,
   ExampleUiSetDef,
   FinishTasksStoryDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
+import { ExampleDialogAppDef } from '../../testing/example/dialog/example-dialog.app';
 import { NotificationDef } from '../manifest/notification-def';
 import { ScreenDef } from '../manifest/screen-def';
 import { StoryDef } from '../manifest/story-def';

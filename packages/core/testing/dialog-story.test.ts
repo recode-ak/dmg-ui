@@ -225,6 +225,7 @@ test('сторис на диалоговом канале: задачи A, по�
   expect(b.inbox[1]?.text).toContain('Сыр');
 
   // Лог операций: B читает от своего имени по событию с цепочкой запроса A;
+  // A перечитывает свой список по своему событию;
   // получатель — запрос системы; `listTasks` B звал только запросом открытия
   // своего списка (шаг 0), по событию A — ни разу.
   const [assign] = records('assignTask');
@@ -232,7 +233,26 @@ test('сторис на диалоговом канале: задачи A, по�
   const readsB = records('listAssignedTasks')
     .filter((r) => r.caller.subjectId === B)
     .map((r) => `${r.trace.cause.kind}:${r.trace.correlationId}`);
-  expect(readsB).toContain(`event:${assign?.trace.correlationId}`);
+  const [complete] = records('completeTask');
+  // Ровно: открытие «Назначенных мне» (r-5 — пятый запрос сюжета: B start,
+  // A start, create, start после выхода, B assigned), перечитывание по
+  // назначению и чтение уведомления «назначена» — цепочка назначения A,
+  // чтение уведомления «выполнено» — цепочка выполнения A.
+  expect(readsB.toSorted()).toEqual(
+    [
+      'request:r-5',
+      `event:${assign?.trace.correlationId}`,
+      `event:${assign?.trace.correlationId}`,
+      `event:${complete?.trace.correlationId}`,
+    ].toSorted(),
+  );
+  // Свой экран перечитан своим событием: список A — по выполнению выбранных.
+  const [completeMany] = records('completeTasks');
+  expect(
+    records('listTasks')
+      .filter((r) => r.caller.subjectId === A)
+      .map((r) => `${r.trace.cause.kind}:${r.trace.correlationId}`),
+  ).toContain(`event:${completeMany?.trace.correlationId}`);
   const assignee = records('getTaskAssignee');
   expect(assignee.length).toBeGreaterThan(0);
   expect(assignee.every((r) => r.caller.kind === 'system')).toBe(true);

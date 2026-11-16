@@ -21,6 +21,7 @@ import {
   MemoryUiObserver,
 } from '../index';
 import { T0 } from '../ui-server-fixture';
+import { DialogDelivery } from './dialog-delivery';
 
 // Доставка уведомлений диалоговым каналом: реплика во входящие получателя,
 // ссылки — варианты, отсев повтора по `cause.eventId`. Живой экран
@@ -109,5 +110,23 @@ describe('DialogDelivery', () => {
 
     expect(before).toEqual({ screen: LIST, params: { page: 0 } });
     expect(b.suspend().address).toEqual({ screen: ASSIGNED, params: {} });
+  });
+});
+
+describe('DialogDelivery — сбой доставки', () => {
+  test('бросок при доставке не ставит отсев: повтор того же eventId доставляется', async () => {
+    const channel = channelOf();
+    let calls = 0;
+    const delivery = new DialogDelivery((uuid) => {
+      calls += 1;
+      if (calls === 1) throw new Error('сбой доставки');
+      return channel.person(uuid);
+    });
+
+    const failed = delivery.deliver(assigned('e-1'));
+    await expect(failed).rejects.toThrow('сбой доставки');
+    await delivery.deliver(assigned('e-1'));
+
+    expect(channel.person(B).inbox).toHaveLength(1);
   });
 });
