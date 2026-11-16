@@ -1,0 +1,4 @@
+Трек dmg-ui-core (u7-school), Фаза 2, задача «Ревью фазы и правки».
+Ревью dmg-reviewer (Opus) по diff d6483fa..2cbb7fd: error нет, 6 warning, 11 note. Закрыты 13 пунктов; в брифы следующих фаз переданы: рёбра графа по Def и UiIds, правило непересечения имён actions и locals, варианты входа локального действия, форма Transition.
+Гейт: bun run check — 200 pass, 0 fail (20 файлов); biome и tsc чисты.
+Бриф и отчёт ревью: u7-school conductor/tracks/dmg-ui-core_20261116/slices/f2-manifests.md.
