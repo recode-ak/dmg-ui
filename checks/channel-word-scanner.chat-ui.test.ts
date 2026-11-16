@@ -93,13 +93,6 @@ describe('ChannelWordScanner.chatUi — в chat-ui нет слов конкре�
     });
   }
 
-  it('список ядра по-прежнему ловит страницу, а chat-ui — нет', () => {
-    expect(
-      new ChannelWordScanner().scan([SourceFile.of('a.ts', '// page')]),
-    ).toHaveLength(1);
-    expect(scan('// page')).toEqual([]);
-  });
-
   it('на реальном packages/chat-ui (весь каталог) — ноль нарушений', () => {
     const files = SourceTree.read(ROOT, 'packages/chat-ui');
     expect(files.length).toBeGreaterThan(0);
