@@ -1,0 +1,4 @@
+Задача: сбор входа — шаги, свободный текст основному действию, варианты сверх лимита, отмена.
+Файлы: packages/chat-ui/src/conversation/{input-draft.ts,option-layout.ts,conversation-input.ts,conversation-outcomes.ts,conversation.ts,conversation-replies.ts,conversation-screens.ts,conversation.types.ts,conversation.const.ts} и тесты input-draft.test.ts (переехал из dialog/), option-layout.test.ts, conversation-input.test.ts; docs/decisions.md (D-UI-47).
+Причина: беседа собирает вход действия по шагам и укладывает варианты в лимит мессенджера.
+Гейт: bun run check — 1362 pass, 0 fail, 113 файлов, 14 снимков (два прогона).
