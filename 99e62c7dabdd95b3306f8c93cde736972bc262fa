@@ -1,1 +1,0 @@
-Срез Г Ф6 dmg-ui-core: testing/channels-story.test.ts (проекции outcome двух каналов равны, итог задачи один, stories/set общие, в привязках нет *.code/*.screen/*.story); testing/index.ts экспортирует страничный канал и привязку; package-manifest.testing — состав. check: 788 pass.
