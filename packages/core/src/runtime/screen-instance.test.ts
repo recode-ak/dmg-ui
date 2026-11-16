@@ -17,7 +17,6 @@ import {
 import {
   CARD_ID,
   exampleCodes,
-  LIST_ID,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
@@ -292,10 +291,10 @@ describe('ScreenInstance.act — подтверждение', () => {
     });
 
     expect(kit.ucs.calls).toContainEqual({
-      node: LIST_ID,
+      module: 'todo',
       uc: 'completeTasks',
       input: { taskIds: [TASK_A] },
-      trace,
+      requestId: 'r-act',
     });
   });
 });

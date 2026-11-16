@@ -10,7 +10,6 @@ import {
 import {
   CARD_ID,
   ExampleUiSetDef,
-  LIST_ID,
   LIST_START,
   OWNER,
   TASK_A,
@@ -36,7 +35,6 @@ import { UiSession } from './ui-session';
 // объявленное.
 
 const OTHER = testUuid(2);
-const N_ID = 'exampleUi/todo/taskAssigned';
 const NODE = 'testChannel/join';
 const LIST = LIST_START;
 
@@ -104,75 +102,94 @@ const created = (ownerId: string) =>
     'r-create',
   );
 
+/** Вызов `listTasks` списка по причине `cause` (`requestId` или `eventId`). */
+const listCall = (cause: Record<string, unknown>) => ({
+  module: 'todo',
+  uc: 'listTasks',
+  input: {},
+  ...cause,
+});
+
 describe('UiSession.call — вызывающий и след', () => {
-  test('Caller разрешается на каждый вызов со следом этого вызова', async () => {
+  test('Caller разрешается на каждый вызов со следом запроса этого вызова', async () => {
     const { source, session } = setup();
-    const first = requestTrace('r-1');
-    const second = requestTrace('r-2');
 
-    await session.call({
-      node: LIST_ID,
-      uc: 'listTasks',
-      input: {},
-      trace: first,
-    });
-    await session.call({
-      node: LIST_ID,
-      uc: 'listTasks',
-      input: {},
-      trace: second,
-    });
+    await session.call(listCall({ requestId: 'r-1' }));
+    await session.call(listCall({ requestId: 'r-2' }));
 
-    expect(source.traces.map((t) => t.toJSON())).toEqual([first, second]);
+    expect(source.traces.map((t) => t.toJSON())).toEqual([
+      requestTrace('r-1'),
+      requestTrace('r-2'),
+    ]);
   });
 
   test('отказ резолвера — err с его кодом, UC не вызван', async () => {
     const denied = CoreErrors.DELEGATION_DENIED.make({ reason: 'expired' });
     const { transport, session } = setup(new StubCallerSource(OWNER, denied));
 
-    const res = await session.call({
-      node: LIST_ID,
-      uc: 'listTasks',
-      input: {},
-      trace: requestTrace('r-1'),
-    });
+    const res = await session.call(listCall({ requestId: 'r-1' }));
 
     expect(res.ok ? undefined : res.error.code).toBe('DELEGATION_DENIED');
     expect(transport.sent).toEqual([]);
   });
 
-  test('мусор вместо следа — отказ, а не бросок; UC не вызван', async () => {
+  test('мусор вместо причины — INPUT_VALIDATION, а не бросок; UC не вызван', async () => {
     const { transport, session } = setup();
-    const garbage = JSON.parse('{"cause":"мусор"}');
+    const garbage = JSON.parse(
+      '{"module":"todo","uc":"listTasks","input":{},"requestId":{"x":1}}',
+    );
 
-    const res = await session.call({
-      node: LIST_ID,
-      uc: 'listTasks',
-      input: {},
-      trace: garbage,
-    });
+    const res = await session.call(garbage);
 
-    expect(res.ok).toBe(false);
+    expect(res.ok ? undefined : res.error.code).toBe('INPUT_VALIDATION');
     expect(transport.sent).toEqual([]);
   });
 
-  test('command UC со следом события — SERVER_INTERNAL и warn, UC не вызван', async () => {
+  test('command UC по невыданному eventId — SERVER_INTERNAL и warn, UC не вызван', async () => {
     const { logger, transport, session } = setup();
-    const trace = Trace.fromEvent({
-      eventId: 'e-1',
-      correlationId: 'r-1',
-    }).toJSON();
 
     const res = await session.call({
-      node: CARD_ID,
+      module: 'todo',
       uc: 'completeTask',
       input: { taskId: TASK_A },
-      trace,
+      eventId: 'e-1',
     });
 
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(transport.sent).toEqual([]);
     expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+  });
+
+  test('command UC по выданному eventId — SERVER_INTERNAL и warn, UC не вызван', async () => {
+    const { bus, logger, transport, session } = setup();
+    watched(session, LIST);
+    bus.publish(created(OWNER));
+    await bus.delivered();
+
+    const res = await session.call({
+      module: 'todo',
+      uc: 'completeTask',
+      input: { taskId: TASK_A },
+      eventId: 'e-1',
+    });
+
+    expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
+    expect(transport.sent).toEqual([]);
+    expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+  });
+
+  test('command UC по requestId — исполнен', async () => {
+    const { transport, session } = setup();
+
+    const res = await session.call({
+      module: 'todo',
+      uc: 'completeTask',
+      input: { taskId: TASK_A },
+      requestId: 'r-1',
+    });
+
+    expect(res.ok).toBe(true);
+    expect(transport.names()).toEqual(['completeTask']);
   });
 });
 
@@ -260,48 +277,56 @@ class ChannelSource extends StubCallerSource {
   readonly channel = { name: 'testChannel' };
 }
 
-/** Вызов `listTasks` списка со следом `trace`. */
-const listCall = (trace: unknown) => ({
-  node: LIST_ID,
-  uc: 'listTasks',
-  input: {},
-  trace: JSON.parse(JSON.stringify(trace)),
-});
+describe('UiSession.call — след запроса собирает сервер', () => {
+  test('requestId — след с каналом сессии и correlationId = requestId', async () => {
+    const source = new ChannelSource(OWNER);
+    const { transport, session } = setup(source);
 
-describe('UiSession.call — след клиента пересобирает сервер', () => {
-  test('причина-запрос: generated и channel клиента отброшены, channel — сессии', async () => {
+    await session.call(listCall({ requestId: 'r-1' }));
+
+    const expected = Trace.fromRequest({
+      requestId: 'r-1',
+      channel: { name: 'testChannel' },
+    }).toJSON();
+    expect(expected).toEqual({
+      cause: { kind: 'request', requestId: 'r-1' },
+      correlationId: 'r-1',
+      channel: { name: 'testChannel' },
+    });
+    expect(source.traces.map((t) => t.toJSON())).toEqual([expected]);
+    expect(transport.sent.map((s) => s.trace.toJSON())).toEqual([expected]);
+  });
+
+  test('без канала у источника requestId — след без channel', async () => {
+    const { source, session } = setup();
+
+    await session.call(listCall({ requestId: 'r-1' }));
+
+    expect(source.traces.map((t) => t.toJSON())).toEqual([
+      { cause: { kind: 'request', requestId: 'r-1' }, correlationId: 'r-1' },
+    ]);
+  });
+
+  test('чужие поля вызова (trace, channel, correlationId) в след не попадают', async () => {
     const source = new ChannelSource(OWNER);
     const { session } = setup(source);
 
     await session.call(
       listCall({
-        cause: { kind: 'request', requestId: 'r-1', generated: true },
-        correlationId: 'c-1',
+        requestId: 'r-1',
+        trace: { cause: { kind: 'job', job: 'sweep', runId: 'run-1' } },
         channel: { name: 'чужой', visitorId: 'v-1' },
+        correlationId: 'c-1',
       }),
     );
 
     expect(source.traces.map((t) => t.toJSON())).toEqual([
       {
         cause: { kind: 'request', requestId: 'r-1' },
-        correlationId: 'c-1',
+        correlationId: 'r-1',
         channel: { name: 'testChannel' },
       },
     ]);
-  });
-
-  test('причина-прогон Job — отказ, UC не вызван', async () => {
-    const { transport, session } = setup();
-
-    const res = await session.call(
-      listCall({
-        cause: { kind: 'job', job: 'sweep', runId: 'run-1' },
-        correlationId: 'run-1',
-      }),
-    );
-
-    expect(res.ok).toBe(false);
-    expect(transport.sent).toEqual([]);
   });
 
   test('след выданного сессии сигнала — UC идёт с настоящим следом события', async () => {
@@ -310,22 +335,17 @@ describe('UiSession.call — след клиента пересобирает с
     bus.publish(created(OWNER));
     await bus.delivered();
 
-    await session.call(listCall(signals[0]?.trace));
+    await session.call(listCall({ eventId: signals[0]?.eventId }));
 
     expect(transport.sent.map((s) => s.trace.toJSON())).toEqual([
       { cause: { kind: 'event', eventId: 'e-1' }, correlationId: 'r-create' },
     ]);
   });
 
-  test('eventId, которого сессия не выдавала, — вызов исполнен со следом запроса сервера, без лога', async () => {
+  test('eventId, которого сессия не выдавала, — вызов исполнен со следом запроса сервера (generated), без лога', async () => {
     const { logger, transport, session } = setup();
 
-    const res = await session.call(
-      listCall({
-        cause: { kind: 'event', eventId: 'e-1' },
-        correlationId: 'e-1',
-      }),
-    );
+    const res = await session.call(listCall({ eventId: 'e-1' }));
 
     expect(res.ok).toBe(true);
     expect(transport.sent.map((s) => s.trace.cause)).toEqual([
@@ -341,7 +361,7 @@ describe('UiSession.call — след клиента пересобирает с
     await bus.delivered();
 
     session.close();
-    await session.call(listCall(signals[0]?.trace));
+    await session.call(listCall({ eventId: signals[0]?.eventId }));
 
     expect(transport.sent.map((s) => s.trace.cause.kind)).toEqual(['request']);
   });
@@ -355,8 +375,8 @@ describe('UiSession.call — след клиента пересобирает с
     );
     await bus.delivered();
 
-    await session.call(listCall(signals[0]?.trace));
-    await session.call(listCall(signals[1]?.trace));
+    await session.call(listCall({ eventId: signals[0]?.eventId }));
+    await session.call(listCall({ eventId: signals[1]?.eventId }));
 
     expect(transport.sent.map((s) => s.trace.cause.kind)).toEqual([
       'request',
@@ -366,12 +386,12 @@ describe('UiSession.call — след клиента пересобирает с
 });
 
 describe('UiSession.call — недоверенный вызов', () => {
-  test('узел уведомления сессии закрыт — OPERATION_NOT_FOUND', async () => {
+  test('UC уведомления (getTaskAssignee) сессии закрыт — OPERATION_NOT_FOUND', async () => {
     const { transport, session } = setup();
 
     const res = await session.call({
-      ...listCall(requestTrace('r-1')),
-      node: N_ID,
+      ...listCall({ requestId: 'r-1' }),
+      uc: 'getTaskAssignee',
     });
 
     expect(res.ok ? undefined : res.error.code).toBe('OPERATION_NOT_FOUND');
@@ -380,7 +400,9 @@ describe('UiSession.call — недоверенный вызов', () => {
 
   test('вызов не по схеме — INPUT_VALIDATION, UC не вызван', async () => {
     const { transport, session } = setup();
-    const broken = JSON.parse('{"node":5,"uc":"listTasks","trace":{}}');
+    const broken = JSON.parse(
+      '{"module":5,"uc":"listTasks","requestId":"r-1"}',
+    );
 
     const res = await session.call(broken);
 
@@ -388,18 +410,32 @@ describe('UiSession.call — недоверенный вызов', () => {
     expect(transport.sent).toEqual([]);
   });
 
+  test('ни requestId, ни eventId — INPUT_VALIDATION, UC не вызван', async () => {
+    const { transport, session } = setup();
+
+    const res = await session.call(listCall({}));
+
+    expect(res.ok ? undefined : res.error.code).toBe('INPUT_VALIDATION');
+    expect(transport.sent).toEqual([]);
+  });
+
+  test('и requestId, и eventId — INPUT_VALIDATION, UC не вызван', async () => {
+    const { transport, session } = setup();
+
+    const res = await session.call(
+      listCall({ requestId: 'r-1', eventId: 'e-1' }),
+    );
+
+    expect(res.ok ? undefined : res.error.code).toBe('INPUT_VALIDATION');
+    expect(transport.sent).toEqual([]);
+  });
+
   const LONG = 'x'.repeat(300);
   for (const [field, call] of [
-    ['node', { ...listCall(requestTrace('r-1')), node: LONG }],
-    ['uc', { ...listCall(requestTrace('r-1')), uc: LONG }],
-    ['requestId', listCall(requestTrace(LONG))],
-    [
-      'correlationId',
-      listCall({
-        cause: { kind: 'request', requestId: 'r-1' },
-        correlationId: LONG,
-      }),
-    ],
+    ['module', { ...listCall({ requestId: 'r-1' }), module: LONG }],
+    ['uc', { ...listCall({ requestId: 'r-1' }), uc: LONG }],
+    ['requestId', listCall({ requestId: LONG })],
+    ['eventId', listCall({ eventId: LONG })],
   ] as const) {
     test(`слишком длинный ${field} — INPUT_VALIDATION, UC не вызван`, async () => {
       const { transport, session } = setup();
@@ -419,7 +455,7 @@ describe('UiSession.call — недоверенный вызов', () => {
     }
     const { logger, session } = setup(new Throwing(OWNER));
 
-    const res = await session.call(listCall(requestTrace('r-1')));
+    const res = await session.call(listCall({ requestId: 'r-1' }));
 
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(logger.records.map((r) => r.level)).toEqual(['error']);
@@ -431,7 +467,7 @@ describe('UiSession.call — недоверенный вызов', () => {
       throw new Error('сеть');
     };
 
-    const res = await session.call(listCall(requestTrace('r-1')));
+    const res = await session.call(listCall({ requestId: 'r-1' }));
 
     expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
     expect(logger.records.map((r) => r.level)).toEqual(['error']);

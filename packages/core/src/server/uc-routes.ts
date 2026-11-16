@@ -8,13 +8,16 @@ import type { RouteNode, UcRoute, UcRoutesSpec } from './uc-routes.types';
 export type { RouteNode, UcRoute, UcRoutesSpec } from './uc-routes.types';
 
 /**
- * Маршруты UC узлов сервера: имя UC → Def только внутри объявленного узлом,
- * модуль — по `DefIndex`. Сессии открыты экраны и узлы канала, уведомителю —
- * уведомления. Одноимённые UC в узле, UC вне приложения и повтор `id` —
- * ошибки сборки, бросок.
+ * Маршруты UC стороны вызова: пара `(module, uc)` → Def в объединении
+ * объявленного её узлами, модуль — по `DefIndex`. Сессии открыты экраны и
+ * узлы канала, уведомителю — уведомления. Один UC из разных узлов — один
+ * маршрут. Одноимённые UC одного модуля, UC вне приложения и повтор `id`
+ * узла — ошибки сборки, бросок.
  */
 export class UcRoutes {
-  private readonly nodes = new Map<string, ReadonlyMap<string, UcRoute>>();
+  /** Маршруты по имени модуля, затем по имени UC. */
+  private readonly modules = new Map<string, Map<string, UcRoute>>();
+  private readonly ids = new Set<string>();
   private readonly spec: UcRoutesSpec;
 
   private constructor(spec: UcRoutesSpec, nodes: readonly RouteNode[]) {
@@ -56,37 +59,40 @@ export class UcRoutes {
   }
 
   /** Маршрут вызова из недоверенного JSON; не объявлено — отказ и `warn`. */
-  route(node: string, uc: string): Result<UcRoute, DomainError> {
-    // Карта узла строится только из его объявленного списка: имени вне
-    // него нет, отдельная сверка `DeclaredSet` была бы тавтологией.
-    const route = this.nodes.get(node)?.get(uc);
-    return route === undefined ? this.refuse(node, uc) : ok(route);
+  route(module: string, uc: string): Result<UcRoute, DomainError> {
+    // Карта строится только из объявленного узлами: пары вне него нет,
+    // отдельная сверка `DeclaredSet` была бы тавтологией.
+    const route = this.modules.get(module)?.get(uc);
+    return route === undefined ? this.refuse(module, uc) : ok(route);
   }
 
-  private refuse(node: string, uc: string): Result<UcRoute, DomainError> {
-    this.spec.logger.warn(this.spec.source, 'вызов UC вне объявленного узлом', {
-      node,
+  private refuse(module: string, uc: string): Result<UcRoute, DomainError> {
+    this.spec.logger.warn(this.spec.source, 'вызов UC вне объявленного', {
+      module,
       uc,
     });
-    return err(CoreErrors.OPERATION_NOT_FOUND.make({ module: node, uc }));
+    return err(CoreErrors.OPERATION_NOT_FOUND.make({ module, uc }));
   }
 
   private add(index: DefIndex, { id, uses }: RouteNode): void {
-    if (this.nodes.has(id)) {
+    if (this.ids.has(id)) {
       throw new Error(`UcRoutes: повтор узла ${id}`);
     }
-    const byName = new Map<string, UcRoute>();
+    this.ids.add(id);
     for (const uc of uses) {
-      const known = byName.get(uc.name);
-      if (known !== undefined && known.uc !== uc) {
-        throw new Error(`UcRoutes: в узле ${id} два UC с именем ${uc.name}`);
-      }
       const module = index.moduleOf(uc);
       if (module === undefined) {
         throw new Error(`UcRoutes: UC ${uc.name} узла ${id} вне приложения`);
       }
+      const byName = this.modules.get(module.name) ?? new Map();
+      const known = byName.get(uc.name);
+      if (known !== undefined && known.uc !== uc) {
+        throw new Error(
+          `UcRoutes: в модуле ${module.name} два UC с именем ${uc.name}`,
+        );
+      }
       byName.set(uc.name, { uc, module });
+      this.modules.set(module.name, byName);
     }
-    this.nodes.set(id, byName);
   }
 }

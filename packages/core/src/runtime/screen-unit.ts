@@ -24,6 +24,7 @@ import type {
   UnitLoad,
   UnitPresentation,
 } from './screen-unit.types';
+import type { UcCalls } from './uc-calls';
 
 export type {
   AnyScreenUnit,
@@ -104,7 +105,7 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
   async load(
     params: unknown,
     io: {
-      readonly node: string;
+      readonly calls: UcCalls;
       readonly ucs: UcPort;
       readonly trace: TraceJson;
     },

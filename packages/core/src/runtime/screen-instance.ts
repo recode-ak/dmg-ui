@@ -132,7 +132,7 @@ export class ScreenInstance {
         revision: this.revision,
         context: this.spec.context,
         request,
-        node: this.node,
+        calls: this.spec.calls,
         actionNode: node,
         ucs: this.spec.ucs,
         codec: this.spec.codec,
@@ -284,13 +284,13 @@ export class ScreenInstance {
     trace: TraceJson,
     prevState: unknown,
   ): Promise<InstanceLoad> {
-    const { unit, address, context, ucs, ids } = spec;
+    const { unit, address, context, calls, ucs, ids } = spec;
     const node = ids.screen(address.screen);
     const code = { locale: context.locale, timeZone: context.timeZone };
     const where = `Экран ${unit.def.name}`;
     const res = await unit.load(
       address.params,
-      { node, ucs, trace },
+      { calls, ucs, trace },
       code,
       prevState,
     );

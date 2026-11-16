@@ -27,14 +27,14 @@ export class DeclaredReads {
     uc: U,
     input: UcInputOf<U>,
   ): Promise<Result<OutputOf<U>, UseCaseErrorOf<U>>> => {
-    const { owner, node, reads, ucs, trace } = this.spec;
+    const { owner, calls, reads, ucs, trace } = this.spec;
     if (!reads.includes(uc)) {
       throw new CodeDefect(`${owner} не объявил UC ${uc.name} в reads`);
     }
     if (uc.type !== 'query') {
       throw new CodeDefect(`${owner}: UC ${uc.name} в reads — не query`);
     }
-    const wire = await ucs.call({ node, uc: uc.name, input, trace });
+    const wire = await ucs.call(calls.of(uc, input, trace));
     // Ответ восстанавливает Def `uc`, то есть ровно его выход и ошибки;
     // `AnyUseCaseDef` стирает спеку, и TS этого не выводит.
     return uc.restoreResult(wire) as Result<OutputOf<U>, UseCaseErrorOf<U>>;

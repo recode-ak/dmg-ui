@@ -99,16 +99,11 @@ export class ActionRun {
   ): Promise<
     { readonly transition: Transition } | { readonly refusal: Refusal }
   > {
-    const { unit, node, ucs, request } = this.spec;
+    const { unit, calls, ucs, request } = this.spec;
     this.stage = 'command';
     const input = step.command === undefined ? ctx.input : step.command(ctx);
     this.stage = 'порт UC';
-    const wire = await ucs.call({
-      node,
-      uc: uc.name,
-      input,
-      trace: request.trace,
-    });
+    const wire = await ucs.call(calls.of(uc, input, request.trace));
     const result = uc.restoreResult(wire);
     this.stage = result.ok ? 'done' : 'caught';
     if (result.ok) return { transition: step.done(ctx, result.value) };

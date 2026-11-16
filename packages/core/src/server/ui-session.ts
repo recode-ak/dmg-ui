@@ -5,18 +5,15 @@ import {
   Trace,
 } from 'dmg-core';
 import { EventSubscriber, type TracedHandler } from 'dmg-core/app';
-import * as v from 'valibot';
 import type { AddressJson } from '../address/address-codec.types';
 import type { RefreshOn } from '../manifest/refresh-on';
 import type {
   RefreshPort,
   RefreshSignal,
-  UcCall,
+  UcCause,
   UcPort,
 } from '../runtime/ports.types';
-import { ClaimedTraceJson } from './client-input';
 import { jsonRecord } from './json-record';
-import type { ScopedTrace } from './server-calls.types';
 import type { UiSessionSpec } from './ui-session.types';
 
 export type { UiSessionSpec } from './ui-session.types';
@@ -27,7 +24,7 @@ const ISSUED_LIMIT = 256;
 /**
  * Сессия одной личности канала на сервере: порты исполнителя (`UcPort`,
  * `RefreshPort`) и подписки узлов канала. Вызывающий — из источника на
- * каждый вызов; след клиента сервер пересобирает сам; чужое событие
+ * каждый вызов; след сервер собирает сам по причине вызова; чужое событие
  * отсекается по `subjectId` сессии.
  */
 export class UiSession<U extends Identified> implements UcPort, RefreshPort {
@@ -42,10 +39,14 @@ export class UiSession<U extends Identified> implements UcPort, RefreshPort {
     this.issuedLimit = spec.issuedLimit ?? ISSUED_LIMIT;
   }
 
-  call(call: UcCall): Promise<SerializedResult> {
+  /**
+   * Вызов UC от клиента: вход — недоверенный JSON (`UcCall` по замыслу),
+   * форму и причину сверяет `ServerCalls`.
+   */
+  call(raw: unknown): Promise<SerializedResult> {
     const { source } = this.spec;
-    return this.spec.calls.call(call, {
-      trace: (raw) => this.traceOf(raw),
+    return this.spec.calls.call(raw, {
+      trace: (cause) => this.traceOf(cause),
       resolve: (trace) => source.resolve(trace),
     });
   }
@@ -116,28 +117,21 @@ export class UiSession<U extends Identified> implements UcPort, RefreshPort {
   }
 
   /**
-   * Запрос — заново от `requestId` и `correlationId` клиента с каналом
-   * сессии. Событие — настоящий след выданного сигнала; не выдан или забыт —
-   * свой след запроса сервера (`generated`): экземпляр не теряет экран.
+   * `requestId` — след запроса с каналом сессии, `correlationId` —
+   * `requestId`. `eventId` — настоящий след выданного сигнала; не выдан или
+   * забыт — свой след запроса сервера (`generated`): экземпляр не теряет
+   * экран.
    */
-  private traceOf(raw: unknown): ScopedTrace | undefined {
-    const parsed = v.safeParse(ClaimedTraceJson, raw);
-    if (!parsed.success) return undefined;
-    const { cause, correlationId } = parsed.output;
+  private traceOf(cause: UcCause): Trace {
     const { channel } = this.spec.source;
     const channelMeta = channel === undefined ? {} : { channel };
-    if (cause.kind === 'request') {
-      const trace = Trace.fromRequest({
-        requestId: cause.requestId,
-        correlationId,
-        ...channelMeta,
-      });
-      return { trace, event: false };
+    if ('requestId' in cause) {
+      return Trace.fromRequest({ requestId: cause.requestId, ...channelMeta });
     }
-    const issued = this.issued.get(cause.eventId);
     // Без лога: вытеснение из памяти — обычный ход при всплеске событий.
-    const trace = issued ?? Trace.fromRequest(channelMeta, () => {});
-    return { trace, event: true };
+    return (
+      this.issued.get(cause.eventId) ?? Trace.fromRequest(channelMeta, () => {})
+    );
   }
 
   /** Память ограничена: старейший выданный сигнал забывается первым. */

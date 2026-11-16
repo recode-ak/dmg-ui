@@ -5,6 +5,7 @@ import type { InstanceRecords } from './instance-records';
 import type { ActionOutcome } from './outcome.types';
 import type { UcPort } from './ports.types';
 import type { AnyScreenUnit, ScreenFrame } from './screen-unit.types';
+import type { UcCalls } from './uc-calls';
 
 /** Запрос действия от канала: имя, сырой вход, ревизия вида, подтверждение. */
 export type ActRequest = {
@@ -29,8 +30,8 @@ export type ActionRunSpec = {
   readonly revision: number;
   readonly context: RenderContext;
   readonly request: ActRequest;
-  /** `id` экрана — `UcCall.node`. */
-  readonly node: string;
+  /** Сборка `UcCall`: модуль UC и причина из следа запроса. */
+  readonly calls: UcCalls;
   /** `id` действия — узел записей наблюдателя. */
   readonly actionNode: string;
   readonly ucs: UcPort;

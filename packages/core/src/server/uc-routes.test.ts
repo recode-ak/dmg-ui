@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { UseCaseDef } from 'dmg-core';
+import { AppDef, ModuleDef, UseCaseDef } from 'dmg-core';
 import { ModuleApi } from 'dmg-core/app';
 import { AwaitingBus, MemoryLogger } from 'dmg-core/testing';
 import {
@@ -10,16 +10,17 @@ import {
 } from 'dmg-core/testing/example';
 import * as v from 'valibot';
 import { ExampleUiSetDef, LIST_ID, OWNER } from '../../testing/example';
-import { requestTrace } from '../../testing/ui-runtime-fixture';
+import { TodoUiModuleDef } from '../../testing/example/todo/todo.ui-module';
 import {
   StubCallerSource,
   StubTransport,
 } from '../../testing/ui-server-fixture';
+import { UiSetDef } from '../manifest/ui-set-def';
 import { ModuleApiDispatch } from './module-api-dispatch';
 import { UiServer } from './ui-server';
 
-// Маршрут вызова на сервере: имя UC → Def внутри объявленного узлом,
-// модуль — по `DefIndex`. Проверяется через сессию сервера: `UcRoutes`
+// Маршрут вызова на сервере: пара (модуль, UC) → Def в объединении объявленного
+// экранами и узлами канала; модуль сверяется по `DefIndex`. Проверяется через сессию сервера: `UcRoutes`
 // собирает `UiServer`.
 
 const NODE = 'testChannel/join';
@@ -42,54 +43,160 @@ const setup = (nodes: Nodes = []) => {
   return { logger, transport, session };
 };
 
-const call = (node: string, uc: string) => ({
-  node,
+const call = (module: string, uc: string) => ({
+  module,
   uc,
   input: {},
-  trace: requestTrace('r-call'),
+  requestId: 'r-call',
 });
 
-describe('UcRoutes — маршрут UC узла', () => {
-  test('имя UC экрана — команда модулю UC', async () => {
+/** Отказ вызова: код и payload `OPERATION_NOT_FOUND`. */
+const refusal = (res: { ok: boolean; error?: unknown }) =>
+  res.ok
+    ? undefined
+    : (res.error as { code: string; payload: Record<string, unknown> });
+
+/** Query-UC `name` своего модуля: тот же агрегат, что у `listTasks`. */
+const queryUc = (name: string) =>
+  UseCaseDef.define({
+    name,
+    label: 'Запрос',
+    description: 'UC с заданным именем для проверки маршрута.',
+    type: 'query',
+    aggregate: ListTasksUcDef.aggregate,
+    callers: ['user'],
+    policy: ListTasksUcDef.policy,
+    input: v.object({}),
+    output: v.object({}),
+    errors: [],
+  });
+
+describe('UcRoutes — маршрут UC по паре (module, uc)', () => {
+  test('UC экрана — команда модулю UC', async () => {
     const { transport, session } = setup();
 
-    await session.call(call(LIST_ID, 'listTasks'));
+    await session.call(call('todo', 'listTasks'));
 
     expect(transport.sent).toMatchObject([
       { module: 'todo', command: { uc: 'listTasks', input: {} } },
     ]);
   });
 
-  test('UC узла канала — модуль по DefIndex, а не модуль экранов', async () => {
+  test('UC узла канала — модуль по DefIndex, узла в вызове нет', async () => {
     const { transport, session } = setup([
       { id: NODE, uses: [RemoveUserUcDef], listens: [] },
     ]);
 
-    await session.call(call(NODE, 'removeUser'));
+    await session.call(call('users', 'removeUser'));
 
     expect(transport.sent).toMatchObject([
       { module: 'users', command: { uc: 'removeUser' } },
     ]);
   });
 
-  test('UC, не объявленный узлом, — OPERATION_NOT_FOUND и warn, диспетчер не вызван', async () => {
+  test('один UC в экране и в узле канала — один маршрут, вызов исполнен', async () => {
+    const { transport, session } = setup([
+      { id: NODE, uses: [ListTasksUcDef], listens: [] },
+    ]);
+
+    const res = await session.call(call('todo', 'listTasks'));
+
+    expect(res.ok).toBe(true);
+    expect(transport.names()).toEqual(['listTasks']);
+  });
+
+  test('UC, не объявленный ни экраном, ни узлом, — OPERATION_NOT_FOUND с настоящим модулем и warn', async () => {
     const { logger, transport, session } = setup();
 
-    const res = await session.call(call(LIST_ID, 'getTask'));
+    const res = await session.call(call('todo', 'getTask'));
 
-    expect(res.ok ? undefined : res.error.code).toBe('OPERATION_NOT_FOUND');
+    expect(refusal(res)).toMatchObject({
+      code: 'OPERATION_NOT_FOUND',
+      payload: { module: 'todo', uc: 'getTask' },
+    });
     expect(transport.sent).toEqual([]);
     expect(logger.records.map((r) => r.level)).toEqual(['warn']);
   });
 
-  test('неизвестный узел — OPERATION_NOT_FOUND и warn, диспетчер не вызван', async () => {
+  test('UC уведомления (getTaskAssignee) недоступен сессии — OPERATION_NOT_FOUND { module: todo, uc }', async () => {
+    const { transport, session } = setup();
+
+    const res = await session.call(call('todo', 'getTaskAssignee'));
+
+    expect(refusal(res)).toMatchObject({
+      code: 'OPERATION_NOT_FOUND',
+      payload: { module: 'todo', uc: 'getTaskAssignee' },
+    });
+    expect(transport.sent).toEqual([]);
+  });
+
+  test('имя UC верное, модуль чужой — OPERATION_NOT_FOUND, диспетчер не вызван', async () => {
     const { logger, transport, session } = setup();
 
-    const res = await session.call(call('exampleUi/todo/missing', 'listTasks'));
+    const res = await session.call(call('users', 'listTasks'));
 
-    expect(res.ok ? undefined : res.error.code).toBe('OPERATION_NOT_FOUND');
+    expect(refusal(res)).toMatchObject({
+      code: 'OPERATION_NOT_FOUND',
+      payload: { module: 'users', uc: 'listTasks' },
+    });
     expect(transport.sent).toEqual([]);
     expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+  });
+
+  test('неизвестный модуль — OPERATION_NOT_FOUND с этим модулем, диспетчер не вызван', async () => {
+    const { logger, transport, session } = setup();
+
+    const res = await session.call(call('missing', 'listTasks'));
+
+    expect(refusal(res)).toMatchObject({
+      code: 'OPERATION_NOT_FOUND',
+      payload: { module: 'missing', uc: 'listTasks' },
+    });
+    expect(transport.sent).toEqual([]);
+    expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+  });
+
+  test('одноимённые UC двух модулей различаются модулем вызова', async () => {
+    const twin = queryUc('listTasks');
+    const sibling = ModuleDef.define({
+      name: 'sibling',
+      label: 'Сосед',
+      description: 'Модуль с UC, одноимённым UC модуля todo.',
+      dependsOn: [],
+      aggregates: [ListTasksUcDef.aggregate],
+      useCases: [twin],
+      reactions: [],
+      jobs: [],
+    });
+    const logger = new MemoryLogger();
+    const transport = new StubTransport();
+    const server = new UiServer({
+      set: UiSetDef.define({
+        name: 'siblingUi',
+        label: 'UI с двумя модулями',
+        description: 'Набор UI с одноимёнными UC разных модулей.',
+        app: AppDef.define({
+          name: 'sibling',
+          label: 'Приложение',
+          description: 'Приложение с одноимёнными UC.',
+          modules: [TodoModuleDef, UsersModuleDef, sibling],
+        }),
+        modules: [TodoUiModuleDef],
+      }),
+      dispatch: new ModuleApiDispatch(
+        [TodoModuleDef, UsersModuleDef, sibling].map(
+          (def) => new ModuleApi(def, transport, logger),
+        ),
+      ),
+      context: { bus: new AwaitingBus(), logger },
+      nodes: [{ id: NODE, uses: [twin], listens: [] }],
+    });
+    const session = server.session(new StubCallerSource(OWNER));
+
+    await session.call(call('todo', 'listTasks'));
+    await session.call(call('sibling', 'listTasks'));
+
+    expect(transport.sent.map((s) => s.module)).toEqual(['todo', 'sibling']);
   });
 
   test('два одноимённых UC в узле — бросок с именем UC', () => {

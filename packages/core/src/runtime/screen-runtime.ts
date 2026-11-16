@@ -5,6 +5,7 @@ import type { AddressRejection } from '../address/address-codec.types';
 import { UiIds } from '../address/ui-ids';
 import { ScreenInstance } from './screen-instance';
 import type { OpenOptions, ScreenRuntimeSpec } from './screen-runtime.types';
+import { UcCalls } from './uc-calls';
 
 export type { OpenOptions, ScreenRuntimeSpec } from './screen-runtime.types';
 
@@ -17,6 +18,7 @@ export class ScreenRuntime {
   private readonly spec: ScreenRuntimeSpec;
   private readonly ids: UiIds;
   private readonly codec: AddressCodec;
+  private readonly calls: UcCalls;
 
   /** Загрузчики другого набора — ошибка сборки, бросок. */
   constructor(spec: ScreenRuntimeSpec) {
@@ -28,6 +30,7 @@ export class ScreenRuntime {
     this.spec = spec;
     this.ids = new UiIds(spec.set);
     this.codec = new AddressCodec(spec.set);
+    this.calls = new UcCalls(spec.set);
   }
 
   /** Новый экземпляр по адресу; отказ загрузки — в его виде. */
@@ -75,6 +78,7 @@ export class ScreenRuntime {
         ids: this.ids,
         codec: this.codec,
         context,
+        calls: this.calls,
         ucs,
         refresh,
         observer,

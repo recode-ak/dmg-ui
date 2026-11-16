@@ -50,7 +50,12 @@ describe('ScreenInstance — перечитывание по сигналу', ()
     await changed;
 
     expect(list.view().revision).toBe(2);
-    expect(kit.ucs.calls.at(-1)?.trace).toEqual(created.trace);
+    expect(kit.ucs.calls.at(-1)).toEqual({
+      module: 'todo',
+      uc: 'listTasks',
+      input: {},
+      eventId: 'e-1',
+    });
     expect(kit.observer.records.at(-1)).toMatchObject({
       kind: 'refreshed',
       node: LIST_ID,
@@ -120,7 +125,7 @@ describe('ScreenInstance — подписка и загрузка', () => {
     expect(watchingWhileLoading).toEqual([LIST_START]);
     expect(list.view().revision).toBe(2);
     expect(kit.ucs.names()).toEqual(['listTasks', 'listTasks']);
-    expect(kit.ucs.calls.at(-1)?.trace).toEqual(createdN(2).trace);
+    expect(kit.ucs.calls.at(-1)).toMatchObject({ eventId: 'e-2' });
   });
 
   test('загрузка не ready — подписка снята, сигналы отброшены, ревизия 1', async () => {
@@ -172,7 +177,7 @@ describe('ScreenInstance — подписка и загрузка', () => {
       'listTasks',
       'listTasks',
     ]);
-    expect(kit.ucs.calls.at(-1)?.trace).toEqual(createdN(3).trace);
+    expect(kit.ucs.calls.at(-1)).toMatchObject({ eventId: 'e-3' });
   });
 
   test('бросок слушателя onChange не рвёт действие: исход и запись outcome есть, бросок — в faults', async () => {

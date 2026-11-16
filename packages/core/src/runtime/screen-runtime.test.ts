@@ -123,17 +123,17 @@ describe('ScreenRuntime.open', () => {
     });
   });
 
-  test('загрузка зовёт UC с node — id экрана и следом открытия', async () => {
+  test('загрузка зовёт UC с модулем UC и requestId открытия, без node и trace', async () => {
     const kit = new RuntimeKit();
 
     await kit.openList();
 
     expect(kit.ucs.calls).toEqual([
       {
-        node: LIST_ID,
+        module: 'todo',
         uc: 'listTasks',
         input: {},
-        trace: requestTrace('r-open'),
+        requestId: 'r-open',
       },
     ]);
   });

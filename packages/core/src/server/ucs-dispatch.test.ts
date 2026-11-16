@@ -3,14 +3,8 @@ import { ok } from 'dmg-core';
 import { ModuleApi } from 'dmg-core/app';
 import { AwaitingBus, MemoryLogger, useTempDir } from 'dmg-core/testing';
 import { ExampleApp, TodoModuleDef } from 'dmg-core/testing/example';
-import {
-  CARD_ID,
-  ExampleUiSetDef,
-  LIST_ID,
-  OWNER,
-  TASK_A,
-} from '../../testing/example';
-import { requestTrace, TASKS } from '../../testing/ui-runtime-fixture';
+import { ExampleUiSetDef, OWNER, TASK_A } from '../../testing/example';
+import { TASKS } from '../../testing/ui-runtime-fixture';
 import {
   StubCallerSource,
   StubTransport,
@@ -47,10 +41,10 @@ const appSession = () => {
 describe('ApiAppDispatch — приложение в процессе', () => {
   test('успех — Ok с выходом UC', async () => {
     const res = await appSession().call({
-      node: LIST_ID,
+      module: 'todo',
       uc: 'createTask',
       input: { title: 'Хлеб' },
-      trace: requestTrace('r-1'),
+      requestId: 'r-1',
     });
 
     expect(res).toEqual({ ok: true, value: { taskId: expect.any(String) } });
@@ -58,10 +52,10 @@ describe('ApiAppDispatch — приложение в процессе', () => {
 
   test('отказ UC — ошибка в форме транспорта: код, вид, payload', async () => {
     const res = await appSession().call({
-      node: CARD_ID,
+      module: 'todo',
       uc: 'completeTask',
       input: { taskId: TASK_A },
-      trace: requestTrace('r-1'),
+      requestId: 'r-1',
     });
 
     expect(res).toEqual({
@@ -88,10 +82,10 @@ describe('ModuleApiDispatch — модуль вне процесса', () => {
     });
 
     const res = await server.session(new StubCallerSource(OWNER)).call({
-      node: LIST_ID,
+      module: 'todo',
       uc: 'listTasks',
       input: {},
-      trace: requestTrace('r-1'),
+      requestId: 'r-1',
     });
 
     expect(res).toEqual(ok([...TASKS]));

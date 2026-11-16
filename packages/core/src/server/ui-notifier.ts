@@ -9,6 +9,7 @@ import { EventSubscriber } from 'dmg-core/app';
 import { AddressCodec } from '../address/address-codec';
 import { UiIds } from '../address/ui-ids';
 import { DeclaredReads } from '../runtime/declared-reads';
+import { UcCalls } from '../runtime/uc-calls';
 import { SchemaCheck } from '../schema/schema-check';
 import { CodeDefect } from '../screen/code-defect';
 import { RecipientList } from './recipient-list';
@@ -30,6 +31,7 @@ export class UiNotifier<U extends Identified> {
   private readonly ids: UiIds;
   private readonly codec: AddressCodec;
   private readonly calls: ServerCalls<U>;
+  private readonly ucCalls: UcCalls;
   private readonly recipients: RecipientList<U>;
   private readonly subscriber: EventSubscriber;
   /** Отписка действующего запуска; `undefined` — не запущен. */
@@ -58,6 +60,7 @@ export class UiNotifier<U extends Identified> {
       logger: context.logger,
       source: this.name,
     });
+    this.ucCalls = new UcCalls(app.set);
     this.recipients = new RecipientList({ set: app.set, dispatch });
     this.subscriber = new EventSubscriber(context, this.name);
   }
@@ -134,15 +137,16 @@ export class UiNotifier<U extends Identified> {
     const caller = await this.spec.callers.resolve(recipient, trace);
     if (!caller.ok) return caller;
     const code = await this.spec.codes.notification(def);
-    // Внутренний путь: след — настоящий след события, а не заявленный.
+    // Внутренний путь: причина вызова — `eventId` события, след — его
+    // настоящий след, а не собранный по причине.
     const { read } = new DeclaredReads({
       owner: `Уведомление ${def.name}`,
-      node,
+      calls: this.ucCalls,
       reads: def.reads,
       ucs: {
         call: (call) =>
           this.calls.call(call, {
-            trace: () => ({ trace, event: true }),
+            trace: () => trace,
             resolve: async () => caller,
           }),
       },

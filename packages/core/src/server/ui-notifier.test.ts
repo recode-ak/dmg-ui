@@ -145,6 +145,7 @@ describe('UiNotifier — получатели из payload', () => {
     const { transport } = await notify();
 
     const [read] = transport.sent;
+    expect(read?.module).toBe('todo');
     expect(read?.command.uc).toBe('listAssignedTasks');
     expect(read?.caller.subject()?.uuid).toBe(ASSIGNEE);
     expect(read?.trace.toJSON()).toEqual(eventTrace);
@@ -180,6 +181,23 @@ describe('UiNotifier — получатели из payload', () => {
         code: 'DELEGATION_DENIED',
       }),
     );
+  });
+});
+
+describe('UiNotifier — внутренний путь вызова', () => {
+  test('read уведомления: след события, причина — eventId, correlationId — цепочка запроса события, не eventId', async () => {
+    const { transport } = await notify({
+      envelope: envelopeOf(
+        TaskEvents.assigned,
+        { taskId: TASK_A, ownerId: OWNER, assigneeId: ASSIGNEE },
+        'e-9',
+        'r-chain',
+      ),
+    });
+
+    expect(transport.sent.map((s) => s.trace.toJSON())).toEqual([
+      { cause: { kind: 'event', eventId: 'e-9' }, correlationId: 'r-chain' },
+    ]);
   });
 });
 

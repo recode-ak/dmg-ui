@@ -2,15 +2,24 @@ import type { SerializedResult, TraceJson } from 'dmg-core';
 import type { AddressJson } from '../address/address-codec.types';
 
 /**
- * Вызов UC от узла графа (экран, уведомление, узел канала): имя UC, вход и
- * след. Только JSON: вызывающего в вызове нет, его подставляет сервер.
+ * Причина вызова UC: `requestId` запроса канала или `eventId` сигнала
+ * перечитывания. Ровно одно поле; полный след из неё собирает сервер.
+ */
+export type UcCause =
+  | { readonly requestId: string }
+  | { readonly eventId: string };
+
+/**
+ * Простая команда вызова UC: модуль и имя UC, вход и причина. Только JSON:
+ * ни узла графа, ни следа, ни вызывающего в вызове нет — сервер сверяет
+ * пару `(module, uc)` с объявленным сессией и сам подставляет след и
+ * вызывающего.
  */
 export type UcCall = {
-  readonly node: string;
+  readonly module: string;
   readonly uc: string;
   readonly input: unknown;
-  readonly trace: TraceJson;
-};
+} & UcCause;
 
 /** Порт вызова UC: ответ — в форме транспорта, Def восстанавливает его сам. */
 export type UcPort = {
