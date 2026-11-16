@@ -29,6 +29,15 @@ describe('CoreImportScanner — клиент страничного канала
     expect(scan(text, CLIENT)).toEqual([]);
   });
 
+  it('константа канала из корня (page-channel.const) — разрешена, прочий корень — нет', () => {
+    expect(
+      scan("import { PAGE_CHANNEL } from '../page-channel.const';", CLIENT),
+    ).toEqual([]);
+    expect(scan("import { PageWire } from '../index';", CLIENT)).toHaveLength(
+      1,
+    );
+  });
+
   for (const text of [
     "import { UiServer } from 'dmg-ui/server';",
     "import { a } from 'dmg-core/app';",
@@ -87,6 +96,15 @@ describe('CoreImportScanner — сервер страничного канала
     ].join('\n');
 
     expect(scan(text, SERVER)).toEqual([]);
+  });
+
+  it('константа канала из корня (page-channel.const) — разрешена, прочий корень — нет', () => {
+    expect(
+      scan("import { PAGE_CHANNEL } from '../page-channel.const';", SERVER),
+    ).toEqual([]);
+    expect(scan("import { PageWire } from '../index';", SERVER)).toHaveLength(
+      1,
+    );
   });
 
   for (const text of [

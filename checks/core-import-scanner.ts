@@ -143,7 +143,8 @@ export class CoreImportScanner {
         exclude: ['.test.ts'],
         forbidden,
         allowed: ['valibot', 'dmg-core', 'dmg-ui'],
-        allowedPaths: [PAGE_CLIENT, PAGE_WIRE],
+        // Имя канала — для проверки приложения при сборке вкладки.
+        allowedPaths: [PAGE_CLIENT, PAGE_WIRE, `${PAGE}/page-channel.const`],
       },
       {
         include: [`${PAGE_WIRE}/`],
@@ -157,7 +158,8 @@ export class CoreImportScanner {
         exclude: ['.test.ts'],
         forbidden,
         allowed: ['valibot', 'dmg-core', 'dmg-ui', 'dmg-ui/server'],
-        allowedPaths: [PAGE_SERVER, PAGE_WIRE],
+        // Имя канала — для проверки приложения при сборке хоста.
+        allowedPaths: [PAGE_SERVER, PAGE_WIRE, `${PAGE}/page-channel.const`],
       },
       {
         include: [`${PAGE_GRAPH}/`],
