@@ -1,0 +1,5 @@
+Задача: ядро — место личности и предел ревизии снимка.
+Изменения: тип Place (ActionContext — псевдоним), порт PersonPlaces, класс RenderContexts (вход dmg-ui/server), MAX_REVISION в ScreenRuntime.restore; решения D-UI-41, D-UI-42; DEBT-UI-3 удалён; гайд пакета канала, README, llms.txt.
+Файлы: packages/core/src/{index.ts,runtime/screen-runtime.ts,runtime/screen-runtime.const.ts,runtime/screen-runtime.test.ts,screen/action-context.types.ts,server/index.ts,server/server.types.ts,server/render-contexts.ts,server/render-contexts.test.ts}, checks/package-manifest.test.ts, docs/decisions.md, docs/guides/channel-package.md, debt.md, README.md, llms.txt.
+Причина: беседе мессенджера нужны место человека и безопасное восстановление снимка.
+Гейт: bun run check — 1251 pass, 0 fail, 104 файла, 14 снимков.
