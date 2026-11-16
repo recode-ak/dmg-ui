@@ -1,0 +1,5 @@
+Трек dmg-ui-core (u7-school), Фаза 2, задачи «Манифесты» и «Адрес экрана» (+ ScreenExit.with, RefreshOn.matches из задачи «Выходы и исходы»).
+Бриф: u7-school conductor/tracks/dmg-ui-core_20261116/slices/f2-manifests.md.
+Изменения: packages/core/src/manifest/** (Def шести видов и их части), packages/core/src/address/** (Address, UiIds, AddressCodec), packages/core/src/index.ts (экспорт), checks/package-manifest.test.ts (состав входа), packages/core/testing/ui-fixture.ts.
+Гейт: bun run check — 174 pass, 0 fail; biome и tsc чисты (тесты screen/ шага Б вынесены на время коммита).
+Причина: статическая модель UI — манифесты читаются без кода экрана; адрес не зависит от канала.
