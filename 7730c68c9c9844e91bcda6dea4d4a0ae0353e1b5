@@ -1,4 +1,0 @@
-Задачи Фазы 3 трека dmg-ui-core: «Поставщик графа и вычисление id узлов UI» и «Правила» (один коммит: тесты ARC-13 поставщика зависят от правил).
-Изменения: вход dmg-ui/graph (UiGraphProvider, UI_KINDS, UiNodes, UiEdges, UI_PROPS), расширение UiIds, UiGraphReader, JsonSchemaView, UiRules и 23 правила rules/*.rule.ts с тестами; зоны импортов в checks/core-import-scanner; фикстура ui-fixture, помощники testing/ui-arch.ts и ui-graph-fixture.ts.
-Гейт: bun run check — 344 pass, 0 fail, 45 файлов; покрытие строк 99 %.
-Причина: ФР-9, ФР-10 spec — dmg-ui как поставщик графа и правил arch:check.
