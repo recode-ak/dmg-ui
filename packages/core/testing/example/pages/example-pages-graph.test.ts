@@ -29,6 +29,6 @@ describe('ExamplePagesArch', () => {
       .map((node) => node.id);
 
     expect(ids).toContain('examplePages');
-    expect(ids).not.toContain('exampleDialog');
+    expect(ids).not.toContain('exampleStub');
   });
 });

@@ -7,7 +7,11 @@ import type { Violation } from './violation.types';
 /** Направления между пакетами-каталогами `packages/*`: пакет → пакеты, на которые он может ссылаться. */
 export class PackageDirections {
   /** Таблица репо; новый пакет добавляется сюда решением. */
-  protected static readonly TABLE: Record<string, string[]> = { core: [] };
+  protected static readonly TABLE: Record<string, string[]> = {
+    core: [],
+    'chat-ui': ['core'],
+    'tg-bot': ['core', 'chat-ui'],
+  };
 
   /**
    * @param directions пакет → разрешённые пакеты

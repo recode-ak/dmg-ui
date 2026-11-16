@@ -17,7 +17,7 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
-import { ExampleDialogAppDef } from '../../testing/example/dialog/example-dialog.app';
+import { ExampleStubAppDef } from '../../testing/ui-app-fixture';
 import { ArchReport, UiScene } from '../../testing/ui-arch';
 import { type AnyScreenDef, ScreenDef } from '../manifest/screen-def';
 import { UiModuleDef } from '../manifest/ui-module-def';
@@ -26,7 +26,7 @@ import { UiGraphProvider } from './ui-graph-provider';
 import { UI_VERSION } from './ui-kinds';
 
 const provider = () =>
-  new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleDialogAppDef] });
+  new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleStubAppDef] });
 const appGraph = () =>
   new AppGraph({ def: ExampleAppDef, providers: [provider()] });
 const graph = appGraph().build();
@@ -50,7 +50,7 @@ const edgeProps = (kind: string, from: string, to: string) =>
 describe('UiGraphProvider: узлы', () => {
   test('21 узел набора и приложения UI в каноническом порядке', () => {
     expect(own.map((node) => node.id)).toEqual([
-      'exampleDialog',
+      'exampleStub',
       'exampleUi',
       'exampleUi/todo',
       ASSIGNED,
@@ -106,7 +106,7 @@ describe('UiGraphProvider: узлы', () => {
   test('три независимых корня: домен, набор UI, приложение UI', () => {
     expect(graph.roots().map((node) => node.id)).toEqual([
       'example',
-      'exampleDialog',
+      'exampleStub',
       'exampleUi',
     ]);
   });
@@ -244,9 +244,9 @@ describe('UiGraphProvider: свойства узлов', () => {
   });
 
   test('приложение UI: набор, канал и входы с адресом экрана', () => {
-    expect(props('exampleDialog')).toEqual({
+    expect(props('exampleStub')).toEqual({
       set: 'exampleUi',
-      channel: 'dmg-ui-dialog',
+      channel: 'dmg-ui-stub',
       entries: [
         {
           name: 'start',
@@ -307,11 +307,11 @@ describe('UiGraphProvider: рёбра', () => {
 
   test('includes: приложение → сторис и уведомление, сторис → экран', () => {
     expect(pairs('includes')).toEqual([
-      'exampleDialog -> exampleUi/todo/finishTasks',
-      'exampleDialog -> exampleUi/todo/followAssigned',
-      'exampleDialog -> exampleUi/todo/planTasks',
-      'exampleDialog -> exampleUi/todo/taskAssigned',
-      `exampleDialog -> ${COMPLETED}`,
+      'exampleStub -> exampleUi/todo/finishTasks',
+      'exampleStub -> exampleUi/todo/followAssigned',
+      'exampleStub -> exampleUi/todo/planTasks',
+      'exampleStub -> exampleUi/todo/taskAssigned',
+      `exampleStub -> ${COMPLETED}`,
       `exampleUi/todo/finishTasks -> ${CARD}`,
       `exampleUi/todo/finishTasks -> ${SCREEN}`,
       `exampleUi/todo/followAssigned -> ${ASSIGNED}`,
@@ -321,8 +321,8 @@ describe('UiGraphProvider: рёбра', () => {
 
   test('entry — приложение → экраны входов', () => {
     expect(pairs('entry')).toEqual([
-      `exampleDialog -> ${ASSIGNED}`,
-      `exampleDialog -> ${SCREEN}`,
+      `exampleStub -> ${ASSIGNED}`,
+      `exampleStub -> ${SCREEN}`,
     ]);
   });
 

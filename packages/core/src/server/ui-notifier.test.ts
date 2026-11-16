@@ -21,9 +21,9 @@ import {
   TASK_A,
   TaskCardScreenDef,
 } from '../../testing/example';
-import { ExampleDialogAppDef } from '../../testing/example/dialog/example-dialog.app';
 import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.code';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
+import { ExampleStubAppDef } from '../../testing/ui-app-fixture';
 import { UiScene } from '../../testing/ui-arch';
 import { TASKS } from '../../testing/ui-runtime-fixture';
 import {
@@ -111,7 +111,7 @@ const notify = async (over: Setup = {}) => {
   const delivery = over.delivery ?? new StubDelivery();
   const observer = new MemoryUiObserver();
   new UiNotifier({
-    app: over.app ?? ExampleDialogAppDef,
+    app: over.app ?? ExampleStubAppDef,
     codes: over.codes ?? exampleCodes(),
     dispatch: new ModuleApiDispatch([
       new ModuleApi(TodoModuleDef, transport, logger),
@@ -286,7 +286,7 @@ describe('UiNotifier — сборка и запуск', () => {
   const build = (codes = exampleCodes()) => {
     const logger = new MemoryLogger();
     return new UiNotifier({
-      app: ExampleDialogAppDef,
+      app: ExampleStubAppDef,
       codes,
       dispatch: new ModuleApiDispatch([
         new ModuleApi(TodoModuleDef, new StubTransport(), logger),

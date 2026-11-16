@@ -8,16 +8,16 @@ import {
 import { ExampleApp } from 'dmg-core/testing/example';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
 import { ExampleUiSetDef, exampleCodes } from '../example';
-import { ExampleDialogAppDef } from '../example/dialog';
 import { examplePageRoutes, examplePageViews } from '../example/pages';
 import { MemoryUiObserver } from '../memory-ui-observer';
+import { ExampleStubAppDef } from '../ui-app-fixture';
 import { T0 } from '../ui-server-fixture';
 import { PageClient } from './client/page-client';
 import { PageHost } from './server/page-host';
 import type { ClientEnd } from './wire/page-wire.types';
 
 // Сборка половин страничного канала: приложение другого канала — ошибка
-// сборки, бросок (ERR-01), как у `DialogChannel`.
+// сборки, бросок (ERR-01), как у диалогового канала пакета `chat-ui`.
 
 const tmp = useTempDir('dmg-ui-page-assembly-');
 
@@ -39,14 +39,14 @@ describe('страничный канал — приложение другог�
     expect(
       () =>
         new PageClient({
-          app: ExampleDialogAppDef,
+          app: ExampleStubAppDef,
           codes: exampleCodes(),
           views: examplePageViews,
           routes: examplePageRoutes,
           end,
           observer: new MemoryUiObserver(),
         }),
-    ).toThrow('канала dmg-ui-dialog, а не dmg-ui-pages');
+    ).toThrow('канала dmg-ui-stub, а не dmg-ui-pages');
   });
 
   test('PageHost — бросок с именем канала', () => {
@@ -64,12 +64,12 @@ describe('страничный канал — приложение другог�
     expect(
       () =>
         new PageHost({
-          app: ExampleDialogAppDef,
+          app: ExampleStubAppDef,
           server,
           tokens: () => undefined,
           identities: () => example.callers,
           logger: context.logger,
         }),
-    ).toThrow('канала dmg-ui-dialog, а не dmg-ui-pages');
+    ).toThrow('канала dmg-ui-stub, а не dmg-ui-pages');
   });
 });

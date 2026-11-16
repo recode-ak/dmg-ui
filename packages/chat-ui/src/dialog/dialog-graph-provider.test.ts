@@ -3,21 +3,16 @@ import type { ArchApp } from 'dmg-core/arch';
 import { AppGraph } from 'dmg-core/graph';
 import { ExampleArch } from 'dmg-core/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
-import { AssignedTasksView } from '../example/dialog/assigned-tasks.view';
-import { TaskListView } from '../example/dialog/task-list.view';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { ArchReport, StubViewProvider } from 'dmg-ui/testing/fixtures';
+import { ExampleDialogAppDef, ExampleDialogArch } from '../../testing';
+import { AssignedTasksView } from '../../testing/example/assigned-tasks.view';
+import { TaskListView } from '../../testing/example/task-list.view';
 import {
   TaskAssignedView,
   TaskCompletedView,
-} from '../example/dialog/task-notes.view';
-import {
-  DialogGraphProvider,
-  DialogViews,
-  ExampleDialogAppDef,
-  ExampleDialogArch,
-  ExampleUiSetDef,
-} from '../index';
-import { ArchReport } from '../ui-arch';
-import { StubViewProvider } from '../ui-graph-fixture';
+} from '../../testing/example/task-notes.view';
+import { DialogGraphProvider, DialogViews } from './index';
 
 // Второй поставщик графа — диалоговый канал: рёбра `presents` от приложения
 // UI к экранам и уведомлениям с представлением; своих видов и правил нет.

@@ -115,6 +115,66 @@ describe('PackageDirections — направления между пакетам
     });
   });
 
+  describe('таблица репо', () => {
+    const standard = () =>
+      PackageDirections.standard(PackageManifest.read(ROOT));
+    const scanRepo = (path: string, text: string) =>
+      standard().scan([SourceFile.of(path, text)]);
+
+    for (const [path, spec] of [
+      ['packages/chat-ui/src/dialog/f.ts', 'dmg-ui'],
+      ['packages/chat-ui/src/dialog/f.ts', 'dmg-ui/graph'],
+      ['packages/chat-ui/src/dialog/f.ts', 'dmg-ui/server'],
+      ['packages/chat-ui/testing/f.ts', 'dmg-ui/testing'],
+      ['packages/chat-ui/testing/f.ts', 'dmg-ui/chat-ui'],
+      ['packages/tg-bot/src/f.ts', 'dmg-ui'],
+      ['packages/tg-bot/src/f.ts', 'dmg-ui/server'],
+      ['packages/tg-bot/src/f.ts', 'dmg-ui/chat-ui'],
+    ] as const) {
+      it(`${path} → «${spec}» разрешено`, () => {
+        expect(scanRepo(path, `import '${spec}';`)).toEqual([]);
+      });
+    }
+
+    for (const [path, spec, why] of [
+      ['packages/core/src/f.ts', 'dmg-ui/chat-ui', 'ядро → chat-ui'],
+      ['packages/core/src/f.ts', 'dmg-ui/tg-bot', 'ядро → tg-bot'],
+      ['packages/core/testing/f.ts', 'dmg-ui/chat-ui', 'тесты ядра → chat-ui'],
+      [
+        'packages/core/testing/f.ts',
+        'dmg-ui/chat-ui/testing',
+        'тесты ядра → chat-ui/testing',
+      ],
+      ['packages/chat-ui/src/dialog/f.ts', 'dmg-ui/tg-bot', 'chat-ui → tg-bot'],
+      [
+        'packages/chat-ui/src/dialog/f.ts',
+        '../../../core/src/x',
+        'chat-ui → src ядра по относительному пути',
+      ],
+      [
+        'packages/chat-ui/src/dialog/f.ts',
+        'dmg-ui/packages/core/src/x',
+        'chat-ui → вглубь ядра',
+      ],
+      [
+        'packages/chat-ui/src/dialog/f.ts',
+        'dmg-ui/chat-ui',
+        'chat-ui/src → свой вход из своего каталога',
+      ],
+    ] as const) {
+      it(`${why} — нарушение`, () => {
+        const found = scanRepo(path, `import '${spec}';`);
+        expect(found).toMatchObject([{ file: path, line: 1 }]);
+      });
+    }
+
+    it('пакет вне таблицы репо — «обнови таблицу»', () => {
+      const found = scanRepo('packages/unknown/src/f.ts', 'export {};');
+      expect(found).toHaveLength(1);
+      expect(found[0]?.text).toContain('таблиц');
+    });
+  });
+
   it('на реальном репо — ноль нарушений', () => {
     const standard = PackageDirections.standard(PackageManifest.read(ROOT));
     expect(standard.scan(SourceTree.read(ROOT, 'packages'))).toEqual([]);

@@ -1,22 +1,8 @@
-// Вход dmg-ui/testing (D-UI-32): учебный пример, учебный диалоговый канал,
-// помощник рендера примеров и наблюдатель в памяти. Заглушки портов, сцены
-// правил графа и заглушки сервера — внутренние помощники тестов ядра.
+// Вход dmg-ui/testing (D-UI-32): учебный пример, помощник рендера примеров и
+// наблюдатель в памяти. Заглушки портов, сцены правил графа и заглушки
+// сервера — внутренние помощники тестов ядра; общие помощники тестов каналов —
+// вход dmg-ui/testing/fixtures.
 
-export {
-  DIALOG_CHANNEL,
-  type Dialog,
-  DialogChannel,
-  type DialogChannelSpec,
-  DialogGraphProvider,
-  type DialogGraphSpec,
-  type DialogOption,
-  type DialogPlace,
-  DialogRenderer,
-  type DialogReply,
-  DialogViews,
-  NotificationPresenter,
-  ScreenPresenter,
-} from './dialog';
 export {
   AssignedTasksScreenDef,
   type ExampleCodeOverrides,
@@ -29,13 +15,9 @@ export {
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
+  type TaskRow,
   TodoUiModuleDef,
 } from './example';
-export {
-  ExampleDialogAppDef,
-  ExampleDialogArch,
-  exampleDialogViews,
-} from './example/dialog';
 export {
   ExamplePagesAppDef,
   ExamplePagesArch,

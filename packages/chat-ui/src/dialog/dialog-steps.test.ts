@@ -12,8 +12,8 @@ import {
   UiModuleDef,
   UiSetDef,
 } from 'dmg-ui';
+import { RuntimeKit, testRenderContext } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import { RuntimeKit, testRenderContext } from '../ui-runtime-fixture';
 import { Dialog } from './dialog';
 import type { DialogReply } from './dialog.types';
 import { DIALOG_CHANNEL } from './dialog-channel.const';

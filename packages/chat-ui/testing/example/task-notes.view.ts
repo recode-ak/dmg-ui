@@ -1,6 +1,8 @@
-import { NotificationPresenter } from '../../dialog';
-import { TaskAssignedNotificationDef } from '../todo/task-assigned.notification';
-import { TaskCompletedNotificationDef } from '../todo/task-completed.notification';
+import { NotificationPresenter } from 'dmg-ui/chat-ui';
+import {
+  TaskAssignedNotificationDef,
+  TaskCompletedNotificationDef,
+} from 'dmg-ui/testing';
 
 /** «Вам назначена задача» в диалоге: подпись уведомления и название. */
 export const TaskAssignedView = NotificationPresenter.for(

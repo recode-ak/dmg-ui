@@ -1,17 +1,17 @@
 import { describe, expect, test } from 'bun:test';
 import { LIST_START } from '../../testing/example';
-import { ExampleDialogAppDef } from '../../testing/example/dialog/example-dialog.app';
+import { ExampleStubAppDef } from '../../testing/ui-app-fixture';
 
 describe('UiAppDef', () => {
   test('форма: набор, канал, сторис, уведомления и входы с адресом', () => {
-    expect(ExampleDialogAppDef.normalize()).toEqual({
+    expect(ExampleStubAppDef.normalize()).toEqual({
       dmg: 'uiApp',
-      name: 'exampleDialog',
-      label: 'Учебное приложение в диалоге',
-      description: 'Приложение UI учебного примера для диалогового канала.',
+      name: 'exampleStub',
+      label: 'Учебное приложение в подставном канале',
+      description: 'Приложение UI учебного примера для тестов ядра.',
       visible: false,
       set: 'exampleUi',
-      channel: 'dmg-ui-dialog',
+      channel: 'dmg-ui-stub',
       stories: ['planTasks', 'finishTasks', 'followAssigned'],
       notifications: ['taskAssigned', 'taskCompleted'],
       entries: [

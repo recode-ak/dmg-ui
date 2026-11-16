@@ -10,7 +10,7 @@ import { UiScene } from '../../ui-arch';
 import { PageNotePresenter, PagePresenter, PageViews } from './page-views';
 
 // Реестр представлений страничного канала: ключ — `id` из `UiIds` (образец —
-// `DialogViews`). Чужой Def и повтор — ошибка сборки канала, бросок.
+// реестр представлений диалогового канала пакета `chat-ui`). Чужой Def и повтор — ошибка сборки канала, бросок.
 
 const ID = {
   list: 'exampleUi/todo/taskList',

@@ -1,4 +1,4 @@
-import type { TaskRow } from '../todo/example-tasks';
+import type { TaskRow } from 'dmg-ui/testing';
 
 /** Строки задач в тексте реплики: отметка выбора и статус. */
 export class TaskLines {

@@ -92,10 +92,11 @@ describe('ссылки на трек в репо', () => {
   const format = (found: { file: string; line: number; text: string }[]) =>
     found.map((v) => `${v.file}:${v.line} ${v.text}`);
 
-  it('в packages/** и checks/** нет ссылок на трек', () => {
+  it('в packages/**, checks/** и acceptance/** нет ссылок на трек', () => {
     const files = notSelf([
       ...TextTree.read(ROOT, 'packages', ['.ts', '.snap']),
       ...TextTree.read(ROOT, 'checks', ['.ts', '.snap']),
+      ...TextTree.read(ROOT, 'acceptance', ['.ts', '.snap']),
     ]);
     expect(format(new TrackReferenceScanner().scanCode(files))).toEqual([]);
   });

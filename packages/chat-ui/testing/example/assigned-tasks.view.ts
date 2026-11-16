@@ -1,5 +1,5 @@
-import { ScreenPresenter } from '../../dialog';
-import { AssignedTasksScreenDef } from '../todo/assigned-tasks.screen';
+import { ScreenPresenter } from 'dmg-ui/chat-ui';
+import { AssignedTasksScreenDef } from 'dmg-ui/testing';
 import { TaskLines } from './task-lines';
 
 /** «Назначенные мне» в диалоге: поручения со статусом. */

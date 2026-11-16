@@ -190,11 +190,12 @@ describe('CoreImportScanner — пример и привязки не знают
     );
   });
 
-  it('привязка диалога не импортирует привязку страниц', () => {
-    const text = "import { a } from '../pages/example-pages.app';";
+  it('привязка диалога (chat-ui/testing) не импортирует привязку страниц', () => {
+    const text =
+      "import { a } from '../../../core/testing/example/pages/example-pages.app';";
 
     expect(
-      scan(text, 'packages/core/testing/example/dialog/example-dialog.arch.ts'),
+      scan(text, 'packages/chat-ui/testing/example/example-dialog.arch.ts'),
     ).toHaveLength(1);
   });
 });
@@ -224,8 +225,8 @@ describe('CoreImportScanner — привязка примера к страни�
     "import fs from 'node:fs';",
     "import { test } from 'bun:test';",
     "import { UiIds } from '../../../src/address/ui-ids';",
-    "import { ExampleDialogAppDef } from '../dialog/example-dialog.app';",
-    "import { DialogViews } from '../../dialog/dialog-views';",
+    "import { ExampleDialogAppDef } from 'dmg-ui/chat-ui/testing';",
+    "import { DialogViews } from 'dmg-ui/chat-ui';",
   ]) {
     it(`${text} в привязке страниц — нарушение`, () => {
       expect(scan(text, BINDING)).toHaveLength(1);

@@ -1,6 +1,6 @@
 # Пакет канала — гайд
 
-**Назначение:** что должен дать пакет канала (мессенджер, страница, консоль), как собрать его поверх ядра `dmg-ui`, какие политики выбрать по исходам, как встроиться в граф и где проходит граница безопасности. Образцы — учебные каналы в `dmg-ui/testing`: диалоговый [testing/dialog/](../../packages/core/testing/dialog/dialog.ts) и страничный [testing/page/](../../packages/core/testing/page/server/page-host.ts). Объявление экранов — [story-screen-notification.md](./story-screen-notification.md).
+**Назначение:** что должен дать пакет канала (мессенджер, страница, консоль), как собрать его поверх ядра `dmg-ui`, какие политики выбрать по исходам, как встроиться в граф и где проходит граница безопасности. Образцы — учебные каналы в `dmg-ui/testing`: диалоговый [chat-ui/src/dialog/](../../packages/chat-ui/src/dialog/dialog.ts) и страничный [testing/page/](../../packages/core/testing/page/server/page-host.ts). Объявление экранов — [story-screen-notification.md](./story-screen-notification.md).
 
 ---
 
@@ -43,7 +43,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 
 ## 4. Политики по исходам
 
-Исход `act` решает канал; ядро только сообщает. Неизвестный исход (новый в ядре) — дефект канала, бросок (ERR-06). Диалоговый канал ([dialog.ts](../../packages/core/testing/dialog/dialog.ts), метод `settle`):
+Исход `act` решает канал; ядро только сообщает. Неизвестный исход (новый в ядре) — дефект канала, бросок (ERR-06). Диалоговый канал ([dialog.ts](../../packages/chat-ui/src/dialog/dialog.ts), метод `settle`):
 
 | исход | диалог |
 |---|---|
@@ -66,7 +66,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 
 Канал — второй поставщик графа: `implements GraphProvider` (`node_modules/dmg-core/docs/guides/graph-extension.md` — шаги вида Def, видов и правил; здесь только отличия UI).
 
-1. **Ребро `presents`.** Приложение UI `presents` каждый экран и уведомление, у которых в канале есть представление; ставит его пакет канала (`UI_EDGE_KINDS.presents`, `UiIds.app(app)` — откуда, `UiIds.screen/notification` — куда). Без него срабатывает UI-06. Образец — [dialog-graph-provider.ts](../../packages/core/testing/dialog/dialog-graph-provider.ts): своих видов и правил нет, `kinds()` пуст.
+1. **Ребро `presents`.** Приложение UI `presents` каждый экран и уведомление, у которых в канале есть представление; ставит его пакет канала (`UI_EDGE_KINDS.presents`, `UiIds.app(app)` — откуда, `UiIds.screen/notification` — куда). Без него срабатывает UI-06. Образец — [dialog-graph-provider.ts](../../packages/chat-ui/src/dialog/dialog-graph-provider.ts): своих видов и правил нет, `kinds()` пуст.
 2. **Свой вид узла** — точка входа канала. `PageRouteDef` — вид Def `pageRoute` (путь и имя входа приложения), узел под приложением, ребро `opens` к экрану входа. Достижимость экранов ядро считает от входов (UI-07), поэтому вход должен быть объявлен в `entries` приложения.
 3. **Свои правила — свой префикс** (ARC-13): префикс не из префиксов пакета `dmg-core` и не `UI`. У страничного канала — `PG` (PG-01 — маршрут ведёт на объявленный вход, PG-02 — у входа есть маршрут; [rules.md](../reference/rules.md)). Правило читает граф запросами (`outgoing`, `children`), не ветвится по виду Def.
 4. **Вызов UC из узла канала** (сигнал канала, не действие): узел объявляет `uses` и `listens` как `ChannelNode`, а ребро `invokes` ставит канал. Правило UI-10 защищает такие узлы, если у них есть ребро `refreshedBy` или `notifiedBy` к событию: граф ядра узлов канала не строит, и это ребро тоже ставит канал. Такие узлы не вызывают command UC по событию.
@@ -112,7 +112,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 ## 9. Доставка уведомлений
 
 - `UiNotifier` отдаёт каналу `DeliveredNotification`: `notification` (`id` узла), `recipient`, `data`, `links` (`AddressJson`), `cause: { event, eventId }`, `trace`.
-- **Отсев повтора и предел** — политика канала: ядро только передаёт `cause.eventId`. Ключ — `notification + recipient + eventId` (диалог, [dialog-delivery.ts](../../packages/core/testing/dialog/dialog-delivery.ts)); ключ ставь после успешной доставки, чтобы бросок не отсеял повтор.
+- **Отсев повтора и предел** — политика канала: ядро только передаёт `cause.eventId`. Ключ — `notification + recipient + eventId` (диалог, [dialog-delivery.ts](../../packages/chat-ui/src/dialog/dialog-delivery.ts)); ключ ставь после успешной доставки, чтобы бросок не отсеял повтор.
 - Сбой `deliver` — бросок: сервер его логирует и идёт к следующему получателю; уведомление не копится. Очередь, push и письмо — дело канала (страничный канал при отсутствии соединений не доставляет и не копит).
 - В сообщение клиенту кладут `data`, `links` и `eventId`; `trace` и `recipient` — нет ([page-delivery.ts](../../packages/core/testing/page/server/page-delivery.ts)).
 
@@ -129,7 +129,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 ## 11. Как тестировать
 
 - Граф — `reportArchCheck([app], print)` с поставщиками; сцена с нарушением даёт код 1 и строку `ID: …` ([page-rules.test.ts](../../packages/core/testing/page/graph/page-rules.test.ts) — образец).
-- Сквозной сценарий (TST-09, один): приложение `ExampleApp` из `dmg-core/testing/example`, `UiServer`, `UiNotifier` с доставкой канала, два пользователя — [dialog-story.test.ts](../../packages/core/testing/dialog-story.test.ts), [page-story.test.ts](../../packages/core/testing/page-story.test.ts).
+- Сквозной сценарий (TST-09, один): приложение `ExampleApp` из `dmg-core/testing/example`, `UiServer`, `UiNotifier` с доставкой канала, два пользователя — [dialog-story.test.ts](../../packages/chat-ui/testing/dialog-story.test.ts), [page-story.test.ts](../../packages/core/testing/page-story.test.ts).
 - Провод — в памяти, строки JSON и журнал сообщений; тишину ждёт `PageWire.settled()` без таймеров (TST-04).
 - Политики — тестом на каждый исход с `MemoryUiObserver`; примеры рендера — `ExamplePreview` и снимки.
 - Безопасность — тесты на недоверенный вход: мусор, строка длиннее предела, чужая пара `(module, uc)`, повтор подписки.

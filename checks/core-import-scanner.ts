@@ -7,10 +7,6 @@ import type { Violation } from './violation.types';
 
 /** Учебный пример: код и манифесты — как у проекта. */
 const EXAMPLE = 'packages/core/testing/example';
-/** Привязка примера к каналу: представления и граф примера. */
-const BINDING = 'packages/core/testing/example/dialog';
-/** Учебный диалоговый канал. */
-const CHANNEL = 'packages/core/testing/dialog';
 /** Привязка примера к страничному каналу: представления, маршруты и граф примера. */
 const PAGES_BINDING = 'packages/core/testing/example/pages';
 /** Учебный страничный канал: подкаталоги разделены границей JSON. */
@@ -21,6 +17,14 @@ const PAGE_WIRE = `${PAGE}/wire`;
 const PAGE_GRAPH = `${PAGE}/graph`;
 /** Помощник рендера примеров: от канала и сервера не зависит. */
 const PREVIEW = 'packages/core/testing/preview';
+/** Пакет диалогового канала: код входа `dmg-ui/chat-ui`. */
+const CHAT_UI = 'packages/chat-ui/src';
+/** Тестовый вход пакета диалогового канала: привязка примера. */
+const CHAT_UI_TESTING = 'packages/chat-ui/testing';
+/** Пакет канала Telegram: код входа `dmg-ui/tg-bot`. */
+const TG_BOT = 'packages/tg-bot/src';
+/** Приёмочные тесты монорепо: поверх нескольких пакетов, импорт по именам входов. */
+const ACCEPTANCE = 'acceptance';
 
 /** Проверка импортов ядра по набору зон: `node:`, `bun:`, встроенные модули и тестовые входы `dmg-core` запрещены. */
 export class CoreImportScanner {
@@ -30,18 +34,18 @@ export class CoreImportScanner {
    * Зоны репо (TST-07): ядро (`packages/core/src`, кроме тестов, `graph/` и
    * `server/`), граф (`src/graph`, где разрешён `dmg-core/graph`), сервер
    * (`src/server`: плюс `dmg-core/app` и `/graph`, без `graph/` ядра),
-   * учебный пример (`testing/example/`, кроме `dialog/`: только `valibot`,
+   * учебный пример (`testing/example/`, кроме `pages/`: только `valibot`,
    * `dmg-core`, `dmg-ui` и контракты учебного приложения — как у проекта;
-   * относительные — внутри `example/`) и привязка примера к каналу
-   * (`testing/example/dialog/`: плюс граф и сборка `ArchApp`; относительные —
-   * в `example/` и учебный канал `testing/dialog/`), учебный канал
-   * (`testing/dialog/`: только публичные входы `dmg-ui`, `dmg-ui/server`,
-   * `dmg-ui/graph`, `dmg-core`, `dmg-core/graph`; относительные — внутри
-   * канала, ARC-08), помощник рендера (`testing/preview/`: как канал, без
-   * сервера и графа), страничный канал (`testing/page/`: у `client/`, `wire/`,
-   * `server/`, `graph/` и корня свои белые списки, клиент не знает сервер и
-   * граф, сервер не знает клиент) и привязка примера к нему
-   * (`testing/example/pages/`, как у диалога; привязки друг друга не знают).
+   * относительные — внутри `example/`), помощник рендера (`testing/preview/`:
+   * без сервера и графа), страничный канал (`testing/page/`: у `client/`,
+   * `wire/`, `server/`, `graph/` и корня свои белые списки, клиент не знает
+   * сервер и граф, сервер не знает клиент) и привязка примера к нему
+   * (`testing/example/pages/`: плюс граф и сборка `ArchApp`). Пакеты каналов:
+   * `chat-ui/src` (публичные входы ядра; относительные — внутри пакета,
+   * ARC-08), `chat-ui/testing` (плюс тестовые входы и пример, `dmg-ui/chat-ui`),
+   * `tg-bot/src` (как `chat-ui/src`, плюс `dmg-ui/chat-ui`, без внешних
+   * библиотек). Приёмочный каталог `acceptance/` не ограничен, но в `packages/`
+   * заходит только по именам входов.
    */
   static standard(): CoreImportScanner {
     const forbidden = [
@@ -84,7 +88,7 @@ export class CoreImportScanner {
       {
         include: [`${EXAMPLE}/`],
         exclude: ['.test.ts'],
-        excludeDirs: [`${BINDING}/`, `${PAGES_BINDING}/`],
+        excludeDirs: [`${PAGES_BINDING}/`],
         // Без `dmg-core/testing/*` из общего списка: контракты учебного
         // приложения (`dmg-core/testing/example`) примеру разрешены.
         forbidden: forbidden.filter((spec) => spec !== 'dmg-core/testing/*'),
@@ -92,35 +96,12 @@ export class CoreImportScanner {
         allowedPaths: [EXAMPLE],
         // Привязка лежит внутри `example/`, но пример её не знает: через неё
         // пример дотянулся бы до канала, сервера и графа.
-        forbiddenPaths: [BINDING, PAGES_BINDING],
-      },
-      {
-        include: [`${BINDING}/`],
-        exclude: ['.test.ts'],
-        // Сборке `ExampleDialogArch` нужен `ExampleArch` из `dmg-core/testing`.
-        forbidden: forbidden.filter(
-          (spec) =>
-            spec !== 'dmg-core/testing/*' && spec !== 'dmg-core/testing',
-        ),
-        allowed: [
-          'valibot',
-          'dmg-core',
-          'dmg-core/graph',
-          'dmg-core/arch',
-          'dmg-core/testing',
-          'dmg-core/testing/example',
-          'dmg-ui',
-          'dmg-ui/graph',
-        ],
-        allowedPaths: [EXAMPLE, CHANNEL],
-        // Привязки каналов не знают друг друга: `EXAMPLE` в списке выше
-        // охватывает и соседнюю привязку.
         forbiddenPaths: [PAGES_BINDING],
       },
       {
         include: [`${PAGES_BINDING}/`],
         exclude: ['.test.ts'],
-        // Как у привязки диалога: сборке `ExamplePagesArch` нужен `ExampleArch`.
+        // Сборке `ExamplePagesArch` нужен `ExampleArch` из `dmg-core/testing`.
         forbidden: forbidden.filter(
           (spec) =>
             spec !== 'dmg-core/testing/*' && spec !== 'dmg-core/testing',
@@ -136,7 +117,6 @@ export class CoreImportScanner {
           'dmg-ui/graph',
         ],
         allowedPaths: [EXAMPLE, PAGE],
-        forbiddenPaths: [BINDING],
       },
       {
         include: [`${PAGE_CLIENT}/`],
@@ -197,7 +177,14 @@ export class CoreImportScanner {
         allowedPaths: [PAGE],
       },
       {
-        include: [`${CHANNEL}/`],
+        include: [`${PREVIEW}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-ui'],
+        allowedPaths: [PREVIEW],
+      },
+      {
+        include: [`${CHAT_UI}/`],
         exclude: ['.test.ts'],
         forbidden,
         allowed: [
@@ -208,14 +195,53 @@ export class CoreImportScanner {
           'dmg-ui/server',
           'dmg-ui/graph',
         ],
-        allowedPaths: [CHANNEL],
+        allowedPaths: [CHAT_UI],
       },
       {
-        include: [`${PREVIEW}/`],
+        include: [`${CHAT_UI_TESTING}/`],
+        exclude: ['.test.ts'],
+        // Привязке нужны `ExampleArch` и пример: тестовые входы разрешены.
+        forbidden: forbidden.filter(
+          (spec) =>
+            spec !== 'dmg-core/testing/*' &&
+            spec !== 'dmg-core/testing' &&
+            spec !== 'dmg-ui/testing',
+        ),
+        allowed: [
+          'valibot',
+          'dmg-core',
+          'dmg-core/graph',
+          'dmg-core/arch',
+          'dmg-core/testing',
+          'dmg-core/testing/example',
+          'dmg-ui',
+          'dmg-ui/server',
+          'dmg-ui/graph',
+          'dmg-ui/testing',
+          'dmg-ui/chat-ui',
+        ],
+        allowedPaths: [CHAT_UI_TESTING],
+      },
+      {
+        include: [`${TG_BOT}/`],
         exclude: ['.test.ts'],
         forbidden,
-        allowed: ['valibot', 'dmg-core', 'dmg-ui'],
-        allowedPaths: [PREVIEW],
+        allowed: [
+          'valibot',
+          'dmg-core',
+          'dmg-core/graph',
+          'dmg-ui',
+          'dmg-ui/server',
+          'dmg-ui/graph',
+          'dmg-ui/chat-ui',
+        ],
+        allowedPaths: [TG_BOT],
+      },
+      {
+        include: [`${ACCEPTANCE}/`],
+        exclude: [],
+        forbidden: [],
+        forbiddenPaths: ['packages'],
       },
     ]);
   }

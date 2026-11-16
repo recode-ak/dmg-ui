@@ -1,6 +1,5 @@
 // Учебный пример: набор UI поверх учебного приложения `dmg-core` и
-// загрузчики кода. Привязка к диалоговому каналу — свой вход `./dialog`;
-// оба собирает вход `dmg-ui/testing` (`testing/index.ts`).
+// загрузчики кода; его собирает вход `dmg-ui/testing` (`testing/index.ts`).
 
 export { type ExampleCodeOverrides, exampleCodes } from './example-codes';
 export { ExampleUiSetDef } from './example-ui.set';

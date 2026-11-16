@@ -1,8 +1,8 @@
 import type { ArchApp } from 'dmg-core/arch';
 import { ExampleArch } from 'dmg-core/testing';
+import { DialogGraphProvider } from 'dmg-ui/chat-ui';
 import { UiGraphProvider } from 'dmg-ui/graph';
-import { DialogGraphProvider } from '../../dialog';
-import { ExampleUiSetDef } from '../example-ui.set';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { ExampleDialogAppDef } from './example-dialog.app';
 import { exampleDialogViews } from './example-dialog.views';
 

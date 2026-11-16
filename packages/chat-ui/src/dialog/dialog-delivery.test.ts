@@ -13,15 +13,14 @@ import {
   UiServer,
 } from 'dmg-ui/server';
 import {
-  DialogChannel,
-  ExampleDialogAppDef,
   ExampleUiSetDef,
   exampleCodes,
-  exampleDialogViews,
   MemoryUiObserver,
-} from '../index';
-import { T0 } from '../ui-server-fixture';
+} from 'dmg-ui/testing';
+import { T0 } from 'dmg-ui/testing/fixtures';
+import { ExampleDialogAppDef, exampleDialogViews } from '../../testing';
 import { DialogDelivery } from './dialog-delivery';
+import { DialogChannel } from './index';
 
 // Доставка уведомлений диалоговым каналом: реплика во входящие получателя,
 // ссылки — варианты, отсев повтора по `cause.eventId`. Живой экран

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { AppGraph } from 'dmg-core/graph';
-import { ArchReport } from '../ui-arch';
-import { ExampleDialogArch } from './dialog/example-dialog.arch';
+import { ArchReport } from 'dmg-ui/testing/fixtures';
+import { ExampleDialogArch } from './example-dialog.arch';
 
 // Граф учебного примера (критерий фазы): `ExampleArch` + поставщик `dmg-ui`
 // + представления канала — без нарушений. Получатель `taskCompleted` —

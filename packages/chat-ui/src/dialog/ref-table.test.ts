@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { RuntimeKit } from '../ui-runtime-fixture';
+import { RuntimeKit } from 'dmg-ui/testing/fixtures';
 import { RefTable } from './ref-table';
 
 // Короткие ссылки вариантов реплик: ссылка → цель. Старые ссылки живут, как

@@ -6,19 +6,16 @@ import {
   useTempDir,
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
+import { type Dialog, DialogChannel, type DialogReply } from 'dmg-ui/chat-ui';
 import { ApiAppDispatch, UiNotifier, UiServer } from 'dmg-ui/server';
-import * as v from 'valibot';
 import {
-  type Dialog,
-  DialogChannel,
-  type DialogReply,
-  ExampleDialogAppDef,
   ExampleUiSetDef,
   exampleCodes,
-  exampleDialogViews,
   MemoryUiObserver,
-} from './index';
-import { oplogRecords, T0 } from './ui-server-fixture';
+} from 'dmg-ui/testing';
+import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
+import * as v from 'valibot';
+import { ExampleDialogAppDef, exampleDialogViews } from './index';
 
 // Сквозной тест сторис на диалоговом канале (TST-09 — единственный; бывший
 // `ui-two-users.test.ts`, критерии 5 и 6): пользователи A и B, учебное

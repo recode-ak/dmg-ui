@@ -13,25 +13,24 @@ import {
   ListTasksUcDef,
   TodoModuleDef,
 } from 'dmg-core/testing/example';
+import { type Dialog, DialogChannel } from 'dmg-ui/chat-ui';
+import {
+  ExampleDialogAppDef,
+  exampleDialogViews,
+} from 'dmg-ui/chat-ui/testing';
 import { ApiAppDispatch, UiNotifier, UiServer } from 'dmg-ui/server';
 import {
   ExamplePagesAppDef,
-  examplePageRoutes,
-  examplePageViews,
-} from './example/pages';
-import {
-  type Dialog,
-  DialogChannel,
-  ExampleDialogAppDef,
   ExampleUiSetDef,
   exampleCodes,
-  exampleDialogViews,
+  examplePageRoutes,
+  examplePageViews,
   MemoryUiObserver,
-} from './index';
-import { PageClient } from './page/client/page-client';
-import { PageHost } from './page/server/page-host';
-import { PageWire } from './page/wire/page-wire';
-import { T0 } from './ui-server-fixture';
+  PageClient,
+  PageHost,
+  PageWire,
+} from 'dmg-ui/testing';
+import { T0 } from 'dmg-ui/testing/fixtures';
 
 // Приёмка нейтральности ядра: один сценарий сторис
 // `finishTasks` — создать задачу, открыть карточку, выполнить — на двух
@@ -178,7 +177,7 @@ const outcomes = (observer: MemoryUiObserver) =>
 
 /** Файлы каталога привязки, которые принадлежат только примеру. */
 const exampleOnly = (dir: string) =>
-  readdirSync(join(import.meta.dir, 'example', dir)).filter((name) =>
+  readdirSync(join(import.meta.dir, '..', dir)).filter((name) =>
     /\.(code|screen|story)\.ts$/.test(name),
   );
 
@@ -211,6 +210,6 @@ test('приложения каналов делят сторис и набор'
 });
 
 test('в привязках каналов нет кода, экранов и сторис примера', () => {
-  expect(exampleOnly('dialog')).toEqual([]);
-  expect(exampleOnly('pages')).toEqual([]);
+  expect(exampleOnly('packages/chat-ui/testing/example')).toEqual([]);
+  expect(exampleOnly('packages/core/testing/example/pages')).toEqual([]);
 });

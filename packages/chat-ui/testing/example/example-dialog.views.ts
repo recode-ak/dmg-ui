@@ -1,5 +1,5 @@
-import { DialogViews } from '../../dialog';
-import { ExampleUiSetDef } from '../example-ui.set';
+import { DialogViews } from 'dmg-ui/chat-ui';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { AssignedTasksView } from './assigned-tasks.view';
 import { TaskCardView } from './task-card.view';
 import { TaskListView } from './task-list.view';

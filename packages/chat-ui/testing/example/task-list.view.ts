@@ -1,6 +1,6 @@
 import { TaskErrors } from 'dmg-core/testing/example';
-import { ScreenPresenter } from '../../dialog';
-import { TaskListScreenDef } from '../todo/task-list.screen';
+import { ScreenPresenter } from 'dmg-ui/chat-ui';
+import { TaskListScreenDef } from 'dmg-ui/testing';
 import { TaskLines } from './task-lines';
 
 /** Список задач в диалоге: задачи с отметкой выбора; свой ответ на предел открытых. */

@@ -8,15 +8,13 @@ import {
 import { ExampleApp } from 'dmg-core/testing/example';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
 import {
-  type Dialog,
-  DialogChannel,
-  ExampleDialogAppDef,
   ExampleUiSetDef,
   exampleCodes,
-  exampleDialogViews,
   MemoryUiObserver,
-} from '../index';
-import { T0 } from '../ui-server-fixture';
+} from 'dmg-ui/testing';
+import { T0 } from 'dmg-ui/testing/fixtures';
+import { ExampleDialogAppDef, exampleDialogViews } from '../../testing';
+import { type Dialog, DialogChannel } from './index';
 
 // Приостановка и восстановление диалога: снимок живого экземпляра —
 // внешние данные канала; невосстановленный адрес — вход `start`.

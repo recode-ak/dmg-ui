@@ -9,19 +9,16 @@ import {
 import { CreateTaskUcDef, ExampleApp } from 'dmg-core/testing/example';
 import { AddressCodec } from 'dmg-ui';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
-import * as v from 'valibot';
 import {
-  type Dialog,
-  DialogChannel,
-  type DialogReply,
-  ExampleDialogAppDef,
   ExampleUiSetDef,
   exampleCodes,
-  exampleDialogViews,
   MemoryUiObserver,
   TaskCardScreenDef,
-} from '../index';
-import { oplogRecords, T0 } from '../ui-server-fixture';
+} from 'dmg-ui/testing';
+import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
+import * as v from 'valibot';
+import { ExampleDialogAppDef, exampleDialogViews } from '../../testing';
+import { type Dialog, DialogChannel, type DialogReply } from './index';
 
 // Диалог одной личности: политики исходов ядра (таблица политик исходов в гайде `channel-package.md`),
 // вход действия по шагам и проактивное обновление живого экрана. Мир —

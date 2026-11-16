@@ -51,7 +51,7 @@ bun add valibot @valibot/to-json-schema \
 ## Образец
 
 - [`packages/core/testing/example/`](packages/core/testing/example/example-ui.set.ts) — набор UI поверх учебного приложения `dmg-core`: экраны, сторис, уведомления, код, привязки к каналам.
-- [`packages/core/testing/dialog/`](packages/core/testing/dialog/dialog.ts) — диалоговый канал: один живой экран, ответ на каждое действие.
+- [`packages/chat-ui/src/dialog/`](packages/chat-ui/src/dialog/dialog.ts) — диалоговый канал: один живой экран, ответ на каждое действие.
 - [`packages/core/testing/page/`](packages/core/testing/page/server/page-host.ts) — страничный канал: несколько областей, между клиентом и сервером только JSON.
 
 Оба канала проводят одну и ту же сторис при общем коде экранов; так проверяется нейтральность ядра ([D-UI-31](docs/decisions.md)).

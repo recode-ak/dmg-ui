@@ -1,5 +1,5 @@
-import { ScreenPresenter } from '../../dialog';
-import { TaskCardScreenDef } from '../todo/task-card.screen';
+import { ScreenPresenter } from 'dmg-ui/chat-ui';
+import { TaskCardScreenDef } from 'dmg-ui/testing';
 
 /** Карточка задачи в диалоге: название и статус. */
 export const TaskCardView = ScreenPresenter.for(

@@ -1,7 +1,14 @@
 import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
-/** Поиск слов канала (сообщение, кнопка, страница, URL, мессенджеры) в ядре: текст режется на слова, сравнение по целым словам. */
+/** Списки слов сканера: латинские, русские точные и русские основы. */
+export type ChannelWords = {
+  exact: string[];
+  exactRu: string[];
+  stems: string[];
+};
+
+/** Поиск слов канала в тексте: текст режется на слова, сравнение по целым словам. Без аргумента — список ядра (сообщение, кнопка, страница, URL, мессенджеры); `chatUi()` — список пакета диалогового канала (слова конкретного мессенджера и его API). */
 export class ChannelWordScanner {
   /** Латинские слова: токен равен слову, допускается множественное `s`/`es`. Расширяется решением в `decisions` пакета. */
   protected static readonly EXACT = [
@@ -36,12 +43,51 @@ export class ChannelWordScanner {
     'телеграм',
   ];
 
+  /** Слова пакета диалогового канала: конкретный мессенджер и поля его API; общие слова (сообщение, кнопка, чат, бот) разрешены. */
+  protected static readonly CHAT_UI: ChannelWords = {
+    exact: [
+      'telegram',
+      'tg',
+      'whatsapp',
+      'slack',
+      'discord',
+      'viber',
+      'grammy',
+      'telegraf',
+      'baileys',
+      'twilio',
+      'webhook',
+      'keyboard',
+      'markup',
+      'mrkdwn',
+    ],
+    exactRu: [],
+    stems: ['телеграм', 'ватсап', 'вотсап', 'слак', 'клавиатур'],
+  };
+
   protected static readonly TOKEN =
     /\p{Lu}{2,}s?(?!\p{Ll})|\p{Lu}?\p{Ll}+|\p{Lu}+/gu;
 
-  protected static readonly EXACT_PATTERN = new RegExp(
-    `^(?:${ChannelWordScanner.EXACT.join('|')})(?:s|es)?$|^(?:${ChannelWordScanner.EXACT_RU.join('|')})(?:а|у|ом|е|ы|ов|ам|ами|ах)?$`,
-  );
+  protected readonly exactPattern: RegExp;
+
+  constructor(
+    protected readonly words: ChannelWords = {
+      exact: ChannelWordScanner.EXACT,
+      exactRu: ChannelWordScanner.EXACT_RU,
+      stems: ChannelWordScanner.STEMS,
+    },
+  ) {
+    const latin = `^(?:${words.exact.join('|')})(?:s|es)?$`;
+    const russian = `^(?:${words.exactRu.join('|')})(?:а|у|ом|е|ы|ов|ам|ами|ах)?$`;
+    this.exactPattern = new RegExp(
+      words.exactRu.length > 0 ? `${latin}|${russian}` : latin,
+    );
+  }
+
+  /** Сканер со списком слов пакета `chat-ui`. */
+  static chatUi(): ChannelWordScanner {
+    return new ChannelWordScanner(ChannelWordScanner.CHAT_UI);
+  }
 
   /** Нарушение на каждую строку, где есть слово канала. */
   scan(files: SourceFile[]): Violation[] {
@@ -64,8 +110,8 @@ export class ChannelWordScanner {
 
   protected isChannelWord(word: string): boolean {
     return (
-      ChannelWordScanner.EXACT_PATTERN.test(word) ||
-      ChannelWordScanner.STEMS.some((stem) => word.startsWith(stem))
+      this.exactPattern.test(word) ||
+      this.words.stems.some((stem) => word.startsWith(stem))
     );
   }
 }

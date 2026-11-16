@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 
-// Состав входа `dmg-ui/testing` (D-UI-32): учебный пример, диалоговый
-// канал, помощник рендера и наблюдатель в памяти. Заглушки портов и сцены
+// Состав входа `dmg-ui/testing` (D-UI-32): учебный пример, помощник рендера
+// и наблюдатель в памяти; диалог и привязка к нему — во входах `chat-ui`. Заглушки портов и сцены
 // правил — внутренние помощники тестов ядра.
 
 const keys = async () => Object.keys(await import('dmg-ui/testing'));
 
 describe('вход dmg-ui/testing', () => {
-  it('учебный пример: Def набора, модуля, экранов, сторис, уведомлений, загрузчики и привязка к каналу', async () => {
+  it('учебный пример: Def набора, модуля, экранов, сторис, уведомлений и загрузчики', async () => {
     expect(await keys()).toEqual(
       expect.arrayContaining([
         'ExampleUiSetDef',
@@ -21,25 +21,13 @@ describe('вход dmg-ui/testing', () => {
         'TaskAssignedNotificationDef',
         'TaskCompletedNotificationDef',
         'exampleCodes',
-        'ExampleDialogAppDef',
-        'exampleDialogViews',
-        'ExampleDialogArch',
       ]),
     );
   });
 
-  it('диалоговый канал, помощник рендера и наблюдатель', async () => {
+  it('помощник рендера и наблюдатель', async () => {
     expect(await keys()).toEqual(
-      expect.arrayContaining([
-        'DialogChannel',
-        'DialogViews',
-        'ScreenPresenter',
-        'NotificationPresenter',
-        'DialogGraphProvider',
-        'DialogRenderer',
-        'ExamplePreview',
-        'MemoryUiObserver',
-      ]),
+      expect.arrayContaining(['ExamplePreview', 'MemoryUiObserver']),
     );
   });
 
@@ -86,8 +74,24 @@ describe('вход dmg-ui/testing', () => {
       'PageConnection',
       'PageRegions',
       'PageForms',
+      'T0',
+      'oplogRecords',
+      'testRenderContext',
+      'TaskLines',
     ]) {
       expect(exported).not.toContain(internal);
     }
+  });
+
+  it('диалога и его привязки к примеру нет — они во входах chat-ui', async () => {
+    const dialog = (name: string) =>
+      /^Dialog/.test(name) ||
+      /^Example.*Dialog/.test(name) ||
+      /^example.*Dialog/.test(name) ||
+      ['ScreenPresenter', 'NotificationPresenter', 'DIALOG_CHANNEL'].includes(
+        name,
+      );
+
+    expect((await keys()).filter(dialog)).toEqual([]);
   });
 });
