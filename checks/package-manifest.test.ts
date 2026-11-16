@@ -23,6 +23,24 @@ describe('PackageManifest', () => {
       expect(await import('dmg-ui')).toBeDefined();
     });
 
+    it('состав входа dmg-ui — манифесты UI и адрес (Ф2)', async () => {
+      expect(Object.keys(await import('dmg-ui')).sort()).toEqual([
+        'Address',
+        'AddressCodec',
+        'NotificationDef',
+        'RefreshOn',
+        'ScreenAction',
+        'ScreenDef',
+        'ScreenExit',
+        'ScreenLocal',
+        'StoryDef',
+        'UiAppDef',
+        'UiIds',
+        'UiModuleDef',
+        'UiSetDef',
+      ]);
+    });
+
     it('вход dmg-ui/testing резолвится по имени пакета', async () => {
       expect(await import('dmg-ui/testing')).toBeDefined();
     });

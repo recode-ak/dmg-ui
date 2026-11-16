@@ -1,0 +1,56 @@
+import { type AnyUseCaseDef, toJsonSchema } from 'dmg-core';
+import type {
+  ActionSpec,
+  AnyScreenDef,
+  InputSchema,
+  ItemTexts,
+  NormalizedAction,
+} from './screen-def.types';
+
+/**
+ * Действие экрана: тексты, вход, вызов command UC, переходы и подтверждение.
+ * Узел графа под экраном (Ф3); имя — ключ в `actions` спеки.
+ */
+export class ScreenAction<
+  I extends InputSchema | undefined = InputSchema | undefined,
+> {
+  readonly name: string;
+  readonly label: string;
+  readonly description: string;
+  readonly visible: boolean;
+  readonly input: I;
+  readonly uc: AnyUseCaseDef | undefined;
+  readonly confirm: ItemTexts | undefined;
+  private readonly to: (() => readonly AnyScreenDef[]) | undefined;
+
+  constructor(name: string, spec: ActionSpec) {
+    this.name = name;
+    this.label = spec.label;
+    this.description = spec.description;
+    this.visible = spec.visible ?? false;
+    // Без `input` в спеке `I` — `undefined` (`InputSchemaOf`), то есть ровно
+    // `spec.input`; TS не связывает отсутствие ключа с параметром типа.
+    this.input = spec.input as I;
+    this.uc = spec.uc;
+    this.confirm = spec.confirm;
+    this.to = spec.to;
+  }
+
+  /** Экраны, куда ведёт действие, кроме своего (Т-7); раскрывает thunk `to`. */
+  targets(): readonly AnyScreenDef[] {
+    return this.to?.() ?? [];
+  }
+
+  normalize(): NormalizedAction {
+    return {
+      name: this.name,
+      label: this.label,
+      description: this.description,
+      visible: this.visible,
+      input: this.input === undefined ? undefined : toJsonSchema(this.input),
+      uc: this.uc?.name,
+      to: this.targets().map((screen) => screen.name),
+      confirm: this.confirm,
+    };
+  }
+}
