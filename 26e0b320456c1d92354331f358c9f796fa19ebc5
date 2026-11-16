@@ -1,0 +1,5 @@
+Трек dmg-ui-core (u7-school), Фаза 2, задачи «Локальное действие и доступность действия» и «Выходы экрана и исходы сторис; вход действия» (часть входа).
+Бриф: u7-school conductor/tracks/dmg-ui-core_20261116/slices/f2-manifests.md.
+Изменения: packages/core/src/screen/** (ScreenCode, ScreenLogic, ActionInput, Transition), packages/core/src/schema/** (SchemaCheck, FieldIssue), address/address-codec.ts (разбор замечаний — через SchemaCheck), index.ts, checks/package-manifest.test.ts (16 классов входа), packages/core/testing/ui-fixture-code.ts.
+Гейт: bun run check — 193 pass, 0 fail; biome и tsc чисты.
+Причина: локальное действие и доступность — чистые функции состояния и данных, проверяются без исполнителя (критерий 7 spec).
