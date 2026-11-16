@@ -24,14 +24,10 @@ import type {
 
 /**
  * Подставной мессенджер в памяти (D-UI-40): одна реализация порта с журналом,
- * поведение выводится из возможностей. Правка на месте — только при `edit` и
- * по handle этого собеседника; снятие вариантов и ответ на нажатие без
- * возможности — `ok` без записи. Инициатива (`initiative: true`, всякий
- * `notify`) проходит при открытом окне; ответ собеседнику (`show`/`update`
- * без инициативы, ответ на нажатие) проходит всегда и сам открывает окно.
- * Строгий: сообщение, которое страж изменил бы (или со ссылкой сверх лимита),
- * и пустой текст без вариантов — `rejected`. Недоставка — значение и запись
- * `undelivered`; на ожидаемые случаи не бросает.
+ * поведение выводится из возможностей. Окно инициативы — по часам теста, без
+ * таймеров; ответ собеседнику сам открывает окно.
+ *
+ * @see memory-messenger.test.ts
  */
 export class MemoryMessenger implements MessengerPort {
   readonly journal: MessengerEntry[] = [];
@@ -184,8 +180,7 @@ export class MemoryMessenger implements MessengerPort {
 
   /** Сообщение доставимо как есть: страж бы его не изменил, и оно не пустое. */
   private fits(message: Message): boolean {
-    const { max, ref } = this.capabilities.options;
-    if (message.options.length > max) return false;
+    const { ref } = this.capabilities.options;
     if (message.options.some((option) => option.ref.length > ref)) return false;
     if (this.fit.message(message).cuts.length > 0) return false;
     return message.options.length > 0 || PlainText.of(message.text) !== '';
@@ -218,7 +213,6 @@ export class MemoryMessenger implements MessengerPort {
   }
 
   private unknownInitiative(initiative: never): never {
-    const { kind } = initiative as { readonly kind: string };
-    throw new Error(`неизвестный вид инициативы: ${kind}`);
+    throw new Error(`неизвестный вид инициативы: ${String(initiative)}`);
   }
 }

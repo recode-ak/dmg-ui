@@ -26,6 +26,8 @@ export class TextLength {
         return text.length;
       case 'utf8':
         return this.utf8(text);
+      default:
+        return this.unknownUnit(this.unit);
     }
   }
 
@@ -40,5 +42,10 @@ export class TextLength {
     if (codePoint < 0x800) return 2;
     if (codePoint < 0x10000) return 3;
     return 4;
+  }
+
+  /** Единица не по типу (ERR-06): в тексте только единица. */
+  private unknownUnit(unit: never): never {
+    throw new Error(`неизвестная единица длины: ${String(unit)}`);
   }
 }

@@ -229,6 +229,14 @@ describe('TextSplitter', () => {
     expect(parts[0]).toBe(text);
   });
 
+  test('пустой текст — одна часть без фрагментов, тот же объект', () => {
+    const empty: FormattedText = [];
+    const parts = split(empty, { max: 5, unit: 'utf16' });
+
+    expect(parts).toEqual([[]]);
+    expect(parts[0]).toBe(empty);
+  });
+
   test('разрез по абзацу: абзац важнее более поздних строки и пробела', () => {
     expect(
       split(plain('Первый абзац.\n\nВторой абзац.'), {

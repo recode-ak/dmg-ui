@@ -4,7 +4,8 @@ import type { LengthUnit, TextLimit } from '../limit/limit.types';
 import type { Message, MessageKind } from '../message/message.types';
 
 // Порт мессенджера (D-UI-37): намерения общей части к собеседнику, способ
-// выбирает мессенджер; возможности мессенджера и разрезы стража лимитов.
+// выбирает мессенджер; возможности мессенджера (D-UI-38) и разрезы стража
+// лимитов (D-UI-39).
 
 /** Идентификатор показанного сообщения: выдаёт мессенджер, общая часть хранит как есть (JSON). */
 export type MessageHandle = string;

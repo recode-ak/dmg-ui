@@ -135,4 +135,10 @@ describe('TextLength', () => {
       expect(new TextLength(unit).of([])).toBe(0);
     }
   });
+
+  test('неизвестная единица (значение не по типу, из JSON) — бросок с именем единицы', () => {
+    const unit = JSON.parse('"byte"');
+
+    expect(() => new TextLength(unit).ofString('abc')).toThrow('byte');
+  });
 });
