@@ -14,10 +14,10 @@ import {
 } from '../index';
 import { PageRenderer } from '../page/client/page-renderer';
 
-// Помощник рендера примеров (ФР-13): вид примера из Def через представление
+// Помощник рендера примеров: вид примера из Def через представление
 // канала — здесь `DialogRenderer` диалогового канала: ему нужны только
 // представления, без канала, сервера и приложения. Снимки — в
-// `__snapshots__/` рядом (Т-13).
+// `__snapshots__/` рядом.
 
 const renderer = () => new DialogRenderer(exampleDialogViews);
 
@@ -71,7 +71,7 @@ describe('ExamplePreview через DialogRenderer — снимки пример
     ).toMatchSnapshot();
   });
 
-  test('заместитель с readOnly — шапка и без действий с uc (ФР-7)', async () => {
+  test('заместитель с readOnly — шапка и без действий с uc', async () => {
     const own = await previewOf().screen(TaskListScreenDef, 'full');
     const delegate = await previewOf(true, true).screen(
       TaskListScreenDef,
@@ -86,7 +86,7 @@ describe('ExamplePreview через DialogRenderer — снимки пример
 });
 
 // Тот же помощник через страничный канал: `PageRenderer` над представлениями
-// `examplePages` (критерий 8 фазы 6). Снимки — отдельный `describe`: имя
+// `examplePages`. Снимки — отдельный `describe`: имя
 // блока входит в ключ снимка, снимки диалога не задеты.
 
 const pagePreviewOf = (delegate = false, readOnly = false) =>
@@ -139,7 +139,7 @@ describe('ExamplePreview через PageRenderer — снимки примеро
     ).toMatchSnapshot();
   });
 
-  test('заместитель с readOnly — шапка и без действий с uc (ФР-7)', async () => {
+  test('заместитель с readOnly — шапка и без действий с uc', async () => {
     const own = await pagePreviewOf().screen(TaskListScreenDef, 'full');
     const delegate = await pagePreviewOf(true, true).screen(
       TaskListScreenDef,

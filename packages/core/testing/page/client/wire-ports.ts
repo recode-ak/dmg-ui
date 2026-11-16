@@ -18,7 +18,7 @@ import type { PendingCall, PortMessage } from './page-client.types';
  * сообщение `call` и ожидание `result` (или `refused`) с тем же `id`;
  * `watch` — сообщение `watch` и сигналы по `watchId`. Обрыв провода
  * отказывает все ожидающие вызовы. Подписка уходит раньше `call` загрузки —
- * провод сохраняет порядок (расхождение 4 брифа Ф6).
+ * провод сохраняет порядок (D-UI-33).
  */
 export class WirePorts implements UcPort, RefreshPort {
   private readonly listeners = new Map<

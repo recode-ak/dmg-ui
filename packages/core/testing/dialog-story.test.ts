@@ -148,7 +148,7 @@ test('сторис на диалоговом канале: задачи A, по�
   expect(a.suspend().address).toEqual({ screen: LIST, params: { page: 0 } });
 
   // Событие `created` субъекта A список B не перечитывает: ревизия прежняя,
-  // новых реплик нет (критерий 6, бывший `ui-two-users`).
+  // новых реплик нет (две личности).
   expect(b.suspend().revision).toBe(listOfB.revision);
   expect(b.replies).toHaveLength(1);
 

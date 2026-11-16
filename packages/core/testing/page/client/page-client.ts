@@ -61,9 +61,9 @@ type Act = {
  * Вкладка одной личности — «браузерная» половина: исполнитель экранов здесь,
  * его порты — поверх провода (`WirePorts`), сервер не виден. Сигналы —
  * `route`, `submit`, `confirm`, `local`, `openLink`, `retry`; исходы — по
- * таблице политик (бриф Ф6, раздел 1). Допущения: сигналы сериализует
+ * таблице политик исходов (гайд `channel-package.md`). Допущения: сигналы сериализует
  * вызывающий (из двух открытий в область побеждает последнее); контекст
- * рендера — из `hello` на всё соединение (Т-7).
+ * рендера — из `hello` на всё соединение (D-UI-33).
  */
 export class PageClient {
   private readonly spec: PageClientSpec;
@@ -243,7 +243,7 @@ export class PageClient {
       .join('\n\n---\n\n');
   }
 
-  /** Снимок обеих областей в форме JSON (Т-15). */
+  /** Снимок обеих областей в форме JSON. */
   snapshot(): PageSnapshot {
     return this.regions.snapshot();
   }
@@ -277,7 +277,7 @@ export class PageClient {
     return outcome;
   }
 
-  /** Политика по исходу действия (таблица брифа Ф6, раздел 1). */
+  /** Политика по исходу действия (таблица политик исходов в гайде `channel-package.md`). */
   private async settle(
     region: PageRegionName,
     act: Act,
@@ -378,7 +378,7 @@ export class PageClient {
         this.notes.receive(message);
         return;
       case 'hello':
-        // Контекст пришёл при соединении; повтор вид не меняет (Т-7).
+        // Контекст пришёл при соединении; повтор вид не меняет (D-UI-33).
         return;
       default:
         PageClient.unknown(message);

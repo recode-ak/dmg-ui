@@ -23,7 +23,7 @@ import type { ActionView } from './outcome.types';
 import { ScreenPreview } from './screen-preview';
 
 // Вид экрана и данные уведомления по именованному примеру Def — без портов,
-// наблюдателя и `load` кода (С-3). Ошибка в примере — бросок `CodeDefect`
+// наблюдателя и `load` кода. Ошибка в примере — бросок `CodeDefect`
 // с путями полей, без значений.
 
 type List = typeof TaskListScreenDef;

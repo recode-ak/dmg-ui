@@ -23,7 +23,7 @@ const DEFAULT_CONTEXT: RenderContext = {
 };
 
 /**
- * Помощник рендера примеров (ФР-13): вид примера из Def (`ScreenPreview`
+ * Помощник рендера примеров: вид примера из Def (`ScreenPreview`
  * ядра) через представление канала — порт `ExampleRenderer`. От канала и
  * сервера не зависит; снимки делает тест (`toMatchSnapshot`). Нет примера
  * или пример не по схеме — бросок, как у `ScreenPreview`.

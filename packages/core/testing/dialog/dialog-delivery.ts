@@ -7,7 +7,7 @@ import type { Dialog } from './dialog';
 /**
  * Доставка уведомлений диалоговым каналом: реплика во входящие получателя,
  * ссылки — варианты. Повтор того же уведомления по тому же событию
- * отсеивается по `cause.eventId` (Т-6: без предела — учебный канал).
+ * отсеивается по `cause.eventId` (D-UI-24: без предела — учебный канал).
  */
 export class DialogDelivery implements NotificationDelivery {
   private readonly seen = new Set<string>();

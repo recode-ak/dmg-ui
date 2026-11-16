@@ -43,7 +43,7 @@ export class ScreenPresenter<D extends AnyScreenDef>
   }
 
   text(view: InstanceView): string {
-    // Единственное приведение канала (Т-12): `data` и `state` вида этого
+    // Единственное приведение канала (D-UI-27): `data` и `state` вида этого
     // экрана исполнитель уже проверил схемами экрана (`load`, `restore`,
     // пример `ScreenPreview`); реестр отдаёт вид только представлению его
     // экрана — по `id` из `UiIds`.

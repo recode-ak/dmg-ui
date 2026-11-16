@@ -5,7 +5,7 @@ import { ModuleSpecifiers } from './module-specifiers';
 import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
-/** Учебный пример (критерий 2): код и манифесты — как у проекта. */
+/** Учебный пример: код и манифесты — как у проекта. */
 const EXAMPLE = 'packages/core/testing/example';
 /** Привязка примера к каналу: представления и граф примера. */
 const BINDING = 'packages/core/testing/example/dialog';

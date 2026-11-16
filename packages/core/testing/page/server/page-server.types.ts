@@ -28,7 +28,7 @@ export type PageHostSpec<U extends Identified> = {
   readonly server: UiServer<U>;
   /**
    * Порт сборки: `uuid` личности по токену соединения; не узнал —
-   * `undefined`. Токен доказывает личность (Т-8): клиент `uuid` не шлёт.
+   * `undefined`. Токен доказывает личность (D-UI-33): клиент `uuid` не шлёт.
    */
   readonly tokens: (token: string) => string | undefined;
   /** Порт сборки: вызывающий личности по её `uuid`. */

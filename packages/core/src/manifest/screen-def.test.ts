@@ -132,7 +132,7 @@ describe('ScreenDef — форма', () => {
   });
 
   test('запись any — в форме any: true без субъекта', () => {
-    // В примере записи `any` нет (Т-3): форма — на локальном Def.
+    // В примере записи `any` нет: форма — на локальном Def.
     const everyone = ScreenDef.define({
       name: 'everyone',
       label: 'Всем',

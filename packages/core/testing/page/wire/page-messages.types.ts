@@ -1,8 +1,7 @@
 import type { SerializedResult } from 'dmg-core';
 import type { AddressJson, RefreshSignal, RenderContext, UcCall } from 'dmg-ui';
 
-// Полный перечень сообщений страничного канала через границу JSON (бриф Ф6,
-// раздел 1). Другого между половинами нет: ни `Caller`, ни `uuid` личности,
+// Полный перечень сообщений страничного канала через границу JSON. Другого между половинами нет: ни `Caller`, ни `uuid` личности,
 // ни payload события, ни следа доставки уведомления.
 
 /** Клиент → сервер: простая команда вызова UC; `id` — для ответа `result`. */
@@ -28,7 +27,7 @@ export type UnwatchMessage = {
 /** Сообщение клиента. */
 export type ClientMessage = CallMessage | WatchMessage | UnwatchMessage;
 
-/** Сервер → клиент: соединение принято; контекст рендера — один раз (Т-7). */
+/** Сервер → клиент: соединение принято; контекст рендера — один раз (D-UI-33). */
 export type HelloMessage = {
   readonly kind: 'hello';
   readonly context: RenderContext;

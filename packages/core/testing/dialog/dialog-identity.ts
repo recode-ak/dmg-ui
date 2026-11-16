@@ -10,7 +10,7 @@ import { DIALOG_CHANNEL } from './dialog-channel.const';
 
 /**
  * Личность диалога: `uuid` → `CallerSource` сессии сервера и контекст
- * рендера (место личности и признаки вызывающего, ФР-7). `uuid` уже
+ * рендера (место личности и признаки вызывающего). `uuid` уже
  * доказан транспортом: здесь проверки личности нет.
  */
 export class DialogIdentity<U extends Identified> implements RenderContexts {

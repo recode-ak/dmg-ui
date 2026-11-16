@@ -33,7 +33,7 @@ type ScreenLabels = {
 };
 
 /**
- * Сборка нейтральных реплик без ссылок: текст вида (шапка ФР-7 и тело
+ * Сборка нейтральных реплик без ссылок: текст вида (шапка и тело
  * представления), варианты вида с подписями из Def, тексты выхода,
  * уведомления, поля входа. Ссылки к вариантам ставит диалог.
  */
@@ -146,14 +146,18 @@ export class DialogReplies {
     return `(${marks.join(', ')})`;
   }
 
-  /** Подписи из нормализованного Def: `AnyScreenDef` не отдаёт `actions`. */
+  /** Подписи действий и локальных действий — из Def экрана (`UiIds.findScreen`). */
   private labelsOf(screen: string): ScreenLabels {
     const cached = this.labels.get(screen);
     if (cached !== undefined) return cached;
-    const normalized = this.def(screen).normalize();
+    const def = this.def(screen);
     const labels: ScreenLabels = {
-      actions: new Map(normalized.actions.map((a) => [a.name, a.label])),
-      locals: new Map(normalized.locals.map((l) => [l.name, l.label])),
+      actions: new Map(
+        Object.entries(def.actions).map(([name, spec]) => [name, spec.label]),
+      ),
+      locals: new Map(
+        Object.entries(def.locals).map(([name, spec]) => [name, spec.label]),
+      ),
     };
     this.labels.set(screen, labels);
     return labels;

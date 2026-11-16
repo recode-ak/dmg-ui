@@ -112,7 +112,7 @@ export class PageConnection<U extends Identified> implements PageRecipient {
         if (!this.closed) this.spec.push({ kind: 'signal', watch, signal });
       });
     } catch {
-      // Бросок ядра на внешнем входе (Т-9): причина — не только адрес.
+      // Бросок ядра на внешнем входе (D-UI-33): причина — не только адрес.
       this.refuseWatch(watch, 'подписка отклонена');
       return;
     }

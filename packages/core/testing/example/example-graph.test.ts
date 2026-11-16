@@ -5,7 +5,7 @@ import { ExampleDialogArch } from './dialog/example-dialog.arch';
 
 // Граф учебного примера (критерий фазы): `ExampleArch` + поставщик `dmg-ui`
 // + представления канала — без нарушений. Получатель `taskCompleted` —
-// системный query UC на ребре `recipients`, не чтение (UI-12, С-6 Ф4).
+// системный query UC на ребре `recipients`, не чтение (UI-12, D-UI-23).
 
 const TASK_COMPLETED = 'exampleUi/todo/taskCompleted';
 const ASSIGNEE_UC = 'example/todo/getTaskAssignee';

@@ -103,7 +103,7 @@ const world = async () => {
 
 type World = Awaited<ReturnType<typeof world>>;
 
-/** Шина доставила, провода тихи: полный круг без новых сообщений (без таймеров, Т-14). */
+/** Шина доставила, провода тихи: полный круг без новых сообщений (без таймеров, TST-04). */
 const settle = async (w: World) => {
   const size = () => w.a.wire.messages.length + w.b.wire.messages.length;
   let seen = -1;

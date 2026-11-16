@@ -34,7 +34,7 @@ exports[`ExamplePreview через DialogRenderer — снимки пример�
 
 exports[`ExamplePreview через DialogRenderer — снимки примеров уведомление taskCompleted sample 1`] = `"Поручение выполнено: Сыр"`;
 
-exports[`ExamplePreview через DialogRenderer — снимки примеров заместитель с readOnly — шапка и без действий с uc (ФР-7) 1`] = `
+exports[`ExamplePreview через DialogRenderer — снимки примеров заместитель с readOnly — шапка и без действий с uc 1`] = `
 "(Вы работаете за другого человека, только чтение)
 
 Мои задачи
@@ -102,7 +102,7 @@ exports[`ExamplePreview через PageRenderer — снимки примеро�
 
 exports[`ExamplePreview через PageRenderer — снимки примеров уведомление taskCompleted sample 1`] = `"Поручение выполнено: Сыр"`;
 
-exports[`ExamplePreview через PageRenderer — снимки примеров заместитель с readOnly — шапка и без действий с uc (ФР-7) 1`] = `
+exports[`ExamplePreview через PageRenderer — снимки примеров заместитель с readOnly — шапка и без действий с uc 1`] = `
 "# Мои задачи
 
 (Вы работаете за другого человека, только чтение)

@@ -14,7 +14,7 @@ import type { PageRenderer } from './page-renderer';
 const REGIONS: readonly PageRegionName[] = ['main', 'side'];
 
 /**
- * Две области страницы — `main` и `side` — и политика переходов (Т-2):
+ * Две области страницы — `main` и `side` — и политика переходов:
  * `moved` на тот же Def — на месте, на другой — в соседнюю область. В
  * области — один живой экземпляр: новый закрывает прежний (его подписка
  * снимается). Текст области перерисовывается по `onChange` экземпляра и
@@ -37,7 +37,7 @@ export class PageRegions {
     return this.slot(name).marks.confirm;
   }
 
-  /** Куда ведёт исход `moved` на экран `screen` из области (Т-2). */
+  /** Куда ведёт исход `moved` на экран `screen` из области. */
   target(from: PageRegionName, screen: string): PageRegionName {
     const current = this.slot(from).instance?.view().screen;
     if (current === screen) return from;

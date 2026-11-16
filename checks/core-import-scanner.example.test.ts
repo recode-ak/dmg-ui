@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile } from './source-tree';
 
-// Зоны учебного примера (критерий 2 фазы 5): код и манифесты примера берут
+// Зоны учебного примера (учебный пример): код и манифесты примера берут
 // только то, что взял бы проект; привязка к каналу — плюс граф и сборку
 // `ArchApp`.
 

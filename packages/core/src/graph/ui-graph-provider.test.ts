@@ -371,7 +371,7 @@ describe('UiGraphProvider: рёбра', () => {
   });
 
   // Запись `any` — в сцене «две записи refresh на одно событие» ниже (в
-  // примере её нет, Т-3).
+  // примере её нет).
   test('refreshedBy: запись — params и subject', () => {
     expect(pairs('refreshedBy')).toEqual([
       `${ASSIGNED} -> example/todo/task/assigned`,

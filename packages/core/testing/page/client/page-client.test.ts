@@ -34,7 +34,7 @@ import { PAGE_DEFECTS, PAGE_NOTES } from './page-client.const';
 // Клиентская половина страничного канала: две области (`main`, `side`),
 // политики исходов, входящие, снимок. Сервер — заглушка конца провода:
 // отвечает на `call` по имени UC и умеет сам прислать сообщение. Ответы —
-// микрозадачи, `flush()` отдаёт их без таймеров (Т-14).
+// микрозадачи, `flush()` отдаёт их без таймеров (TST-04).
 
 const TASK_C = testUuid(3);
 const TASKS = [
@@ -239,7 +239,7 @@ describe('PageClient.route', () => {
   });
 });
 
-describe('PageClient — moved (Т-2)', () => {
+describe('PageClient — moved', () => {
   test('moved на тот же Def — на месте в main, прежний экземпляр закрыт', async () => {
     const { client, end } = await listed();
     const [first = ''] = end.watches();
@@ -586,7 +586,7 @@ describe('PageClient.inbox', () => {
   });
 });
 
-describe('PageClient — снимок вкладки (Т-15)', () => {
+describe('PageClient — снимок вкладки', () => {
   test('snapshot — JSON без потерь; resume на новой вкладке возвращает обе области и состояние', async () => {
     const first = await listed();
     await first.client.local('main', 'toggle', { taskId: 'Хлеб' });

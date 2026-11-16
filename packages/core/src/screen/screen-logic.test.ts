@@ -28,7 +28,7 @@ const logicOf = (
 ) => new ScreenLogic(TaskListScreenDef, code);
 
 /**
- * Начальное состояние из данных (в примере его нет, Т-3): выполненные
+ * Начальное состояние из данных (в примере его нет): выполненные
  * задачи из данных — выбраны.
  */
 class DoneSelectedCode extends ScreenCode<typeof TaskListScreenDef> {

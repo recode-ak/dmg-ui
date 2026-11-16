@@ -17,7 +17,7 @@ import type {
 import type { ClientEnd } from '../wire/page-wire.types';
 import type { PageViews } from './page-views';
 
-/** Области страницы: основная и соседняя (Т-2). */
+/** Области страницы: основная и соседняя. */
 export type PageRegionName = 'main' | 'side';
 
 /** Маршрут для клиента — структурно: путь страницы и имя входа приложения UI. */

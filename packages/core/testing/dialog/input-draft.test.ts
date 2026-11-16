@@ -3,7 +3,7 @@ import { type ActionField, ActionInput } from 'dmg-ui';
 import * as v from 'valibot';
 import { InputDraft } from './input-draft';
 
-// Вход действия по шагам (Т-4): поля из `ActionView.fields` по порядку,
+// Вход действия по шагам: поля из `ActionView.fields` по порядку,
 // текст — строка, вариант — `Choice.value`, необязательное поле можно
 // пропустить; вход готов один раз — после последнего поля. Поля — локального
 // входа с тремя полями: на учебном примере столько полей у действия нет.

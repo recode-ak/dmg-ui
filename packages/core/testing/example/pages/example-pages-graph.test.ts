@@ -5,7 +5,7 @@ import { ArchReport } from '../../ui-arch';
 import { ExamplePagesArch } from './index';
 
 // Привязка примера к страничному каналу: граф `examplePages` проходит
-// `arch:check` без нарушений (критерий 3 фазы 6).
+// `arch:check` без нарушений.
 
 describe('ExamplePagesArch', () => {
   test('reportArchCheck — код 0 и итоговые строки без нарушений', () => {

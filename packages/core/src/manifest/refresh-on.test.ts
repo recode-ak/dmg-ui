@@ -31,7 +31,7 @@ describe('RefreshOn.matches', () => {
   });
 
   test('any — перечитать всем', () => {
-    // В примере записи `any` нет (Т-3): сценарий — на локальном Def.
+    // В примере записи `any` нет: сценарий — на локальном Def.
     const everyone = ScreenDef.define({
       name: 'everyone',
       label: 'Всем',
