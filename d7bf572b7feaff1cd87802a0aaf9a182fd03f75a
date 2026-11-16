@@ -1,0 +1,4 @@
+Задача: беседа и узел бесед (вторая часть) и правка ядра — ожидание очереди экземпляра.
+Файлы: packages/chat-ui/src/conversation/{conversation.ts,conversations.ts,conversation-screens.ts,conversation-replies.ts,conversation-log.ts,conversation-queue.ts,peer-queues.ts,conversation.types.ts,conversation.const.ts,seen-signals.ts,screen-fingerprint.ts} и тесты conversation.test.ts, conversations.test.ts; packages/chat-ui/src/index.ts; packages/core/src/runtime/{instance-queue.ts,screen-instance.ts,screen-refresh.test.ts}; checks/package-manifest.chat-ui.test.ts; docs/decisions.md (D-UI-43, D-UI-46, D-UI-49); docs/guides/channel-package.md.
+Причина: беседа мессенджера — данные с очередью, отсевом и восстановлением; каналу нужно ждать перечитывание без таймеров.
+Гейт: bun run check — 1343 pass, 0 fail, 111 файлов, 14 снимков (два прогона).
