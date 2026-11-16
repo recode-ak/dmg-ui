@@ -20,7 +20,7 @@
     "./testing": "./packages/core/testing/index.ts"
   },
   "peerDependencies": {
-    "dmg-core": "^0.6.0",
+    "dmg-core": "^0.6.1",
     "valibot": "^1.5.0"
   },
   "scripts": {
@@ -34,7 +34,7 @@
     "@biomejs/biome": "2.5.13",
     "@types/bun": "latest",
     "@valibot/to-json-schema": "^1.7.1",
-    "dmg-core": "git+ssh://git@github.com/recode-ak/dmg-core.git#v0.6.0",
+    "dmg-core": "file:../dmg-core",
     "typescript": "^7.0.2",
     "valibot": "^1.5.0"
   }

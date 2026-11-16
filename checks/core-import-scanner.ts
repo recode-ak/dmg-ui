@@ -5,6 +5,19 @@ import { ModuleSpecifiers } from './module-specifiers';
 import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
+/** Учебный пример (критерий 2): код и манифесты — как у проекта. */
+const EXAMPLE = 'packages/core/testing/example';
+/** Привязка примера к каналу: представления и граф примера. */
+const BINDING = 'packages/core/testing/example/dialog';
+/** Учебный диалоговый канал. */
+const CHANNEL = 'packages/core/testing/dialog';
+/**
+ * Временно (K5): граф примера ставит `presents` тестовым представлением
+ * «набор целиком», пока нет `DialogGraphProvider`. Срез 4 удаляет и
+ * исключение, и импорт в `example/dialog/example-dialog.arch.ts`.
+ */
+const BINDING_STUB = ['packages/core/testing/ui-graph-fixture'];
+
 /** Проверка импортов ядра по набору зон: `node:`, `bun:`, встроенные модули и тестовые входы `dmg-core` запрещены. */
 export class CoreImportScanner {
   constructor(protected readonly zones: ImportZone[]) {}
@@ -12,9 +25,12 @@ export class CoreImportScanner {
   /**
    * Зоны репо (TST-07): ядро (`packages/core/src`, кроме тестов, `graph/` и
    * `server/`), граф (`src/graph`, где разрешён `dmg-core/graph`), сервер
-   * (`src/server`: плюс `dmg-core/app` и `/graph`, без `graph/` ядра) и код
-   * экрана (`testing/*-code.ts`: только `valibot`, `dmg-core`, `dmg-ui` и
-   * контракты учебного примера — как у кода экрана приложения).
+   * (`src/server`: плюс `dmg-core/app` и `/graph`, без `graph/` ядра),
+   * учебный пример (`testing/example/`, кроме `dialog/`: только `valibot`,
+   * `dmg-core`, `dmg-ui` и контракты учебного приложения — как у проекта;
+   * относительные — внутри `example/`) и привязка примера к каналу
+   * (`testing/example/dialog/`: плюс граф и сборка `ArchApp`; относительные —
+   * в `example/` и учебный канал `testing/dialog/`).
    */
   static standard(): CoreImportScanner {
     const forbidden = [
@@ -55,14 +71,34 @@ export class CoreImportScanner {
         forbiddenPaths: ['packages/core/testing', 'packages/core/src/graph'],
       },
       {
-        include: ['packages/core/testing/'],
-        suffixes: ['-code.ts'],
+        include: [`${EXAMPLE}/`],
         exclude: ['.test.ts'],
+        excludeDirs: [`${BINDING}/`],
         // Без `dmg-core/testing/*` из общего списка: контракты учебного
-        // примера (`dmg-core/testing/example`) коду экрана разрешены.
+        // приложения (`dmg-core/testing/example`) примеру разрешены.
         forbidden: forbidden.filter((spec) => spec !== 'dmg-core/testing/*'),
         allowed: ['valibot', 'dmg-core', 'dmg-ui', 'dmg-core/testing/example'],
-        forbiddenPaths: ['packages/core/src'],
+        allowedPaths: [EXAMPLE],
+      },
+      {
+        include: [`${BINDING}/`],
+        exclude: ['.test.ts'],
+        // Сборке `ExampleDialogArch` нужен `ExampleArch` из `dmg-core/testing`.
+        forbidden: forbidden.filter(
+          (spec) =>
+            spec !== 'dmg-core/testing/*' && spec !== 'dmg-core/testing',
+        ),
+        allowed: [
+          'valibot',
+          'dmg-core',
+          'dmg-core/graph',
+          'dmg-core/arch',
+          'dmg-core/testing',
+          'dmg-core/testing/example',
+          'dmg-ui',
+          'dmg-ui/graph',
+        ],
+        allowedPaths: [EXAMPLE, CHANNEL, ...BINDING_STUB],
       },
     ]);
   }
@@ -96,10 +132,12 @@ export class CoreImportScanner {
   ): string | undefined {
     if (specifier.startsWith('.')) {
       const target = posix.join(posix.dirname(path), specifier);
-      const hit = (zone.forbiddenPaths ?? []).some(
-        (dir) => target === dir || target.startsWith(`${dir}/`),
-      );
-      return hit
+      const inside = (dir: string) =>
+        target === dir || target.startsWith(`${dir}/`);
+      const hit = (zone.forbiddenPaths ?? []).some(inside);
+      const outside =
+        zone.allowedPaths !== undefined && !zone.allowedPaths.some(inside);
+      return hit || outside
         ? `запрещённый относительный импорт «${specifier}»`
         : undefined;
     }

@@ -4,17 +4,15 @@ import {
   TASK_B,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from '../../testing/ui-fixture';
-import {
-  TaskCardScreenCode,
-  TaskListScreenCode,
-} from '../../testing/ui-fixture-code';
+} from '../../testing/example';
+import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
 import type { DataOf } from '../manifest/screen-def';
 import { ScreenCode } from './screen-code';
 import { ScreenLogic } from './screen-logic';
 
 // Чистая логика экрана без исполнителя: импорты — только manifest/, screen/
-// и фикстура: логика проверяется без исполнителя.
+// и учебный пример: логика проверяется без исполнителя.
 
 const data: DataOf<typeof TaskListScreenDef> = {
   tasks: [
@@ -22,11 +20,28 @@ const data: DataOf<typeof TaskListScreenDef> = {
     { uuid: TASK_B, title: 'Молоко', status: 'done' },
   ],
   hasMore: false,
-  marked: [TASK_B],
+  hasPrev: false,
 };
 
-const logicOf = (code = new TaskListScreenCode()) =>
-  new ScreenLogic(TaskListScreenDef, code);
+const logicOf = (
+  code: ScreenCode<typeof TaskListScreenDef> = new TaskListScreenCode(),
+) => new ScreenLogic(TaskListScreenDef, code);
+
+/**
+ * Начальное состояние из данных (в примере его нет, Т-3): выполненные
+ * задачи из данных — выбраны.
+ */
+class DoneSelectedCode extends ScreenCode<typeof TaskListScreenDef> {
+  override readonly locals = new TaskListScreenCode().locals;
+
+  override initialState(listData: DataOf<typeof TaskListScreenDef>) {
+    return {
+      selected: listData.tasks
+        .filter((task) => task.status === 'done')
+        .map((task) => task.uuid),
+    };
+  }
+}
 
 /** Код списка без `available`, `choices` и `defaults` — для умолчаний. */
 class BareListCode extends ScreenCode<typeof TaskListScreenDef> {
@@ -71,7 +86,7 @@ describe('ScreenLogic.restoreState', () => {
   });
 
   test('лишний ключ, не тот тип или нет состояния — initialState(data)', () => {
-    const logic = logicOf();
+    const logic = logicOf(new DoneSelectedCode());
     for (const raw of [
       { selected: [], extra: true },
       { selected: 'все' },
@@ -159,6 +174,24 @@ describe('ScreenLogic.available', () => {
     expect(
       logicOf().available('completeSelected', data, { selected: [] }),
     ).toBe(false);
+  });
+
+  test('выбраны только выполненные — выполнять нечего', () => {
+    const logic = logicOf();
+
+    expect(
+      logic.available('completeSelected', data, { selected: [TASK_B] }),
+    ).toBe(false);
+    expect(
+      logic.available('completeSelected', data, { selected: [TASK_A] }),
+    ).toBe(true);
+  });
+
+  test('недоступно по данным: назад некуда (hasPrev)', () => {
+    expect(logicOf().available('prev', data, { selected: [] })).toBe(false);
+    expect(
+      logicOf().available('prev', { ...data, hasPrev: true }, { selected: [] }),
+    ).toBe(true);
   });
 });
 

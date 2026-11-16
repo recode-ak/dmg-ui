@@ -6,8 +6,7 @@ import {
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
-  TaskListScreenDef,
-} from '../../testing/ui-fixture';
+} from '../../testing/example';
 import { ScreenDef } from './screen-def';
 
 const OTHER = '2c3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e6f';
@@ -32,9 +31,17 @@ describe('RefreshOn.matches', () => {
   });
 
   test('any — перечитать всем', () => {
-    const all = TaskListScreenDef.refresh[1]!;
+    // В примере записи `any` нет (Т-3): сценарий — на локальном Def.
+    const everyone = ScreenDef.define({
+      name: 'everyone',
+      label: 'Всем',
+      description: 'Перечитывается у всех по архивации задачи.',
+      reads: [],
+      data: v.object({}),
+      refresh: [{ event: TaskEvents.archived, any: true }],
+    });
 
-    expect(all.matches(payload, { index: 0 }, undefined)).toBe(true);
+    expect(everyone.refresh[0]!.matches(payload, {}, undefined)).toBe(true);
   });
 
   test('запись без params, subject и any — не перечитывать', () => {

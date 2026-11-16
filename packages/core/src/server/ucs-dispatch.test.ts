@@ -3,13 +3,14 @@ import { ok } from 'dmg-core';
 import { ModuleApi } from 'dmg-core/app';
 import { AwaitingBus, MemoryLogger, useTempDir } from 'dmg-core/testing';
 import { ExampleApp, TodoModuleDef } from 'dmg-core/testing/example';
-import { ExampleUiSetDef, OWNER, TASK_A } from '../../testing/ui-fixture';
 import {
   CARD_ID,
+  ExampleUiSetDef,
   LIST_ID,
-  requestTrace,
-  TASKS,
-} from '../../testing/ui-runtime-fixture';
+  OWNER,
+  TASK_A,
+} from '../../testing/example';
+import { requestTrace, TASKS } from '../../testing/ui-runtime-fixture';
 import {
   StubCallerSource,
   StubTransport,

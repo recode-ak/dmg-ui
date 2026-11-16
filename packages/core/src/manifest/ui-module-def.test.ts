@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { TaskListScreenDef, TodoUiModuleDef } from '../../testing/ui-fixture';
+import { TaskListScreenDef, TodoUiModuleDef } from '../../testing/example';
 import { UiModuleDef } from './ui-module-def';
 
 describe('UiModuleDef', () => {
@@ -8,11 +8,11 @@ describe('UiModuleDef', () => {
       dmg: 'uiModule',
       name: 'todo',
       label: 'Задачи',
-      description: 'Экраны и сторис модуля задач.',
+      description: 'Экраны, сторис и уведомления модуля задач.',
       visible: false,
-      screens: ['taskList', 'taskCard'],
-      stories: ['planTasks', 'finishTasks'],
-      notifications: ['taskAssigned'],
+      screens: ['taskList', 'taskCard', 'assignedTasks'],
+      stories: ['planTasks', 'finishTasks', 'followAssigned'],
+      notifications: ['taskAssigned', 'taskCompleted'],
     });
   });
 

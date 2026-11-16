@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { toJsonSchema } from 'dmg-core';
-import { TaskAssignedNotificationDef } from '../../testing/ui-fixture';
+import {
+  TaskAssignedNotificationDef,
+  TaskCompletedNotificationDef,
+} from '../../testing/example';
 
 describe('NotificationDef', () => {
   test('форма: событие, получатели, чтения, данные, ссылки и примеры', () => {
@@ -12,10 +15,19 @@ describe('NotificationDef', () => {
       visible: false,
       event: 'todo.task.assigned',
       recipients: { from: 'payload', fields: ['assigneeId'] },
-      reads: ['listTasks'],
+      reads: ['listAssignedTasks'],
       data: toJsonSchema(TaskAssignedNotificationDef.data),
-      links: ['taskCard'],
+      links: ['assignedTasks'],
       examples: ['sample'],
+    });
+  });
+
+  test('получатели из query — UC, вход и поля в форме', () => {
+    expect(TaskCompletedNotificationDef.normalize().recipients).toEqual({
+      from: 'query',
+      uc: 'getTaskAssignee',
+      input: { taskId: 'taskId' },
+      fields: ['assigneeId'],
     });
   });
 });

@@ -6,18 +6,15 @@ import {
   TaskErrors,
 } from 'dmg-core/testing/example';
 import {
+  CARD_ID,
+  exampleCodes,
+  LIST_ID,
   TASK_A,
   TASK_B,
   type TaskListScreenDef,
-} from '../../testing/ui-fixture';
-import { TaskListScreenCode } from '../../testing/ui-fixture-code';
-import {
-  CARD_ID,
-  fixtureCodes,
-  LIST_ID,
-  RuntimeKit,
-  requestTrace,
-} from '../../testing/ui-runtime-fixture';
+} from '../../testing/example';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { RuntimeKit, requestTrace } from '../../testing/ui-runtime-fixture';
 import type { StateOf } from '../manifest/screen-def.types';
 import type { ScreenInstance } from './screen-instance';
 
@@ -105,7 +102,7 @@ describe('UiObserver — записи экрана', () => {
   });
 
   test('чужой бросок кода — в defect этап и имя ошибки без текста, сам бросок — в faults', async () => {
-    const kit = new RuntimeKit(fixtureCodes({ list: new LeakyLoad() }));
+    const kit = new RuntimeKit(exampleCodes({ list: new LeakyLoad() }));
 
     await kit.openList();
 
@@ -125,7 +122,7 @@ describe('UiObserver — записи экрана', () => {
   });
 
   test('состояние не по схеме — в defect путь поля, без значения', async () => {
-    const kit = new RuntimeKit(fixtureCodes({ list: new LeakyToggle() }));
+    const kit = new RuntimeKit(exampleCodes({ list: new LeakyToggle() }));
     const list = await kit.openList();
 
     await list.local({ name: 'toggle', input: { taskId: TASK_A } });

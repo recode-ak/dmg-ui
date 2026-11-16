@@ -8,16 +8,15 @@ import {
   TodoModuleDef,
 } from 'dmg-core/testing/example';
 import {
+  CARD_ID,
   ExampleUiSetDef,
+  LIST_ID,
+  LIST_START,
   OWNER,
   TASK_A,
   TASK_B,
-} from '../../testing/ui-fixture';
-import {
-  CARD_ID,
-  LIST_ID,
-  requestTrace,
-} from '../../testing/ui-runtime-fixture';
+} from '../../testing/example';
+import { requestTrace } from '../../testing/ui-runtime-fixture';
 import {
   envelopeOf,
   StubCallerSource,
@@ -39,7 +38,7 @@ import { UiSession } from './ui-session';
 const OTHER = testUuid(2);
 const N_ID = 'exampleUi/todo/taskAssigned';
 const NODE = 'testChannel/join';
-const LIST = { screen: LIST_ID, params: { index: 0 } };
+const LIST = LIST_START;
 
 const setup = (source = new StubCallerSource(OWNER)) => {
   const bus = new AwaitingBus();

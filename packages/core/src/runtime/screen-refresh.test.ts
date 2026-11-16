@@ -5,8 +5,8 @@ import {
   ListTasksUcDef,
   TaskEvents,
 } from 'dmg-core/testing/example';
+import { LIST_ID, LIST_START } from '../../testing/example';
 import {
-  LIST_ID,
   RuntimeKit,
   refreshSignal,
   requestTrace,
@@ -99,7 +99,7 @@ describe('ScreenInstance — перечитывание по сигналу', ()
 
     list.close();
 
-    expect(watching).toEqual([{ screen: LIST_ID, params: { index: 0 } }]);
+    expect(watching).toEqual([LIST_START]);
     expect(kit.refresh.watching()).toEqual([]);
   });
 });
@@ -117,9 +117,7 @@ describe('ScreenInstance — подписка и загрузка', () => {
     const list = await opening;
     await nextChange(list);
 
-    expect(watchingWhileLoading).toEqual([
-      { screen: LIST_ID, params: { index: 0 } },
-    ]);
+    expect(watchingWhileLoading).toEqual([LIST_START]);
     expect(list.view().revision).toBe(2);
     expect(kit.ucs.names()).toEqual(['listTasks', 'listTasks']);
     expect(kit.ucs.calls.at(-1)?.trace).toEqual(createdN(2).trace);

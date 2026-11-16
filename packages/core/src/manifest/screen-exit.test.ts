@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { TASK_A, TaskListScreenDef } from '../../testing/ui-fixture';
+import { TASK_A, TaskListScreenDef } from '../../testing/example';
 
 const { created, closed } = TaskListScreenDef.exits;
 

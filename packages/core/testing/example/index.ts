@@ -1,0 +1,32 @@
+// Учебный пример (ФР-11): набор UI поверх учебного приложения `dmg-core`,
+// загрузчики кода и привязка к диалоговому каналу. Вход `dmg-ui/testing`
+// собирает его в `testing/index.ts`.
+
+export {
+  DIALOG_CHANNEL,
+  ExampleDialogAppDef,
+} from './dialog/example-dialog.app';
+export { ExampleDialogArch } from './dialog/example-dialog.arch';
+export { type ExampleCodeOverrides, exampleCodes } from './example-codes';
+export { ExampleUiSetDef } from './example-ui.set';
+export { AssignedTasksScreenDef } from './todo/assigned-tasks.screen';
+export {
+  ASSIGNED_ID,
+  CARD_ID,
+  LIST_ID,
+  LIST_START,
+  OWNER,
+  TASK_A,
+  TASK_B,
+  TASK_PAGE_SIZE,
+  type TaskRow,
+  taskRow,
+} from './todo/example-tasks';
+export { FinishTasksStoryDef } from './todo/finish-tasks.story';
+export { FollowAssignedStoryDef } from './todo/follow-assigned.story';
+export { PlanTasksStoryDef } from './todo/plan-tasks.story';
+export { TaskAssignedNotificationDef } from './todo/task-assigned.notification';
+export { TaskCardScreenDef } from './todo/task-card.screen';
+export { TaskCompletedNotificationDef } from './todo/task-completed.notification';
+export { TaskListScreenDef } from './todo/task-list.screen';
+export { TodoUiModuleDef } from './todo/todo.ui-module';

@@ -2,19 +2,18 @@ import { describe, expect, test } from 'bun:test';
 import { ok } from 'dmg-core';
 import { ListTasksUcDef } from 'dmg-core/testing/example';
 import * as v from 'valibot';
-import { UiScene } from '../../testing/ui-arch';
 import {
+  exampleCodes,
+  LIST_ID,
+  LIST_START,
   TASK_A,
   TASK_B,
   TaskAssignedNotificationDef,
   TaskListScreenDef,
-} from '../../testing/ui-fixture';
-import { TaskListScreenCode } from '../../testing/ui-fixture-code';
-import {
-  fixtureCodes,
-  LIST_ID,
-  testRenderContext,
-} from '../../testing/ui-runtime-fixture';
+} from '../../testing/example';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { UiScene } from '../../testing/ui-arch';
+import { testRenderContext } from '../../testing/ui-runtime-fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { CodeDefect } from '../screen/code-defect';
 import { ScreenCode } from '../screen/screen-code';
@@ -29,8 +28,8 @@ import { ScreenPreview } from './screen-preview';
 
 type List = typeof TaskListScreenDef;
 
-/** Превью набора фикстуры с её загрузчиками кода. */
-const preview = (codes = fixtureCodes()) =>
+/** Превью набора примера с его загрузчиками кода. */
+const preview = (codes = exampleCodes()) =>
   new ScreenPreview({ set: codes.set, codes });
 
 /** Бросок вызова (синхронный или отказ промиса); не бросил — `undefined`. */
@@ -113,7 +112,7 @@ describe('ScreenPreview.screen — вид по примеру', () => {
 
     expect(view).toMatchObject({
       screen: LIST_ID,
-      address: { screen: LIST_ID, params: { index: 0 } },
+      address: LIST_START,
       revision: 0,
       status: 'ready',
       data: TaskListScreenDef.examples.full?.data,
@@ -173,13 +172,15 @@ describe('ScreenPreview.screen — вид по примеру', () => {
       create: false,
       completeSelected: false,
       next: true,
+      prev: false,
+      close: true,
     });
   });
 
   test('порты и load кода не зовутся', async () => {
     const list = new SpyList();
 
-    await preview(fixtureCodes({ list })).screen(
+    await preview(exampleCodes({ list })).screen(
       TaskListScreenDef,
       'empty',
       testRenderContext,
@@ -244,6 +245,6 @@ describe('ScreenPreview — сборка', () => {
   test('загрузчики другого набора — бросок', () => {
     const { set } = new UiScene({ screens: [DraftScreenDef] });
 
-    expect(() => new ScreenPreview({ set, codes: fixtureCodes() })).toThrow();
+    expect(() => new ScreenPreview({ set, codes: exampleCodes() })).toThrow();
   });
 });

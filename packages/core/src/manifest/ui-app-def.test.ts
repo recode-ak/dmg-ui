@@ -1,25 +1,32 @@
 import { describe, expect, test } from 'bun:test';
-import { ExampleUiAppDef } from '../../testing/ui-fixture';
+import { ExampleDialogAppDef, LIST_START } from '../../testing/example';
 
 describe('UiAppDef', () => {
   test('форма: набор, канал, сторис, уведомления и входы с адресом', () => {
-    expect(ExampleUiAppDef.normalize()).toEqual({
+    expect(ExampleDialogAppDef.normalize()).toEqual({
       dmg: 'uiApp',
-      name: 'exampleConsole',
-      label: 'Учебное приложение в консоли',
-      description: 'Приложение UI для текстового канала.',
+      name: 'exampleDialog',
+      label: 'Учебное приложение в диалоге',
+      description: 'Приложение UI учебного примера для диалогового канала.',
       visible: false,
       set: 'exampleUi',
-      channel: 'dmg-ui-console',
-      stories: ['planTasks', 'finishTasks'],
-      notifications: ['taskAssigned'],
+      channel: 'dmg-ui-dialog',
+      stories: ['planTasks', 'finishTasks', 'followAssigned'],
+      notifications: ['taskAssigned', 'taskCompleted'],
       entries: [
         {
           name: 'start',
-          label: 'Начало',
-          description: 'Список задач с начала.',
+          label: 'Мои задачи',
+          description: 'Список своих задач с начала.',
           screen: 'taskList',
-          params: { index: 0 },
+          params: LIST_START.params,
+        },
+        {
+          name: 'assigned',
+          label: 'Назначенные мне',
+          description: 'Задачи, которые поручили вызывающему.',
+          screen: 'assignedTasks',
+          params: {},
         },
       ],
     });

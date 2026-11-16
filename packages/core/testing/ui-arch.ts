@@ -31,8 +31,6 @@ import {
 } from '../src/manifest/ui-app-def';
 import { UiModuleDef } from '../src/manifest/ui-module-def';
 import { type AnyUiSetDef, UiSetDef } from '../src/manifest/ui-set-def';
-import { ExampleUiAppDef, ExampleUiSetDef } from './ui-fixture';
-import { StubViewProvider } from './ui-graph-fixture';
 
 // Помощники тестов правил графа: сборка `ArchApp` из `ExampleArch` с
 // поставщиком `dmg-ui` и прогон `reportArchCheck` (в `testing/index.ts` не
@@ -226,14 +224,6 @@ export class UiScene {
       ...ExampleArch,
       providers: [new UiGraphProvider({ set, apps }), ...providers],
     };
-  }
-
-  /** Чистая фикстура примера с тестовым представлением «набор целиком». */
-  static fixture(): ArchApp {
-    const view = new StubViewProvider(ExampleUiSetDef, ExampleUiAppDef, [
-      ExampleUiSetDef,
-    ]);
-    return UiScene.appOf(ExampleUiSetDef, [ExampleUiAppDef], [view]);
   }
 
   /** Приложение сцены; `providers` — чужие поставщики сверх `dmg-ui`. */

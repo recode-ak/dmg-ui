@@ -13,17 +13,14 @@ import { ApiAppDispatch } from '../src/server/api-app-dispatch';
 import { UiNotifier } from '../src/server/ui-notifier';
 import { UiServer } from '../src/server/ui-server';
 import {
-  ExampleUiAppDef,
+  ExampleDialogAppDef,
   ExampleUiSetDef,
+  exampleCodes,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from './ui-fixture';
-import {
-  fixtureCodes,
-  MemoryUiObserver,
-  RuntimeKit,
-  requestTrace,
-} from './ui-runtime-fixture';
+} from './example';
+import { MemoryUiObserver } from './memory-ui-observer';
+import { RuntimeKit, requestTrace } from './ui-runtime-fixture';
 import { oplogRecords, StubDelivery, T0 } from './ui-server-fixture';
 
 // Сквозной тест ядра (TST-09 — единственный): только объявленное, перечитывание
@@ -46,11 +43,11 @@ const world = () => {
   );
   const dispatch = new ApiAppDispatch(example.api);
   const server = new UiServer({ set: ExampleUiSetDef, dispatch, context });
-  const codes = fixtureCodes();
+  const codes = exampleCodes();
   const delivery = new StubDelivery();
   const observer = new MemoryUiObserver();
   new UiNotifier({
-    app: ExampleUiAppDef,
+    app: ExampleDialogAppDef,
     codes,
     dispatch,
     callers: example.callers,
@@ -78,7 +75,7 @@ type World = ReturnType<typeof world>;
 
 const openList = (runtime: ScreenRuntime, requestId: string) =>
   runtime.open(
-    TaskListScreenDef.at({ index: 0 }),
+    TaskListScreenDef.at({ page: 0 }),
     RuntimeKit.options({}, requestId),
   );
 
@@ -115,7 +112,7 @@ const assignToB = async (w: World, taskId: string) => {
 };
 
 const ReadRecord = v.object({
-  op: v.literal('listTasks'),
+  op: v.picklist(['listTasks', 'listAssignedTasks']),
   caller: v.object({ subjectId: v.string() }),
   trace: v.object({
     cause: v.object({ kind: v.string() }),
@@ -123,12 +120,15 @@ const ReadRecord = v.object({
   }),
 });
 
-/** Записи `listTasks` субъекта `uuid` в логе операций: `<вид причины>:<цепочка>`. */
-const listReads = (uuid: string) =>
+/** Записи чтения `op` субъекта `uuid` в логе операций: `<вид причины>:<цепочка>`. */
+const listReads = (
+  uuid: string,
+  op: v.InferOutput<typeof ReadRecord>['op'] = 'listTasks',
+) =>
   oplogRecords(tmp().path)
     .filter((r) => v.is(ReadRecord, r))
     .map((r) => v.parse(ReadRecord, r))
-    .filter((r) => r.caller.subjectId === uuid)
+    .filter((r) => r.caller.subjectId === uuid && r.op === op)
     .map(({ trace }) => `${trace.cause.kind}:${trace.correlationId}`);
 
 describe('два пользователя: сервер UI и исполнители', () => {
@@ -144,7 +144,8 @@ describe('два пользователя: сервер UI и исполните
 
     expect([listA.view().revision, listB.view().revision]).toEqual([2, 1]);
     expect(listReads(A)).toContain('event:r-create');
-    expect(listReads(B)).toEqual(['request:r-open-b', 'event:r-assign']);
+    expect(listReads(B)).toEqual(['request:r-open-b']);
+    expect(listReads(B, 'listAssignedTasks')).toEqual(['event:r-assign']);
     expect(w.delivery.delivered).toMatchObject([{ recipient: B }]);
   });
 });

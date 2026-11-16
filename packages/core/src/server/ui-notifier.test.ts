@@ -14,20 +14,18 @@ import {
   TaskEvents,
   TodoModuleDef,
 } from 'dmg-core/testing/example';
-import { UiScene } from '../../testing/ui-arch';
 import {
-  ExampleUiAppDef,
+  ASSIGNED_ID,
+  ExampleDialogAppDef,
+  exampleCodes,
   OWNER,
   TASK_A,
-  TaskListScreenDef,
-} from '../../testing/ui-fixture';
-import { TaskAssignedNotificationCode } from '../../testing/ui-notification-code';
-import {
-  CARD_ID,
-  fixtureCodes,
-  MemoryUiObserver,
-  TASKS,
-} from '../../testing/ui-runtime-fixture';
+  TaskCardScreenDef,
+} from '../../testing/example';
+import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.code';
+import { MemoryUiObserver } from '../../testing/memory-ui-observer';
+import { UiScene } from '../../testing/ui-arch';
+import { TASKS } from '../../testing/ui-runtime-fixture';
 import {
   envelopeOf,
   StubDelivery,
@@ -46,6 +44,8 @@ import { UiNotifier } from './ui-notifier';
 // наблюдателя без payload.
 
 const ASSIGNEE = testUuid(7);
+/** Выход `listAssignedTasks` получателя: задачи владельца `OWNER`. */
+const ASSIGNED_TASKS = TASKS.map((task) => ({ ...task, ownerId: OWNER }));
 const N_ID = 'exampleUi/todo/taskAssigned';
 const eventTrace: TraceJson = {
   cause: { kind: 'event', eventId: 'e-1' },
@@ -89,7 +89,7 @@ type Setup = {
   readonly codes?: CodeLoaders;
   readonly callers?: StubRecipientCallers;
   readonly delivery?: StubDelivery;
-  /** Ответы транспорта сверх `listTasks`. */
+  /** Ответы транспорта сверх `listAssignedTasks`. */
   readonly answers?: Readonly<Record<string, SerializedResult>>;
   readonly transport?: StubTransport;
   /** Событие вместо `assigned`. */
@@ -101,8 +101,8 @@ const notify = async (over: Setup = {}) => {
   const bus = new AwaitingBus();
   const logger = new MemoryLogger();
   const transport = (over.transport ?? new StubTransport()).answer(
-    'listTasks',
-    ok([...TASKS]),
+    'listAssignedTasks',
+    ok(ASSIGNED_TASKS),
   );
   for (const [uc, result] of Object.entries(over.answers ?? {})) {
     transport.answer(uc, result);
@@ -110,8 +110,8 @@ const notify = async (over: Setup = {}) => {
   const delivery = over.delivery ?? new StubDelivery();
   const observer = new MemoryUiObserver();
   new UiNotifier({
-    app: over.app ?? ExampleUiAppDef,
-    codes: over.codes ?? fixtureCodes(),
+    app: over.app ?? ExampleDialogAppDef,
+    codes: over.codes ?? exampleCodes(),
     dispatch: new ModuleApiDispatch([
       new ModuleApi(TodoModuleDef, transport, logger),
     ]),
@@ -134,7 +134,7 @@ describe('UiNotifier — получатели из payload', () => {
         notification: N_ID,
         recipient: ASSIGNEE,
         data: { title: 'Хлеб' },
-        links: [{ screen: CARD_ID, params: { taskId: TASK_A } }],
+        links: [{ screen: ASSIGNED_ID, params: {} }],
         cause: { event: TaskEvents.assigned.name, eventId: 'e-1' },
         trace: eventTrace,
       },
@@ -145,9 +145,24 @@ describe('UiNotifier — получатели из payload', () => {
     const { transport } = await notify();
 
     const [read] = transport.sent;
-    expect(read?.command.uc).toBe('listTasks');
+    expect(read?.command.uc).toBe('listAssignedTasks');
     expect(read?.caller.subject()?.uuid).toBe(ASSIGNEE);
     expect(read?.trace.toJSON()).toEqual(eventTrace);
+  });
+
+  test('задачи нет среди поручений получателя — TASK_NOT_FOUND, доставки нет', async () => {
+    const { delivery, observer } = await notify({
+      answers: { listAssignedTasks: ok([]) },
+    });
+
+    expect(delivery.delivered).toEqual([]);
+    expect(observer.records).toContainEqual(
+      expect.objectContaining({
+        kind: 'refused',
+        node: N_ID,
+        code: 'TASK_NOT_FOUND',
+      }),
+    );
   });
 
   test('отказ резолвера получателя — доставки нет, запись refused', async () => {
@@ -190,12 +205,12 @@ describe('UiNotifier — дефекты, сбои и записи', () => {
   test('ссылка на экран вне links() — дефект, доставки нет', async () => {
     class ForeignLink extends TaskAssignedNotificationCode {
       override links() {
-        return [TaskListScreenDef.at({ index: 0 })];
+        return [TaskCardScreenDef.at({ taskId: TASK_A })];
       }
     }
 
     const { delivery, observer } = await notify({
-      codes: fixtureCodes({ notification: new ForeignLink() }),
+      codes: exampleCodes({ assignedNote: new ForeignLink() }),
     });
 
     expect(delivery.delivered).toEqual([]);
@@ -239,10 +254,10 @@ describe('UiNotifier — дефекты, сбои и записи', () => {
 });
 
 describe('UiNotifier — сборка и запуск', () => {
-  const build = (codes = fixtureCodes()) => {
+  const build = (codes = exampleCodes()) => {
     const logger = new MemoryLogger();
     return new UiNotifier({
-      app: ExampleUiAppDef,
+      app: ExampleDialogAppDef,
       codes,
       dispatch: new ModuleApiDispatch([
         new ModuleApi(TodoModuleDef, new StubTransport(), logger),
@@ -320,7 +335,7 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
     }
 
     const { logger, observer } = await notify({
-      codes: fixtureCodes({ notification: new Throwing() }),
+      codes: exampleCodes({ assignedNote: new Throwing() }),
     });
 
     expect(JSON.stringify(observer.records)).not.toContain('секрет');
@@ -342,7 +357,7 @@ describe('UiNotifier — внутренний путь чтения', () => {
 
     const { delivery, transport } = await notify({ envelope: long });
 
-    expect(transport.names()).toEqual(['listTasks']);
+    expect(transport.names()).toEqual(['listAssignedTasks']);
     expect(delivery.delivered).toHaveLength(1);
   });
 });

@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  FinishTasksStoryDef,
-  PlanTasksStoryDef,
-} from '../../testing/ui-fixture';
+import { FinishTasksStoryDef, PlanTasksStoryDef } from '../../testing/example';
 
 describe('StoryDef', () => {
   test('форма: вызывающие, цель, старт, экраны и исходы с выходами', () => {

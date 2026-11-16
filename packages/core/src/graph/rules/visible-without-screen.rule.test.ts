@@ -1,14 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import {
   AssignTaskUcDef,
+  CompleteTasksUcDef,
   CompleteTaskUcDef,
   CreateTaskUcDef,
+  ListAssignedTasksUcDef,
   ListTasksUcDef,
 } from 'dmg-core/testing/example';
 import { UiScene } from '../../../testing/ui-arch';
 
 describe('UI-11: UC для человека вызывает хотя бы один экран', () => {
-  test('нарушение: три visible-UC без экрана, по id', () => {
+  test('нарушение: пять visible-UC без экрана, по id', () => {
     const screen = UiScene.screen('a', { reads: [ListTasksUcDef] });
 
     const report = new UiScene({ screens: [screen] }).report();
@@ -17,7 +19,9 @@ describe('UI-11: UC для человека вызывает хотя бы од�
     expect(report.rule('UI-11')).toEqual([
       'UI-11: UC example/todo/assignTask предназначен человеку (visible), но ни один экран его не вызывает',
       'UI-11: UC example/todo/completeTask предназначен человеку (visible), но ни один экран его не вызывает',
+      'UI-11: UC example/todo/completeTasks предназначен человеку (visible), но ни один экран его не вызывает',
       'UI-11: UC example/todo/createTask предназначен человеку (visible), но ни один экран его не вызывает',
+      'UI-11: UC example/todo/listAssignedTasks предназначен человеку (visible), но ни один экран его не вызывает',
     ]);
   });
 
@@ -27,11 +31,13 @@ describe('UI-11: UC для человека вызывает хотя бы од�
       actions: {
         assign: UiScene.call(AssignTaskUcDef),
         complete: UiScene.call(CompleteTaskUcDef),
+        completeAll: UiScene.call(CompleteTasksUcDef),
         create: UiScene.call(CreateTaskUcDef),
       },
     });
+    const assigned = UiScene.screen('b', { reads: [ListAssignedTasksUcDef] });
 
-    const report = new UiScene({ screens: [screen] }).report();
+    const report = new UiScene({ screens: [screen, assigned] }).report();
 
     expect(report.rule('UI-11')).toEqual([]);
   });

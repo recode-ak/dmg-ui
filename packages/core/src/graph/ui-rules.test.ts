@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { ArchReport, UiScene } from '../../testing/ui-arch';
-import { ExampleUiSetDef } from '../../testing/ui-fixture';
+import { ExampleUiSetDef } from '../../testing/example';
 import { UiRules } from './ui-rules';
+
+// Граф учебного примера без нарушений — `testing/example/example-graph.test.ts`.
 
 describe('UiRules', () => {
   test('правила идут в порядке ID: UI-01…UI-23', () => {
@@ -13,17 +14,5 @@ describe('UiRules', () => {
     expect(UiRules.of(ExampleUiSetDef).map((rule) => rule.id)).toEqual(
       expected,
     );
-  });
-
-  test('чистая фикстура примера: нарушений нет, отчёт пуст, код 0', () => {
-    const app = UiScene.fixture();
-
-    const report = ArchReport.of(app);
-
-    expect(report.code).toBe(0);
-    expect(report.lines).toEqual([
-      'arch:check example: нарушений — 0',
-      'arch:check: нарушений нет',
-    ]);
   });
 });

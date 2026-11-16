@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { TaskListScreenDef } from '../../testing/ui-fixture';
-import { TaskListScreenCode } from '../../testing/ui-fixture-code';
-import type { DataOf } from '../manifest/screen-def.types';
+import { TaskListScreenDef } from '../../testing/example';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
 import { ScreenCode } from '../screen/screen-code';
 import type { ActionSteps } from '../screen/screen-code.types';
 import { ScreenUnit } from './screen-unit';
@@ -17,8 +16,8 @@ class NoLoad extends ScreenCode<List> {
   override readonly locals = this.full.locals;
   override readonly actions = this.full.actions;
 
-  override initialState(data: DataOf<List>) {
-    return this.full.initialState(data);
+  override initialState() {
+    return this.full.initialState();
   }
 }
 

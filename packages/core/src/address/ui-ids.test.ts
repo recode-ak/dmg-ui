@@ -2,13 +2,13 @@ import { describe, expect, test } from 'bun:test';
 import { ExampleAppDef, TaskEvents } from 'dmg-core/testing/example';
 import * as v from 'valibot';
 import {
-  ExampleUiAppDef,
+  ExampleDialogAppDef,
   ExampleUiSetDef,
   FinishTasksStoryDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from '../../testing/ui-fixture';
+} from '../../testing/example';
 import { NotificationDef } from '../manifest/notification-def';
 import { ScreenDef } from '../manifest/screen-def';
 import { StoryDef } from '../manifest/story-def';
@@ -94,7 +94,7 @@ describe('UiIds', () => {
   });
 
   test('id приложения UI — его имя, без набора', () => {
-    expect(ids.app(ExampleUiAppDef)).toBe('exampleConsole');
+    expect(ids.app(ExampleDialogAppDef)).toBe('exampleDialog');
   });
 
   test('сторис с именем экрана в одном модуле — бросок с именем', () => {

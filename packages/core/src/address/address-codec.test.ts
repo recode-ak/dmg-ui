@@ -4,12 +4,14 @@ import {
   ExampleUiSetDef,
   TASK_A,
   TaskCardScreenDef,
-} from '../../testing/ui-fixture';
+} from '../../testing/example';
 import { ScreenDef } from '../manifest/screen-def';
 import { AddressCodec } from './address-codec';
 
 const codec = new AddressCodec(ExampleUiSetDef);
-const LIST = 'exampleUi/todo/taskList';
+// Проверки параметров — на карточке: у списка параметр — номер части списка,
+// его имя сканер слов канала в `src` не пускает.
+const CARD = 'exampleUi/todo/taskCard';
 
 describe('AddressCodec', () => {
   test('encode → JSON-строка → decode: тот же Def и равные параметры', () => {
@@ -35,29 +37,32 @@ describe('AddressCodec', () => {
   });
 
   test('параметр не того типа — invalidParams с полем', () => {
-    const res = codec.decode({ screen: LIST, params: { index: 'один' } });
+    const res = codec.decode({ screen: CARD, params: { taskId: 42 } });
 
     expect(res).toMatchObject({
       ok: false,
       error: {
         reason: 'invalidParams',
-        screen: LIST,
-        issues: [{ field: 'index' }],
+        screen: CARD,
+        issues: [{ field: 'taskId' }],
       },
     });
   });
 
   test('нет обязательного параметра — invalidParams с полем', () => {
-    const res = codec.decode({ screen: LIST, params: {} });
+    const res = codec.decode({ screen: CARD, params: {} });
 
     expect(res).toMatchObject({
       ok: false,
-      error: { reason: 'invalidParams', issues: [{ field: 'index' }] },
+      error: { reason: 'invalidParams', issues: [{ field: 'taskId' }] },
     });
   });
 
   test('лишний ключ параметров — invalidParams с этим ключом', () => {
-    const res = codec.decode({ screen: LIST, params: { index: 0, extra: 1 } });
+    const res = codec.decode({
+      screen: CARD,
+      params: { taskId: TASK_A, extra: 1 },
+    });
 
     expect(res).toMatchObject({
       ok: false,

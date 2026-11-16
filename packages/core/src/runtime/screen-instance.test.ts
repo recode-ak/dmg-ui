@@ -8,25 +8,24 @@ import {
   ok,
 } from 'dmg-core';
 import {
+  CompleteTasksUcDef,
   CompleteTaskUcDef,
   CreateTaskUcDef,
   ListTasksUcDef,
   TaskErrors,
 } from 'dmg-core/testing/example';
 import {
+  CARD_ID,
+  exampleCodes,
+  LIST_ID,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from '../../testing/ui-fixture';
+} from '../../testing/example';
+import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
 import {
-  TaskCardScreenCode,
-  TaskListScreenCode,
-} from '../../testing/ui-fixture-code';
-import {
-  CARD_ID,
-  fixtureCodes,
-  LIST_ID,
   RuntimeKit,
   requestTrace,
   testRenderContext,
@@ -191,7 +190,7 @@ describe('ScreenInstance.act — переходы', () => {
 
 describe('ScreenInstance.act — необъявленное', () => {
   test('переход на экран вне to — дефект: SERVER_INTERNAL и запись defect', async () => {
-    const kit = new RuntimeKit(fixtureCodes({ list: new Jump() }));
+    const kit = new RuntimeKit(exampleCodes({ list: new Jump() }));
     kit.ucs.answer(CreateTaskUcDef, ok({ taskId: TASK_B }));
     const list = await kit.openList();
 
@@ -205,7 +204,7 @@ describe('ScreenInstance.act — необъявленное', () => {
   });
 
   test('выход не из exits своего экрана — дефект', async () => {
-    const kit = new RuntimeKit(fixtureCodes({ card: new ForeignExit() }));
+    const kit = new RuntimeKit(exampleCodes({ card: new ForeignExit() }));
     const card = await kit.openCard();
 
     const outcome = await card.act({ action: 'back', revision: 1, trace });
@@ -261,12 +260,12 @@ describe('ScreenInstance.act — подтверждение', () => {
       label: 'Выполнить выбранные задачи?',
       description: 'Выполненную задачу нельзя вернуть в работу.',
     });
-    expect(kit.ucs.names()).not.toContain('completeTask');
+    expect(kit.ucs.names()).not.toContain('completeTasks');
   });
 
   test('с confirmed — UC вызван', async () => {
     const kit = new RuntimeKit();
-    kit.ucs.answer(CompleteTaskUcDef, ok({}));
+    kit.ucs.answer(CompleteTasksUcDef, ok({}));
     const list = await selectedList(kit);
 
     const outcome = await list.act({
@@ -277,12 +276,12 @@ describe('ScreenInstance.act — подтверждение', () => {
     });
 
     expect(outcome).toEqual({ kind: 'stayed', revision: 2 });
-    expect(kit.ucs.names()).toContain('completeTask');
+    expect(kit.ucs.names()).toContain('completeTasks');
   });
 
   test('command строит вход UC из состояния', async () => {
     const kit = new RuntimeKit();
-    kit.ucs.answer(CompleteTaskUcDef, ok({}));
+    kit.ucs.answer(CompleteTasksUcDef, ok({}));
     const list = await selectedList(kit);
 
     await list.act({
@@ -294,8 +293,8 @@ describe('ScreenInstance.act — подтверждение', () => {
 
     expect(kit.ucs.calls).toContainEqual({
       node: LIST_ID,
-      uc: 'completeTask',
-      input: { taskId: TASK_A },
+      uc: 'completeTasks',
+      input: { taskIds: [TASK_A] },
       trace,
     });
   });
@@ -394,7 +393,7 @@ describe('ScreenInstance.act — отказ UC', () => {
 
   test('перехваченный — переход из caught, caught получил ошибку', async () => {
     const caught = new Caught();
-    const kit = new RuntimeKit(fixtureCodes({ list: caught }));
+    const kit = new RuntimeKit(exampleCodes({ list: caught }));
     kit.ucs.answer(
       CreateTaskUcDef,
       wire(TaskErrors.TOO_MANY_OPEN.make({ limit: 5 })),
@@ -453,7 +452,7 @@ describe('ScreenInstance.act — ревизия и очередь', () => {
 describe('ScreenInstance — контекст', () => {
   test('язык и зона доходят до load и шагов действия', async () => {
     const spy = new Spy();
-    const list = await new RuntimeKit(fixtureCodes({ list: spy })).openList();
+    const list = await new RuntimeKit(exampleCodes({ list: spy })).openList();
 
     await list.act({
       action: 'open',
@@ -514,7 +513,7 @@ describe('ScreenInstance.local', () => {
   });
 
   test('состояние не по схеме — refused/SERVER_INTERNAL, вид и состояние прежние, запись defect', async () => {
-    const kit = new RuntimeKit(fixtureCodes({ list: new BadToggle() }));
+    const kit = new RuntimeKit(exampleCodes({ list: new BadToggle() }));
     const list = await kit.openList();
     const before = list.view();
     let changed = 0;

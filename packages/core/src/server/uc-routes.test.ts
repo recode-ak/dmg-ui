@@ -9,8 +9,8 @@ import {
   UsersModuleDef,
 } from 'dmg-core/testing/example';
 import * as v from 'valibot';
-import { ExampleUiSetDef, OWNER } from '../../testing/ui-fixture';
-import { LIST_ID, requestTrace } from '../../testing/ui-runtime-fixture';
+import { ExampleUiSetDef, LIST_ID, OWNER } from '../../testing/example';
+import { requestTrace } from '../../testing/ui-runtime-fixture';
 import {
   StubCallerSource,
   StubTransport,

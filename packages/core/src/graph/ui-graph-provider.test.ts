@@ -11,13 +11,14 @@ import {
 import { ScreenProvider } from 'dmg-core/testing/example/screen/screen-provider';
 import { TasksScreenDef } from 'dmg-core/testing/example/screen/tasks.screen';
 import * as v from 'valibot';
-import { ArchReport, UiScene } from '../../testing/ui-arch';
 import {
-  ExampleUiAppDef,
+  ExampleDialogAppDef,
   ExampleUiSetDef,
+  LIST_START,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from '../../testing/ui-fixture';
+} from '../../testing/example';
+import { ArchReport, UiScene } from '../../testing/ui-arch';
 import { type AnyScreenDef, ScreenDef } from '../manifest/screen-def';
 import { UiModuleDef } from '../manifest/ui-module-def';
 import { UiSetDef } from '../manifest/ui-set-def';
@@ -25,7 +26,7 @@ import { UiGraphProvider } from './ui-graph-provider';
 import { UI_VERSION } from './ui-kinds';
 
 const provider = () =>
-  new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleUiAppDef] });
+  new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleDialogAppDef] });
 const appGraph = () =>
   new AppGraph({ def: ExampleAppDef, providers: [provider()] });
 const graph = appGraph().build();
@@ -33,6 +34,8 @@ const own = graph.nodes().filter((node) => node.provider === 'dmg-ui');
 const ownEdges = graph.edges().filter((edge) => edge.provider === 'dmg-ui');
 const SCREEN = 'exampleUi/todo/taskList';
 const CARD = 'exampleUi/todo/taskCard';
+const ASSIGNED = 'exampleUi/todo/assignedTasks';
+const COMPLETED = 'exampleUi/todo/taskCompleted';
 
 const pairs = (kind: string) =>
   ownEdges
@@ -45,23 +48,29 @@ const edgeProps = (kind: string, from: string, to: string) =>
     ?.props;
 
 describe('UiGraphProvider: узлы', () => {
-  test('15 узлов набора и приложения UI в каноническом порядке', () => {
+  test('21 узел набора и приложения UI в каноническом порядке', () => {
     expect(own.map((node) => node.id)).toEqual([
-      'exampleConsole',
+      'exampleDialog',
       'exampleUi',
       'exampleUi/todo',
+      ASSIGNED,
+      `${ASSIGNED}/close`,
       'exampleUi/todo/finishTasks',
+      'exampleUi/todo/followAssigned',
       'exampleUi/todo/planTasks',
       'exampleUi/todo/taskAssigned',
       CARD,
       `${CARD}/assign`,
       `${CARD}/back`,
       `${CARD}/complete`,
+      COMPLETED,
       SCREEN,
+      `${SCREEN}/close`,
       `${SCREEN}/completeSelected`,
       `${SCREEN}/create`,
       `${SCREEN}/next`,
       `${SCREEN}/open`,
+      `${SCREEN}/prev`,
     ]);
   });
 
@@ -75,8 +84,8 @@ describe('UiGraphProvider: узлы', () => {
           count(k),
         ]),
       ),
-    ).toEqual({ uiSet: 1, uiModule: 1, screen: 2, story: 2, notification: 1 });
-    expect(count('action')).toBe(7);
+    ).toEqual({ uiSet: 1, uiModule: 1, screen: 3, story: 3, notification: 2 });
+    expect(count('action')).toBe(10);
     expect(count('uiApp')).toBe(1);
   });
 
@@ -97,7 +106,7 @@ describe('UiGraphProvider: узлы', () => {
   test('три независимых корня: домен, набор UI, приложение UI', () => {
     expect(graph.roots().map((node) => node.id)).toEqual([
       'example',
-      'exampleConsole',
+      'exampleDialog',
       'exampleUi',
     ]);
   });
@@ -193,7 +202,7 @@ describe('UiGraphProvider: свойства узлов', () => {
       params: toJsonSchema(TaskCardScreenDef.params),
       locals: [],
       exits: [],
-      examples: [],
+      examples: ['open', 'done'],
     });
     expect(card).not.toHaveProperty('state');
     expect(card).not.toHaveProperty('primary');
@@ -235,16 +244,23 @@ describe('UiGraphProvider: свойства узлов', () => {
   });
 
   test('приложение UI: набор, канал и входы с адресом экрана', () => {
-    expect(props('exampleConsole')).toEqual({
+    expect(props('exampleDialog')).toEqual({
       set: 'exampleUi',
-      channel: 'dmg-ui-console',
+      channel: 'dmg-ui-dialog',
       entries: [
         {
           name: 'start',
-          label: 'Начало',
-          description: 'Список задач с начала.',
+          label: 'Мои задачи',
+          description: 'Список своих задач с начала.',
           screen: SCREEN,
-          params: { index: 0 },
+          params: LIST_START.params,
+        },
+        {
+          name: 'assigned',
+          label: 'Назначенные мне',
+          description: 'Задачи, которые поручили вызывающему.',
+          screen: ASSIGNED,
+          params: {},
         },
       ],
     });
@@ -257,48 +273,65 @@ describe('UiGraphProvider: свойства узлов', () => {
       recipients: { from: 'payload', fields: ['assigneeId'] },
       examples: ['sample'],
     });
+    expect(props(COMPLETED)).toEqual({
+      recipients: {
+        from: 'query',
+        input: { taskId: 'taskId' },
+        fields: ['assigneeId'],
+      },
+      examples: ['sample'],
+    });
   });
 });
 
 describe('UiGraphProvider: рёбра', () => {
-  test('рёбра поставщика: 22 штуки, по видам', () => {
+  test('рёбра поставщика: 33 штуки, по видам', () => {
     const counts: Record<string, number> = {};
     for (const edge of ownEdges)
       counts[edge.kind] = (counts[edge.kind] ?? 0) + 1;
 
-    expect(ownEdges).toHaveLength(22);
+    expect(ownEdges).toHaveLength(33);
     expect(counts).toEqual({
-      includes: 6,
-      entry: 1,
-      reads: 3,
+      includes: 9,
+      entry: 2,
+      reads: 5,
       invokes: 4,
       leadsTo: 2,
-      refreshedBy: 3,
-      notifiedBy: 1,
-      links: 1,
+      refreshedBy: 5,
+      notifiedBy: 2,
+      links: 2,
+      recipients: 1,
       catches: 1,
     });
   });
 
   test('includes: приложение → сторис и уведомление, сторис → экран', () => {
     expect(pairs('includes')).toEqual([
-      'exampleConsole -> exampleUi/todo/finishTasks',
-      'exampleConsole -> exampleUi/todo/planTasks',
-      'exampleConsole -> exampleUi/todo/taskAssigned',
+      'exampleDialog -> exampleUi/todo/finishTasks',
+      'exampleDialog -> exampleUi/todo/followAssigned',
+      'exampleDialog -> exampleUi/todo/planTasks',
+      'exampleDialog -> exampleUi/todo/taskAssigned',
+      `exampleDialog -> ${COMPLETED}`,
       `exampleUi/todo/finishTasks -> ${CARD}`,
       `exampleUi/todo/finishTasks -> ${SCREEN}`,
+      `exampleUi/todo/followAssigned -> ${ASSIGNED}`,
       `exampleUi/todo/planTasks -> ${SCREEN}`,
     ]);
   });
 
-  test('entry — приложение → экран входа', () => {
-    expect(pairs('entry')).toEqual([`exampleConsole -> ${SCREEN}`]);
+  test('entry — приложение → экраны входов', () => {
+    expect(pairs('entry')).toEqual([
+      `exampleDialog -> ${ASSIGNED}`,
+      `exampleDialog -> ${SCREEN}`,
+    ]);
   });
 
   test('reads — экран и уведомление → query UC домена, не внешние', () => {
     expect(pairs('reads')).toEqual([
-      'exampleUi/todo/taskAssigned -> example/todo/listTasks',
+      `${ASSIGNED} -> example/todo/listAssignedTasks`,
+      'exampleUi/todo/taskAssigned -> example/todo/listAssignedTasks',
       `${CARD} -> example/todo/listTasks`,
+      `${COMPLETED} -> example/todo/listAssignedTasks`,
       `${SCREEN} -> example/todo/listTasks`,
     ]);
     expect(graph.externals()).toEqual([]);
@@ -308,7 +341,7 @@ describe('UiGraphProvider: рёбра', () => {
     expect(pairs('invokes')).toEqual([
       `${CARD}/assign -> example/todo/assignTask`,
       `${CARD}/complete -> example/todo/completeTask`,
-      `${SCREEN}/completeSelected -> example/todo/completeTask`,
+      `${SCREEN}/completeSelected -> example/todo/completeTasks`,
       `${SCREEN}/create -> example/todo/createTask`,
     ]);
   });
@@ -320,20 +353,31 @@ describe('UiGraphProvider: рёбра', () => {
     ]);
   });
 
-  test('notifiedBy, links и catches — события, экраны и ошибки домена', () => {
+  test('notifiedBy, links, recipients и catches — события, экраны, UC и ошибки домена', () => {
     expect(pairs('notifiedBy')).toEqual([
       'exampleUi/todo/taskAssigned -> example/todo/task/assigned',
+      `${COMPLETED} -> example/todo/task/completed`,
     ]);
-    expect(pairs('links')).toEqual([`exampleUi/todo/taskAssigned -> ${CARD}`]);
+    expect(pairs('links')).toEqual([
+      `exampleUi/todo/taskAssigned -> ${ASSIGNED}`,
+      `${COMPLETED} -> ${ASSIGNED}`,
+    ]);
+    expect(pairs('recipients')).toEqual([
+      `${COMPLETED} -> example/todo/getTaskAssignee`,
+    ]);
     expect(pairs('catches')).toEqual([
       `${SCREEN} -> example/todo/task/TASK_TOO_MANY_OPEN`,
     ]);
   });
 
-  test('refreshedBy: запись — params, subject и any', () => {
+  // Запись `any` — в сцене «две записи refresh на одно событие» ниже (в
+  // примере её нет, Т-3).
+  test('refreshedBy: запись — params и subject', () => {
     expect(pairs('refreshedBy')).toEqual([
+      `${ASSIGNED} -> example/todo/task/assigned`,
+      `${ASSIGNED} -> example/todo/task/unassigned`,
       `${CARD} -> example/todo/task/completed`,
-      `${SCREEN} -> example/todo/task/archived`,
+      `${SCREEN} -> example/todo/task/completed`,
       `${SCREEN} -> example/todo/task/created`,
     ]);
     expect(
@@ -344,8 +388,10 @@ describe('UiGraphProvider: рёбра', () => {
       ],
     });
     expect(
-      edgeProps('refreshedBy', SCREEN, 'example/todo/task/archived'),
-    ).toEqual({ records: [{ params: {}, any: true }] });
+      edgeProps('refreshedBy', ASSIGNED, 'example/todo/task/assigned'),
+    ).toEqual({
+      records: [{ params: {}, subject: 'assigneeId', any: false }],
+    });
   });
 
   test('две записи refresh на одно событие — одно ребро со списком records', () => {
@@ -413,10 +459,12 @@ describe('UiGraphProvider: действия в графе', () => {
       .filter((node) => node.kind === 'action');
 
     expect(actions.map((node) => node.id)).toEqual([
+      `${SCREEN}/close`,
       `${SCREEN}/completeSelected`,
       `${SCREEN}/create`,
       `${SCREEN}/next`,
       `${SCREEN}/open`,
+      `${SCREEN}/prev`,
     ]);
   });
 
@@ -424,7 +472,7 @@ describe('UiGraphProvider: действия в графе', () => {
     const json = appGraph().document(UI_VERSION).toJSON();
     const create = json.nodes.find((n) => n.id === `${SCREEN}/create`);
 
-    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(7);
+    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(10);
     expect(create).toMatchObject({
       kind: 'action',
       label: 'Создать задачу',

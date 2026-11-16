@@ -3,11 +3,11 @@ import { ok } from 'dmg-core';
 import { CompleteTaskUcDef, TaskEvents } from 'dmg-core/testing/example';
 import {
   ExampleUiSetDef,
+  exampleCodes,
   TASK_A,
   TaskCardScreenDef,
-} from '../../testing/ui-fixture';
+} from '../../testing/example';
 import {
-  fixtureCodes,
   jsonPorts,
   RuntimeKit,
   refreshSignal,
@@ -27,7 +27,7 @@ const scenario = async (wrap: boolean) => {
     : { ucs: kit.ucs, refresh: kit.refresh };
   const runtime = new ScreenRuntime({
     set: ExampleUiSetDef,
-    codes: fixtureCodes(),
+    codes: exampleCodes(),
     observer: kit.observer,
     ...ports,
   });

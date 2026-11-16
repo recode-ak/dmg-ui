@@ -15,11 +15,16 @@ import {
   TaskErrors,
 } from 'dmg-core/testing/example';
 import * as v from 'valibot';
-import { TASK_A, type TaskListScreenDef } from '../../testing/ui-fixture';
-import { TaskListScreenCode } from '../../testing/ui-fixture-code';
 import {
-  fixtureCodes,
+  CARD_ID,
+  exampleCodes,
   LIST_ID,
+  LIST_START,
+  TASK_A,
+  type TaskListScreenDef,
+} from '../../testing/example';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import {
   RuntimeKit,
   requestTrace,
   TASKS,
@@ -35,13 +40,13 @@ import type { ScreenInstance } from './screen-instance';
 
 // Открытие и восстановление экземпляра экрана: загрузка через порт, отказ
 // загрузки, дефекты кода экрана, снимок и восстановление. Порты — заглушки
-// фикстуры.
+// `ui-runtime-fixture.ts` на учебном примере.
 
 type ListLoad = LoadContext<typeof TaskListScreenDef>;
 
 /** Исполнитель со своим кодом списка. */
 const kitWith = (list: TaskListScreenCode) =>
-  new RuntimeKit(fixtureCodes({ list }));
+  new RuntimeKit(exampleCodes({ list }));
 
 /** Ответ `listTasks` — отказ с ошибкой `error`. */
 const refuseList = (
@@ -110,10 +115,10 @@ describe('ScreenRuntime.open', () => {
 
     expect(instance.view()).toMatchObject({
       screen: LIST_ID,
-      address: { screen: LIST_ID, params: { index: 0 } },
+      address: LIST_START,
       revision: 1,
       status: 'ready',
-      data: { tasks: [...TASKS], hasMore: false, marked: [] },
+      data: { tasks: [...TASKS], hasMore: false, hasPrev: false },
       state: { selected: [] },
     });
   });
@@ -189,7 +194,7 @@ describe('ScreenRuntime.open — отказ загрузки', () => {
   test('INPUT_VALIDATION с issues — только главная строка, без строк полей', async () => {
     const kit = new RuntimeKit();
     const invalid = CoreErrors.INPUT_VALIDATION.make({
-      issues: [{ path: 'index', message: 'Смещение не по схеме' }],
+      issues: [{ path: 'title', message: 'Название не по схеме' }],
     });
     refuseList(kit, invalid);
 
@@ -235,7 +240,11 @@ describe('ScreenRuntime.open — дефекты кода экрана', () => {
   test('данные загрузки не по схеме — SERVER_INTERNAL и defect', async () => {
     class BadData extends TaskListScreenCode {
       override async load() {
-        return ok({ tasks: [], hasMore: false, marked: ['не uuid'] });
+        return ok({
+          tasks: [{ uuid: 'не uuid', title: 'Хлеб', status: 'open' as const }],
+          hasMore: false,
+          hasPrev: false,
+        });
       }
     }
     const kit = kitWith(new BadData());
@@ -269,7 +278,7 @@ describe('ScreenRuntime.restore', () => {
 
   test('состояние не по схеме — начальное по данным', async () => {
     const json = {
-      address: { screen: LIST_ID, params: { index: 0 } },
+      address: LIST_START,
       state: { selected: 'все' },
       revision: 1,
     };
@@ -293,7 +302,7 @@ describe('ScreenRuntime.restore', () => {
       ],
       [
         'invalidParams',
-        { address: { screen: LIST_ID, params: { index: -1 } }, revision: 1 },
+        { address: { screen: CARD_ID, params: { taskId: 42 } }, revision: 1 },
       ],
     ];
 
@@ -310,7 +319,7 @@ describe('ScreenRuntime.restore', () => {
 
   test('ревизия после restore — ревизия снимка + 1', async () => {
     const json = {
-      address: { screen: LIST_ID, params: { index: 0 } },
+      address: LIST_START,
       state: { selected: [] },
       revision: 5,
     };
@@ -326,7 +335,7 @@ describe('ScreenRuntime.restore', () => {
     test(`ревизия снимка ${revision} — отказ malformed, UC не вызван`, async () => {
       const kit = new RuntimeKit();
       const json = {
-        address: { screen: LIST_ID, params: { index: 0 } },
+        address: LIST_START,
         revision,
       };
 
@@ -340,7 +349,7 @@ describe('ScreenRuntime.restore', () => {
 
 describe('ScreenRuntime — сборка и загрузчик', () => {
   test('загрузчики другого набора — бросок с именами наборов', () => {
-    expect(() => new RuntimeKit(fixtureCodes(), CommandReadSetDef)).toThrow(
+    expect(() => new RuntimeKit(exampleCodes(), CommandReadSetDef)).toThrow(
       /exampleUi.*commandUi/,
     );
   });

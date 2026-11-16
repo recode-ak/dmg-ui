@@ -1,25 +1,36 @@
 import { describe, expect, test } from 'bun:test';
 import * as v from 'valibot';
 import {
+  AssignedTasksScreenDef,
   ExampleUiSetDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
+  TaskCompletedNotificationDef,
   TaskListScreenDef,
-} from '../../testing/ui-fixture';
-import {
-  TaskCardScreenCode,
-  TaskListScreenCode,
-} from '../../testing/ui-fixture-code';
-import { TaskAssignedNotificationCode } from '../../testing/ui-notification-code';
+} from '../../testing/example';
+import { AssignedTasksScreenCode } from '../../testing/example/todo/assigned-tasks.code';
+import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.code';
+import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
+import { TaskCompletedNotificationCode } from '../../testing/example/todo/task-completed.code';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
 import { RuntimeKit } from '../../testing/ui-runtime-fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 
+/** Загрузчики примера, кроме списка. */
 const others = [
   CodeLoader.screen(TaskCardScreenDef, async () => new TaskCardScreenCode()),
+  CodeLoader.screen(
+    AssignedTasksScreenDef,
+    async () => new AssignedTasksScreenCode(),
+  ),
   CodeLoader.notification(
     TaskAssignedNotificationDef,
     async () => new TaskAssignedNotificationCode(),
+  ),
+  CodeLoader.notification(
+    TaskCompletedNotificationDef,
+    async () => new TaskCompletedNotificationCode(),
   ),
 ];
 const listLoader = CodeLoader.screen(
@@ -27,7 +38,7 @@ const listLoader = CodeLoader.screen(
   async () => new TaskListScreenCode(),
 );
 
-/** Экран вне набора фикстуры. */
+/** Экран вне набора примера. */
 const StrayScreenDef = ScreenDef.define({
   name: 'stray',
   label: 'Вне набора',
@@ -40,7 +51,7 @@ const StrayScreenDef = ScreenDef.define({
 // загрузка — при первом открытии, промис общий у всех исполнителей, сбой
 // загрузки не кэшируется.
 
-/** Загрузчики фикстуры со счётчиком вызовов загрузчика списка. */
+/** Загрузчики примера со счётчиком вызовов загрузчика списка. */
 const counted = () => {
   const calls = { list: 0 };
   const codes = CodeLoaders.of(ExampleUiSetDef, [
@@ -48,11 +59,7 @@ const counted = () => {
       calls.list += 1;
       return new TaskListScreenCode();
     }),
-    CodeLoader.screen(TaskCardScreenDef, async () => new TaskCardScreenCode()),
-    CodeLoader.notification(
-      TaskAssignedNotificationDef,
-      async () => new TaskAssignedNotificationCode(),
-    ),
+    ...others,
   ]);
   return { calls, codes };
 };
@@ -67,7 +74,7 @@ describe('CodeLoaders', () => {
     ];
 
     expect(() => CodeLoaders.of(ExampleUiSetDef, only)).toThrow(
-      /taskCard.*taskAssigned|taskAssigned.*taskCard/,
+      'taskCard, assignedTasks, taskAssigned, taskCompleted',
     );
   });
 

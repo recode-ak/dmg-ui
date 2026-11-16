@@ -1,7 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { toJsonSchema } from 'dmg-core';
+import { TaskEvents } from 'dmg-core/testing/example';
 import * as v from 'valibot';
-import { TaskCardScreenDef, TaskListScreenDef } from '../../testing/ui-fixture';
+import {
+  TASK_A,
+  TaskCardScreenDef,
+  TaskListScreenDef,
+} from '../../testing/example';
 import { type AnyScreenDef, ScreenDef } from './screen-def';
 
 const list = TaskListScreenDef;
@@ -43,10 +48,10 @@ describe('ScreenDef — форма', () => {
         {
           name: 'completeSelected',
           label: 'Выполнить выбранные',
-          description: 'Отмечает выбранные задачи выполненными.',
+          description: 'Отмечает выбранные открытые задачи выполненными.',
           visible: false,
           input: undefined,
-          uc: 'completeTask',
+          uc: 'completeTasks',
           to: [],
           confirm: {
             label: 'Выполнить выбранные задачи?',
@@ -57,6 +62,26 @@ describe('ScreenDef — форма', () => {
           name: 'next',
           label: 'Дальше',
           description: 'Следующая часть списка.',
+          visible: false,
+          input: undefined,
+          uc: undefined,
+          to: [],
+          confirm: undefined,
+        },
+        {
+          name: 'prev',
+          label: 'Назад',
+          description: 'Предыдущая часть списка.',
+          visible: false,
+          input: undefined,
+          uc: undefined,
+          to: [],
+          confirm: undefined,
+        },
+        {
+          name: 'close',
+          label: 'Закрыть',
+          description: 'Закончить работу со списком.',
           visible: false,
           input: undefined,
           uc: undefined,
@@ -95,15 +120,36 @@ describe('ScreenDef — форма', () => {
           any: false,
         },
         {
-          event: 'todo.task.archived',
+          event: 'todo.task.completed',
           params: {},
-          subject: undefined,
-          any: true,
+          subject: 'ownerId',
+          any: false,
         },
       ],
       catches: ['TASK_TOO_MANY_OPEN'],
       examples: ['empty', 'full'],
     });
+  });
+
+  test('запись any — в форме any: true без субъекта', () => {
+    // В примере записи `any` нет (Т-3): форма — на локальном Def.
+    const everyone = ScreenDef.define({
+      name: 'everyone',
+      label: 'Всем',
+      description: 'Перечитывается у всех по архивации задачи.',
+      reads: [],
+      data: v.object({}),
+      refresh: [{ event: TaskEvents.archived, any: true }],
+    });
+
+    expect(everyone.normalize().refresh).toEqual([
+      {
+        event: 'todo.task.archived',
+        params: {},
+        subject: undefined,
+        any: true,
+      },
+    ]);
   });
 
   test('без необязательных полей: пустые параметры, без состояния, пустые списки', () => {
@@ -169,19 +215,22 @@ describe('ScreenDef — типы и адрес', () => {
     expect(asAny.name).toBe('taskList');
   });
 
+  // `at()` — на карточке: имя параметра списка сканер слов канала в `src` не пускает.
   test('at() строит адрес на свой Def с выходом схемы параметров', () => {
-    const address = list.at({ index: 2 });
+    const address = TaskCardScreenDef.at({ taskId: TASK_A });
 
-    expect(address.screen).toBe(list);
-    expect(address.params).toEqual({ index: 2 });
+    expect(address.screen).toBe(TaskCardScreenDef);
+    expect(address.params).toEqual({ taskId: TASK_A });
   });
 
   test('at() с параметрами не по схеме — бросок с именем экрана', () => {
-    expect(() => list.at({ index: -1 })).toThrow('taskList');
+    expect(() => TaskCardScreenDef.at({ taskId: 'не uuid' })).toThrow(
+      'taskCard',
+    );
   });
 
   test('at() с параметрами не того типа — ошибка типа', () => {
-    // @ts-expect-error — index не строка (TST-10)
-    expect(() => list.at({ index: 'один' })).toThrow('taskList');
+    // @ts-expect-error — taskId не число (TST-10)
+    expect(() => TaskCardScreenDef.at({ taskId: 42 })).toThrow('taskCard');
   });
 });

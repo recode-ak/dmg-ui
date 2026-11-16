@@ -136,7 +136,7 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       "import fs from 'node:fs';",
       "import { x } from 'dmg-core/testing';",
       "import { a } from '../graph/index';",
-      "import { a } from '../../testing/ui-fixture';",
+      "import { a } from '../../testing/example';",
     ]) {
       it(`${text} в server/ — нарушение`, () => {
         expect(scan(text, SERVER)).toHaveLength(1);
@@ -175,33 +175,13 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
     });
   });
 
-  describe('код экрана (packages/core/testing/*-code.ts) — отдельная зона', () => {
-    const CODE = 'packages/core/testing/a-code.ts';
+  describe('учебный пример — относительные только внутри example/', () => {
+    it('заглушки тестов ядра (testing/ui-*.ts) в примере — нарушение', () => {
+      const text = "import { RuntimeKit } from '../../ui-runtime-fixture';";
 
-    for (const text of [
-      "import { a } from 'dmg-core/app';",
-      "import { a } from 'dmg-core/graph';",
-      "import { a } from 'dmg-core/arch';",
-      "import { a } from 'dmg-core/testing';",
-      "import fs from 'node:fs';",
-      "import { test } from 'bun:test';",
-      "import { ScreenCode } from '../src/screen/screen-code';",
-    ]) {
-      it(`${text} в коде экрана — нарушение`, () => {
-        expect(scan(text, CODE)).toHaveLength(1);
-      });
-    }
-
-    it('в коде экрана разрешены valibot, dmg-core, dmg-ui, контракты примера и соседи по testing/', () => {
-      const text = [
-        "import * as v from 'valibot';",
-        "import { ok } from 'dmg-core';",
-        "import { ScreenCode } from 'dmg-ui';",
-        "import { ListTasksUcDef } from 'dmg-core/testing/example';",
-        "import { TaskListScreenDef } from './ui-fixture';",
-      ].join('\n');
-
-      expect(scan(text, CODE)).toEqual([]);
+      expect(
+        scan(text, 'packages/core/testing/example/todo/task-list.code.ts'),
+      ).toHaveLength(1);
     });
   });
 
@@ -237,6 +217,23 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       expect(run('react')).toHaveLength(1);
       expect(run('valibot')).toEqual([]);
       expect(run('./y')).toEqual([]);
+    });
+
+    const paths = new CoreImportScanner([
+      {
+        include: ['packages/a/'],
+        exclude: [],
+        forbidden: [],
+        allowedPaths: ['packages/a/lib'],
+      },
+    ]);
+
+    it('allowedPaths: относительный импорт вне белого списка путей — нарушение', () => {
+      const run = (spec: string) =>
+        paths.scan([SourceFile.of('packages/a/lib/x.ts', `import '${spec}';`)]);
+      expect(run('./y')).toEqual([]);
+      expect(run('../src/y')).toHaveLength(1);
+      expect(run('react')).toEqual([]);
     });
 
     it('forbiddenPaths: путь разрешается от каталога файла', () => {
