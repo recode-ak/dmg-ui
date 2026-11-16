@@ -1,5 +1,10 @@
 import type { AddressJson } from '../address/address-codec.types';
-import type { ItemTexts } from '../manifest/screen-def.types';
+import type {
+  AnyScreenDef,
+  DataOf,
+  ItemTexts,
+  StateOf,
+} from '../manifest/screen-def.types';
 import type { FieldIssue } from '../schema/schema-check.types';
 import type { ActionField } from '../screen/action-input.types';
 import type { RenderContext } from './context.types';
@@ -70,6 +75,28 @@ export type InstanceView = {
   readonly primary?: string;
   readonly actions: readonly ActionView[];
   readonly locals: readonly LocalView[];
+};
+
+/**
+ * Вид экземпляра в типах экрана — для представления канала. Только тип:
+ * соответствие `data` и `state` схемам экрана гарантирует ядро, приведение
+ * делает канал один раз.
+ */
+export type ScreenViewOf<D extends AnyScreenDef> = Omit<
+  InstanceView,
+  'data' | 'state'
+> & {
+  readonly data?: DataOf<D>;
+  readonly state?: StateOf<D>;
+};
+
+/**
+ * Почему изменился вид экземпляра: перечитывание по сигналу, действие с
+ * исходом `stayed` или локальное действие; `revision` — ревизия после.
+ */
+export type ViewChange = {
+  readonly cause: 'refreshed' | 'acted' | 'local';
+  readonly revision: number;
 };
 
 /** Снимок экземпляра для хранения каналом; восстанавливает `restore`. */

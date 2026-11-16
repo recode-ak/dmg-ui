@@ -12,6 +12,7 @@ import {
   requestTrace,
   TASKS,
 } from '../../testing/ui-runtime-fixture';
+import type { ViewChange } from './outcome.types';
 import type { ScreenInstance } from './screen-instance';
 
 // Перечитывание экземпляра по сигналу порта: сигнал без payload, `read`
@@ -56,6 +57,19 @@ describe('ScreenInstance — перечитывание по сигналу', ()
       trace: created.trace,
       revision: 2,
     });
+  });
+
+  test('перечитывание по сигналу — onChange с причиной refreshed и новой ревизией', async () => {
+    const kit = new RuntimeKit();
+    const list = await kit.openList();
+    const changes: ViewChange[] = [];
+    list.onChange((change: ViewChange) => changes.push(change));
+    const changed = nextChange(list);
+
+    kit.refresh.emit(created);
+    await changed;
+
+    expect(changes).toEqual([{ cause: 'refreshed', revision: 2 }]);
   });
 
   test('сигнал во время действия ждёт его конца', async () => {

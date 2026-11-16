@@ -44,6 +44,7 @@ describe('PackageManifest', () => {
         'ScreenExit',
         'ScreenLocal',
         'ScreenLogic',
+        'ScreenPreview',
         'ScreenRuntime',
         'StoryDef',
         'UiAppDef',

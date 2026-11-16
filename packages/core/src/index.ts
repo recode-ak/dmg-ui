@@ -94,7 +94,9 @@ export type {
   LocalOutcome,
   LocalView,
   Refusal,
+  ScreenViewOf,
   UnavailableReason,
+  ViewChange,
 } from './runtime/outcome.types';
 export type {
   RefreshPort,
@@ -103,6 +105,11 @@ export type {
   UcPort,
 } from './runtime/ports.types';
 export type { ScreenInstance } from './runtime/screen-instance';
+export {
+  type NotificationPreview,
+  ScreenPreview,
+  type ScreenPreviewSpec,
+} from './runtime/screen-preview';
 export {
   type OpenOptions,
   ScreenRuntime,

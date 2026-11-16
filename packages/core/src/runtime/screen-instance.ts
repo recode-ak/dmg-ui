@@ -4,11 +4,13 @@ import { ActionRun } from './action-run';
 import type { ActRequest, LocalRequest } from './action-run.types';
 import { InstanceQueue } from './instance-queue';
 import { InstanceRecords } from './instance-records';
+import { InstanceViews } from './instance-views';
 import type {
   ActionOutcome,
   InstanceJson,
   InstanceView,
   LocalOutcome,
+  ViewChange,
 } from './outcome.types';
 import type { RefreshSignal } from './ports.types';
 import type {
@@ -37,7 +39,8 @@ export class ScreenInstance {
   private readonly node: string;
   private readonly json: AddressJson;
   private readonly queue = new InstanceQueue();
-  private readonly listeners = new Set<() => void>();
+  private readonly views: InstanceViews;
+  private readonly listeners = new Set<(change: ViewChange) => void>();
   private unwatch: (() => void) | undefined;
   private loaded: InstanceLoad;
   private revision: number;
@@ -54,6 +57,7 @@ export class ScreenInstance {
       readonly records: InstanceRecords;
       readonly node: string;
       readonly json: AddressJson;
+      readonly views: InstanceViews;
       readonly unwatch: (() => void) | undefined;
     },
     start: InstanceStart,
@@ -63,6 +67,7 @@ export class ScreenInstance {
     this.records = parts.records;
     this.node = parts.node;
     this.json = parts.json;
+    this.views = parts.views;
     this.unwatch = parts.unwatch;
     this.loaded = loaded;
     this.revision = start.revision + 1;
@@ -85,11 +90,12 @@ export class ScreenInstance {
     );
     const node = spec.ids.screen(spec.address.screen);
     const json = spec.codec.encode(spec.address);
+    const views = new InstanceViews(spec.unit, node, json, spec.context);
     const inbox = new SignalInbox();
     const unwatch = spec.refresh.watch(json, inbox.listener);
     const loaded = await ScreenInstance.load(
       spec,
-      records,
+      { records, views },
       start.trace,
       start.state,
     );
@@ -97,7 +103,7 @@ export class ScreenInstance {
     if (!ready) unwatch();
     const instance = new ScreenInstance(
       spec,
-      { records, node, json, unwatch: ready ? unwatch : undefined },
+      { records, node, json, views, unwatch: ready ? unwatch : undefined },
       start,
       loaded,
     );
@@ -135,7 +141,7 @@ export class ScreenInstance {
       let outcome: ActionOutcome;
       if (end.kind === 'stay') {
         await this.reload(request.trace);
-        this.notify(request.trace);
+        this.notify(request.trace, 'acted');
         outcome = { kind: 'stayed', revision: this.revision };
       } else {
         outcome = end.outcome;
@@ -169,12 +175,7 @@ export class ScreenInstance {
         const next = unit.applyLocal(request.name, request.input, frame);
         if (!next.ok) return { kind: 'rejected', issues: next.error.issues };
         const changed = { ...frame, state: next.value };
-        this.loaded = {
-          status: 'ready',
-          data: changed.data,
-          state: changed.state,
-          presentation: unit.present(changed, this.spec.context.readOnly),
-        };
+        this.loaded = this.views.ready(changed);
         this.state = next.value;
       } catch (error) {
         const node = this.spec.ids.action(
@@ -185,7 +186,7 @@ export class ScreenInstance {
         this.records.defect(node, this.trace, error, stage);
         return { kind: 'refused', refusal: unit.refusals.defect() };
       }
-      this.notify(this.trace);
+      this.notify(this.trace, 'local');
       return { kind: 'changed' };
     });
   }
@@ -205,46 +206,29 @@ export class ScreenInstance {
       if (next === undefined || this.unwatch === undefined) return;
       await this.reload(next.trace);
       this.records.refreshed(this.node, next.trace, this.revision);
-      this.notify(next.trace);
+      this.notify(next.trace, 'refreshed');
     });
     this.pendingRun = run;
     return run;
   }
 
+  /** Вид для канала при текущей ревизии. */
   view(): InstanceView {
-    const { def } = this.spec.unit;
-    const base = {
-      screen: this.node,
-      address: this.json,
-      revision: this.revision,
-      context: this.spec.context,
-      ...(def.primary === undefined ? {} : { primary: def.primary }),
-    };
-    if (this.loaded.status === 'refused') {
-      return {
-        ...base,
-        status: 'refused',
-        refusal: this.loaded.refusal,
-        actions: [],
-        locals: [],
-      };
-    }
-    const { data, state, presentation } = this.loaded;
-    return {
-      ...base,
-      status: 'ready',
-      data,
-      ...(state === undefined ? {} : { state }),
-      ...presentation,
-    };
+    return this.views.view(this.revision, this.loaded);
   }
 
   snapshot(): InstanceJson {
     return { address: this.json, state: this.state, revision: this.revision };
   }
 
-  /** Подписка на изменение вида; возвращает отписку. */
-  onChange(listener: () => void): () => void {
+  /**
+   * Подписка на изменение вида с причиной и ревизией. Возвращает отписку.
+   * Вторая сигнатура — для прежних слушателей без параметра с иным типом
+   * параметра (например, `resolve` промиса): причину они не читают.
+   */
+  onChange(listener: (change: ViewChange) => void): () => void;
+  onChange(listener: () => void): () => void;
+  onChange(listener: (change: ViewChange) => void): () => void {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
@@ -259,8 +243,13 @@ export class ScreenInstance {
 
   /** Перечитать на месте: ревизия + 1; не `ready` — подписка снята. */
   private async reload(trace: TraceJson): Promise<void> {
-    const { spec, records } = this;
-    this.loaded = await ScreenInstance.load(spec, records, trace, this.state);
+    const { spec, records, views } = this;
+    this.loaded = await ScreenInstance.load(
+      spec,
+      { records, views },
+      trace,
+      this.state,
+    );
     if (this.loaded.status === 'ready') this.state = this.loaded.state;
     else this.stopWatch();
     this.revision += 1;
@@ -280,10 +269,11 @@ export class ScreenInstance {
   }
 
   /** Слушатели вида; бросок слушателя — в `faults`, исполнение идёт дальше. */
-  private notify(trace: TraceJson): void {
+  private notify(trace: TraceJson, cause: ViewChange['cause']): void {
+    const change: ViewChange = { cause, revision: this.revision };
     for (const listener of [...this.listeners]) {
       try {
-        listener();
+        listener(change);
       } catch (error) {
         this.records.fault(this.node, trace, error);
       }
@@ -293,7 +283,10 @@ export class ScreenInstance {
   /** Загрузка юнита и вид; отказ — запись `refused`, дефект — `defect`. */
   private static async load(
     spec: ScreenInstanceSpec,
-    records: InstanceRecords,
+    {
+      records,
+      views,
+    }: { readonly records: InstanceRecords; readonly views: InstanceViews },
     trace: TraceJson,
     prevState: unknown,
   ): Promise<InstanceLoad> {
@@ -318,18 +311,11 @@ export class ScreenInstance {
       stage = `${where}: загрузка`;
     } else {
       try {
-        const frame = {
+        return views.ready({
           params: address.params,
           data: res.data,
           state: res.state,
-        };
-        const presentation = unit.present(frame, context.readOnly);
-        return {
-          status: 'ready',
-          data: res.data,
-          state: res.state,
-          presentation,
-        };
+        });
       } catch (error) {
         cause = error;
         stage = `${where}: вид`;

@@ -32,6 +32,7 @@ import {
   testRenderContext,
 } from '../../testing/ui-runtime-fixture';
 import type { ActionSteps, LoadContext } from '../screen/screen-code.types';
+import type { ViewChange } from './outcome.types';
 
 // Действия экземпляра экрана: порядок шагов `act`, проверка перехода,
 // подтверждение, отказы, ревизия и очередь, локальные действия.
@@ -159,6 +160,16 @@ describe('ScreenInstance.act — переходы', () => {
 
     expect(outcome).toEqual({ kind: 'stayed', revision: 2 });
     expect(changes).toContain(2);
+  });
+
+  test('stayed — onChange с причиной acted и ревизией после перечитывания', async () => {
+    const card = await cardWithComplete();
+    const changes: ViewChange[] = [];
+    card.onChange((change: ViewChange) => changes.push(change));
+
+    await card.act({ action: 'complete', revision: 1, trace });
+
+    expect(changes).toEqual([{ cause: 'acted', revision: 2 }]);
   });
 
   test('exited — выход своего экрана, после него act — unavailable/closed', async () => {
@@ -478,6 +489,16 @@ describe('ScreenInstance.local', () => {
       revision: 1,
       state: { selected: [TASK_A] },
     });
+  });
+
+  test('changed — onChange с причиной local, ревизия прежняя', async () => {
+    const list = await new RuntimeKit().openList();
+    const changes: ViewChange[] = [];
+    list.onChange((change: ViewChange) => changes.push(change));
+
+    await list.local({ name: 'toggle', input: { taskId: TASK_A } });
+
+    expect(changes).toEqual([{ cause: 'local', revision: 1 }]);
   });
 
   test('вход не по схеме — rejected с полем, состояние прежнее', async () => {

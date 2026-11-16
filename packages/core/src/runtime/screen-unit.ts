@@ -15,6 +15,7 @@ import type { LoadContext } from '../screen/screen-code.types';
 import { ScreenLogic } from '../screen/screen-logic';
 import type { ActionName, LocalName } from '../screen/screen-logic.types';
 import { DeclaredReads } from './declared-reads';
+import { ExampleCheck } from './example-check';
 import type { UcPort } from './ports.types';
 import { RefusalText } from './refusal-text';
 import type {
@@ -138,6 +139,33 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
     }
   }
 
+  /**
+   * Кадр по именованному примеру Def: `params` и `data` — по схемам,
+   * `state` — по схеме, а без него в примере — начальное (`restoreState`).
+   * Нет примера или значение не по схеме — бросок `CodeDefect` с полями.
+   */
+  exampleFrame(name: string): ScreenFrame {
+    const check = new ExampleCheck(`Экран ${this.def.name}`);
+    const example = check.find(this.def.examples, name);
+    const where = `пример ${name}`;
+    const params = check.value(
+      this.def.params,
+      example.params,
+      `${where}: params`,
+    );
+    const data = check.value(
+      this.logic.def.data,
+      example.data,
+      `${where}: data`,
+    );
+    const schema = this.def.state;
+    const state =
+      schema === undefined || example.state === undefined
+        ? this.logic.restoreState(undefined, data)
+        : check.value(schema, example.state, `${where}: state`);
+    return { params, data, state };
+  }
+
   /** Действия и локальные действия для вида; `readOnly` гасит действия с `uc`. */
   present(frame: ScreenFrame, readOnly: boolean): UnitPresentation {
     const { data, state } = this.typed(frame);
@@ -198,8 +226,9 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
 
   /**
    * Значения экземпляра в типах экрана. Кадр собирает экземпляр этого
-   * юнита: параметры — из адреса по схеме `params`, данные и состояние —
-   * из `load` выше (схемы `data`, `state`).
+   * юнита или `ScreenPreview`: параметры — из адреса или `exampleFrame` по
+   * схеме `params`, данные и состояние — из `load` или `exampleFrame` выше
+   * (схемы `data`, `state`).
    */
   private typed(frame: ScreenFrame): {
     readonly data: DataOf<D>;
