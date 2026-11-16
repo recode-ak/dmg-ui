@@ -4,8 +4,8 @@ import type {
   Caller,
   Identified,
   SerializedResult,
+  Trace,
 } from 'dmg-core';
-import type { Trace } from 'dmg-core/app';
 
 /** Вызов UC, сверенный сервером: Def, модуль-владелец, вызывающий и след. */
 export type UcRequest<U extends Identified> = {

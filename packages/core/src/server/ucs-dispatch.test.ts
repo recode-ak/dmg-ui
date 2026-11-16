@@ -19,7 +19,7 @@ import { ApiAppDispatch } from './api-app-dispatch';
 import { ModuleApiDispatch } from './module-api-dispatch';
 import { UiServer } from './ui-server';
 
-// Бэкенды вызова UC сервера (решение 15 брифа Ф4): in-proc `ApiApp` и
+// Бэкенды вызова UC сервера: in-proc `ApiApp` и
 // `ModuleApi` вне процесса; ответ сессии — `SerializedResult`.
 
 const tmp = useTempDir('dmg-ui-dispatch-');

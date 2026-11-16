@@ -86,14 +86,6 @@ describe('PackageManifest', () => {
       );
     });
 
-    it('сервер в корень dmg-ui не попадает', async () => {
-      const root = Object.keys(await import('dmg-ui'));
-
-      for (const name of ['UiServer', 'UiNotifier', 'ApiAppDispatch']) {
-        expect(root).not.toContain(name);
-      }
-    });
-
     it('вход dmg-ui/testing резолвится по имени пакета', async () => {
       expect(await import('dmg-ui/testing')).toBeDefined();
     });

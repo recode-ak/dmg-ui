@@ -5,8 +5,8 @@ import {
   ok,
   type Result,
   SystemCaller,
+  type Trace,
 } from 'dmg-core';
-import type { Trace } from 'dmg-core/app';
 import { DefIndex } from 'dmg-core/graph';
 import { UiIds } from '../address/ui-ids';
 import type { AnyNotificationDef } from '../manifest/notification-def.types';

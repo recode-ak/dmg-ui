@@ -22,12 +22,10 @@ export class UiServer<U extends Identified> {
     this.spec = spec;
     this.name = `ui:${spec.set.name}`;
     const { logger } = spec.context;
-    const routes = new UcRoutes({
-      set: spec.set,
+    const routes = UcRoutes.forSession(
+      { set: spec.set, logger, source: this.name },
       nodes,
-      logger,
-      source: this.name,
-    });
+    );
     this.calls = new ServerCalls({
       routes,
       dispatch: spec.dispatch,

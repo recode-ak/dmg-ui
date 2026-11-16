@@ -18,4 +18,4 @@ export type {
 export type { UcDispatch, UcRequest } from './ucs-dispatch.types';
 export { UiNotifier } from './ui-notifier';
 export { UiServer } from './ui-server';
-export { UiSession } from './ui-session';
+export type { UiSession } from './ui-session';

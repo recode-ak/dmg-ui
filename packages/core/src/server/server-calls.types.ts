@@ -1,12 +1,24 @@
-import type { Caller, DomainError, Identified, Result } from 'dmg-core';
-import type { Logger, Trace } from 'dmg-core/app';
+import type { Caller, DomainError, Identified, Result, Trace } from 'dmg-core';
+import type { Logger } from 'dmg-core/app';
 import type { UcRoutes } from './uc-routes';
 import type { UcDispatch } from './ucs-dispatch.types';
 
-/** Вызывающий одного вызова по его следу. */
-export type ResolveCaller<U extends Identified> = (
-  trace: Trace,
-) => Promise<Result<Caller<U>, DomainError>>;
+/** Причина из следа клиента, прошедшая схему: запрос или выданный сигнал. */
+export type ClaimedTrace = {
+  readonly cause:
+    | { readonly kind: 'request'; readonly requestId: string }
+    | { readonly kind: 'event'; readonly eventId: string };
+  readonly correlationId: string;
+};
+
+/**
+ * Чья сторона вызывает: настоящий след по заявленному клиентом (не принят —
+ * `undefined`) и вызывающий по настоящему следу.
+ */
+export type CallScope<U extends Identified> = {
+  trace(claimed: ClaimedTrace): Trace | undefined;
+  resolve(trace: Trace): Promise<Result<Caller<U>, DomainError>>;
+};
 
 export type ServerCallsSpec<U extends Identified> = {
   readonly routes: UcRoutes;

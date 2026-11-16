@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   CoreErrors,
+  ErrorDef,
   ok,
   type SerializedResult,
   SystemCaller,
@@ -40,7 +41,7 @@ import { NotificationCode } from '../runtime/notification-code';
 import { ModuleApiDispatch } from './module-api-dispatch';
 import { UiNotifier } from './ui-notifier';
 
-// Уведомления приложения UI (решение 11 брифа Ф4): получатели, чтение от
+// Уведомления приложения UI: получатели, чтение от
 // имени получателя по следу события, ссылки только из `links()`, записи
 // наблюдателя без payload.
 
@@ -57,7 +58,7 @@ const assigned = envelopeOf(
   'r-assign',
 );
 
-/** Получатель — владелец задачи из выхода `getTask` (С-6). */
+/** Получатель — владелец задачи из выхода `getTask`. */
 const ownerNotification = UiScene.notification('taskOwner', {
   recipients: {
     from: 'query',
@@ -90,13 +91,17 @@ type Setup = {
   readonly delivery?: StubDelivery;
   /** Ответы транспорта сверх `listTasks`. */
   readonly answers?: Readonly<Record<string, SerializedResult>>;
+  readonly transport?: StubTransport;
 };
 
 /** Уведомитель на заглушках; событие `assigned` уже опубликовано и доставлено. */
 const notify = async (over: Setup = {}) => {
   const bus = new AwaitingBus();
   const logger = new MemoryLogger();
-  const transport = new StubTransport().answer('listTasks', ok([...TASKS]));
+  const transport = (over.transport ?? new StubTransport()).answer(
+    'listTasks',
+    ok([...TASKS]),
+  );
   for (const [uc, result] of Object.entries(over.answers ?? {})) {
     transport.answer(uc, result);
   }
@@ -161,7 +166,7 @@ describe('UiNotifier — получатели из payload', () => {
   });
 });
 
-describe('UiNotifier — получатели из выхода query UC (С-6)', () => {
+describe('UiNotifier — получатели из выхода query UC', () => {
   test('получатели — поля выхода UC, вызванного системой от приложения UI', async () => {
     const { delivery, transport } = await notify({
       app: ownerScene.app,
@@ -213,6 +218,12 @@ describe('UiNotifier — дефекты, сбои и записи', () => {
   test('запись notified — получатель, eventId и след, без payload и данных', async () => {
     const { observer } = await notify();
 
+    // `not.toContain` — до асимметричного сравнения: в Bun 1.4.4 после него
+    // отрицание в том же тесте ложно проходит.
+    const json = JSON.stringify(observer.records);
+    expect(json).not.toContain(TASK_A);
+    expect(json).not.toContain(OWNER);
+    expect(json).not.toContain('Хлеб');
     expect(observer.records).toContainEqual(
       expect.objectContaining({
         kind: 'notified',
@@ -222,9 +233,98 @@ describe('UiNotifier — дефекты, сбои и записи', () => {
         trace: eventTrace,
       }),
     );
-    const json = JSON.stringify(observer.records);
-    expect(json).not.toContain(TASK_A);
-    expect(json).not.toContain(OWNER);
-    expect(json).not.toContain('Хлеб');
+  });
+});
+
+describe('UiNotifier — сборка и запуск', () => {
+  const build = (codes = fixtureCodes()) => {
+    const logger = new MemoryLogger();
+    return new UiNotifier({
+      app: ExampleUiAppDef,
+      codes,
+      dispatch: new ModuleApiDispatch([
+        new ModuleApi(TodoModuleDef, new StubTransport(), logger),
+      ]),
+      callers: new StubRecipientCallers(),
+      delivery: new StubDelivery(),
+      observer: new MemoryUiObserver(),
+      context: { bus: new AwaitingBus(), logger },
+    });
+  };
+
+  test('загрузчики другого набора — бросок', () => {
+    expect(() => build(ownerCodes())).toThrow('UiNotifier');
+  });
+
+  test('повторный start() без остановки — бросок', () => {
+    const notifier = build();
+    notifier.start();
+
+    expect(() => notifier.start()).toThrow('UiNotifier');
+  });
+
+  test('после остановки start() снова допустим', () => {
+    const notifier = build();
+    const stop = notifier.start();
+
+    stop();
+
+    expect(() => notifier.start()).not.toThrow();
+  });
+});
+
+describe('UiNotifier — отказы и дефекты в логе', () => {
+  test('отказ UC получателей — запись refused и logger.warn', async () => {
+    const denied = CoreErrors.ACCESS_DENIED.make({
+      rule: 'canManage',
+      denyMessage: 'нет человека',
+    });
+    const { delivery, logger, observer } = await notify({
+      app: ownerScene.app,
+      codes: ownerCodes(),
+      answers: { getTask: { ok: false, error: ErrorDef.serialize(denied) } },
+    });
+
+    expect(delivery.delivered).toEqual([]);
+    expect(logger.records.map((r) => r.level)).toEqual(['warn']);
+    expect(observer.records).toContainEqual(
+      expect.objectContaining({ kind: 'refused', code: 'ACCESS_DENIED' }),
+    );
+  });
+
+  test('сбой бэкенда UC получателей — refused SERVER_INTERNAL и error, не defect', async () => {
+    const transport = new StubTransport();
+    transport.send = async () => {
+      throw new Error('сеть');
+    };
+    const { logger, observer } = await notify({
+      app: ownerScene.app,
+      codes: ownerCodes(),
+      transport,
+    });
+
+    expect(observer.kinds()).toEqual(['refused']);
+    expect(logger.records.map((r) => r.level)).toEqual(['error']);
+    expect(observer.records).toContainEqual(
+      expect.objectContaining({ kind: 'refused', code: 'SERVER_INTERNAL' }),
+    );
+  });
+
+  test('бросок кода уведомления — defect без message и logger.error', async () => {
+    class Throwing extends TaskAssignedNotificationCode {
+      override async load(): Promise<never> {
+        throw new Error('секрет Хлеб');
+      }
+    }
+
+    const { logger, observer } = await notify({
+      codes: fixtureCodes({ notification: new Throwing() }),
+    });
+
+    expect(JSON.stringify(observer.records)).not.toContain('секрет');
+    expect(logger.records.map((r) => r.level)).toEqual(['error']);
+    expect(observer.records).toContainEqual(
+      expect.objectContaining({ kind: 'defect', node: N_ID }),
+    );
   });
 });

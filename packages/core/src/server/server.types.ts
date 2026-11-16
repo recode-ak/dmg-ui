@@ -5,9 +5,11 @@ import type {
   DomainError,
   Identified,
   Result,
+  Trace,
+  TraceChannel,
   TraceJson,
 } from 'dmg-core';
-import type { AppContext, Trace } from 'dmg-core/app';
+import type { AppContext } from 'dmg-core/app';
 import type { AddressJson } from '../address/address-codec.types';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
@@ -18,10 +20,11 @@ import type { UcDispatch } from './ucs-dispatch.types';
 /**
  * Источник вызывающего одной сессии канала: личность → `Caller` на каждый
  * вызов с его следом. `subjectId` — субъект для сопоставления событий (у
- * заместителя — замещаемый).
+ * заместителя — замещаемый); `channel` — канал следа вызовов сессии.
  */
 export type CallerSource<U extends Identified> = {
   readonly subjectId: string | undefined;
+  readonly channel?: TraceChannel;
   resolve(trace: Trace): Promise<Result<Caller<U>, DomainError>>;
 };
 

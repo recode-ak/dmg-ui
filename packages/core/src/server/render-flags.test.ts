@@ -4,7 +4,7 @@ import { testUuid } from 'dmg-core/testing';
 import { exampleUser } from '../../testing/ui-server-fixture';
 import { RenderFlags } from './render-flags';
 
-// Признаки рендера из вызывающего (решение 7 брифа Ф4): заместитель и
+// Признаки рендера из вызывающего: заместитель и
 // «только чтение» канал кладёт в `RenderContext`.
 
 const PRINCIPAL = exampleUser(testUuid(1));

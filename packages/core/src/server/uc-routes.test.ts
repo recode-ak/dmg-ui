@@ -18,9 +18,9 @@ import {
 import { ModuleApiDispatch } from './module-api-dispatch';
 import { UiServer } from './ui-server';
 
-// Маршрут вызова на сервере (решение 3 брифа Ф4): имя UC → Def внутри
-// объявленного узлом, модуль — по `DefIndex`. Проверяется через сессию
-// сервера: `UcRoutes` собирает `UiServer`.
+// Маршрут вызова на сервере: имя UC → Def внутри объявленного узлом,
+// модуль — по `DefIndex`. Проверяется через сессию сервера: `UcRoutes`
+// собирает `UiServer`.
 
 const NODE = 'testChannel/join';
 
@@ -109,5 +109,30 @@ describe('UcRoutes — маршрут UC узла', () => {
     expect(() =>
       setup([{ id: NODE, uses: [ListTasksUcDef, twin], listens: [] }]),
     ).toThrow('listTasks');
+  });
+
+  test('узел канала с id экрана — бросок с id узла', () => {
+    expect(() =>
+      setup([{ id: LIST_ID, uses: [ListTasksUcDef], listens: [] }]),
+    ).toThrow(LIST_ID);
+  });
+
+  test('UC вне модулей приложения — бросок с именем UC', () => {
+    const stray = UseCaseDef.define({
+      name: 'strayQuery',
+      label: 'Чужой',
+      description: 'UC, которого нет ни в одном модуле приложения.',
+      type: 'query',
+      aggregate: ListTasksUcDef.aggregate,
+      callers: ['user'],
+      policy: ListTasksUcDef.policy,
+      input: v.object({}),
+      output: v.object({}),
+      errors: [],
+    });
+
+    expect(() => setup([{ id: NODE, uses: [stray], listens: [] }])).toThrow(
+      'strayQuery',
+    );
   });
 });

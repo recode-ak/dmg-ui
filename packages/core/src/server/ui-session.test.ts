@@ -28,11 +28,13 @@ import type { RefreshSignal } from '../runtime/ports.types';
 import { ModuleApiDispatch } from './module-api-dispatch';
 import { UiServer } from './ui-server';
 
-// Сессия сервера UI (решения 3, 4, 10, 14 брифа Ф4): вызывающий — на каждый
-// вызов по следу из JSON, command по событию не исполняется, перечитывание —
-// только по своему событию, узел канала слушает только объявленное.
+// Сессия сервера UI: вызывающий — на каждый вызов, след клиента сервер
+// пересобирает сам, command по событию не исполняется, перечитывание —
+// только по своему событию с обезличенным следом, узел канала слушает только
+// объявленное.
 
 const OTHER = testUuid(2);
+const N_ID = 'exampleUi/todo/taskAssigned';
 const NODE = 'testChannel/join';
 const LIST = { screen: LIST_ID, params: { index: 0 } };
 
@@ -123,7 +125,7 @@ describe('UiSession.call — вызывающий и след', () => {
     expect(transport.sent).toEqual([]);
   });
 
-  test('command UC со следом события — SERVER_INTERNAL и error, UC не вызван (критерий 5)', async () => {
+  test('command UC со следом события — SERVER_INTERNAL и error, UC не вызван', async () => {
     const { logger, transport, session } = setup();
     const trace = Trace.fromEvent({
       eventId: 'e-1',
@@ -144,7 +146,7 @@ describe('UiSession.call — вызывающий и след', () => {
 });
 
 describe('UiSession.watch — сигнал перечитывания', () => {
-  test('своё событие — сигнал с eventId и причиной-событием, без payload', async () => {
+  test('своё событие — сигнал с eventId и обезличенным следом, без payload', async () => {
     const { bus, session } = setup();
     const { signals } = watched(session, LIST);
 
@@ -157,7 +159,7 @@ describe('UiSession.watch — сигнал перечитывания', () => {
         eventId: 'e-1',
         trace: {
           cause: { kind: 'event', eventId: 'e-1' },
-          correlationId: 'r-create',
+          correlationId: 'e-1',
         },
       },
     ]);
@@ -219,5 +221,178 @@ describe('UiSession.on — узел канала', () => {
     expect(() =>
       session.on(NODE, TaskEvents.completed, async () => {}),
     ).toThrow(TaskEvents.completed.name);
+  });
+});
+
+/** Источник с каналом сессии: след запроса сервер собирает с ним. */
+class ChannelSource extends StubCallerSource {
+  readonly channel = { name: 'testChannel' };
+}
+
+/** Вызов `listTasks` списка со следом `trace`. */
+const listCall = (trace: unknown) => ({
+  node: LIST_ID,
+  uc: 'listTasks',
+  input: {},
+  trace: JSON.parse(JSON.stringify(trace)),
+});
+
+describe('UiSession.call — след клиента пересобирает сервер', () => {
+  test('причина-запрос: generated и channel клиента отброшены, channel — сессии', async () => {
+    const source = new ChannelSource(OWNER);
+    const { session } = setup(source);
+
+    await session.call(
+      listCall({
+        cause: { kind: 'request', requestId: 'r-1', generated: true },
+        correlationId: 'c-1',
+        channel: { name: 'чужой', visitorId: 'v-1' },
+      }),
+    );
+
+    expect(source.traces.map((t) => t.toJSON())).toEqual([
+      {
+        cause: { kind: 'request', requestId: 'r-1' },
+        correlationId: 'c-1',
+        channel: { name: 'testChannel' },
+      },
+    ]);
+  });
+
+  test('причина-прогон Job — отказ, UC не вызван', async () => {
+    const { transport, session } = setup();
+
+    const res = await session.call(
+      listCall({
+        cause: { kind: 'job', job: 'sweep', runId: 'run-1' },
+        correlationId: 'run-1',
+      }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(transport.sent).toEqual([]);
+  });
+
+  test('след выданного сессии сигнала — UC идёт с настоящим следом события', async () => {
+    const { bus, transport, session } = setup();
+    const { signals } = watched(session, LIST);
+    bus.publish(created(OWNER));
+    await bus.delivered();
+
+    await session.call(listCall(signals[0]?.trace));
+
+    expect(transport.sent.map((s) => s.trace.toJSON())).toEqual([
+      { cause: { kind: 'event', eventId: 'e-1' }, correlationId: 'r-create' },
+    ]);
+  });
+
+  test('eventId, которого сессия не выдавала, — отказ, UC не вызван', async () => {
+    const { transport, session } = setup();
+
+    const res = await session.call(
+      listCall({
+        cause: { kind: 'event', eventId: 'e-1' },
+        correlationId: 'e-1',
+      }),
+    );
+
+    expect(res.ok).toBe(false);
+    expect(transport.sent).toEqual([]);
+  });
+
+  test('после close() выданные сигналы забыты — отказ', async () => {
+    const { bus, transport, session } = setup();
+    const { signals } = watched(session, LIST);
+    bus.publish(created(OWNER));
+    await bus.delivered();
+
+    session.close();
+    const res = await session.call(listCall(signals[0]?.trace));
+
+    expect(res.ok).toBe(false);
+    expect(transport.sent).toEqual([]);
+  });
+});
+
+describe('UiSession.call — недоверенный вызов', () => {
+  test('узел уведомления сессии закрыт — OPERATION_NOT_FOUND', async () => {
+    const { transport, session } = setup();
+
+    const res = await session.call({
+      ...listCall(requestTrace('r-1')),
+      node: N_ID,
+    });
+
+    expect(res.ok ? undefined : res.error.code).toBe('OPERATION_NOT_FOUND');
+    expect(transport.sent).toEqual([]);
+  });
+
+  test('вызов не по схеме — INPUT_VALIDATION, UC не вызван', async () => {
+    const { transport, session } = setup();
+    const broken = JSON.parse('{"node":5,"uc":"listTasks","trace":{}}');
+
+    const res = await session.call(broken);
+
+    expect(res.ok ? undefined : res.error.code).toBe('INPUT_VALIDATION');
+    expect(transport.sent).toEqual([]);
+  });
+
+  const LONG = 'x'.repeat(300);
+  for (const [field, call] of [
+    ['node', { ...listCall(requestTrace('r-1')), node: LONG }],
+    ['uc', { ...listCall(requestTrace('r-1')), uc: LONG }],
+    ['requestId', listCall(requestTrace(LONG))],
+    [
+      'correlationId',
+      listCall({
+        cause: { kind: 'request', requestId: 'r-1' },
+        correlationId: LONG,
+      }),
+    ],
+  ] as const) {
+    test(`слишком длинный ${field} — INPUT_VALIDATION, UC не вызван`, async () => {
+      const { transport, session } = setup();
+
+      const res = await session.call(call);
+
+      expect(res.ok ? undefined : res.error.code).toBe('INPUT_VALIDATION');
+      expect(transport.sent).toEqual([]);
+    });
+  }
+
+  test('бросок резолвера — SERVER_INTERNAL и error', async () => {
+    class Throwing extends StubCallerSource {
+      override async resolve(): Promise<never> {
+        throw new Error('сбой хранилища');
+      }
+    }
+    const { logger, session } = setup(new Throwing(OWNER));
+
+    const res = await session.call(listCall(requestTrace('r-1')));
+
+    expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
+    expect(logger.records.map((r) => r.level)).toEqual(['error']);
+  });
+
+  test('бросок бэкенда вызова — SERVER_INTERNAL и error', async () => {
+    const { logger, transport, session } = setup();
+    transport.send = async () => {
+      throw new Error('сеть');
+    };
+
+    const res = await session.call(listCall(requestTrace('r-1')));
+
+    expect(res.ok ? undefined : res.error.code).toBe('SERVER_INTERNAL');
+    expect(logger.records.map((r) => r.level)).toEqual(['error']);
+  });
+});
+
+describe('UiSession.on — неизвестный узел', () => {
+  test('узел, которого нет у сервера, — бросок с id узла', () => {
+    const { session } = setup();
+
+    expect(() =>
+      session.on('testChannel/missing', TaskEvents.created, async () => {}),
+    ).toThrow('testChannel/missing');
   });
 });
