@@ -1,12 +1,17 @@
 import { describe, expect, test } from 'bun:test';
-import { ExampleAppDef } from 'dmg-core/testing/example';
+import { ExampleAppDef, TaskEvents } from 'dmg-core/testing/example';
 import * as v from 'valibot';
 import {
+  ExampleUiAppDef,
   ExampleUiSetDef,
+  FinishTasksStoryDef,
+  TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/ui-fixture';
+import { NotificationDef } from '../manifest/notification-def';
 import { ScreenDef } from '../manifest/screen-def';
+import { StoryDef } from '../manifest/story-def';
 import { UiModuleDef } from '../manifest/ui-module-def';
 import { UiSetDef } from '../manifest/ui-set-def';
 import { UiIds } from './ui-ids';
@@ -68,5 +73,103 @@ describe('UiIds', () => {
     });
 
     expect(() => new UiIds(set)).toThrow('taskCard');
+  });
+
+  test('id набора — его имя, модуля — набор/модуль', () => {
+    expect(ids.set()).toBe('exampleUi');
+    expect(ids.module(ExampleUiSetDef.modules[0]!)).toBe('exampleUi/todo');
+  });
+
+  test('id сторис и уведомления — набор/модуль/имя', () => {
+    expect(ids.story(FinishTasksStoryDef)).toBe('exampleUi/todo/finishTasks');
+    expect(ids.notification(TaskAssignedNotificationDef)).toBe(
+      'exampleUi/todo/taskAssigned',
+    );
+  });
+
+  test('id действия — id экрана и имя действия', () => {
+    expect(ids.action(TaskListScreenDef, 'open')).toBe(
+      'exampleUi/todo/taskList/open',
+    );
+  });
+
+  test('id приложения UI — его имя, без набора', () => {
+    expect(ids.app(ExampleUiAppDef)).toBe('exampleConsole');
+  });
+
+  test('сторис с именем экрана в одном модуле — бросок с именем', () => {
+    const twin = StoryDef.define({
+      name: 'taskCard',
+      label: 'Двойник',
+      description: 'Сторис с именем экрана модуля.',
+      callers: ['user'],
+      goal: 'чтобы проверить повтор',
+      start: TaskCardScreenDef,
+      screens: [TaskCardScreenDef],
+      outcomes: {},
+    });
+    const set = UiSetDef.define({
+      name: 'clash',
+      label: 'Повтор',
+      description: 'Набор, где сторис повторяет имя экрана.',
+      app: ExampleAppDef,
+      modules: [
+        UiModuleDef.define({
+          name: 'todo',
+          label: 'Задачи',
+          description: 'Модуль со сторис и экраном одного имени.',
+          screens: [TaskCardScreenDef],
+          stories: [twin],
+        }),
+      ],
+    });
+
+    expect(() => new UiIds(set)).toThrow('clash/todo/taskCard');
+  });
+
+  test('уведомление с именем экрана в одном модуле — бросок с именем', () => {
+    const twin = NotificationDef.define({
+      name: 'taskCard',
+      label: 'Двойник',
+      description: 'Уведомление с именем экрана модуля.',
+      event: TaskEvents.assigned,
+      recipients: { from: 'payload', fields: ['assigneeId'] },
+      reads: [],
+      data: v.object({}),
+    });
+    const set = UiSetDef.define({
+      name: 'clash',
+      label: 'Повтор',
+      description: 'Набор, где уведомление повторяет имя экрана.',
+      app: ExampleAppDef,
+      modules: [
+        UiModuleDef.define({
+          name: 'todo',
+          label: 'Задачи',
+          description: 'Модуль с уведомлением и экраном одного имени.',
+          screens: [TaskCardScreenDef],
+          stories: [],
+          notifications: [twin],
+        }),
+      ],
+    });
+
+    expect(() => new UiIds(set)).toThrow('clash/todo/taskCard');
+  });
+
+  test('target экрана набора — его id', () => {
+    expect(ids.target(TaskListScreenDef)).toBe('exampleUi/todo/taskList');
+  });
+
+  test('target экрана вне набора — внешний id без броска', () => {
+    const stray = ScreenDef.define({
+      name: 'stray',
+      label: 'Чужой',
+      description: 'Экран вне набора.',
+      reads: [],
+      data: v.object({}),
+    });
+
+    expect(ids.target(stray)).toBe('dmg-ui/orphan/screen/stray');
   });
 });

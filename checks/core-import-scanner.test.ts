@@ -49,17 +49,15 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
   });
 
   describe('разрешено', () => {
-    for (const spec of [
-      'valibot',
-      'dmg-core',
-      'dmg-core/graph',
-      'dmg-core/app',
-      'dmg-core/arch',
-      './x',
-      '../y/z',
-    ]) {
+    for (const spec of ['valibot', 'dmg-core', './x', '../y/z']) {
       it(`импорт «${spec}» проходит`, () => {
         expect(scan(`import { a } from '${spec}';`)).toEqual([]);
+      });
+    }
+
+    for (const spec of ['dmg-core/graph', 'dmg-core/app', 'dmg-core/arch']) {
+      it(`импорт «${spec}» в src вне graph/ — вне белого списка`, () => {
+        expect(scan(`import { a } from '${spec}';`)).toHaveLength(1);
       });
     }
 
@@ -72,6 +70,55 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       const text =
         "import 'node:fs';\nimport { useTempDir } from 'dmg-core/testing';";
       expect(scan(text, 'packages/core/testing/a.ts')).toEqual([]);
+    });
+  });
+
+  describe('graph/ — отдельная зона', () => {
+    const GRAPH = `${SRC}/graph/a.ts`;
+
+    it('dmg-core/graph разрешён только в src/graph/', () => {
+      expect(scan("import { Graph } from 'dmg-core/graph';", GRAPH)).toEqual(
+        [],
+      );
+    });
+
+    for (const spec of ['dmg-core/arch', 'dmg-core/app']) {
+      it(`«${spec}» не разрешён и в graph/`, () => {
+        expect(scan(`import { a } from '${spec}';`, GRAPH)).toHaveLength(1);
+      });
+    }
+
+    for (const text of [
+      "import fs from 'node:fs';",
+      "import { test } from 'bun:test';",
+      "import { x } from 'dmg-core/testing';",
+      "import { x } from 'dmg-core/gen';",
+      "import { x } from 'dmg-core/cli';",
+      "import { x } from 'grammy';",
+    ]) {
+      it(`${text} в graph/ — нарушение`, () => {
+        expect(scan(text, GRAPH)).toHaveLength(1);
+      });
+    }
+
+    it('в graph/ разрешены valibot, dmg-core и относительные пути к соседям', () => {
+      const text =
+        "import * as v from 'valibot';\nimport { Def } from 'dmg-core';\nimport { a } from '../manifest/a';";
+
+      expect(scan(text, GRAPH)).toEqual([]);
+    });
+
+    it('*.test.ts в graph/ может брать node: и bun:', () => {
+      const text = "import { test } from 'bun:test';\nimport 'node:fs';";
+
+      expect(scan(text, `${SRC}/graph/a.test.ts`)).toEqual([]);
+    });
+
+    it('файл вне graph/ не импортирует graph/ относительным путём', () => {
+      expect(scan("import { a } from './graph/a';")).toHaveLength(1);
+      expect(
+        scan("import { a } from '../graph/index';", `${SRC}/screen/a.ts`),
+      ).toHaveLength(1);
     });
   });
 

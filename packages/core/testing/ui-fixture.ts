@@ -1,5 +1,6 @@
 import { F } from 'dmg-core';
 import {
+  AssignTaskUcDef,
   CompleteTaskUcDef,
   CreateTaskUcDef,
   ExampleAppDef,
@@ -49,7 +50,9 @@ export const TaskListScreenDef = ScreenDef.define({
     hasMore: v.boolean(),
     marked: v.array(F.uuid('отмеченной задачи')),
   }),
-  state: v.strictObject({ selected: v.array(v.string()) }),
+  state: v.strictObject({
+    selected: v.pipe(v.array(v.string()), v.description('Выбранные строки')),
+  }),
   actions: {
     open: {
       label: 'Открыть задачу',
@@ -152,6 +155,12 @@ export const TaskCardScreenDef = ScreenDef.define({
       description: 'Отмечает задачу выполненной.',
       uc: CompleteTaskUcDef,
     },
+    assign: {
+      label: 'Назначить',
+      description: 'Назначает исполнителя задачи.',
+      input: v.object({ assigneeId: F.uuid('исполнителя') }),
+      uc: AssignTaskUcDef,
+    },
   },
   refresh: [
     {
@@ -177,6 +186,11 @@ export const PlanTasksStoryDef = StoryDef.define({
       description: 'В списке появилась новая задача.',
       exits: [TaskListScreenDef.exits.created],
     },
+    closed: {
+      label: 'Список закрыт',
+      description: 'Пользователь закрыл список, не добавив задачу.',
+      exits: [TaskListScreenDef.exits.closed],
+    },
   },
 });
 
@@ -190,6 +204,11 @@ export const FinishTasksStoryDef = StoryDef.define({
   start: TaskListScreenDef,
   screens: [TaskListScreenDef, TaskCardScreenDef],
   outcomes: {
+    created: {
+      label: 'Задача добавлена',
+      description: 'По ходу выполнения в списке появилась новая задача.',
+      exits: [TaskListScreenDef.exits.created],
+    },
     closed: {
       label: 'Список закрыт',
       description: 'Пользователь закончил с задачами.',

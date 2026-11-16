@@ -9,29 +9,36 @@ import type { Violation } from './violation.types';
 export class CoreImportScanner {
   constructor(protected readonly zones: ImportZone[]) {}
 
-  /** Зоны репо: ядро (`packages/core/src`, кроме тестов) без платформенных и тестовых входов (TST-07). */
+  /**
+   * Зоны репо (TST-07): ядро (`packages/core/src`, кроме тестов и `graph/`) и
+   * граф (`packages/core/src/graph`, где один разрешён `dmg-core/graph`).
+   * Платформенные и тестовые входы запрещены в обеих.
+   */
   static standard(): CoreImportScanner {
+    const forbidden = [
+      'node:*',
+      'bun:*',
+      ...builtinModules,
+      'dmg-core/testing',
+      'dmg-core/testing/*',
+      'dmg-ui/testing',
+      'dmg-core/gen',
+      'dmg-core/cli',
+    ];
     return new CoreImportScanner([
       {
         include: ['packages/core/src/'],
         exclude: ['.test.ts'],
-        forbidden: [
-          'node:*',
-          'bun:*',
-          ...builtinModules,
-          'dmg-core/testing',
-          'dmg-core/testing/*',
-          'dmg-ui/testing',
-          'dmg-core/gen',
-          'dmg-core/cli',
-        ],
-        allowed: [
-          'valibot',
-          'dmg-core',
-          'dmg-core/graph',
-          'dmg-core/app',
-          'dmg-core/arch',
-        ],
+        excludeDirs: ['packages/core/src/graph/'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core'],
+        forbiddenPaths: ['packages/core/testing', 'packages/core/src/graph'],
+      },
+      {
+        include: ['packages/core/src/graph/'],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-core/graph'],
         forbiddenPaths: ['packages/core/testing'],
       },
     ]);
@@ -53,7 +60,8 @@ export class CoreImportScanner {
   protected inZone(zone: ImportZone, path: string): boolean {
     return (
       zone.include.some((prefix) => path.startsWith(prefix)) &&
-      !zone.exclude.some((suffix) => path.endsWith(suffix))
+      !zone.exclude.some((suffix) => path.endsWith(suffix)) &&
+      !(zone.excludeDirs ?? []).some((dir) => path.startsWith(dir))
     );
   }
 

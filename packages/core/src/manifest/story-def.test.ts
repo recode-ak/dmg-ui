@@ -23,6 +23,12 @@ describe('StoryDef', () => {
           description: 'В списке появилась новая задача.',
           exits: ['taskList.created'],
         },
+        {
+          name: 'closed',
+          label: 'Список закрыт',
+          description: 'Пользователь закрыл список, не добавив задачу.',
+          exits: ['taskList.closed'],
+        },
       ],
     });
   });

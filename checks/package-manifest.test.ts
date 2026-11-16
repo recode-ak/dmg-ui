@@ -9,8 +9,12 @@ const manifest = () => PackageManifest.read(ROOT);
 
 describe('PackageManifest', () => {
   describe('корневой package.json', () => {
-    it('ключи exports — ровно вход и testing', () => {
-      expect(Object.keys(manifest().exports())).toEqual(['.', './testing']);
+    it('ключи exports — ровно вход, graph и testing', () => {
+      expect(Object.keys(manifest().exports()).sort()).toEqual([
+        '.',
+        './graph',
+        './testing',
+      ]);
     });
 
     it('цели exports существуют на диске', () => {
@@ -42,6 +46,23 @@ describe('PackageManifest', () => {
         'UiModuleDef',
         'UiSetDef',
       ]);
+    });
+
+    it('вход dmg-ui/graph резолвится по имени пакета', async () => {
+      expect(await import('dmg-ui/graph')).toBeDefined();
+    });
+
+    it('состав входа dmg-ui/graph — поставщик графа и его виды', async () => {
+      expect(Object.keys(await import('dmg-ui/graph'))).toEqual(
+        expect.arrayContaining(['UiGraphProvider', 'UI_KINDS']),
+      );
+    });
+
+    it('граф в корень dmg-ui не попадает', async () => {
+      const root = Object.keys(await import('dmg-ui'));
+
+      expect(root).not.toContain('UiGraphProvider');
+      expect(root).not.toContain('UI_KINDS');
     });
 
     it('вход dmg-ui/testing резолвится по имени пакета', async () => {
