@@ -1,1 +1,0 @@
-Срез В Ф6 dmg-ui-core: testing/page/wire (PageWire, PageMessages), server (PageHost, PageConnection, PageDelivery), client (PageClient, PageRegions, PageForms, WirePorts, PageInbox, PageTraces), index; page-story.test.ts; зоны сканера: page-channel.const в клиенте и сервере. check: 783 pass.
