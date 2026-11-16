@@ -7,7 +7,7 @@ import type {
 
 /**
  * Локальное действие экрана: тексты и вход. Функцию состояния даёт код
- * экрана; узлом графа не становится (Т-6).
+ * экрана; узлом графа не становится — это свойство узла экрана.
  */
 export class ScreenLocal<
   I extends InputSchema | undefined = InputSchema | undefined,

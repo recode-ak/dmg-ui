@@ -9,18 +9,18 @@ import { ActionInput } from './action-input';
 import type { ActionField, InputRejection } from './action-input.types';
 import type { ScreenCode } from './screen-code';
 import type { InputOf } from './screen-code.types';
+import type {
+  ActionName,
+  CheckedLocalFn,
+  LocalName,
+} from './screen-logic.types';
 
-/** Функция локального действия со входом, уже проверенным схемой. */
-type CheckedLocalFn<D extends AnyScreenDef> = (
-  state: StateOf<D>,
-  data: DataOf<D>,
-  input: unknown,
-) => unknown;
+export type { ActionName, LocalName } from './screen-logic.types';
 
 /**
  * Чистая логика экрана из манифеста и кода: состояние, локальные действия,
  * доступность, поля и проверка входа действия. Без портов и исполнителя —
- * её зовут исполнитель (Ф4) и тесты. Отказ на внешний вход — `Result`,
+ * её зовут исполнитель и тесты. Отказ на внешний вход — `Result`,
  * ошибка кода экрана (состояние или начальные значения не по схеме) —
  * бросок.
  */
@@ -29,12 +29,38 @@ export class ScreenLogic<D extends AnyScreenDef> {
   readonly code: ScreenCode<D>;
   private readonly actionInputs: ReadonlyMap<string, ActionInput | undefined>;
   private readonly localInputs: ReadonlyMap<string, ActionInput | undefined>;
+  private readonly localFns: ReadonlyMap<string, CheckedLocalFn<D>>;
 
+  /**
+   * Код сверяется с манифестом сразу: у экрана со `state` нет
+   * `initialState` или у локального действия нет функции — бросок.
+   */
   constructor(def: D, code: ScreenCode<D>) {
     this.def = def;
     this.code = code;
     this.actionInputs = ScreenLogic.inputsOf(def.actions);
     this.localInputs = ScreenLogic.inputsOf(def.locals);
+    if (def.state !== undefined && code.initialState === undefined) {
+      throw new Error(
+        `Экран ${def.name}: у экрана есть состояние, а код экрана не задал initialState`,
+      );
+    }
+    // Вход функции проверяет схема этого же локального действия, то есть
+    // он имеет тип её параметра; по имени-строке TS этой связи не выводит.
+    const fns = code.locals as Readonly<
+      Record<string, CheckedLocalFn<D> | undefined>
+    >;
+    const localFns = new Map<string, CheckedLocalFn<D>>();
+    for (const name of this.localInputs.keys()) {
+      const fn = fns[name];
+      if (fn === undefined) {
+        throw new Error(
+          `Экран ${def.name}: код экрана не задал локальное действие ${name}`,
+        );
+      }
+      localFns.set(name, fn);
+    }
+    this.localFns = localFns;
   }
 
   /**
@@ -45,13 +71,10 @@ export class ScreenLogic<D extends AnyScreenDef> {
   restoreState(raw: unknown, data: DataOf<D>): StateOf<D> {
     const restored = this.parseState(raw);
     if (restored.ok) return restored.value;
-    const initial = this.code.initialState;
-    if (initial === undefined) {
-      throw new Error(
-        `Экран ${this.def.name}: у экрана есть состояние, а код экрана не задал initialState`,
-      );
-    }
-    return this.stateOrThrow(initial.call(this.code, data), 'initialState');
+    // Без схемы состояния `parseState` всегда успешен, а со схемой наличие
+    // `initialState` проверил конструктор.
+    const initial = this.code.initialState?.(data);
+    return this.stateOrThrow(initial, 'initialState');
   }
 
   /**
@@ -59,25 +82,15 @@ export class ScreenLogic<D extends AnyScreenDef> {
    * отказ, функция не вызвана; функция вернула состояние не по схеме — бросок.
    */
   applyLocal(
-    name: string,
+    name: LocalName<D>,
     rawInput: unknown,
     state: StateOf<D>,
     data: DataOf<D>,
   ): Result<StateOf<D>, InputRejection> {
-    if (!this.localInputs.has(name)) {
-      throw new Error(
-        `Экран ${this.def.name}: нет локального действия ${name}`,
-      );
-    }
-    // Вход функции проверен схемой этого же локального действия, то есть
-    // имеет тип её параметра; по имени-строке TS этой связи не выводит.
-    const fns = this.code.locals as Readonly<
-      Record<string, CheckedLocalFn<D> | undefined>
-    >;
-    const fn = fns[name];
+    const fn = this.localFns.get(name);
     if (fn === undefined) {
       throw new Error(
-        `Экран ${this.def.name}: код экрана не задал локальное действие ${name}`,
+        `Экран ${this.def.name}: нет локального действия ${name}`,
       );
     }
     const input = this.inputOf(this.localInputs.get(name), rawInput);
@@ -85,8 +98,18 @@ export class ScreenLogic<D extends AnyScreenDef> {
     return ok(this.stateOrThrow(fn(state, data, input.value), name));
   }
 
-  /** Доступно ли действие или локальное действие; без метода кода — да. */
-  available(name: string, data: DataOf<D>, state: StateOf<D>): boolean {
+  /**
+   * Доступно ли действие или локальное действие; без метода кода — да.
+   * Неизвестное имя — бросок.
+   */
+  available(
+    name: ActionName<D> | LocalName<D>,
+    data: DataOf<D>,
+    state: StateOf<D>,
+  ): boolean {
+    if (!this.actionInputs.has(name) && !this.localInputs.has(name)) {
+      throw new Error(`Экран ${this.def.name}: нет действия ${name}`);
+    }
     return this.code.available?.(name, data, state) ?? true;
   }
 
@@ -95,7 +118,7 @@ export class ScreenLogic<D extends AnyScreenDef> {
    * значения — из кода. Начальное значение не по схеме поля — бросок.
    */
   fields(
-    name: string,
+    name: ActionName<D>,
     data: DataOf<D>,
     state: StateOf<D>,
   ): readonly ActionField[] {
@@ -126,7 +149,7 @@ export class ScreenLogic<D extends AnyScreenDef> {
   }
 
   /** Сырой вход действия по его схеме; действие без входа — `undefined`. */
-  checkInput<K extends keyof D['actions'] & string>(
+  checkInput<K extends ActionName<D>>(
     name: K,
     raw: unknown,
   ): Result<InputOf<D['actions'][K]['input']>, InputRejection> {

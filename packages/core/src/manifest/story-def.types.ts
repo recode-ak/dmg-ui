@@ -12,7 +12,7 @@ export type OutcomeSpec = {
 
 /** Спека сторис: кто, зачем, с какого экрана и чем заканчивается. */
 export type StorySpec<N extends string = string> = DefSpec<N> & {
-  /** Допустимые вызывающие; что они ⊆ `callers` UC — правило Ф3. */
+  /** Допустимые вызывающие; что они ⊆ `callers` UC — правило графа. */
   readonly callers: readonly [DeclaredCaller, ...DeclaredCaller[]];
   /** Цель в форме «чтобы …». */
   readonly goal: string;

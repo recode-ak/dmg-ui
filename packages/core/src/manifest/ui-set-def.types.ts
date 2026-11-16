@@ -4,7 +4,7 @@ import type { UiSetDef } from './ui-set-def';
 
 /** Спека набора UI: доменное приложение и UI-модули поверх него. */
 export type UiSetSpec<N extends string = string> = DefSpec<N> & {
-  /** Доменное приложение: его `DomainIds` и модули UC (Ф3, Ф4). */
+  /** Доменное приложение: его `DomainIds` и модули UC — для графа и исполнителя. */
   readonly app: AnyAppDef;
   readonly modules: readonly AnyUiModuleDef[];
 };

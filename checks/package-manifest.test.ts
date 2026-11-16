@@ -23,7 +23,7 @@ describe('PackageManifest', () => {
       expect(await import('dmg-ui')).toBeDefined();
     });
 
-    it('состав входа dmg-ui — манифесты UI, адрес и логика экрана (Ф2)', async () => {
+    it('состав входа dmg-ui — манифесты UI, адрес и логика экрана', async () => {
       expect(Object.keys(await import('dmg-ui')).sort()).toEqual([
         'ActionInput',
         'Address',

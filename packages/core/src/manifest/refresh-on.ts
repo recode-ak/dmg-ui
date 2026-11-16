@@ -3,7 +3,7 @@ import type { NormalizedRefresh, RefreshSpec } from './screen-def.types';
 
 /**
  * Событие перечитывания экрана: по payload события решает, какие
- * экземпляры экрана перечитать (Т-15). Сравнивает ключи первого уровня.
+ * экземпляры экрана перечитать. Сравнивает ключи первого уровня.
  */
 export class RefreshOn {
   readonly event: AnyEventDef;
@@ -20,7 +20,8 @@ export class RefreshOn {
 
   /**
    * Перечитать ли экземпляр с параметрами `params` у субъекта `subjectId`.
-   * Запись без `params`, `subject` и `any` — нарушение правила Ф3; для неё
+   * Значения сравниваются, только когда есть оба: нет поля — `false`.
+   * Запись без `params`, `subject` и `any` — нарушение правила графа; для неё
    * `false`: не перечитывать — безопасная сторона.
    */
   matches(
@@ -36,7 +37,10 @@ export class RefreshOn {
         return false;
       }
     }
-    return pairs.every(([param, field]) => params[param] === payload[field]);
+    return pairs.every(([param, field]) => {
+      const value = params[param];
+      return value !== undefined && value === payload[field];
+    });
   }
 
   normalize(): NormalizedRefresh {

@@ -14,7 +14,7 @@ import { ScreenCode } from './screen-code';
 import { ScreenLogic } from './screen-logic';
 
 // Чистая логика экрана без исполнителя: импорты — только manifest/, screen/
-// и фикстура (критерий 7 spec).
+// и фикстура: логика проверяется без исполнителя.
 
 const data: DataOf<typeof TaskListScreenDef> = {
   tasks: [
@@ -27,6 +27,41 @@ const data: DataOf<typeof TaskListScreenDef> = {
 
 const logicOf = (code = new TaskListScreenCode()) =>
   new ScreenLogic(TaskListScreenDef, code);
+
+/** Код списка без `available`, `choices` и `defaults` — для умолчаний. */
+class BareListCode extends ScreenCode<typeof TaskListScreenDef> {
+  override readonly locals = {
+    toggle: (state: { selected: string[] }) => state,
+  };
+
+  override initialState() {
+    return { selected: [] };
+  }
+}
+
+describe('ScreenLogic — проверка кода при создании', () => {
+  test('экран с состоянием без initialState — бросок с именем экрана', () => {
+    class NoInitial extends ScreenCode<typeof TaskListScreenDef> {
+      override readonly locals = new TaskListScreenCode().locals;
+    }
+
+    expect(() => new ScreenLogic(TaskListScreenDef, new NoInitial())).toThrow(
+      'taskList',
+    );
+  });
+
+  test('локальное действие без функции в коде — бросок с экраном и действием', () => {
+    class NoLocals extends ScreenCode<typeof TaskListScreenDef> {
+      override initialState() {
+        return { selected: [] };
+      }
+    }
+
+    expect(() => new ScreenLogic(TaskListScreenDef, new NoLocals())).toThrow(
+      /taskList.*toggle/,
+    );
+  });
+});
 
 describe('ScreenLogic.restoreState', () => {
   test('состояние по схеме — то же', () => {
@@ -55,17 +90,6 @@ describe('ScreenLogic.restoreState', () => {
         status: 'open',
       }),
     ).toBeUndefined();
-  });
-
-  test('экран с состоянием без initialState — бросок с именем экрана', () => {
-    class NoInitial extends ScreenCode<typeof TaskListScreenDef> {}
-
-    expect(() =>
-      new ScreenLogic(TaskListScreenDef, new NoInitial()).restoreState(
-        undefined,
-        data,
-      ),
-    ).toThrow('taskList');
   });
 });
 
@@ -115,8 +139,16 @@ describe('ScreenLogic.applyLocal', () => {
 });
 
 describe('ScreenLogic.available', () => {
-  test('по умолчанию действие доступно', () => {
-    expect(logicOf().available('create', data, { selected: [] })).toBe(true);
+  test('без available в коде — действие доступно', () => {
+    const logic = new ScreenLogic(TaskListScreenDef, new BareListCode());
+    expect(logic.available('next', data, { selected: [] })).toBe(true);
+  });
+
+  test('неизвестное имя — бросок с именем', () => {
+    expect(() =>
+      // @ts-expect-error имя не из actions и locals экрана
+      logicOf().available('missing', data, { selected: [] }),
+    ).toThrow('missing');
   });
 
   test('недоступно по данным: дальше списка нет', () => {
@@ -153,6 +185,16 @@ describe('ScreenLogic.fields и checkInput', () => {
         optional: false,
         initial: 'Новая задача',
       },
+    ]);
+  });
+
+  test('без choices и defaults в коде — у полей нет вариантов и начальных значений', () => {
+    const logic = new ScreenLogic(TaskListScreenDef, new BareListCode());
+    expect(logic.fields('open', data, { selected: [] })).toEqual([
+      { name: 'taskId', label: 'Идентификатор задачи', optional: false },
+    ]);
+    expect(logic.fields('create', data, { selected: [] })).toEqual([
+      { name: 'title', label: 'Название задачи', optional: false },
     ]);
   });
 

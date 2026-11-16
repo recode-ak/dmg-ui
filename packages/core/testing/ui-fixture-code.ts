@@ -2,7 +2,7 @@ import type { DataOf, StateOf } from '../src/manifest/screen-def';
 import { ScreenCode } from '../src/screen/screen-code';
 import type { TaskCardScreenDef, TaskListScreenDef } from './ui-fixture';
 
-// Код экранов фикстуры (чистая часть, Ф2): отдельно от манифестов, чтобы
+// Код экранов фикстуры (чистая часть): отдельно от манифестов, чтобы
 // `ui-fixture.ts` читался без `screen/`.
 
 type ListData = DataOf<typeof TaskListScreenDef>;

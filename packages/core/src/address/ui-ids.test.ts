@@ -49,4 +49,24 @@ describe('UiIds', () => {
 
     expect(() => new UiIds(set)).toThrow('twins/todo/taskList');
   });
+
+  test('один экран в двух модулях набора — бросок с именем экрана', () => {
+    const module = (name: string) =>
+      UiModuleDef.define({
+        name,
+        label: 'Модуль',
+        description: 'Модуль с общим экраном.',
+        screens: [TaskCardScreenDef],
+        stories: [],
+      });
+    const set = UiSetDef.define({
+      name: 'shared',
+      label: 'Общий экран',
+      description: 'Один Def экрана в двух модулях.',
+      app: ExampleAppDef,
+      modules: [module('first'), module('second')],
+    });
+
+    expect(() => new UiIds(set)).toThrow('taskCard');
+  });
 });

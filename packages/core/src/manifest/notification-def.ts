@@ -17,7 +17,7 @@ export type {
 
 /**
  * Манифест уведомления: кому и что сообщить по доменному событию. Данные
- * читаются от имени получателя (ФР-6).
+ * читаются от имени получателя.
  */
 export class NotificationDef<
   const S extends NotificationSpec = NotificationSpec,

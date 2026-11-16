@@ -16,7 +16,7 @@ import { UiModuleDef } from '../src/manifest/ui-module-def';
 import { UiSetDef } from '../src/manifest/ui-set-def';
 
 // Манифесты UI поверх учебного приложения `dmg-core` — фикстура тестов ядра
-// (Т-18, до Ф5 не экспортируется). Код экранов — `ui-fixture-code.ts`: эта
+// (из входа `testing` не экспортируется). Код экранов — `ui-fixture-code.ts`: эта
 // фикстура не тянет `screen/`. Взаимные thunk `to` аннотированы: без типа
 // возврата TS выводит `any` для обоих экранов (TS7022, цикл вывода).
 

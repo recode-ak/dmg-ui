@@ -12,7 +12,10 @@ import type { ScreenDef } from './screen-def';
 import type { ScreenExit } from './screen-exit';
 import type { ScreenLocal } from './screen-local';
 
-/** Схема параметров адреса и состояния — объект без лишних ключей (Т-10). */
+/**
+ * Схема параметров адреса и состояния — объект без лишних ключей:
+ * `v.object` отбросил бы лишнее молча.
+ */
 export type StrictSchema = v.StrictObjectSchema<
   v.ObjectEntries,
   v.ErrorMessage<v.StrictObjectIssue> | undefined
@@ -36,34 +39,34 @@ export type ItemTexts = {
 };
 
 /**
- * Действие экрана. Без `uc` — действие-переход (П-1). `to` — thunk: взаимные
- * ссылки экранов иначе падают при импорте (С-3). Свой экран в `to` не
- * объявляется — переход на него разрешён неявно (Т-7).
+ * Действие экрана. Без `uc` — действие-переход (меню, листание). `to` — thunk: взаимные
+ * ссылки экранов иначе падают при импорте. Свой экран в `to` не
+ * объявляется — переход на него разрешён неявно.
  */
 export type ActionSpec = ItemTexts & {
   readonly visible?: boolean;
   readonly input?: InputSchema;
-  /** Command UC действия; что он command — правило Ф3. */
+  /** Command UC действия; что он command — правило графа. */
   readonly uc?: AnyUseCaseDef;
   readonly to?: () => readonly AnyScreenDef[];
-  /** Подтверждение; тексты статичны, данные рисует представление (П-7). */
+  /** Подтверждение; тексты статичны, данные рисует представление. */
   readonly confirm?: ItemTexts;
 };
 
-/** Локальное действие: меняет состояние экрана, UC не вызывает (Т-6). */
+/** Локальное действие: меняет состояние экрана, UC не вызывает. */
 export type LocalSpec = ItemTexts & {
   readonly input?: InputSchema;
 };
 
-/** Выход экрана; выходы объявляет экран, а не действие (Т-11). */
+/** Выход экрана; выходы объявляет экран, а не действие: любое действие вправе вернуть любой выход. */
 export type ExitSpec = ItemTexts & {
   readonly data?: v.GenericSchema;
 };
 
 /**
- * Событие перечитывания (Т-15): `params` — параметр экземпляра → поле
+ * Событие перечитывания: `params` — параметр экземпляра → поле
  * payload, `subject` — поле payload с `uuid` субъекта, `any` — явное
- * «всем». Ключи — строки, их сверяют правила формы манифеста (Ф3).
+ * «всем». Ключи — строки, их сверяют правила формы манифеста в графе.
  */
 export type RefreshSpec = {
   readonly event: AnyEventDef;
@@ -72,7 +75,7 @@ export type RefreshSpec = {
   readonly any?: true;
 };
 
-/** Пример экрана; соответствие схемам проверяет правило Ф3 (Т-12). */
+/** Пример экрана; соответствие схемам проверяет правило графа, а не конструктор. */
 export type ScreenExampleSpec = ItemTexts & {
   readonly params: unknown;
   readonly data: unknown;
@@ -82,17 +85,17 @@ export type ScreenExampleSpec = ItemTexts & {
 /** Спека экрана. Без `params` — пустой объект, без `state` — состояния нет. */
 export type ScreenSpec = DefSpec & {
   readonly params?: StrictSchema;
-  /** Query UC загрузки; что они query — правило Ф3. */
+  /** Query UC загрузки; что они query — правило графа. */
   readonly reads: readonly AnyUseCaseDef[];
   readonly data: v.GenericSchema;
   readonly state?: StrictSchema;
   readonly actions?: Readonly<Record<string, ActionSpec>>;
   readonly locals?: Readonly<Record<string, LocalSpec>>;
-  /** Имя основного действия; что оно есть в `actions` — правило Ф3. */
+  /** Имя основного действия; что оно есть в `actions` — правило графа. */
   readonly primary?: string;
   readonly exits?: Readonly<Record<string, ExitSpec>>;
   readonly refresh?: readonly RefreshSpec[];
-  /** Коды отказа, у которых на экране свой ответ (Т-13). */
+  /** Коды отказа, у которых на экране свой ответ; объявляются на экране, а не на действии. */
   readonly catches?: readonly AnyErrorDef[];
   readonly examples?: Readonly<Record<string, ScreenExampleSpec>>;
 };
@@ -140,7 +143,8 @@ export type ScreenExits<S extends ScreenSpec> = {
 /**
  * Любой Def экрана — структурно, по публичным членам. Без `at`: метод с
  * типом входа ломает вариантность (как `command` у `AnyUseCaseDef`).
- * Схемы, действия и локальные действия — общего вида (решение 2 брифа).
+ * Схемы, действия и локальные действия — общего вида: схемы valibot
+ * инвариантны, конкретный экран иначе к нему не присваивается.
  */
 export type AnyScreenDef = {
   readonly [K in Exclude<

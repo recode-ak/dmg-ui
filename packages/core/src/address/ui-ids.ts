@@ -3,20 +3,28 @@ import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 
 /**
  * Идентификаторы узлов набора UI: `id` экрана — `<набор>/<модуль>/<экран>`.
- * Одно вычисление `id` для адресов и графа (Ф3 расширяет его, а не пишет
+ * Одно вычисление `id` для адресов и графа (граф расширяет его, а не пишет
  * второе).
  */
 export class UiIds {
   private readonly byId = new Map<string, AnyScreenDef>();
   private readonly ofScreen = new Map<AnyScreenDef, string>();
 
-  /** Повтор `id` экрана в наборе — ошибка программиста, бросок. */
+  /**
+   * Повтор `id` экрана или один Def экрана в двух модулях — ошибка
+   * программиста, бросок.
+   */
   constructor(set: AnyUiSetDef) {
     for (const module of set.modules) {
       for (const screen of module.screens) {
         const id = `${set.name}/${module.name}/${screen.name}`;
         if (this.byId.has(id)) {
           throw new Error(`UiIds: повтор id экрана ${id}`);
+        }
+        if (this.ofScreen.has(screen)) {
+          throw new Error(
+            `UiIds: экран ${screen.name} входит в два модуля набора ${set.name}`,
+          );
         }
         this.byId.set(id, screen);
         this.ofScreen.set(screen, id);

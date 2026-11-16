@@ -1,3 +1,4 @@
+import type * as v from 'valibot';
 import type { FieldIssue } from '../schema/schema-check.types';
 import type { Choice } from './screen-code.types';
 
@@ -17,3 +18,6 @@ export type ActionField = {
 export type InputRejection = {
   readonly issues: readonly FieldIssue[];
 };
+
+/** Схема одного поля объекта входа. */
+export type EntrySchema = v.ObjectEntries[string];

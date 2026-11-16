@@ -24,7 +24,7 @@ export type InputOf<I> = I extends v.GenericSchema
 
 /**
  * Функция локального действия: новое состояние из текущего, данных и
- * проверенного входа. UC не вызывает, перехода не возвращает (Т-6).
+ * проверенного входа. UC не вызывает, перехода не возвращает.
  */
 export type LocalFn<D extends AnyScreenDef, I> = (
   state: StateOf<D>,

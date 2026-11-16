@@ -1,4 +1,4 @@
-// Публичный вход ядра dmg-ui: манифесты UI, адрес и чистая логика экрана (Ф2).
+// Публичный вход ядра dmg-ui: манифесты UI, адрес и чистая логика экрана.
 
 export { Address } from './address/address';
 export {
@@ -91,5 +91,9 @@ export {
   type LocalFns,
   ScreenCode,
 } from './screen/screen-code';
-export { ScreenLogic } from './screen/screen-logic';
+export {
+  type ActionName,
+  type LocalName,
+  ScreenLogic,
+} from './screen/screen-logic';
 export type { Transition } from './screen/transition.types';

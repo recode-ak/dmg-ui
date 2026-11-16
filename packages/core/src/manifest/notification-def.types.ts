@@ -6,14 +6,14 @@ import type { AnyScreenDef } from './screen-def.types';
 
 /**
  * Получатели уведомления — поля payload с `uuid` получателя. Что поля есть
- * в payload — правило Ф3; вариант `from: 'query'` добавит Ф4.
+ * в payload — правило графа; вариант `from: 'query'` появится с исполнителем.
  */
 export type RecipientsSpec = {
   readonly from: 'payload';
   readonly fields: readonly string[];
 };
 
-/** Пример уведомления; соответствие схеме проверяет правило Ф3 (Т-12). */
+/** Пример уведомления; соответствие схеме проверяет правило графа, а не конструктор. */
 export type NotificationExampleSpec = {
   readonly label: string;
   readonly description: string;
@@ -24,10 +24,10 @@ export type NotificationExampleSpec = {
 export type NotificationSpec = DefSpec & {
   readonly event: AnyEventDef;
   readonly recipients: RecipientsSpec;
-  /** Query UC от имени получателя (ФР-6). */
+  /** Query UC от имени получателя. */
   readonly reads: readonly AnyUseCaseDef[];
   readonly data: v.GenericSchema;
-  /** Экраны, на которые ведёт уведомление; thunk — как `to` действия (С-3). */
+  /** Экраны, на которые ведёт уведомление; thunk — как `to` действия: взаимные ссылки иначе падают при импорте. */
   readonly links?: () => readonly AnyScreenDef[];
   readonly examples?: Readonly<Record<string, NotificationExampleSpec>>;
 };

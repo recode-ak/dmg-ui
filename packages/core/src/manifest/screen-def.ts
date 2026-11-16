@@ -46,7 +46,7 @@ export type {
 
 /**
  * Манифест экрана: параметры адреса, загрузка, состояние, действия, выходы
- * и перечитывание. Статичен и читается без кода экрана (ФР-4); код —
+ * и перечитывание. Статичен и читается без кода экрана; код —
  * наследник `ScreenCode`. Генерик по спеке, как `UseCaseDef`.
  */
 export class ScreenDef<const S extends ScreenSpec = ScreenSpec> extends Def<
@@ -113,7 +113,7 @@ export class ScreenDef<const S extends ScreenSpec = ScreenSpec> extends Def<
 
   /**
    * Адрес экземпляра экрана. Параметры не по схеме — ошибка программиста,
-   * бросок (Т-14); отказ на внешние данные даёт `AddressCodec.decode`.
+   * бросок; отказ на внешние данные даёт `AddressCodec.decode`.
    */
   at(params: v.InferInput<ParamsSchemaOf<S>>): Address<this> {
     const parsed = v.safeParse(this.params, params);

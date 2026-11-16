@@ -1,8 +1,8 @@
 import type { FieldIssue } from '../schema/schema-check.types';
 
 /**
- * Адрес в форме JSON: `id` экрана и параметры. Строку из него (данные
- * действия, ссылку) делает канал.
+ * Адрес в форме JSON: `id` экрана и параметры. Строку из него делает
+ * канал.
  */
 export type AddressJson = {
   readonly screen: string;

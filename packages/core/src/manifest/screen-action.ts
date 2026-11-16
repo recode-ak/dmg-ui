@@ -9,7 +9,7 @@ import type {
 
 /**
  * Действие экрана: тексты, вход, вызов command UC, переходы и подтверждение.
- * Узел графа под экраном (Ф3); имя — ключ в `actions` спеки.
+ * Узел графа под экраном; имя — ключ в `actions` спеки.
  */
 export class ScreenAction<
   I extends InputSchema | undefined = InputSchema | undefined,
@@ -36,7 +36,7 @@ export class ScreenAction<
     this.to = spec.to;
   }
 
-  /** Экраны, куда ведёт действие, кроме своего (Т-7); раскрывает thunk `to`. */
+  /** Экраны, куда ведёт действие, кроме своего: переход на свой экран разрешён неявно; раскрывает thunk `to`. */
   targets(): readonly AnyScreenDef[] {
     return this.to?.() ?? [];
   }

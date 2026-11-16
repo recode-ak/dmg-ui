@@ -3,13 +3,14 @@ import * as v from 'valibot';
 import type { InputSchema } from '../manifest/screen-def.types';
 import { SchemaCheck } from '../schema/schema-check';
 import type { FieldIssue } from '../schema/schema-check.types';
-import type { ActionField, InputRejection } from './action-input.types';
+import type {
+  ActionField,
+  EntrySchema,
+  InputRejection,
+} from './action-input.types';
 import type { FieldValues } from './screen-code.types';
 
 export type { ActionField, InputRejection } from './action-input.types';
-
-/** Схема одного поля объекта входа. */
-type EntrySchema = v.ObjectEntries[string];
 
 /**
  * Вход действия над схемой `input` — объектом полей. Даёт поля для сбора
@@ -23,13 +24,16 @@ export class ActionInput<S extends InputSchema = InputSchema> {
   }
 
   /**
-   * Поля входа в порядке схемы: подпись — `v.description` поля (у
-   * необязательного — обёрнутой схемы), без описания — имя поля.
+   * Поля входа в порядке схемы. Подпись — `v.description` самого поля,
+   * затем обёрнутой схемы необязательного поля, затем имя поля.
    */
   fields(): readonly ActionField[] {
     return Object.entries(this.schema.entries).map(([name, entry]) => {
       const wrapped = this.wrappedOf(entry);
-      const label = v.getDescription(wrapped ?? entry) ?? name;
+      const label =
+        v.getDescription(entry) ??
+        (wrapped === undefined ? undefined : v.getDescription(wrapped)) ??
+        name;
       return { name, label, optional: wrapped !== undefined };
     });
   }

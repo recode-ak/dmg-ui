@@ -5,7 +5,7 @@ import type { AnyStoryDef } from './story-def.types';
 import type { UiAppDef } from './ui-app-def';
 import type { AnyUiSetDef } from './ui-set-def.types';
 
-/** Вход приложения UI: точка старта, к которой канал привязывает команду (Т-8). */
+/** Вход приложения UI: точка старта, к которой канал привязывает команду и возврат «в начало». */
 export type EntrySpec = {
   readonly label: string;
   readonly description: string;
@@ -19,7 +19,7 @@ export type UiAppSpec<N extends string = string> = DefSpec<N> & {
   /** Имя пакета канала. */
   readonly channel: string;
   readonly stories: readonly AnyStoryDef[];
-  /** Уведомления приложения — явный список (Т-16). */
+  /** Уведомления приложения — явный список, по умолчанию пустой. */
   readonly notifications?: readonly AnyNotificationDef[];
   readonly entries: Readonly<Record<string, EntrySpec>>;
 };

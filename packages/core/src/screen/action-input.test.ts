@@ -19,6 +19,22 @@ const input = new ActionInput(
 );
 
 describe('ActionInput', () => {
+  test('подпись необязательного поля — с самого поля или с обёрнутой схемы', () => {
+    const both = new ActionInput(
+      v.object({
+        outer: v.pipe(v.optional(v.string()), v.description('Снаружи')),
+        inner: v.optional(v.pipe(v.string(), v.description('Внутри'))),
+        bare: v.optional(v.string()),
+      }),
+    );
+
+    expect(both.fields()).toEqual([
+      { name: 'outer', label: 'Снаружи', optional: true },
+      { name: 'inner', label: 'Внутри', optional: true },
+      { name: 'bare', label: 'bare', optional: true },
+    ]);
+  });
+
   test('fields(): имя, подпись из v.description и признак необязательного', () => {
     expect(input.fields()).toEqual([
       { name: 'title', label: 'Название задачи', optional: false },

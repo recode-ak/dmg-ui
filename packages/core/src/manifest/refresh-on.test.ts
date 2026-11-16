@@ -27,6 +27,10 @@ describe('RefreshOn.matches', () => {
     expect(byTask.matches(payload, { taskId: TASK_B }, OWNER)).toBe(false);
   });
 
+  test('поля нет ни в payload, ни в параметрах — не перечитывать', () => {
+    expect(byTask.matches({ ownerId: OWNER }, {}, OWNER)).toBe(false);
+  });
+
   test('any — перечитать всем', () => {
     const all = TaskListScreenDef.refresh[1]!;
 

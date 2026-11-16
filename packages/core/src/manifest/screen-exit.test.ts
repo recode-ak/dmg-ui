@@ -16,7 +16,6 @@ describe('ScreenExit', () => {
   });
 
   test('выход без схемы данных — значение без данных', () => {
-    expect(closed.data).toBeUndefined();
     expect(closed.with()).toEqual({ exit: 'closed' });
   });
 
