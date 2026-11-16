@@ -15,7 +15,7 @@ import {
 } from '../../testing/ui-runtime-fixture';
 import { ScreenRuntime } from './screen-runtime';
 
-// Задел критерия 11 брифа Ф4: исполнитель работает через JSON-провод —
+// Исполнитель работает через JSON-провод (как браузер за сервером) —
 // вызов, ответ, адрес и сигнал переживают `JSON.stringify`/`parse`.
 
 /** Открытие карточки → действие → перечитывание; `wrap` — порты через JSON. */
@@ -48,6 +48,6 @@ const scenario = async (wrap: boolean) => {
 
 describe('ScreenRuntime — граница JSON', () => {
   test('открытие → действие → перечитывание через JSON-порты дают те же исходы', async () => {
-    expect(await scenario(true)).toEqual(await scenario(false));
+    expect(await scenario(true)).toStrictEqual(await scenario(false));
   });
 });

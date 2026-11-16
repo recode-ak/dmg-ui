@@ -1,6 +1,6 @@
 import type { DomainError } from 'dmg-core';
+import type { ActionContext } from '../screen/action-context.types';
 import type { Transition } from '../screen/transition.types';
-import type { ActionContext } from './context.types';
 import type { ActionView, LocalView, Refusal } from './outcome.types';
 import type { ScreenUnit } from './screen-unit';
 

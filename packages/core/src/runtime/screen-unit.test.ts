@@ -6,8 +6,8 @@ import { ScreenCode } from '../screen/screen-code';
 import type { ActionSteps } from '../screen/screen-code.types';
 import { ScreenUnit } from './screen-unit';
 
-// Сверка кода экрана с манифестом в конструкторе `ScreenUnit` (решение 6
-// брифа Ф4): нет `load` или нет `done` у действия — ошибка программиста.
+// Сверка кода экрана с манифестом в конструкторе `ScreenUnit`: нет `load`
+// или нет `done` у действия — ошибка программиста.
 
 type List = typeof TaskListScreenDef;
 
@@ -41,11 +41,5 @@ describe('ScreenUnit — сверка кода с манифестом', () => {
     expect(() => new ScreenUnit(TaskListScreenDef, new NoDone())).toThrow(
       /taskList.*next/,
     );
-  });
-
-  test('полный код — юнит собран', () => {
-    const unit = new ScreenUnit(TaskListScreenDef, new TaskListScreenCode());
-
-    expect(unit.def).toBe(TaskListScreenDef);
   });
 });

@@ -32,6 +32,16 @@ export type UiRecord = {
   | { readonly kind: 'defect'; readonly text: string }
 );
 
+/**
+ * Сырой бросок кода экрана или слушателя `onChange` — для диагностики
+ * разработчика. Может содержать данные: не для лога UI.
+ */
+export type UiFault = {
+  readonly node: string;
+  readonly trace: TraceJson;
+  readonly error: unknown;
+};
+
 /** Наблюдатель UI: синхронный и не бросает, как `logger`. */
 export type UiObserver = {
   record(entry: UiRecord): void;

@@ -383,7 +383,7 @@ describe('UiGraphProvider: рёбра', () => {
   });
 });
 
-describe('UiGraphProvider: получатели из query UC (С-6 брифа Ф4)', () => {
+describe('UiGraphProvider: получатели из query UC', () => {
   test('recipients — уведомление → query UC получателей, не reads', () => {
     const notification = UiScene.notification('n', {
       recipients: {
@@ -406,7 +406,7 @@ describe('UiGraphProvider: получатели из query UC (С-6 брифа �
   });
 });
 
-describe('UiGraphProvider: действия в графе (критерий 13)', () => {
+describe('UiGraphProvider: действия в графе', () => {
   test('узлы action лежат под своим экраном', () => {
     const actions = graph
       .children(SCREEN)

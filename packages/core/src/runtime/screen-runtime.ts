@@ -36,8 +36,8 @@ export class ScreenRuntime {
   }
 
   /**
-   * Экземпляр из снимка канала (внешние данные): адрес не восстановлен —
-   * отказ, состояние не по схеме — начальное.
+   * Экземпляр из снимка канала (внешние данные): адрес не восстановлен
+   * или ревизия не целое `≥ 0` — отказ, состояние не по схеме — начальное.
    */
   async restore(
     json: unknown,
@@ -48,14 +48,15 @@ export class ScreenRuntime {
       'address' in snapshot ? snapshot.address : undefined,
     );
     if (!address.ok) return err(address.error);
+    const revision = 'revision' in snapshot ? snapshot.revision : undefined;
+    if (
+      typeof revision !== 'number' ||
+      !Number.isSafeInteger(revision) ||
+      revision < 0
+    ) {
+      return err({ reason: 'malformed' });
+    }
     const state = 'state' in snapshot ? snapshot.state : undefined;
-    const revision =
-      'revision' in snapshot &&
-      typeof snapshot.revision === 'number' &&
-      Number.isInteger(snapshot.revision) &&
-      snapshot.revision >= 0
-        ? snapshot.revision
-        : 0;
     return ok(await this.start(address.value, options, state, revision));
   }
 
@@ -65,7 +66,7 @@ export class ScreenRuntime {
     state: unknown,
     revision: number,
   ): Promise<ScreenInstance> {
-    const { codes, ucs, refresh, observer } = this.spec;
+    const { codes, ucs, refresh, observer, faults } = this.spec;
     const unit = await codes.screen(address.screen);
     return ScreenInstance.start(
       {
@@ -77,6 +78,7 @@ export class ScreenRuntime {
         ucs,
         refresh,
         observer,
+        faults,
       },
       { trace, state, revision },
     );

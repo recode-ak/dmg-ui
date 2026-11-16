@@ -6,7 +6,7 @@ import type { RenderContext } from './context.types';
 import type { Refusal } from './outcome.types';
 import type { RefreshPort, UcPort } from './ports.types';
 import type { AnyScreenUnit, UnitPresentation } from './screen-unit.types';
-import type { UiObserver } from './ui-observer.types';
+import type { UiFault, UiObserver } from './ui-observer.types';
 
 /** Зависимости экземпляра от исполнителя: юнит, адрес, порты, наблюдатель. */
 export type ScreenInstanceSpec = {
@@ -18,6 +18,7 @@ export type ScreenInstanceSpec = {
   readonly ucs: UcPort;
   readonly refresh: RefreshPort;
   readonly observer: UiObserver;
+  readonly faults: ((fault: UiFault) => void) | undefined;
 };
 
 /** Начало экземпляра: след открытия, сохранённое состояние, прежняя ревизия. */

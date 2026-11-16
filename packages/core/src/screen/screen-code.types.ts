@@ -13,7 +13,7 @@ import type {
   ParamsOf,
   StateOf,
 } from '../manifest/screen-def.types';
-import type { ActionContext } from '../runtime/context.types';
+import type { ActionContext } from './action-context.types';
 import type { Transition } from './transition.types';
 
 /** Вариант значения поля входа: значение и его подпись. */

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import * as v from 'valibot';
 import {
   ExampleUiSetDef,
   TaskAssignedNotificationDef,
@@ -11,10 +12,33 @@ import {
 } from '../../testing/ui-fixture-code';
 import { TaskAssignedNotificationCode } from '../../testing/ui-notification-code';
 import { RuntimeKit } from '../../testing/ui-runtime-fixture';
+import { ScreenDef } from '../manifest/screen-def';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 
-// Карта «Def → загрузчик кода» (С-4 брифа Ф4): манифест кода не знает,
-// загрузка — при первом открытии, промис общий у всех исполнителей.
+const others = [
+  CodeLoader.screen(TaskCardScreenDef, async () => new TaskCardScreenCode()),
+  CodeLoader.notification(
+    TaskAssignedNotificationDef,
+    async () => new TaskAssignedNotificationCode(),
+  ),
+];
+const listLoader = CodeLoader.screen(
+  TaskListScreenDef,
+  async () => new TaskListScreenCode(),
+);
+
+/** Экран вне набора фикстуры. */
+const StrayScreenDef = ScreenDef.define({
+  name: 'stray',
+  label: 'Вне набора',
+  description: 'Экран, которого нет в наборе.',
+  reads: [],
+  data: v.object({}),
+});
+
+// Карта «Def → загрузчик кода» в корне сборки: манифест кода не знает,
+// загрузка — при первом открытии, промис общий у всех исполнителей, сбой
+// загрузки не кэшируется.
 
 /** Загрузчики фикстуры со счётчиком вызовов загрузчика списка. */
 const counted = () => {
@@ -65,5 +89,36 @@ describe('CodeLoaders', () => {
     await second.openList();
 
     expect(calls.list).toBe(1);
+  });
+
+  test('два загрузчика на один экран — бросок с именем', () => {
+    expect(() =>
+      CodeLoaders.of(ExampleUiSetDef, [listLoader, listLoader, ...others]),
+    ).toThrow('taskList');
+  });
+
+  test('загрузчик экрана вне набора — бросок с именем', () => {
+    const stray = CodeLoader.screen(StrayScreenDef, async () => {
+      throw new Error('не нужен');
+    });
+
+    expect(() =>
+      CodeLoaders.of(ExampleUiSetDef, [listLoader, stray, ...others]),
+    ).toThrow('stray');
+  });
+
+  test('сбой загрузки не кэшируется — следующий вызов грузит заново', async () => {
+    let calls = 0;
+    const flaky = CodeLoader.screen(TaskListScreenDef, async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('нет сети');
+      return new TaskListScreenCode();
+    });
+    const codes = CodeLoaders.of(ExampleUiSetDef, [flaky, ...others]);
+
+    await expect(codes.screen(TaskListScreenDef)).rejects.toThrow('нет сети');
+    await codes.screen(TaskListScreenDef);
+
+    expect(calls).toBe(2);
   });
 });

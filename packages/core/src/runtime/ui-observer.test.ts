@@ -5,7 +5,11 @@ import {
   CreateTaskUcDef,
   TaskErrors,
 } from 'dmg-core/testing/example';
-import { TASK_B, TaskCardScreenDef } from '../../testing/ui-fixture';
+import {
+  TASK_A,
+  TASK_B,
+  type TaskListScreenDef,
+} from '../../testing/ui-fixture';
 import { TaskListScreenCode } from '../../testing/ui-fixture-code';
 import {
   CARD_ID,
@@ -14,10 +18,11 @@ import {
   RuntimeKit,
   requestTrace,
 } from '../../testing/ui-runtime-fixture';
+import type { StateOf } from '../manifest/screen-def.types';
 import type { ScreenInstance } from './screen-instance';
 
-// Записи наблюдателя экрана (критерий 13, решение 12 брифа Ф4): узел, след,
-// экземпляр; без входа, данных и текстов замечаний.
+// Записи наблюдателя экрана: узел, след, экземпляр; без входа, данных и
+// текстов замечаний. Сырой бросок кода — только в точку диагностики `faults`.
 
 const CREATE_ID = `${LIST_ID}/create`;
 const actTrace = requestTrace('r-act');
@@ -37,13 +42,26 @@ const create = (list: ScreenInstance, title: string) =>
     trace: actTrace,
   });
 
-/** `create` ведёт на экран вне `to` — дефект. */
-class Jump extends TaskListScreenCode {
-  override readonly actions = {
-    ...new TaskListScreenCode().actions,
-    create: { done: () => TaskCardScreenDef.at({ taskId: TASK_B }) },
+type ListState = StateOf<typeof TaskListScreenDef>;
+
+/** Загрузка бросает чужую ошибку со значением в тексте. */
+class LeakyLoad extends TaskListScreenCode {
+  override async load(): Promise<never> {
+    throw new TypeError('Секретное дело');
+  }
+}
+
+/** `toggle` кладёт введённое значение в состояние не по схеме. */
+class LeakyToggle extends TaskListScreenCode {
+  override readonly locals = {
+    toggle: (_: ListState, __: unknown, input: { taskId: string }) =>
+      // Состояние не по схеме — сам сценарий теста.
+      ({ selected: input.taskId }) as unknown as ListState,
   };
 }
+
+const defectsOf = (kit: RuntimeKit) =>
+  kit.observer.records.filter((entry) => entry.kind === 'defect');
 
 describe('UiObserver — записи экрана', () => {
   test('opened → acted → outcome: id действия, след и один экземпляр', async () => {
@@ -86,20 +104,46 @@ describe('UiObserver — записи экрана', () => {
     );
   });
 
-  test('дефект кода экрана — запись defect с текстом причины', async () => {
-    const { kit, list } = await listWithCreate(
-      new RuntimeKit(fixtureCodes({ list: new Jump() })),
-    );
+  test('чужой бросок кода — в defect этап и имя ошибки без текста, сам бросок — в faults', async () => {
+    const kit = new RuntimeKit(fixtureCodes({ list: new LeakyLoad() }));
 
-    await create(list, 'Хлеб');
+    await kit.openList();
 
-    expect(kit.observer.records).toContainEqual(
-      expect.objectContaining({
-        kind: 'defect',
-        node: CREATE_ID,
-        text: expect.any(String),
-      }),
-    );
+    const [defect] = defectsOf(kit);
+    expect(JSON.stringify(defect)).not.toContain('Секретное дело');
+    expect(defect).toMatchObject({
+      node: LIST_ID,
+      text: expect.stringContaining('TypeError'),
+    });
+    expect(kit.faults).toEqual([
+      {
+        node: LIST_ID,
+        trace: requestTrace('r-open'),
+        error: expect.any(TypeError),
+      },
+    ]);
+  });
+
+  test('состояние не по схеме — в defect путь поля, без значения', async () => {
+    const kit = new RuntimeKit(fixtureCodes({ list: new LeakyToggle() }));
+    const list = await kit.openList();
+
+    await list.local({ name: 'toggle', input: { taskId: TASK_A } });
+
+    const [defect] = defectsOf(kit);
+    expect(JSON.stringify(defect)).not.toContain(TASK_A);
+    expect(defect).toMatchObject({ text: expect.stringContaining('selected') });
+  });
+
+  test('имя не из манифеста — acted и outcome с id экрана', async () => {
+    const { kit, list } = await listWithCreate();
+
+    await list.act({ action: 'чужое/имя', revision: 1, trace: actTrace });
+
+    expect(kit.observer.records.slice(1).map((r) => r.node)).toEqual([
+      LIST_ID,
+      LIST_ID,
+    ]);
   });
 
   test('rejected — в записи только имена полей', async () => {

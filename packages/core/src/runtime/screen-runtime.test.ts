@@ -34,8 +34,8 @@ import { CodeLoader, CodeLoaders } from './code-loaders';
 import type { ScreenInstance } from './screen-instance';
 
 // Открытие и восстановление экземпляра экрана: загрузка через порт, отказ
-// загрузки, дефекты кода экрана, снимок и восстановление (решения 8, 9
-// брифа Ф4). Порты — заглушки фикстуры.
+// загрузки, дефекты кода экрана, снимок и восстановление. Порты — заглушки
+// фикстуры.
 
 type ListLoad = LoadContext<typeof TaskListScreenDef>;
 
@@ -98,7 +98,7 @@ const commandReadCodes = () =>
 /** Код списка, который читает необъявленный UC. */
 class UndeclaredRead extends TaskListScreenCode {
   override async load(ctx: ListLoad) {
-    // @ts-expect-error read принимает только UC из reads экрана (критерий 5)
+    // @ts-expect-error read принимает только UC из reads экрана
     await ctx.read(GetTaskUcDef, { taskId: TASK_A });
     return super.load(ctx);
   }
@@ -201,7 +201,7 @@ describe('ScreenRuntime.open — отказ загрузки', () => {
 });
 
 describe('ScreenRuntime.open — дефекты кода экрана', () => {
-  test('read необъявленного UC — SERVER_INTERNAL и defect «не объявил UC» (критерий 5)', async () => {
+  test('read необъявленного UC — SERVER_INTERNAL и defect «не объявил UC»', async () => {
     const kit = kitWith(new UndeclaredRead());
 
     const view = (await kit.openList()).view();
@@ -267,7 +267,7 @@ describe('ScreenRuntime.restore', () => {
     });
   });
 
-  test('состояние не по схеме — начальное по данным (критерий 12)', async () => {
+  test('состояние не по схеме — начальное по данным', async () => {
     const json = {
       address: { screen: LIST_ID, params: { index: 0 } },
       state: { selected: 'все' },
@@ -307,4 +307,57 @@ describe('ScreenRuntime.restore', () => {
       expect(kit.ucs.calls).toEqual([]);
     });
   }
+
+  test('ревизия после restore — ревизия снимка + 1', async () => {
+    const json = {
+      address: { screen: LIST_ID, params: { index: 0 } },
+      state: { selected: [] },
+      revision: 5,
+    };
+
+    const restored = restoredOf(
+      await new RuntimeKit().runtime.restore(json, RuntimeKit.options()),
+    );
+
+    expect(restored.view().revision).toBe(6);
+  });
+
+  for (const revision of [1e300, -1, 1.5, undefined]) {
+    test(`ревизия снимка ${revision} — отказ malformed, UC не вызван`, async () => {
+      const kit = new RuntimeKit();
+      const json = {
+        address: { screen: LIST_ID, params: { index: 0 } },
+        revision,
+      };
+
+      const res = await kit.runtime.restore(json, RuntimeKit.options());
+
+      expect(res.ok ? undefined : res.error.reason).toBe('malformed');
+      expect(kit.ucs.calls).toEqual([]);
+    });
+  }
+});
+
+describe('ScreenRuntime — сборка и загрузчик', () => {
+  test('загрузчики другого набора — бросок с именами наборов', () => {
+    expect(() => new RuntimeKit(fixtureCodes(), CommandReadSetDef)).toThrow(
+      /exampleUi.*commandUi/,
+    );
+  });
+
+  test('сбой загрузчика кода — open отклонён', async () => {
+    const codes = CodeLoaders.of(CommandReadSetDef, [
+      CodeLoader.screen(CommandReadScreenDef, async () => {
+        throw new Error('нет сети');
+      }),
+    ]);
+    const kit = new RuntimeKit(codes, CommandReadSetDef);
+
+    const opening = kit.runtime.open(
+      CommandReadScreenDef.at({}),
+      RuntimeKit.options(),
+    );
+
+    await expect(opening).rejects.toThrow('нет сети');
+  });
 });

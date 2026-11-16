@@ -1,4 +1,4 @@
-import type { Result, TraceJson } from 'dmg-core';
+import type { DomainError, Result, TraceJson } from 'dmg-core';
 import type { ScreenAction } from '../manifest/screen-action';
 import type {
   AnyScreenDef,
@@ -7,11 +7,13 @@ import type {
   StateOf,
 } from '../manifest/screen-def.types';
 import { SchemaCheck } from '../schema/schema-check';
+import type { ActionContext } from '../screen/action-context.types';
 import type { InputRejection } from '../screen/action-input.types';
+import { CodeDefect } from '../screen/code-defect';
 import type { ScreenCode } from '../screen/screen-code';
+import type { LoadContext } from '../screen/screen-code.types';
 import { ScreenLogic } from '../screen/screen-logic';
 import type { ActionName, LocalName } from '../screen/screen-logic.types';
-import type { ActionContext } from './context.types';
 import { DeclaredReads } from './declared-reads';
 import type { UcPort } from './ports.types';
 import { RefusalText } from './refusal-text';
@@ -41,14 +43,19 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
   readonly refusals: RefusalText;
   private readonly logic: ScreenLogic<D>;
   private readonly steps: ReadonlyMap<string, ErasedStep>;
+  private readonly loader: (
+    ctx: LoadContext<D>,
+  ) => Promise<Result<DataOf<D>, DomainError>>;
 
   constructor(def: D, code: ScreenCode<D>) {
     this.def = def;
     this.refusals = new RefusalText(def.catches);
     this.logic = new ScreenLogic(def, code);
-    if (code.load === undefined) {
-      throw new Error(`Экран ${def.name}: код экрана не задал load`);
+    const load = code.load;
+    if (load === undefined) {
+      throw new CodeDefect(`Экран ${def.name}: код экрана не задал load`);
     }
+    this.loader = (ctx) => load.call(code, ctx);
     // Шаги зовёт только экземпляр этого юнита с `ErasedStepContext`,
     // собранным по схемам экрана и действия; по имени-строке TS этой связи
     // не выводит.
@@ -59,7 +66,7 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
     for (const name of Object.keys(def.actions)) {
       const step = all[name];
       if (step?.done === undefined) {
-        throw new Error(
+        throw new CodeDefect(
           `Экран ${def.name}: код экрана не задал done у действия ${name}`,
         );
       }
@@ -84,7 +91,7 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
   step(name: string): ErasedStep {
     const step = this.steps.get(name);
     if (step === undefined) {
-      throw new Error(`Экран ${this.def.name}: нет действия ${name}`);
+      throw new CodeDefect(`Экран ${this.def.name}: нет действия ${name}`);
     }
     return step;
   }
@@ -109,12 +116,11 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
       ...io,
     });
     try {
-      const loaded = await this.logic.code.load?.({
+      const loaded = await this.loader({
         params: this.typedParams(params),
         read: reads.read,
         context,
       });
-      if (loaded === undefined) return this.defect('load не вернул данных');
       if (!loaded.ok) {
         return { kind: 'refused', refusal: this.refusals.of(loaded.error) };
       }
@@ -186,7 +192,7 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
   private defect(text: string): UnitLoad {
     return {
       kind: 'defect',
-      cause: new Error(`Экран ${this.def.name}: ${text}`),
+      cause: new CodeDefect(`Экран ${this.def.name}: ${text}`),
     };
   }
 
@@ -210,7 +216,7 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
   /** Имя из манифеста; проверено здесь, TS не сужает строку до ключа. */
   private actionName(name: string): ActionName<D> {
     if (this.action(name) === undefined) {
-      throw new Error(`Экран ${this.def.name}: нет действия ${name}`);
+      throw new CodeDefect(`Экран ${this.def.name}: нет действия ${name}`);
     }
     return name as ActionName<D>;
   }
@@ -218,7 +224,7 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
   /** То же для локального действия. */
   private localName(name: string): LocalName<D> {
     if (!this.hasLocal(name)) {
-      throw new Error(
+      throw new CodeDefect(
         `Экран ${this.def.name}: нет локального действия ${name}`,
       );
     }

@@ -13,6 +13,7 @@ import {
   ScreenRuntime,
   type UcCall,
   type UcPort,
+  type UiFault,
   type UiObserver,
   type UiRecord,
 } from 'dmg-ui';
@@ -28,7 +29,7 @@ import { TaskCardScreenCode, TaskListScreenCode } from './ui-fixture-code';
 import { TaskAssignedNotificationCode } from './ui-notification-code';
 
 // Заглушки портов исполнителя и наблюдатель в памяти — фикстура тестов
-// `runtime/` (из входа `testing` до Ф5 не экспортируется, Т-8 брифа Ф4).
+// `runtime/` (из входа `testing` не экспортируется: учебных каналов ещё нет).
 
 /** `id` экранов фикстуры. */
 export const LIST_ID = 'exampleUi/todo/taskList';
@@ -193,6 +194,8 @@ export class RuntimeKit {
   readonly ucs = new StubUcPort().answer(ListTasksUcDef, ok([...TASKS]));
   readonly refresh = new StubRefreshPort();
   readonly observer = new MemoryUiObserver();
+  /** Сырые броски кода экрана и слушателей — точка диагностики `faults`. */
+  readonly faults: UiFault[] = [];
   readonly runtime: ScreenRuntime;
 
   constructor(
@@ -205,6 +208,7 @@ export class RuntimeKit {
       ucs: this.ucs,
       refresh: this.refresh,
       observer: this.observer,
+      faults: (fault) => this.faults.push(fault),
     });
   }
 

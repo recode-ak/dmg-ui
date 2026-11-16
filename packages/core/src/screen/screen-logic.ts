@@ -7,6 +7,7 @@ import type {
 } from '../manifest/screen-def.types';
 import { ActionInput } from './action-input';
 import type { ActionField, InputRejection } from './action-input.types';
+import { CodeDefect } from './code-defect';
 import type { ScreenCode } from './screen-code';
 import type { InputOf } from './screen-code.types';
 import type {
@@ -22,7 +23,7 @@ export type { ActionName, LocalName } from './screen-logic.types';
  * доступность, поля и проверка входа действия. Без портов и исполнителя —
  * её зовут исполнитель и тесты. Отказ на внешний вход — `Result`,
  * ошибка кода экрана (состояние или начальные значения не по схеме) —
- * бросок.
+ * бросок `CodeDefect` с путями полей, без значений.
  */
 export class ScreenLogic<D extends AnyScreenDef> {
   readonly def: D;
@@ -41,7 +42,7 @@ export class ScreenLogic<D extends AnyScreenDef> {
     this.actionInputs = ScreenLogic.inputsOf(def.actions);
     this.localInputs = ScreenLogic.inputsOf(def.locals);
     if (def.state !== undefined && code.initialState === undefined) {
-      throw new Error(
+      throw new CodeDefect(
         `Экран ${def.name}: у экрана есть состояние, а код экрана не задал initialState`,
       );
     }
@@ -54,7 +55,7 @@ export class ScreenLogic<D extends AnyScreenDef> {
     for (const name of this.localInputs.keys()) {
       const fn = fns[name];
       if (fn === undefined) {
-        throw new Error(
+        throw new CodeDefect(
           `Экран ${def.name}: код экрана не задал локальное действие ${name}`,
         );
       }
@@ -89,7 +90,7 @@ export class ScreenLogic<D extends AnyScreenDef> {
   ): Result<StateOf<D>, InputRejection> {
     const fn = this.localFns.get(name);
     if (fn === undefined) {
-      throw new Error(
+      throw new CodeDefect(
         `Экран ${this.def.name}: нет локального действия ${name}`,
       );
     }
@@ -108,7 +109,7 @@ export class ScreenLogic<D extends AnyScreenDef> {
     state: StateOf<D>,
   ): boolean {
     if (!this.actionInputs.has(name) && !this.localInputs.has(name)) {
-      throw new Error(`Экран ${this.def.name}: нет действия ${name}`);
+      throw new CodeDefect(`Экран ${this.def.name}: нет действия ${name}`);
     }
     return this.code.available?.(name, data, state) ?? true;
   }
@@ -132,11 +133,9 @@ export class ScreenLogic<D extends AnyScreenDef> {
       this.code.defaults?.(name, data, state) ?? {},
     );
     if (!defaults.ok) {
-      const text = defaults.error.issues
-        .map((issue) => `${issue.field}: ${issue.text}`)
-        .join('; ');
-      throw new Error(
-        `Экран ${this.def.name}, действие ${name}: defaults не по схеме — ${text}`,
+      const fields = defaults.error.issues.map((issue) => issue.field ?? '—');
+      throw new CodeDefect(
+        `Экран ${this.def.name}, действие ${name}: defaults не по схеме (поля: ${fields.join(', ')})`,
       );
     }
     return input.fields().map((field) => {
@@ -167,7 +166,7 @@ export class ScreenLogic<D extends AnyScreenDef> {
   /** Вход действия по имени; неизвестное имя — ошибка программиста. */
   private actionInput(name: string): ActionInput | undefined {
     if (!this.actionInputs.has(name)) {
-      throw new Error(`Экран ${this.def.name}: нет действия ${name}`);
+      throw new CodeDefect(`Экран ${this.def.name}: нет действия ${name}`);
     }
     return this.actionInputs.get(name);
   }
@@ -190,15 +189,17 @@ export class ScreenLogic<D extends AnyScreenDef> {
     const parsed = v.safeParse(schema, raw);
     return parsed.success
       ? ok(parsed.output as StateOf<D>)
-      : err(v.summarize(parsed.issues));
+      : err(
+          parsed.issues.map((issue) => v.getDotPath(issue) ?? '—').join(', '),
+        );
   }
 
   /** Состояние из кода экрана; не по схеме — бросок с источником. */
   private stateOrThrow(value: unknown, source: string): StateOf<D> {
     const parsed = this.parseState(value);
     if (parsed.ok) return parsed.value;
-    throw new Error(
-      `Экран ${this.def.name}: ${source} вернул состояние не по схеме — ${parsed.error}`,
+    throw new CodeDefect(
+      `Экран ${this.def.name}: ${source} вернул состояние не по схеме (поля: ${parsed.error})`,
     );
   }
 

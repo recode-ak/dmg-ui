@@ -3,7 +3,7 @@ import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import type { CodeLoaders } from './code-loaders';
 import type { RenderContext } from './context.types';
 import type { RefreshPort, UcPort } from './ports.types';
-import type { UiObserver } from './ui-observer.types';
+import type { UiFault, UiObserver } from './ui-observer.types';
 
 /** Исполнитель одной личности: набор, загрузчики кода, порты, наблюдатель. */
 export type ScreenRuntimeSpec = {
@@ -12,6 +12,8 @@ export type ScreenRuntimeSpec = {
   readonly ucs: UcPort;
   readonly refresh: RefreshPort;
   readonly observer: UiObserver;
+  /** Точка диагностики: сырые броски кода экрана и слушателей. */
+  readonly faults?: (fault: UiFault) => void;
 };
 
 /** Параметры открытия от канала: контекст рендера и след входящего сигнала. */

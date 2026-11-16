@@ -1,8 +1,4 @@
-/** Контекст кода экрана: язык и часовой пояс; вызывающего код не видит. */
-export type ActionContext = {
-  readonly locale: string;
-  readonly timeZone: string;
-};
+import type { ActionContext } from '../screen/action-context.types';
 
 /**
  * Контекст рендера от канала: контекст кода плюс признаки вызывающего —

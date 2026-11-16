@@ -17,6 +17,7 @@ import type {
   ScreenInstanceSpec,
 } from './screen-instance.types';
 import type { ScreenFrame } from './screen-unit.types';
+import { SignalInbox } from './signal-inbox';
 
 export type {
   InstanceLoad,
@@ -27,7 +28,8 @@ export type {
 /**
  * Экземпляр экрана одной личности: данные, состояние, ревизия, подписка на
  * перечитывание. `act`, `local` и перечитывание идут по одному через
- * очередь; ревизия растёт только при загрузке. Создаёт `ScreenRuntime`.
+ * очередь; ревизия растёт только при загрузке. Подписка живёт, пока
+ * экземпляр открыт и загружен: в отказе сигналов нет.
  */
 export class ScreenInstance {
   private readonly spec: ScreenInstanceSpec;
@@ -36,60 +38,89 @@ export class ScreenInstance {
   private readonly json: AddressJson;
   private readonly queue = new InstanceQueue();
   private readonly listeners = new Set<() => void>();
-  private readonly unwatch: () => void;
+  private unwatch: (() => void) | undefined;
   private loaded: InstanceLoad;
   private revision: number;
   private state: unknown;
   private trace: TraceJson;
   private closed = false;
+  /** Сигнал ожидающего перечитывания; в очереди оно одно. */
+  private pending: RefreshSignal | undefined;
+  private pendingRun: Promise<void> | undefined;
 
   private constructor(
     spec: ScreenInstanceSpec,
-    records: InstanceRecords,
+    parts: {
+      readonly records: InstanceRecords;
+      readonly node: string;
+      readonly json: AddressJson;
+      readonly unwatch: (() => void) | undefined;
+    },
     start: InstanceStart,
     loaded: InstanceLoad,
   ) {
     this.spec = spec;
-    this.records = records;
-    this.node = spec.ids.screen(spec.address.screen);
-    this.json = spec.codec.encode(spec.address);
+    this.records = parts.records;
+    this.node = parts.node;
+    this.json = parts.json;
+    this.unwatch = parts.unwatch;
     this.loaded = loaded;
     this.revision = start.revision + 1;
     this.state = loaded.status === 'ready' ? loaded.state : start.state;
     this.trace = start.trace;
-    this.unwatch = spec.refresh.watch(this.json, (signal) => {
-      void this.refresh(signal);
-    });
   }
 
-  /** Загрузка и экземпляр; отказ или дефект загрузки — статус `refused`. */
+  /**
+   * Подписка, затем загрузка; сигналы загрузки дают одно перечитывание.
+   * Отказ или дефект загрузки — статус `refused`, подписка снята.
+   */
   static async start(
     spec: ScreenInstanceSpec,
     start: InstanceStart,
   ): Promise<ScreenInstance> {
-    const records = new InstanceRecords(spec.observer, crypto.randomUUID());
+    const records = new InstanceRecords(
+      spec.observer,
+      crypto.randomUUID(),
+      spec.faults,
+    );
     const node = spec.ids.screen(spec.address.screen);
+    const json = spec.codec.encode(spec.address);
+    const inbox = new SignalInbox();
+    const unwatch = spec.refresh.watch(json, inbox.listener);
     const loaded = await ScreenInstance.load(
       spec,
       records,
       start.trace,
       start.state,
     );
-    const instance = new ScreenInstance(spec, records, start, loaded);
+    const ready = loaded.status === 'ready';
+    if (!ready) unwatch();
+    const instance = new ScreenInstance(
+      spec,
+      { records, node, json, unwatch: ready ? unwatch : undefined },
+      start,
+      loaded,
+    );
     records.opened(node, start.trace, instance.revision);
+    if (ready) {
+      inbox.attach((signal) => {
+        void instance.refresh(signal);
+      });
+    }
     return instance;
   }
 
   /** Действие по запросу канала; исход — после всех шагов, без броска. */
   act(request: ActRequest): Promise<ActionOutcome> {
     return this.queue.run(async () => {
-      const node = this.spec.ids.action(
-        this.spec.address.screen,
-        request.action,
-      );
+      const { unit, ids, address } = this.spec;
+      const node =
+        unit.action(request.action) === undefined
+          ? this.node
+          : ids.action(address.screen, request.action);
       this.records.acted(node, request.trace, this.revision);
       const end = await new ActionRun({
-        unit: this.spec.unit,
+        unit,
         frame: this.frame(),
         closed: this.closed,
         revision: this.revision,
@@ -104,7 +135,7 @@ export class ScreenInstance {
       let outcome: ActionOutcome;
       if (end.kind === 'stay') {
         await this.reload(request.trace);
-        this.notify();
+        this.notify(request.trace);
         outcome = { kind: 'stayed', revision: this.revision };
       } else {
         outcome = end.outcome;
@@ -128,8 +159,9 @@ export class ScreenInstance {
         return { kind: 'unavailable', reason: 'unknown' };
       }
       const frame = this.frame();
-      if (frame === undefined)
+      if (frame === undefined) {
         return { kind: 'unavailable', reason: 'disabled' };
+      }
       try {
         if (!unit.available(request.name, frame)) {
           return { kind: 'unavailable', reason: 'disabled' };
@@ -149,22 +181,34 @@ export class ScreenInstance {
           this.spec.address.screen,
           request.name,
         );
-        this.records.defect(node, this.trace, error);
+        const stage = `Экран ${unit.def.name}, локальное действие ${request.name}`;
+        this.records.defect(node, this.trace, error, stage);
         return { kind: 'refused', refusal: unit.refusals.defect() };
       }
-      this.notify();
+      this.notify(this.trace);
       return { kind: 'changed' };
     });
   }
 
-  /** Перечитывание по сигналу — в очереди, `read` со следом сигнала. */
+  /**
+   * Перечитывание по сигналу — в очереди, `read` со следом сигнала. Пока
+   * перечитывание ждёт очереди, новые сигналы лишь заменяют его след.
+   * Закрытый экземпляр или экземпляр в отказе сигнал не берёт.
+   */
   refresh(signal: RefreshSignal): Promise<void> {
-    return this.queue.run(async () => {
-      if (this.closed) return;
-      await this.reload(signal.trace);
-      this.records.refreshed(this.node, signal.trace, this.revision);
-      this.notify();
+    this.pending = signal;
+    if (this.pendingRun !== undefined) return this.pendingRun;
+    const run = this.queue.run(async () => {
+      const next = this.pending;
+      this.pending = undefined;
+      this.pendingRun = undefined;
+      if (next === undefined || this.unwatch === undefined) return;
+      await this.reload(next.trace);
+      this.records.refreshed(this.node, next.trace, this.revision);
+      this.notify(next.trace);
     });
+    this.pendingRun = run;
+    return run;
   }
 
   view(): InstanceView {
@@ -209,18 +253,24 @@ export class ScreenInstance {
 
   /** Закрыть: снять подписку перечитывания; дальше действия недоступны. */
   close(): void {
-    if (this.closed) return;
     this.closed = true;
-    this.unwatch();
+    this.stopWatch();
   }
 
-  /** Перечитать на месте: ревизия + 1, состояние сохраняется по схеме. */
+  /** Перечитать на месте: ревизия + 1; не `ready` — подписка снята. */
   private async reload(trace: TraceJson): Promise<void> {
     const { spec, records } = this;
     this.loaded = await ScreenInstance.load(spec, records, trace, this.state);
     if (this.loaded.status === 'ready') this.state = this.loaded.state;
+    else this.stopWatch();
     this.revision += 1;
     this.trace = trace;
+  }
+
+  private stopWatch(): void {
+    const unwatch = this.unwatch;
+    this.unwatch = undefined;
+    unwatch?.();
   }
 
   private frame(): ScreenFrame | undefined {
@@ -229,8 +279,15 @@ export class ScreenInstance {
     return { params: this.spec.address.params, data, state };
   }
 
-  private notify(): void {
-    for (const listener of [...this.listeners]) listener();
+  /** Слушатели вида; бросок слушателя — в `faults`, исполнение идёт дальше. */
+  private notify(trace: TraceJson): void {
+    for (const listener of [...this.listeners]) {
+      try {
+        listener();
+      } catch (error) {
+        this.records.fault(this.node, trace, error);
+      }
+    }
   }
 
   /** Загрузка юнита и вид; отказ — запись `refused`, дефект — `defect`. */
@@ -243,6 +300,7 @@ export class ScreenInstance {
     const { unit, address, context, ucs, ids } = spec;
     const node = ids.screen(address.screen);
     const code = { locale: context.locale, timeZone: context.timeZone };
+    const where = `Экран ${unit.def.name}`;
     const res = await unit.load(
       address.params,
       { node, ucs, trace },
@@ -254,8 +312,10 @@ export class ScreenInstance {
       return { status: 'refused', refusal: res.refusal };
     }
     let cause: unknown;
+    let stage: string;
     if (res.kind === 'defect') {
       cause = res.cause;
+      stage = `${where}: загрузка`;
     } else {
       try {
         const frame = {
@@ -272,9 +332,10 @@ export class ScreenInstance {
         };
       } catch (error) {
         cause = error;
+        stage = `${where}: вид`;
       }
     }
-    records.defect(node, trace, cause);
+    records.defect(node, trace, cause, stage);
     return { status: 'refused', refusal: unit.refusals.defect() };
   }
 }

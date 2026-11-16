@@ -16,8 +16,8 @@ const AssignedPayload = v.object({ taskId: v.string() });
 
 /**
  * Уведомление о назначении. `listTasks` отдаёт только задачи вызывающего:
- * получатель чужую задачу не видит, название — запасное (расхождение 7
- * брифа Ф4; учебному примеру Ф5 нужен свой UC).
+ * получатель чужую задачу не видит, название — запасное (учебному примеру
+ * нужен UC «задачи, назначенные мне»).
  */
 export class TaskAssignedNotificationCode extends NotificationCode<Assigned> {
   override async load({

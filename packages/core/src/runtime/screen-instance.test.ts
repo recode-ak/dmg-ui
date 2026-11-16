@@ -10,6 +10,7 @@ import {
 import {
   CompleteTaskUcDef,
   CreateTaskUcDef,
+  ListTasksUcDef,
   TaskErrors,
 } from 'dmg-core/testing/example';
 import {
@@ -33,8 +34,7 @@ import {
 import type { ActionSteps, LoadContext } from '../screen/screen-code.types';
 
 // Действия экземпляра экрана: порядок шагов `act`, проверка перехода,
-// подтверждение, отказы, ревизия и очередь, локальные действия (решения 6–9
-// брифа Ф4).
+// подтверждение, отказы, ревизия и очередь, локальные действия.
 
 type List = typeof TaskListScreenDef;
 type Card = typeof TaskCardScreenDef;
@@ -117,6 +117,16 @@ const selectedList = async (kit: RuntimeKit) => {
   return list;
 };
 
+/** Карточка в отказе загрузки: `listTasks` отвечает `ACCESS_DENIED`. */
+const refusedCard = async (kit = new RuntimeKit()) => {
+  const denied = CoreErrors.ACCESS_DENIED.make({
+    rule: 'isOwner',
+    denyMessage: 'Нет',
+  });
+  kit.ucs.answer(ListTasksUcDef, wire(denied));
+  return kit.openCard();
+};
+
 /** Карточка с ответом `completeTask` — успех. */
 const cardWithComplete = async (kit = new RuntimeKit()) => {
   kit.ucs.answer(CompleteTaskUcDef, ok({}));
@@ -168,7 +178,7 @@ describe('ScreenInstance.act — переходы', () => {
   });
 });
 
-describe('ScreenInstance.act — необъявленное (критерий 5)', () => {
+describe('ScreenInstance.act — необъявленное', () => {
   test('переход на экран вне to — дефект: SERVER_INTERNAL и запись defect', async () => {
     const kit = new RuntimeKit(fixtureCodes({ list: new Jump() }));
     kit.ucs.answer(CreateTaskUcDef, ok({ taskId: TASK_B }));
@@ -188,6 +198,33 @@ describe('ScreenInstance.act — необъявленное (критерий 5)
     const card = await kit.openCard();
 
     const outcome = await card.act({ action: 'back', revision: 1, trace });
+
+    expect(outcome).toMatchObject({
+      kind: 'refused',
+      refusal: { code: 'SERVER_INTERNAL', caught: false },
+    });
+    expect(kit.observer.kinds()).toContain('defect');
+  });
+});
+
+describe('ScreenInstance.act — отказ загрузки и порт', () => {
+  test('экземпляр в отказе — unavailable/disabled, UC не вызван', async () => {
+    const kit = new RuntimeKit();
+    const card = await refusedCard(kit);
+
+    const outcome = await card.act({ action: 'back', revision: 1, trace });
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
+  });
+
+  test('бросок порта UC — дефект: SERVER_INTERNAL и запись defect', async () => {
+    const kit = new RuntimeKit();
+    kit.ucs.answer(CompleteTaskUcDef, () => {
+      throw new Error('сеть');
+    });
+    const card = await kit.openCard();
+
+    const outcome = await card.act({ action: 'complete', revision: 1, trace });
 
     expect(outcome).toMatchObject({
       kind: 'refused',
@@ -254,7 +291,7 @@ describe('ScreenInstance.act — подтверждение', () => {
 });
 
 describe('ScreenInstance.act — вход и доступность', () => {
-  test('вход не по схеме — rejected с полем, UC не вызван (критерий 12)', async () => {
+  test('вход не по схеме — rejected с полем, UC не вызван', async () => {
     const kit = new RuntimeKit();
     const list = await kit.openList();
 
@@ -377,7 +414,7 @@ describe('ScreenInstance.act — отказ UC', () => {
 });
 
 describe('ScreenInstance.act — ревизия и очередь', () => {
-  test('устаревшая ревизия — stale с текущей, UC не вызван (критерий 12)', async () => {
+  test('устаревшая ревизия — stale с текущей, UC не вызван', async () => {
     const kit = new RuntimeKit();
     const card = await cardWithComplete(kit);
 
@@ -476,5 +513,43 @@ describe('ScreenInstance.local', () => {
     expect(list.view()).toEqual(before);
     expect(changed).toBe(0);
     expect(kit.observer.kinds()).toContain('defect');
+  });
+
+  test('закрытый экземпляр — unavailable/closed', async () => {
+    const list = await new RuntimeKit().openList();
+    list.close();
+
+    const outcome = await list.local({
+      name: 'toggle',
+      input: { taskId: TASK_A },
+    });
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'closed' });
+  });
+
+  test('имя не из locals — unavailable/unknown', async () => {
+    const list = await new RuntimeKit().openList();
+
+    const outcome = await list.local({ name: 'missing' });
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'unknown' });
+  });
+
+  test('экземпляр в отказе — unavailable/disabled', async () => {
+    const kit = new RuntimeKit();
+    kit.ucs.answer(
+      ListTasksUcDef,
+      wire(
+        CoreErrors.ACCESS_DENIED.make({ rule: 'isOwner', denyMessage: 'Нет' }),
+      ),
+    );
+    const list = await kit.openList();
+
+    const outcome = await list.local({
+      name: 'toggle',
+      input: { taskId: TASK_A },
+    });
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
   });
 });
