@@ -11,6 +11,14 @@ const EXAMPLE = 'packages/core/testing/example';
 const BINDING = 'packages/core/testing/example/dialog';
 /** Учебный диалоговый канал. */
 const CHANNEL = 'packages/core/testing/dialog';
+/** Привязка примера к страничному каналу: представления, маршруты и граф примера. */
+const PAGES_BINDING = 'packages/core/testing/example/pages';
+/** Учебный страничный канал: подкаталоги разделены границей JSON. */
+const PAGE = 'packages/core/testing/page';
+const PAGE_CLIENT = `${PAGE}/client`;
+const PAGE_SERVER = `${PAGE}/server`;
+const PAGE_WIRE = `${PAGE}/wire`;
+const PAGE_GRAPH = `${PAGE}/graph`;
 /** Помощник рендера примеров: от канала и сервера не зависит. */
 const PREVIEW = 'packages/core/testing/preview';
 
@@ -29,8 +37,11 @@ export class CoreImportScanner {
    * в `example/` и учебный канал `testing/dialog/`), учебный канал
    * (`testing/dialog/`: только публичные входы `dmg-ui`, `dmg-ui/server`,
    * `dmg-ui/graph`, `dmg-core`, `dmg-core/graph`; относительные — внутри
-   * канала, ARC-08) и помощник рендера (`testing/preview/`: как канал, без
-   * сервера и графа).
+   * канала, ARC-08), помощник рендера (`testing/preview/`: как канал, без
+   * сервера и графа), страничный канал (`testing/page/`: у `client/`, `wire/`,
+   * `server/`, `graph/` и корня свои белые списки, клиент не знает сервер и
+   * граф, сервер не знает клиент) и привязка примера к нему
+   * (`testing/example/pages/`, как у диалога; привязки друг друга не знают).
    */
   static standard(): CoreImportScanner {
     const forbidden = [
@@ -73,7 +84,7 @@ export class CoreImportScanner {
       {
         include: [`${EXAMPLE}/`],
         exclude: ['.test.ts'],
-        excludeDirs: [`${BINDING}/`],
+        excludeDirs: [`${BINDING}/`, `${PAGES_BINDING}/`],
         // Без `dmg-core/testing/*` из общего списка: контракты учебного
         // приложения (`dmg-core/testing/example`) примеру разрешены.
         forbidden: forbidden.filter((spec) => spec !== 'dmg-core/testing/*'),
@@ -81,7 +92,7 @@ export class CoreImportScanner {
         allowedPaths: [EXAMPLE],
         // Привязка лежит внутри `example/`, но пример её не знает: через неё
         // пример дотянулся бы до канала, сервера и графа.
-        forbiddenPaths: [BINDING],
+        forbiddenPaths: [BINDING, PAGES_BINDING],
       },
       {
         include: [`${BINDING}/`],
@@ -102,6 +113,86 @@ export class CoreImportScanner {
           'dmg-ui/graph',
         ],
         allowedPaths: [EXAMPLE, CHANNEL],
+        // Привязки каналов не знают друг друга: `EXAMPLE` в списке выше
+        // охватывает и соседнюю привязку.
+        forbiddenPaths: [PAGES_BINDING],
+      },
+      {
+        include: [`${PAGES_BINDING}/`],
+        exclude: ['.test.ts'],
+        // Как у привязки диалога: сборке `ExamplePagesArch` нужен `ExampleArch`.
+        forbidden: forbidden.filter(
+          (spec) =>
+            spec !== 'dmg-core/testing/*' && spec !== 'dmg-core/testing',
+        ),
+        allowed: [
+          'valibot',
+          'dmg-core',
+          'dmg-core/graph',
+          'dmg-core/arch',
+          'dmg-core/testing',
+          'dmg-core/testing/example',
+          'dmg-ui',
+          'dmg-ui/graph',
+        ],
+        allowedPaths: [EXAMPLE, PAGE],
+        forbiddenPaths: [BINDING],
+      },
+      {
+        include: [`${PAGE_CLIENT}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-ui'],
+        allowedPaths: [PAGE_CLIENT, PAGE_WIRE],
+      },
+      {
+        include: [`${PAGE_WIRE}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-ui'],
+        allowedPaths: [PAGE_WIRE],
+      },
+      {
+        include: [`${PAGE_SERVER}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-ui', 'dmg-ui/server'],
+        allowedPaths: [PAGE_SERVER, PAGE_WIRE],
+      },
+      {
+        include: [`${PAGE_GRAPH}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: [
+          'valibot',
+          'dmg-core',
+          'dmg-core/graph',
+          'dmg-ui',
+          'dmg-ui/graph',
+        ],
+        // Имя канала и версию поставщика граф берёт из `page-channel.const`.
+        allowedPaths: [PAGE_GRAPH, PAGE_CLIENT, `${PAGE}/page-channel.const`],
+      },
+      {
+        include: [`${PAGE}/`],
+        exclude: ['.test.ts'],
+        // Корень канала — файлы `page/*.ts`; подкаталоги имеют свои зоны.
+        excludeDirs: [
+          `${PAGE_CLIENT}/`,
+          `${PAGE_SERVER}/`,
+          `${PAGE_WIRE}/`,
+          `${PAGE_GRAPH}/`,
+        ],
+        forbidden,
+        allowed: [
+          'valibot',
+          'dmg-core',
+          'dmg-core/graph',
+          'dmg-ui',
+          'dmg-ui/server',
+          'dmg-ui/graph',
+        ],
+        allowedPaths: [PAGE],
       },
       {
         include: [`${CHANNEL}/`],
