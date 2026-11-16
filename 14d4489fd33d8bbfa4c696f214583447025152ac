@@ -1,0 +1,1 @@
+Срез А Ф6 dmg-ui-core: UcCall без node и trace; UcCalls строит вызов (модуль по set.app.modules); сервер — ClaimedCause, маршрут по (module, uc), command с любым eventId — SERVER_INTERNAL+warn, OPERATION_NOT_FOUND с настоящим модулем; уведомитель на новой форме. check: 607 pass.
