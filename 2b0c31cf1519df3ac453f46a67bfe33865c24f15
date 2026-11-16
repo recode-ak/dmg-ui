@@ -1,1 +1,0 @@
-K1 Ф7 dmg-ui-core: ссылки на номера трека в packages/** и checks/** заменены словами и D-UI-<n> (49 файлов, только комментарии и имена тестов; два ключа снимков); Т-2 — подписи диалога из Def экрана (UiIds.findScreen); тест checks/track-references + TextTree. Гейт: biome 318 файлов, tsc чистый; красные только незакоммиченные docs-links и rule-catalog (документы — K2).
