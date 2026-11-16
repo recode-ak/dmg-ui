@@ -1,4 +1,0 @@
-Задача «Ревью фазы и правки» Фазы 3 трека dmg-ui-core.
-Ревью dmg-reviewer (Opus) по diff 816b38f..7730c68: 1 error (UI-15 ложно срабатывал на базовых ошибках ядра), 3 warning, 8 note; повторное ревью правок — без новых замечаний уровня error и warning.
-Файлы: graph/rules/catches-of-uc, transition-outside-app, transition-outside-story, filled-texts, examples-by-schema (+ *.types.ts), ui-domain-props, ui-graph-reader.types, тесты правил, ui-graph-provider.test, ui-rules.test, testing/ui-arch.
-Гейт: bun run check — 347 pass, 0 fail, 45 файлов.
