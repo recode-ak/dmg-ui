@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { resolve } from 'node:path';
-import { RuleCatalog } from './rule-catalog';
+import { RULE_PREFIXES, RuleCatalog } from './rule-catalog';
 import { SourceFile } from './source-tree';
 import { TextTree } from './text-tree';
 
@@ -45,6 +45,38 @@ describe('RuleCatalog.checkRules — правила кода и rules.md', () =>
   it('id в обратных кавычках в строке таблицы находится', () => {
     const rules = file('rules.md', '| `UI-01` | а |\n| `PG-02` | б |\n');
     expect(catalog.checkRules(code, rules)).toEqual([]);
+  });
+});
+
+describe('RuleCatalog.checkRules — префиксы правил', () => {
+  const chat = [file('r/c.rule.ts', "  readonly id = 'CH-01';")];
+
+  it('префиксы правил репо — UI, PG, CH', () => {
+    expect([...RULE_PREFIXES]).toEqual(['UI', 'PG', 'CH']);
+  });
+
+  it('CH-01 в коде и строка таблицы каталога совпадают — нарушений нет', () => {
+    const rules = file('rules.md', '| CH-01 | Пример в лимитах |\n');
+    expect(catalog.checkRules(chat, rules)).toEqual([]);
+  });
+
+  it('CH-NN в коде без записи — нарушение в файле кода', () => {
+    const rules = file('rules.md', '## Правила общей части\n');
+    expect(catalog.checkRules(chat, rules)).toEqual([
+      { file: 'r/c.rule.ts', line: 1, text: 'CH-01: правила нет в rules.md' },
+    ]);
+  });
+
+  it('запись CH-NN без правила в коде — нарушение в каталоге', () => {
+    const rules = file('rules.md', '| CH-01 | а |\n| `CH-02` | б |\n');
+    expect(catalog.checkRules(chat, rules)).toEqual([
+      { file: 'rules.md', line: 2, text: 'CH-02: правила нет в коде' },
+    ]);
+  });
+
+  it('префикс вне списка (ARC-13 в заголовке) — не запись правила', () => {
+    const rules = file('rules.md', '| CH-01 | а |\n\n## Префиксы (ARC-13)\n');
+    expect(catalog.checkRules(chat, rules)).toEqual([]);
   });
 });
 
@@ -130,12 +162,27 @@ describe('каталог правил и решения репо', () => {
   const notSelf = (files: SourceFile[]) =>
     files.filter((f) => !SELF.includes(f.path));
 
-  it('правила UI-NN и PG-NN в коде и в docs/reference/rules.md совпадают', () => {
+  it('правила UI-NN, PG-NN и CH-NN в коде и в docs/reference/rules.md совпадают', () => {
     const code = TextTree.read(ROOT, 'packages', ['.ts']).filter(
       (f) => !f.path.endsWith('.test.ts'),
     );
     const rules = read('docs/reference/rules.md');
     expect(format(catalog.checkRules(code, rules))).toEqual([]);
+  });
+
+  it('каталог видит CH-01 и в коде пакета, и в docs/reference/rules.md', () => {
+    const code = TextTree.read(ROOT, 'packages', ['.ts']).filter(
+      (f) => !f.path.endsWith('.test.ts'),
+    );
+    const inCode = catalog
+      .checkRules(code, file('empty.md', ''))
+      .map((v) => v.text);
+    const inCatalog = catalog
+      .checkRules([], read('docs/reference/rules.md'))
+      .map((v) => v.text);
+
+    expect(inCode).toContain('CH-01: правила нет в empty.md');
+    expect(inCatalog).toContain('CH-01: правила нет в коде');
   });
 
   it('каждое D-UI-<n> из кода и документов определено в docs/decisions.md', () => {

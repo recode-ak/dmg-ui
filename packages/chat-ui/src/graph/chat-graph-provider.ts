@@ -4,6 +4,7 @@ import type {
   GraphKinds,
   GraphNodeInput,
   GraphProvider,
+  GraphRule,
 } from 'dmg-core/graph';
 import { UiIds } from 'dmg-ui';
 import { UI_EDGE_KINDS } from 'dmg-ui/graph';
@@ -18,14 +19,16 @@ import {
   CHAT_PROVIDER,
   CHAT_VERSION,
 } from './chat-kinds';
+import { ExampleLimitsRule } from './rules/example-limits.rule';
 
 export type { ChatAppSpec, ChatGraphSpec } from './chat-graph-provider.types';
 
 /**
  * Поставщик графа общей части мессенджеров (D-UI-57) — один на все
  * приложения: под приложением UI узел возможностей `chatMessenger` и входы
- * беседы `chatEntry` с ребром `chatEnters`, рёбра `presents` — от реестра.
- * Повтор приложения, реестр другого набора, возможности не по схеме — бросок.
+ * беседы `chatEntry` с ребром `chatEnters`, рёбра `presents` — от реестра;
+ * правило CH-01. Повтор приложения, реестр или примеры другого набора,
+ * возможности не по схеме — бросок.
  */
 export class ChatGraphProvider implements GraphProvider {
   readonly name = CHAT_PROVIDER;
@@ -45,6 +48,11 @@ export class ChatGraphProvider implements GraphProvider {
           `ChatGraphProvider: реестр представлений приложения ${app.name} — не для набора приложения`,
         );
       }
+      if (spec.examples.set !== app.set) {
+        throw new Error(
+          `ChatGraphProvider: примеры приложения ${app.name} — не для набора приложения`,
+        );
+      }
       if (!v.is(MessengerCapabilitiesSchema, capabilities)) {
         throw new Error(
           `ChatGraphProvider: возможности мессенджера приложения ${app.name} не по схеме`,
@@ -55,6 +63,21 @@ export class ChatGraphProvider implements GraphProvider {
 
   kinds(): GraphKinds {
     return CHAT_KINDS;
+  }
+
+  /** CH-01: примеры в лимитах мессенджера своего приложения. */
+  rules(): readonly GraphRule[] {
+    return [
+      new ExampleLimitsRule({
+        examples: this.spec.examples,
+        views: new Map(
+          this.spec.apps.map(({ app, views }) => [
+            new UiIds(app.set).app(app),
+            views,
+          ]),
+        ),
+      }),
+    ];
   }
 
   contribute(): GraphContribution {

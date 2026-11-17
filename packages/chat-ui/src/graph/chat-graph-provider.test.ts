@@ -1,12 +1,22 @@
 import { describe, expect, test } from 'bun:test';
+import { ok } from 'dmg-core';
 import type { ArchApp } from 'dmg-core/arch';
 import { AppGraph, type Graph } from 'dmg-core/graph';
 import { ExampleArch } from 'dmg-core/testing';
 import { ExampleAppDef } from 'dmg-core/testing/example';
-import { type AnyUiAppDef, ScreenDef, UiModuleDef, UiSetDef } from 'dmg-ui';
+import {
+  type AnyUiAppDef,
+  CodeLoader,
+  CodeLoaders,
+  ScreenCode,
+  ScreenDef,
+  UiModuleDef,
+  UiSetDef,
+} from 'dmg-ui';
 import { UiGraphProvider } from 'dmg-ui/graph';
 import {
   ExampleUiSetDef,
+  exampleCodes,
   TaskCardScreenDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
@@ -28,6 +38,7 @@ import {
 import type { MessengerCapabilities } from '../messenger/messenger.types';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
+import { ChatExamples } from './chat-examples';
 import { ChatGraphProvider } from './chat-graph-provider';
 
 // Поставщик графа общей части мессенджеров `dmg-ui-chat` (D-UI-57): один на
@@ -69,6 +80,12 @@ const windowedSpec = (views = exampleDialogViews): AppSpec => ({
   capabilities: WINDOWED,
 });
 
+/** Примеры учебного набора — для правила лимитов поставщика. */
+const EXAMPLES = await ChatExamples.collect({
+  set: ExampleUiSetDef,
+  codes: exampleCodes(),
+});
+
 const graph = () => new AppGraph(ExampleDialogArch).build();
 
 /** Узлы вида `kind` под приложением `app`. */
@@ -90,7 +107,7 @@ const sceneOf = (apps: readonly AppSpec[]): ArchApp => ({
       set: ExampleUiSetDef,
       apps: apps.map((spec) => spec.app),
     }),
-    new ChatGraphProvider({ apps }),
+    new ChatGraphProvider({ apps, examples: EXAMPLES }),
   ],
 });
 
@@ -203,6 +220,16 @@ describe('ChatGraphProvider на графе примера', () => {
     ).toBe(false);
   });
 
+  test('правила поставщика примера — среди них CH-01', () => {
+    const chat = (ExampleDialogArch.providers ?? []).find(
+      (provider) => provider instanceof ChatGraphProvider,
+    );
+
+    expect(chat?.rules?.().map((rule) => rule.id)).toEqual(
+      expect.arrayContaining(['CH-01']),
+    );
+  });
+
   test('граф собирается документом dmg-core graph: свойства chatMessenger — JSON', () => {
     const document = new AppGraph(ExampleDialogArch).document('0.0.0');
     const json: { nodes: { id: string; kind: string; props: unknown }[] } =
@@ -276,6 +303,12 @@ const StrayScreenDef = ScreenDef.define({
   data: v.object({}),
 });
 
+class StrayScreenCode extends ScreenCode<typeof StrayScreenDef> {
+  override async load() {
+    return ok({});
+  }
+}
+
 /** Другой набор UI поверх учебного домена. */
 const OtherSetDef = UiSetDef.define({
   name: 'otherUi',
@@ -299,6 +332,7 @@ describe('ChatGraphProvider — ошибки сборки', () => {
       () =>
         new ChatGraphProvider({
           apps: [dialogSpec(EDITING), dialogSpec(WINDOWED)],
+          examples: EXAMPLES,
         }),
     );
 
@@ -316,6 +350,7 @@ describe('ChatGraphProvider — ошибки сборки', () => {
               capabilities: EDITING,
             },
           ],
+          examples: EXAMPLES,
         }),
     );
 
@@ -330,12 +365,32 @@ describe('ChatGraphProvider — ошибки сборки', () => {
     };
 
     const message = thrown(
-      () => new ChatGraphProvider({ apps: [dialogSpec(broken)] }),
+      () =>
+        new ChatGraphProvider({
+          apps: [dialogSpec(broken)],
+          examples: EXAMPLES,
+        }),
     );
 
     expect(message).toMatch(/exampleDialog/);
     expect(message).toMatch(/возможност/);
     expect(message).not.toContain(JSON.stringify(broken));
     expect(message).not.toContain(JSON.stringify(broken.options));
+  });
+
+  test('набор примеров другой, чем набор приложения, — бросок конструктора с именем приложения', async () => {
+    const examples = await ChatExamples.collect({
+      set: OtherSetDef,
+      codes: CodeLoaders.of(OtherSetDef, [
+        CodeLoader.screen(StrayScreenDef, async () => new StrayScreenCode()),
+      ]),
+    });
+
+    const message = thrown(
+      () => new ChatGraphProvider({ apps: [dialogSpec()], examples }),
+    );
+
+    expect(message).toMatch(/exampleDialog/);
+    expect(message).toMatch(/пример/);
   });
 });

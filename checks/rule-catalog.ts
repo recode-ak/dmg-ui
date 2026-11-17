@@ -1,11 +1,25 @@
 import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
-/** Сверка текстов: правила в коде и в `rules.md`, ссылки `D-UI-<n>` и `decisions.md`, нумерация `debt.md`. Код пакета не импортирует. */
+/**
+ * Префиксы правил репо: `UI` — ядро, `PG` — страничный канал примера, `CH` —
+ * общая часть мессенджеров. Общий шаблон `[A-Z]+-NN` нельзя: заголовки
+ * `rules.md` упоминают ID платформы (`ARC-13`).
+ */
+export const RULE_PREFIXES = ['UI', 'PG', 'CH'] as const;
+
+/** Номер правила с префиксом репо: `(UI|PG|CH)-NN`. */
+const RULE_ID = `(?:${RULE_PREFIXES.join('|')})-\\d{2}`;
+
+/** Сверка текстов: правила в коде и в `rules.md` (префиксы `RULE_PREFIXES`), ссылки `D-UI-<n>` и `decisions.md`, нумерация `debt.md`. Код пакета не импортирует. */
 export class RuleCatalog {
-  protected static readonly CODE_ID = /\bid\s*=\s*'((?:UI|PG)-\d{2})'/;
-  protected static readonly ROW_ID = /^\|\s*`?((?:UI|PG)-\d{2})\b/;
-  protected static readonly HEADING_ID = /^#{1,6}\s.*?\b((?:UI|PG)-\d{2})\b/;
+  protected static readonly CODE_ID = new RegExp(
+    `\\bid\\s*=\\s*'(${RULE_ID})'`,
+  );
+  protected static readonly ROW_ID = new RegExp(`^\\|\\s*\`?(${RULE_ID})\\b`);
+  protected static readonly HEADING_ID = new RegExp(
+    `^#{1,6}\\s.*?\\b(${RULE_ID})\\b`,
+  );
   protected static readonly DECISION_REF = /D-UI-(\d+)/g;
   protected static readonly DECISION_DEF = /^\*\*D-UI-(\d+)\./;
   protected static readonly DEBT_LAST =

@@ -112,11 +112,24 @@ const own = views.over([OwnCardView]); // реестр приложения св
 
 **Граф.** Канал — второй поставщик графа: `implements GraphProvider` (`node_modules/dmg-core/docs/guides/graph-extension.md` — шаги вида Def, видов и правил; здесь только отличия UI).
 
-1. **Ребро `presents`.** Приложение UI `presents` каждый экран и уведомление, у которых в канале есть представление; ставит его пакет канала (`UI_EDGE_KINDS.presents`, `UiIds.app(app)` — откуда, `UiIds.screen/notification` — куда). Без него срабатывает UI-06. Образец — [chat-graph-provider.ts](../../packages/chat-ui/src/graph/chat-graph-provider.ts) (D-UI-57): один поставщик `dmg-ui-chat` на все приложения мессенджеров, рёбра — от `ChatViews.presented()` реестра каждого приложения; под приложением — узел возможностей мессенджера `chatMessenger` и узлы входов беседы `chatEntry` с ребром `chatEnters` к экрану входа.
+1. **Ребро `presents`.** Приложение UI `presents` каждый экран и уведомление, у которых в канале есть представление; ставит его пакет канала (`UI_EDGE_KINDS.presents`, `UiIds.app(app)` — откуда, `UiIds.screen/notification` — куда). Без него срабатывает UI-06. Образец — [chat-graph-provider.ts](../../packages/chat-ui/src/graph/chat-graph-provider.ts) (D-UI-57): один поставщик `dmg-ui-chat` на все приложения мессенджеров, рёбра — от `ChatViews.presented()` реестра каждого приложения; под приложением — узел возможностей мессенджера `chatMessenger` и узлы входов беседы `chatEntry` с ребром `chatEnters` к экрану входа. Спека обязательно получает `examples` — примеры набора, собранные заранее (`await ChatExamples.collect({ set, codes })`, D-UI-58): `check` правила синхронный, а вид экрана по примеру — `Promise`.
 2. **Свой вид узла** — точка входа канала. `PageRouteDef` — вид Def `pageRoute` (путь и имя входа приложения), узел под приложением, ребро `opens` к экрану входа. Достижимость экранов ядро считает от входов (UI-07), поэтому вход должен быть объявлен в `entries` приложения.
-3. **Свои правила — свой префикс** (ARC-13): префикс не из префиксов пакета `dmg-core` и не `UI`. У страничного канала — `PG` (PG-01 — маршрут ведёт на объявленный вход, PG-02 — у входа есть маршрут; [rules.md](../reference/rules.md)). Правило читает граф запросами (`outgoing`, `children`), не ветвится по виду Def.
+3. **Свои правила — свой префикс** (ARC-13): префикс не из префиксов пакета `dmg-core` и не `UI`. У страничного канала — `PG` (PG-01 — маршрут ведёт на объявленный вход, PG-02 — у входа есть маршрут), у общей части мессенджеров — `CH` (CH-01 — пример экрана и уведомления укладывается в лимиты мессенджера своего приложения; [rules.md](../reference/rules.md)). Правило читает граф запросами (`outgoing`, `children`), не ветвится по виду Def; то, чего в графе нет (виды примеров), получает в конструктор. Новый префикс репо — в список `RULE_PREFIXES` проверки `RuleCatalog`.
 4. **Вызов UC из узла канала** (сигнал канала, не действие): узел объявляет `uses` и `listens` как `ChannelNode`, а ребро `invokes` ставит канал. Правило UI-10 защищает такие узлы, если у них есть ребро `refreshedBy` или `notifiedBy` к событию: граф ядра узлов канала не строит, и это ребро тоже ставит канал. Такие узлы не вызывают command UC по событию.
-5. **Вход графа.** `ArchApp` собирает `providers: [new UiGraphProvider({ set, apps }), new <Канал>GraphProvider(...)]` поверх доменного приложения; образцы — `ExampleDialogArch` (`dmg-ui/chat-ui/testing`), `ExamplePagesArch` (`dmg-ui/testing`). Имя поставщика `dmg-ui` уникально в графе: один `UiGraphProvider` на граф, два набора не поддержаны (DEBT-UI-12). Поставщик страниц ограничен одним приложением UI (DEBT-UI-6).
+5. **Вход графа.** `ArchApp` собирает `providers: [new UiGraphProvider({ set, apps }), new <Канал>GraphProvider(...)]` поверх доменного приложения; образцы — `ExampleDialogArch` (`dmg-ui/chat-ui/testing`), `ExamplePagesArch` (`dmg-ui/testing`). Сборка с `ChatGraphProvider` асинхронная — примеры собираются до графа:
+
+   ```ts
+   const examples = await ChatExamples.collect({ set: ExampleUiSetDef, codes: exampleCodes() });
+   export const Arch: ArchApp = {
+     ...ExampleArch,
+     providers: [
+       new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleDialogAppDef] }),
+       new ChatGraphProvider({ apps: [{ app: ExampleDialogAppDef, views, capabilities }], examples }),
+     ],
+   };
+   ```
+
+   Имя поставщика `dmg-ui` уникально в графе: один `UiGraphProvider` на граф, два набора не поддержаны (DEBT-UI-12). Поставщик страниц ограничен одним приложением UI (DEBT-UI-6).
 
 ## 6. Граница JSON и провод
 

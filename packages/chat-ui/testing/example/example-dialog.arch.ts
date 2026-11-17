@@ -1,12 +1,18 @@
 import type { ArchApp } from 'dmg-core/arch';
 import { ExampleArch } from 'dmg-core/testing';
-import { ChatGraphProvider } from 'dmg-ui/chat-ui';
+import { ChatExamples, ChatGraphProvider } from 'dmg-ui/chat-ui';
 import { UiGraphProvider } from 'dmg-ui/graph';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import { MemoryMessenger } from '../messengers/memory-messenger';
 import { ExampleDialogAppDef } from './example-dialog.app';
 import { exampleDialogViews } from './example-dialog.views';
 import { ExampleWindowedAppDef } from './example-windowed.app';
+
+/** Примеры учебного набора для CH-01: собираются до графа (`await` на верхнем уровне). */
+const examples = await ChatExamples.collect({
+  set: ExampleUiSetDef,
+  codes: exampleCodes(),
+});
 
 /**
  * Граф учебного примера: домен `ExampleArch`, поставщик `dmg-ui` с двумя
@@ -33,6 +39,7 @@ export const ExampleDialogArch: ArchApp = {
           capabilities: MemoryMessenger.windowed(() => 0).capabilities,
         },
       ],
+      examples,
     }),
   ],
 };
