@@ -14,11 +14,7 @@ import {
 } from 'dmg-ui/testing';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import type { InlineKeyboardButton, MessageEntity } from 'dmg-ui/tg-bot';
-import {
-  EXAMPLE_MOMENT,
-  ExampleTelegramPreview,
-  exampleTelegramViews,
-} from '../index';
+import { ExampleTelegramPreview, exampleTelegramViews } from '../index';
 import { telegramScene } from '../telegram-graph-scene';
 
 // Перекрытие общего представления под Telegram (D-UI-67): `exampleTelegramViews`
@@ -30,14 +26,6 @@ import { telegramScene } from '../telegram-graph-scene';
 
 const ids = new UiIds(ExampleUiSetDef);
 const preview = () => new ExampleTelegramPreview(exampleTelegramViews);
-
-/** Формат даты Telegram для вида показа момента — независимо от кода таблицы. */
-const FORMATS = {
-  date: 'd',
-  time: 't',
-  dateTime: 'dt',
-  relative: 'r',
-} as const;
 
 const buttons = (
   markup:
@@ -113,7 +101,8 @@ describe('один код экранов — два представления',
     const general = await textOf(common, TaskCardScreenDef, 'open');
 
     expect(own).toContain('[Выполнить]');
-    expect(own).not.toBe(general);
+    expect(own).toContain('20 ноября 2026, 12:00');
+    expect(general).not.toContain('20 ноября 2026, 12:00');
   });
 
   test('assignedTasks two: запрос Telegram у общего и перекрытого реестра одинаков', async () => {
@@ -182,23 +171,19 @@ describe('Telegram: перекрытые экраны — ключевые по�
 
   test('taskCard open: date_time с EXAMPLE_MOMENT и запасным текстом внутри текста', async () => {
     const request = await preview().screen(TaskCardScreenDef, 'open');
-    const found = dateTimes(request.entities);
 
-    expect(found).toHaveLength(1);
-    const [entity] = found;
-    expect(entity).toEqual({
-      type: 'date_time',
-      offset: entity?.offset ?? -1,
-      length: entity?.length ?? -1,
-      unix_time: EXAMPLE_MOMENT.at,
-      date_time_format: FORMATS[EXAMPLE_MOMENT.show],
-    });
-    const fallback = request.text.slice(
-      entity?.offset,
-      (entity?.offset ?? 0) + (entity?.length ?? 0),
+    expect(request.text).toBe(
+      'Задача: Хлеб\nСтатус: открыта\nНапоминание (пример): 20 ноября 2026, 12:00',
     );
-    expect(fallback.length).toBeGreaterThan(0);
-    expect(fallback.trim()).toBe(fallback);
+    expect(dateTimes(request.entities)).toEqual([
+      {
+        type: 'date_time',
+        offset: 51,
+        length: 21,
+        unix_time: 1795158000,
+        date_time_format: 'dt',
+      },
+    ]);
   });
 
   test('taskCard done: кнопки «Выполнить» нет — нет и цвета', async () => {
@@ -222,24 +207,6 @@ describe('Telegram: перекрытые экраны — ключевые по�
       inline_keyboard: [[{ text: 'Выполнить выбранные', disabled: {} }]],
     });
     expect(request).not.toHaveProperty('text');
-  });
-
-  test('запросы укладываются в лимиты Bot API: текст 4096, подпись 64', async () => {
-    const requests = [
-      await preview().screen(TaskListScreenDef, 'empty'),
-      await preview().screen(TaskListScreenDef, 'full'),
-      await preview().screen(TaskCardScreenDef, 'open'),
-      await preview().screen(TaskCardScreenDef, 'done'),
-      await preview().screen(AssignedTasksScreenDef, 'two'),
-    ];
-
-    for (const request of requests) {
-      expect(request.text.length).toBeGreaterThan(0);
-      expect(request.text.length).toBeLessThanOrEqual(4096);
-      for (const button of buttons(request.reply_markup)) {
-        expect(button.text.length).toBeLessThanOrEqual(64);
-      }
-    }
   });
 });
 

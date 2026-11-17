@@ -12,11 +12,10 @@ import { LINK_SCHEMES, MOMENT_FORMATS, TELEGRAM_TEXTS } from './telegram.const';
 import type { TelegramContent } from './telegram-messenger.types';
 
 /**
- * Форматированный текст → `text` и `entities` Bot API (D-UI-67). Одиночный
- * суррогат — U+FFFD (длина в UTF-16 та же, смещения не сдвигаются). Стили и
- * ссылка — на каждый фрагмент, цитата — одна на серию фрагментов: сущности не
- * пересекаются частично. Строчный код в цитате отбрасывается: доставка важнее стиля.
- * Момент — `date_time` на весь фрагмент; со ссылкой или кодом момент снимается.
+ * Форматированный текст → `text` и `entities` Bot API (D-UI-61). Одиночный
+ * суррогат — U+FFFD. Стили и ссылка — на каждый фрагмент, цитата — одна на
+ * серию; строчный код в цитате отбрасывается. Момент — `date_time` на весь
+ * фрагмент; со ссылкой или кодом снимается (D-UI-67).
  */
 export class TelegramText {
   private readonly entities: MessageEntity[] = [];

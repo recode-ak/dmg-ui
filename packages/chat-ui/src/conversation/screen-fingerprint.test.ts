@@ -48,6 +48,13 @@ describe('ScreenFingerprint', () => {
     expect(await fingerprint(SHOWN)).toBe(print);
   });
 
+  test('вид без акцента и момента — прежний отпечаток (литерал посчитан до D-UI-66)', async () => {
+    // Литерал получен кодом `ScreenFingerprint` на `39a046f^`, до полей акцента и момента.
+    expect(await fingerprint(SHOWN)).toBe(
+      'c8653c5c0c17ecc218d8330e024f67760654abefd5c8d171c9ce0113f3fc3bae',
+    );
+  });
+
   test.each<[string, readonly ViewMessage[]]>([
     [
       'другой текст',

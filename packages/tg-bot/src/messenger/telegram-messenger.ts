@@ -31,9 +31,9 @@ const UNAVAILABLE = err({ reason: 'unavailable' as const });
 /**
  * Мессенджер Telegram поверх порта Bot API (D-UI-61). Собеседник — только
  * целое положительное число (личный чат): неверный ответ `peers` не отправит
- * экран в группу или публичный канал. Уход экрана с `chosen` — отключённая кнопка с подписью нажатого, текст не
- * правится. Методы не бросают (ERR-01): недоставка —
- * значение, бросок порта — `unavailable` и `error` с именем ошибки.
+ * экран в группу или публичный канал. Уход экрана с `chosen` — отключённая
+ * кнопка с подписью нажатого, текст не правится. Методы не бросают (ERR-01):
+ * недоставка — значение, бросок порта — `unavailable` и `error`.
  */
 export class TelegramMessenger implements MessengerPort {
   readonly capabilities: MessengerCapabilities = TELEGRAM_CAPABILITIES;

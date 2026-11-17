@@ -95,6 +95,7 @@ export type {
 } from './messenger/messenger.types';
 export { ChatViews } from './view/chat-views';
 export { NotificationPresenter } from './view/notification-presenter';
+export { ScreenComposer } from './view/screen-composer';
 export { ScreenPresenter } from './view/screen-presenter';
 export type {
   CaughtTexts,

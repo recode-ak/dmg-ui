@@ -180,7 +180,7 @@ export class ConversationReplies {
           this.option(
             option.label,
             this.target(view, serial, option),
-            ConversationReplies.accent(option),
+            ScreenComposer.accent(option),
           ),
         ),
       ...this.more(slice, 'screen', serial),
@@ -270,24 +270,6 @@ export class ConversationReplies {
   ): MessageOption {
     const ref = this.refs.add(target);
     return accent === undefined ? { ref, label } : { ref, label, accent };
-  }
-
-  private static accent(option: ViewOption): Accent | undefined {
-    switch (option.kind) {
-      case 'action':
-      case 'local':
-        return option.accent;
-      case 'back':
-      case 'retry':
-      case 'home':
-        return undefined;
-      default: {
-        const unknownKind: never = option;
-        throw new Error(
-          `ConversationReplies: неизвестный вид варианта ${(unknownKind as ViewOption).kind}`,
-        );
-      }
-    }
   }
 
   /** Строка без стилей — в сообщение. */

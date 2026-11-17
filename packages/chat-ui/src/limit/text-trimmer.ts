@@ -27,10 +27,12 @@ export class TextTrimmer {
     const last = kept.at(-1);
     if (last === undefined) return [{ text: ELLIPSIS, styles: [] }];
     // С `…` текст фрагмента уже не тот, что у момента: момент снимается.
-    const { moment: _moment, ...rest } = last;
+    const trimmed = last.text.trimEnd() + ELLIPSIS;
     return [
       ...kept.slice(0, -1),
-      { ...rest, text: last.text.trimEnd() + ELLIPSIS },
+      last.link === undefined
+        ? { text: trimmed, styles: last.styles }
+        : { text: trimmed, styles: last.styles, link: last.link },
     ];
   }
 

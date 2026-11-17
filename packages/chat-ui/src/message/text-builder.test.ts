@@ -332,12 +332,10 @@ describe('TextBuilder.moment', () => {
     ['NaN', Number.NaN],
     ['Infinity', Number.POSITIVE_INFINITY],
   ])('%s — бросок построителя', (_, at) => {
-    new TextBuilder().moment('х', AT, 'date'); // верный вход не бросает
     expect(() => new TextBuilder().moment('х', at, 'date')).toThrow();
   });
 
   test('вид показа вне перечня — бросок построителя', () => {
-    new TextBuilder().moment('х', AT, 'date'); // верный вход не бросает
     expect(() =>
       new TextBuilder().moment('х', AT, 'weekday' as never),
     ).toThrow();

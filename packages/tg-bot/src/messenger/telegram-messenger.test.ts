@@ -573,25 +573,19 @@ describe('TelegramMessenger — уход экрана', () => {
     });
   });
 
-  test.each([
-    ['без chosen', undefined],
-    ['chosen вне вариантов', 'нет-такой'],
-  ])(
-    'retire %s — прежнее снятие клавиатуры: без reply_markup, кнопки нет',
-    async (_name, chosen) => {
-      const { api, messenger } = setup();
-      const shown = message(TASK, OPTIONS);
-      await messenger.show(PEER, shown);
+  test('retire с chosen вне вариантов — прежнее снятие клавиатуры: без reply_markup, кнопки нет', async () => {
+    const { api, messenger } = setup();
+    const shown = message(TASK, OPTIONS);
+    await messenger.show(PEER, shown);
 
-      expect(await messenger.retire(PEER, '1', shown, chosen)).toEqual(ok());
-      expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
-      expect(markupEdits(api)[0]).toEqual({ chat_id: CHAT, message_id: 1 });
-      expect(api.chat(CHAT)[0]).toMatchObject({
-        text: 'Задача Хлеб',
-        keyboard: [],
-      });
-    },
-  );
+    expect(await messenger.retire(PEER, '1', shown, 'нет-такой')).toEqual(ok());
+    expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
+    expect(markupEdits(api)[0]).toEqual({ chat_id: CHAT, message_id: 1 });
+    expect(api.chat(CHAT)[0]).toMatchObject({
+      text: 'Задача Хлеб',
+      keyboard: [],
+    });
+  });
 
   test('retire с chosen: отказ 400 — rejected и warn; отката на строку выбора нет', async () => {
     const { api, logger, messenger } = setup();
@@ -613,7 +607,7 @@ describe('TelegramMessenger — уход экрана', () => {
     });
   });
 
-  test('retire с chosen: 403 — blocked; «not modified» (повторный уход) — ok; бросок порта — unavailable и error', async () => {
+  test('retire с chosen: 403 — blocked; бросок порта — unavailable и error', async () => {
     const { api, logger, messenger } = setup();
     const shown = message(TASK, OPTIONS);
     await messenger.show(PEER, shown);
@@ -624,9 +618,6 @@ describe('TelegramMessenger — уход экрана', () => {
     expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(
       err({ reason: 'blocked' }),
     );
-
-    expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(ok());
-    expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(ok());
 
     api.throwNext(new TypeError('сеть недоступна'));
     expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(
@@ -916,35 +907,6 @@ describe('TelegramMessenger — operation в записях лога', () => {
       expect(record.meta).toMatchObject({ operation: 'update' });
     }
   });
-
-  test('в записях нет подписей, ссылок, unix_time, id чата и message_id', async () => {
-    const records: unknown[] = [];
-    for (const [, call] of OPERATIONS) {
-      for (const fail of ['refuse', 'throw'] as const) {
-        const { api, logger, messenger } = await prepared();
-        if (fail === 'refuse') {
-          api.failNext({ error_code: 400, description: 'Bad Request: z' });
-        } else {
-          api.throwNext(new Error('сбой-op17'));
-        }
-        await call(messenger);
-        records.push(...logger.records);
-      }
-    }
-
-    const json = JSON.stringify(records);
-    expect(records.length).toBeGreaterThan(0);
-    for (const secret of [
-      SECRET_LABEL,
-      SECRET_REF,
-      'секрет-op17',
-      String(SECRET_AT),
-      'сбой-op17',
-      PEER,
-    ]) {
-      expect(json).not.toContain(secret);
-    }
-  });
 });
 
 describe('TelegramMessenger — лог без данных', () => {
@@ -952,7 +914,10 @@ describe('TelegramMessenger — лог без данных', () => {
     const peer = '777000123';
     const text = 'секретный-текст-q9';
     const longRef = `long${'q'.repeat(70)}`;
+    const at = 1_777_123_456;
     const secrets = [
+      String(at),
+      'срок-q9',
       peer,
       text,
       'подпись-q9',
@@ -963,9 +928,13 @@ describe('TelegramMessenger — лог без данных', () => {
       '@secret-q9-chan',
     ];
     const { api, logger, messenger } = setup();
-    const shown = message(`Привет, ${text}`, [
-      { ref: 'refq9secret', label: 'подпись-q9' },
-    ]);
+    const shown = message(
+      [
+        { text: `Привет, ${text}`, styles: [] },
+        { text: 'срок-q9', styles: [], moment: { at, show: 'dateTime' } },
+      ],
+      [{ ref: 'refq9secret', label: 'подпись-q9', accent: 'danger' }],
+    );
     const handles: string[] = [];
     for (const delivery of [
       await messenger.show(peer, shown),

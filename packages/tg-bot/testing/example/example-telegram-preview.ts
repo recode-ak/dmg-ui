@@ -4,6 +4,7 @@ import {
   type ChatViews,
   DialogRenderer,
   type Message,
+  ScreenComposer,
   ScreenPresenter,
   type ViewMessage,
 } from 'dmg-ui/chat-ui';
@@ -14,7 +15,7 @@ import {
   TELEGRAM_CAPABILITIES,
   TelegramMessenger,
 } from 'dmg-ui/tg-bot';
-import { MemoryBotApi } from './../bot-api/memory-bot-api';
+import { MemoryBotApi } from '../bot-api/memory-bot-api';
 import { EXAMPLE_CHAT, EXAMPLE_CONTEXT } from './example-telegram.const';
 
 /**
@@ -105,9 +106,9 @@ export class ExampleTelegramPreview {
       options: caught.options.map((option, i) => ({
         ref: String(i + 1),
         label: option.label,
-        ...('accent' in option && option.accent !== undefined
-          ? { accent: option.accent }
-          : {}),
+        ...(ScreenComposer.accent(option) === undefined
+          ? {}
+          : { accent: ScreenComposer.accent(option) }),
       })),
     };
   }

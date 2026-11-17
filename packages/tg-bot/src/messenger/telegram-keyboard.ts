@@ -6,10 +6,10 @@ import type {
 import { ACCENT_STYLES, TELEGRAM_LIMITS } from './telegram.const';
 
 /**
- * Инлайн-клавиатура из вариантов сообщения (D-UI-67): по кнопке в строке,
+ * Инлайн-клавиатура из вариантов сообщения (D-UI-61): по кнопке в строке,
  * `text` — подпись как есть, `callback_data` — ссылка беседы как есть,
- * `style` — из акцента (нет акцента — нет поля). Ушедший экран — одна
- * отключённая кнопка с подписью нажатого.
+ * `style` — из акцента. Ушедший экран — одна отключённая кнопка с
+ * подписью нажатого.
  */
 export class TelegramKeyboard {
   private static readonly bytes = new TextLength('utf8');

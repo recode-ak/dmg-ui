@@ -99,8 +99,10 @@ export class MeasuredText {
     from: number,
     to: number,
   ): TextFragment {
-    const { moment: _moment, ...rest } = fragment;
-    return { ...rest, text: fragment.text.slice(from, to) };
+    const text = fragment.text.slice(from, to);
+    return fragment.link === undefined
+      ? { text, styles: fragment.styles }
+      : { text, styles: fragment.styles, link: fragment.link };
   }
 
   private sum(boundary: number): number {

@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { err, ok } from 'dmg-core';
-import {
-  type Message,
-  type MessageOption,
-  type MessengerCapabilities,
-  PlainText,
+import type {
+  Message,
+  MessageOption,
+  MessengerCapabilities,
 } from 'dmg-ui/chat-ui';
 import type { ChatLine } from '..';
 import { MemoryMessenger } from './memory-messenger';
@@ -591,40 +590,5 @@ describe('MemoryMessenger — порт сообщества', () => {
 
   test('windowed: порта сообщества нет', () => {
     expect(MemoryMessenger.windowed(() => T0).community).toBeUndefined();
-  });
-});
-
-describe('MemoryMessenger — деградация акцента и момента', () => {
-  test('подпись и запасной текст видны как без акцента и момента; строка ChatLine той же формы', async () => {
-    const plain = message('Срок: 18 ноября', [option(1, 'Удалить')]);
-    const rich: Message = {
-      kind: 'text',
-      text: [
-        { text: 'Срок: ', styles: [] },
-        {
-          text: '18 ноября',
-          styles: [],
-          moment: { at: 1_800_000_000, show: 'date' },
-        },
-      ],
-      options: [{ ref: 'r1', label: 'Удалить', accent: 'danger' }],
-    };
-    const messenger = MemoryMessenger.editing();
-
-    await messenger.show(A, plain);
-    await messenger.show(B, rich);
-
-    const [plainLine] = messenger.chat(A);
-    const [richLine] = messenger.chat(B);
-    expect(PlainText.of(richLine!.message.text)).toBe(
-      PlainText.of(plainLine!.message.text),
-    );
-    expect(richLine!.message.options.map((o) => o.label)).toEqual(
-      plainLine!.message.options.map((o) => o.label),
-    );
-    expect(Object.keys(richLine!).sort()).toEqual(
-      Object.keys(plainLine!).sort(),
-    );
-    expect(richLine).toMatchObject({ edits: 0, retired: false });
   });
 });

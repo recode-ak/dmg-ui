@@ -464,6 +464,27 @@ describe('TelegramText — момент времени', () => {
     ]);
   });
 
+  test('момент + отвергнутая ссылка — ссылки нет, date_time остаётся', () => {
+    const out = TelegramText.of([
+      {
+        text: 'срок',
+        styles: [],
+        link: 'tg://login',
+        moment: { at: AT, show: 'date' },
+      },
+    ]);
+
+    expect(out.entities).toEqual([
+      {
+        type: 'date_time',
+        offset: 0,
+        length: 4,
+        unix_time: AT,
+        date_time_format: 'd',
+      },
+    ]);
+  });
+
   test('момент + code и момент + codeBlock — момент снят, стиль кода остаётся', () => {
     const moment = { at: AT, show: 'date' } as const;
 

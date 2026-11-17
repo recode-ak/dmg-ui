@@ -26,6 +26,7 @@ const CHAT_UI = [
   'MessengerCapabilitiesSchema',
   'NotificationPresenter',
   'PlainText',
+  'ScreenComposer',
   'ScreenPresenter',
   'TextBuilder',
   'TextLength',

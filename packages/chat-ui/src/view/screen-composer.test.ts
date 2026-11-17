@@ -452,4 +452,39 @@ describe('ScreenComposer', () => {
     );
     expect(PlainText.of(editing.messages[0]?.text ?? [])).toEndWith('…');
   });
+  describe('lead — абзац перед текстом', () => {
+    const MOMENT = { at: 1_800_000_000, show: 'date' } as const;
+
+    test('первый фрагмент с моментом не склеивается: абзац отдельным фрагментом, момент цел', () => {
+      const text = [{ text: 'завтра', styles: [], moment: MOMENT }];
+
+      expect(ScreenComposer.lead('Шапка', text)).toEqual([
+        { text: 'Шапка\n\n', styles: [] },
+        { text: 'завтра', styles: [], moment: MOMENT },
+      ]);
+    });
+
+    test('простой первый фрагмент — абзац склеивается с ним', () => {
+      expect(
+        ScreenComposer.lead('Шапка', [{ text: 'текст', styles: [] }]),
+      ).toEqual([{ text: 'Шапка\n\nтекст', styles: [] }]);
+    });
+  });
+
+  test('accent — у action и local есть, у back, retry, home — нет', () => {
+    expect(
+      ScreenComposer.accent({
+        kind: 'action',
+        name: 'a',
+        label: 'A',
+        accent: 'positive',
+      }),
+    ).toBe('positive');
+    expect(
+      ScreenComposer.accent({ kind: 'local', name: 'l', label: 'L' }),
+    ).toBeUndefined();
+    expect(
+      ScreenComposer.accent({ kind: 'back', label: 'Назад' }),
+    ).toBeUndefined();
+  });
 });

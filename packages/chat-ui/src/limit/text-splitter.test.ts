@@ -443,6 +443,23 @@ describe('TextSplitter', () => {
     ]);
   });
 
+  test('момент оборванного фрагмента снимается — остаётся запасной текст; целый фрагмент момент хранит', () => {
+    const moment = { at: 1_800_000_000, show: 'dateTime' } as const;
+    const torn: FormattedText = [
+      { text: 'сдать работу до завтра', styles: ['bold'], moment },
+    ];
+    const whole: FormattedText = [
+      { text: 'срок: ', styles: [] },
+      { text: 'завтра', styles: [], moment },
+    ];
+
+    expect(split(torn, { max: 15, unit: 'utf16' })).toEqual([
+      [{ text: 'сдать работу до', styles: ['bold'] }],
+      [{ text: 'завтра', styles: ['bold'] }],
+    ]);
+    expect(split(whole, { max: 20, unit: 'utf16' })).toEqual([whole]);
+  });
+
   test('графема длиннее лимита — отдельной частью целиком, без зацикливания', () => {
     expect(split(plain(`ab${FAMILY}cd`), { max: 4, unit: 'utf16' })).toEqual([
       plain('ab'),

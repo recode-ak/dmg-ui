@@ -4,7 +4,7 @@ import {
   type Refusal,
   UiIds,
 } from 'dmg-ui';
-import type { FormattedText } from '../message/message.types';
+import type { Accent, FormattedText } from '../message/message.types';
 import { TextBuilder } from '../message/text-builder';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
 import type { ChatViews } from './chat-views';
@@ -168,6 +168,13 @@ export class ScreenComposer {
         );
       }
     }
+  }
+
+  /** Акцент варианта (D-UI-66): есть только у `action` и `local`, у остальных видов — `undefined`. */
+  static accent(option: ViewOption): Accent | undefined {
+    return option.kind === 'action' || option.kind === 'local'
+      ? option.accent
+      : undefined;
   }
 
   /** Сверка варианта: вид и имя цели; подпись не входит. */

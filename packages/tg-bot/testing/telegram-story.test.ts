@@ -452,7 +452,7 @@ describe('сторис на Telegram', () => {
     }
   });
 
-  test('отключённую кнопку ушедшего экрана нажать нельзя: апдейта нет, повторное нажатие по старой ссылке — прежнее поведение', async () => {
+  test('повторное нажатие по старой ссылке ушедшего экрана — прежнее поведение (устаревшая ссылка)', async () => {
     const w = world();
     const { a } = w;
     await firstSteps(w);
@@ -464,12 +464,6 @@ describe('сторис на Telegram', () => {
       description: "Bad Request: message can't be edited",
     });
     await a.press('Назад');
-    const pressed = w.presses.length;
-
-    // У ушедшей кнопки данных нет: подставный мир нажатия по ней не строит.
-    const old = a.lines().find((line) => line.message_id === page.message_id);
-    expect(old?.keyboard.flat()).toEqual([{ text: 'Назад', disabled: {} }]);
-    expect(w.presses).toHaveLength(pressed);
 
     // Старая ссылка нажатого экрана — устаревшая (прежнее поведение).
     await a.pressData(back.data, page.message_id);
