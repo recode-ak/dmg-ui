@@ -5,6 +5,11 @@ const NAME = '[\\p{L}\\p{N}_$]';
 /** Не часть имени и не член объекта: перед словом нет буквы, цифры, `_`, `$`, `.`. */
 const STANDALONE = `(?<!${NAME}|\\.)`;
 const END = `(?!${NAME})`;
+/** Имена API браузера, которые ловятся и как член `globalThis` или `self`, и по ключу. */
+const API =
+  'WebSocket|XMLHttpRequest|EventSource|localStorage|sessionStorage|navigator|indexedDB|BroadcastChannel|HTMLElement|requestAnimationFrame|addEventListener';
+const ROOT_MEMBERS = `${API}|window|document|location|history`;
+const KEY = (names: string) => `\\[\\s*['"\`](?:${names})['"\`]\\s*\\]`;
 
 /**
  * Глобалы браузера и среды. Первая проверка: API браузера в `packages/**` и
@@ -14,11 +19,14 @@ const END = `(?!${NAME})`;
  * `location` встречаются в обычном коде (`'window'` в схемах, свойство
  * `history`), поэтому они ловятся по форме использования: `window.<член>`,
  * `document.createElement`, `history.pushState`, `location.href`,
- * `globalThis.window`, `{ … } = window`. Вторая проверка: `Bun` и `process` во
+ * `globalThis.window`, `self.document`, `window['document']`, `{ … } = window`.
+ * Вторая проверка: `Bun` и `process` во
  * всём `packages/web-ui/src/` без `.test.ts` — сервер говорит с соединением
  * через порт, клиент выполняется в браузере. `fetch` не ловится: в `tg-bot`
- * его закрывает `NetworkGlobalScanner`, клиенту он понадобится. Член объекта,
- * часть имени и строка в литерале — не нарушение.
+ * его закрывает `NetworkGlobalScanner`, клиенту он понадобится. Не ловит:
+ * члены `document` вне списка, алиасы (`const w = window`), вычисляемые ключи
+ * (`window[name]`); комментарий с `window.x` вне клиента считается нарушением.
+ * Член объекта, часть имени и строка в литерале — не нарушение.
  */
 export class BrowserGlobalScanner {
   protected static readonly BROWSER_ZONES = ['packages/', 'examples/'];
@@ -30,19 +38,25 @@ export class BrowserGlobalScanner {
 
   protected static readonly BROWSER = new RegExp(
     [
-      `${STANDALONE}(?:WebSocket|XMLHttpRequest|EventSource|localStorage|sessionStorage|navigator|indexedDB|BroadcastChannel|HTMLElement|requestAnimationFrame|addEventListener)${END}`,
+      `${STANDALONE}(?:${API})${END}`,
       `${STANDALONE}window\\.${NAME}+`,
       `${STANDALONE}document\\.(?:createElement|createTextNode|getElementById|querySelector(?:All)?|body|documentElement|cookie|title|addEventListener)${END}`,
       `${STANDALONE}history\\.(?:pushState|replaceState|back|forward|go|state|scrollRestoration)${END}`,
       `${STANDALONE}location\\.(?:href|pathname|search|hash|origin|host|hostname|assign|replace|reload)${END}`,
-      `${STANDALONE}globalThis\\.(?:window|document|location|history)${END}`,
-      `${STANDALONE}\\{[^}]*\\}\\s*=\\s*(?:window|globalThis)${END}`,
+      `${STANDALONE}(?:globalThis|self)\\.(?:${ROOT_MEMBERS})${END}`,
+      `${STANDALONE}(?:window|globalThis|self)${KEY(ROOT_MEMBERS)}`,
+      `${STANDALONE}\\{[^}]*\\}\\s*=\\s*(?:window|globalThis)(?![\\p{L}\\p{N}_$.])`,
+      `${STANDALONE}\\{[^}]*(?<!${NAME})(?:${ROOT_MEMBERS})(?!${NAME})[^}]*\\}\\s*=\\s*self(?![\\p{L}\\p{N}_$.])`,
     ].join('|'),
     'gu',
   );
 
   protected static readonly ENV = new RegExp(
-    `${STANDALONE}(?:Bun|process)${END}`,
+    [
+      `${STANDALONE}(?:Bun|process)${END}`,
+      `${STANDALONE}globalThis\\.(?:Bun|process)${END}`,
+      `${STANDALONE}globalThis${KEY('Bun|process')}`,
+    ].join('|'),
     'gu',
   );
 

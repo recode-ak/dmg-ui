@@ -159,6 +159,62 @@ describe('BrowserGlobalScanner — разрешённые зоны и не гл�
   }
 });
 
+describe('BrowserGlobalScanner — корни globalThis, self и обращение по ключу', () => {
+  const path = `${SRC}/server/x.ts`;
+  const forbidden: [string, string][] = [
+    ['const s = new globalThis.WebSocket(u);', 'globalThis.WebSocket'],
+    ['const v = self.localStorage;', 'self.localStorage'],
+    ['const s = new window.WebSocket(u);', 'window.WebSocket'],
+    ['const s = new self.WebSocket(u);', 'self.WebSocket'],
+    ['const n = self.navigator;', 'self.navigator'],
+    ['const d = self.document;', 'self.document'],
+    ['const l = self.location;', 'self.location'],
+    ['const h = self.history;', 'self.history'],
+    ['const w = self.window;', 'self.window'],
+    ["const d = window['document'];", "window['document']"],
+    ["const l = globalThis['location'];", "globalThis['location']"],
+    ["const h = self['history'];", "self['history']"],
+    ["const s = globalThis['WebSocket'];", "globalThis['WebSocket']"],
+  ];
+
+  for (const [line, name] of forbidden) {
+    it(`«${line}» — нарушение «${name}»`, () => {
+      expect(scan(line, path)).toEqual([{ file: path, line: 1, text: name }]);
+    });
+  }
+
+  it('деструктуризация из self — нарушение', () => {
+    const found = scan('const { document } = self;', path);
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ file: path, line: 1 });
+  });
+
+  for (const clean of [
+    'const where = this.self;',
+    'const id = item.self.id;',
+    'const self = this;\nself.render();\nself.items.push(x);',
+    "const v = myWindow['x'];",
+    'const g = options.globalThis;',
+    "const kind = 'self';",
+    'const { items } = self;',
+    'const { a } = self.props;',
+  ]) {
+    it(`не глобал «${clean}» не срабатывает`, () => {
+      expect(scan(clean, path)).toEqual([]);
+    });
+  }
+
+  it('разрешены в клиенте', () => {
+    expect(
+      scan(
+        "const d = self.document;\nconst w = globalThis['WebSocket'];\nconst { document } = self;",
+        `${SRC}/client/x.ts`,
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe('BrowserGlobalScanner — Bun и process в packages/web-ui/src/', () => {
   const zones = [
     `${SRC}/server/x.ts`,
@@ -190,6 +246,30 @@ describe('BrowserGlobalScanner — Bun и process в packages/web-ui/src/', () =
     ]) {
       expect(scan('Bun.serve(x);\nprocess.exit(1);', path)).toEqual([]);
     }
+  });
+});
+
+describe('BrowserGlobalScanner — Bun и process через globalThis', () => {
+  for (const path of [
+    `${SRC}/server/x.ts`,
+    `${SRC}/client/x.ts`,
+    `${SRC}/x.ts`,
+  ]) {
+    for (const [line, name] of [
+      ['const p = globalThis.process;', 'globalThis.process'],
+      ['const b = globalThis.Bun;', 'globalThis.Bun'],
+      ["const p = globalThis['process'];", "globalThis['process']"],
+    ] as const) {
+      it(`«${line}» в ${path} — нарушение`, () => {
+        expect(scan(line, path)).toEqual([{ file: path, line: 1, text: name }]);
+      });
+    }
+  }
+
+  it('вне src пакета web-ui не ловится', () => {
+    expect(
+      scan('const p = globalThis.process;', 'packages/web-ui/testing/x.ts'),
+    ).toEqual([]);
   });
 });
 
