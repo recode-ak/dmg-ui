@@ -8,7 +8,7 @@ export const PAGE_NOTES = {
   unavailable: 'Действие недоступно',
   readOnly: 'Только чтение: действие недоступно',
   closed: 'Экран закрыт',
-  confirm: 'Подтвердить',
+  failed: 'Экран недоступен',
   inbox: 'Входящие',
 } as const;
 

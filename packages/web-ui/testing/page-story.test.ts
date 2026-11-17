@@ -21,6 +21,7 @@ import {
   PageClient,
   PageHost,
   type PageServerPort,
+  PageText,
   PageWire,
   ServerMessage,
 } from 'dmg-ui/web-ui';
@@ -63,7 +64,7 @@ const tab = async (host: PageServerPort, token: string, prefix: string) => {
       return `${prefix}-${requests}`;
     },
   });
-  return { wire, client };
+  return { wire, client, text: new PageText(client, examplePageViews) };
 };
 
 /** Приложение, сервер, хост канала, уведомитель и две вкладки. */
@@ -163,13 +164,13 @@ test('сторис на страничном канале: задачи A, по�
   await settle(w);
   expect(b.client.region('main').view?.screen).toBe(ASSIGNED_ID);
   expect(b.client.region('main').view?.revision).toBe(1);
-  expect(b.client.page()).toContain('Назначенные мне');
-  expect(b.client.page()).toContain('Поручений нет.');
+  expect(b.text.page()).toContain('Назначенные мне');
+  expect(b.text.page()).toContain('Поручений нет.');
 
   // 2. A: «Мои задачи»; форма create — выход created, затем вход start снова.
   await a.client.route('/');
   expect(a.client.region('main').view?.screen).toBe(LIST_ID);
-  expect(a.client.page()).toContain('Мои задачи');
+  expect(a.text.page()).toContain('Мои задачи');
   for (const title of ['Хлеб', 'Молоко', 'Сыр']) {
     const outcome = await a.client.submit('main', 'create', { title });
     await settle(w);
@@ -192,7 +193,7 @@ test('сторис на страничном канале: задачи A, по�
     params: { page: 1 },
   });
   expect(a.client.region('side').view).toBeUndefined();
-  expect(a.client.page()).toContain('Сыр');
+  expect(a.text.page()).toContain('Сыр');
   await a.client.submit('main', 'prev', {});
   expect(a.client.region('main').view?.address).toEqual({
     screen: LIST_ID,

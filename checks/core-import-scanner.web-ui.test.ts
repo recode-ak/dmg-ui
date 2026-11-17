@@ -2,14 +2,17 @@ import { describe, expect, it } from 'bun:test';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile } from './source-tree';
 
-// Зоны пакета `web-ui`: клиент, провод, сервер, граф и корень канала — свои
-// белые списки; клиент не знает сервер и `dmg-core/app`, сервер не знает
-// клиент; каналы-соседи (`chat-ui`, `tg-bot`) и собственный вход из `src/`
-// канал не импортирует; привязка примера (`testing/`) — своя зона; пример
-// ядра и привязки соседей друг друга не знают.
+// Зоны пакета `web-ui`: клиент, представления, провод, сервер, граф и корень
+// канала — свои белые списки; клиент не знает сервер и `dmg-core/app`, сервер
+// не знает клиент; представления видят только себя и публичные входы ядра —
+// ни клиента, ни провода, ни сервера, ни графа; каналы-соседи (`chat-ui`,
+// `tg-bot`) и собственный вход из `src/` канал не импортирует; привязка
+// примера (`testing/`) — своя зона; пример ядра и привязки соседей друг друга
+// не знают.
 
 const PAGE = 'packages/web-ui/src';
 const CLIENT = `${PAGE}/client/page-client.ts`;
+const VIEW = `${PAGE}/view/page-text-presenter.ts`;
 const SERVER = `${PAGE}/server/page-host.ts`;
 const WIRE = `${PAGE}/wire/page-wire.ts`;
 const GRAPH = `${PAGE}/graph/page-graph-provider.ts`;
@@ -34,6 +37,12 @@ describe('CoreImportScanner — клиент страничного канала
     ].join('\n');
 
     expect(scan(text, CLIENT)).toEqual([]);
+  });
+
+  it('представления из view/ — разрешены', () => {
+    expect(
+      scan("import { PageRenderer } from '../view/page-renderer';", CLIENT),
+    ).toEqual([]);
   });
 
   it('константа канала из корня (page-channel.const) — разрешена, прочий корень — нет', () => {
@@ -91,6 +100,7 @@ describe('CoreImportScanner — провод страничного канала
     "import { a } from 'dmg-core/app';",
     "import { PageClient } from '../client/page-client';",
     "import { PageHost } from '../server/page-host';",
+    "import { PageRenderer } from '../view/page-renderer';",
   ]) {
     it(`${text} в проводе — нарушение`, () => {
       expect(scan(text, WIRE)).toHaveLength(1);
@@ -129,6 +139,7 @@ describe('CoreImportScanner — сервер страничного канала
   for (const text of [
     "import { PageClient } from '../client/page-client';",
     "import { PageRouteDef } from '../graph/page-route-def';",
+    "import { PageRenderer } from '../view/page-renderer';",
     "import { a } from 'dmg-core/app';",
     "import { a } from 'dmg-core/graph';",
     "import fs from 'node:fs';",
@@ -146,14 +157,60 @@ describe('CoreImportScanner — сервер страничного канала
   }
 });
 
+describe('CoreImportScanner — представления страничного канала (web-ui/src/view/)', () => {
+  it('разрешены valibot, dmg-core, dmg-ui и соседи по view/', () => {
+    const text = [
+      "import * as v from 'valibot';",
+      "import type { TraceJson } from 'dmg-core';",
+      "import { UiIds } from 'dmg-ui';",
+      "import type { PageViews } from './page-views';",
+      "import type { ViewSource } from './view-source.types';",
+    ].join('\n');
+
+    expect(scan(text, VIEW)).toEqual([]);
+  });
+
+  for (const text of [
+    "import { PageClient } from '../client/page-client';",
+    "import { ViewCell } from '../client/view-cell';",
+    "import { ClientMessage } from '../wire/page-messages';",
+    "import { PageHost } from '../server/page-host';",
+    "import { PAGE_KINDS } from '../graph/page-kinds';",
+    "import { PAGE_CHANNEL } from '../page-channel.const';",
+    "import { UiServer } from 'dmg-ui/server';",
+    "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
+    "import type { GraphProvider } from 'dmg-core/graph';",
+    "import { a } from 'dmg-core/app';",
+    "import fs from 'node:fs';",
+    "import { test } from 'bun:test';",
+  ]) {
+    it(`${text} в представлениях — нарушение`, () => {
+      expect(scan(text, VIEW)).toHaveLength(1);
+    });
+  }
+
+  for (const text of NEIGHBOURS) {
+    it(`${text} в представлениях — нарушение`, () => {
+      expect(scan(text, VIEW)).toHaveLength(1);
+    });
+  }
+
+  it('*.test.ts представлений — вне зоны', () => {
+    const text =
+      "import { test } from 'bun:test';\nimport { ViewCell } from '../client/view-cell';";
+
+    expect(scan(text, `${PAGE}/view/page-text-presenter.test.ts`)).toEqual([]);
+  });
+});
+
 describe('CoreImportScanner — граф страничного канала (web-ui/src/graph/)', () => {
-  it('разрешены dmg-core/graph, dmg-ui/graph, соседи и тип PageViews из client/', () => {
+  it('разрешены dmg-core/graph, dmg-ui/graph, соседи и тип PageViews из view/', () => {
     const text = [
       "import type { GraphProvider } from 'dmg-core/graph';",
       "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
       "import { UiIds } from 'dmg-ui';",
       "import { PageRouteDef } from './page-route-def';",
-      "import type { PageViews } from '../client/page-views';",
+      "import type { PageViews } from '../view/page-views';",
     ].join('\n');
 
     expect(scan(text, GRAPH)).toEqual([]);
@@ -163,6 +220,7 @@ describe('CoreImportScanner — граф страничного канала (we
     "import { PageHost } from '../server/page-host';",
     "import { UiServer } from 'dmg-ui/server';",
     "import { PageMessages } from '../wire/page-messages';",
+    "import { PageClient } from '../client/page-client';",
     "import { a } from 'dmg-core/app';",
   ]) {
     it(`${text} в графе канала — нарушение`, () => {
@@ -190,6 +248,12 @@ describe('CoreImportScanner — корень страничного канала
     ].join('\n');
 
     expect(scan(text, CHANNEL_ROOT)).toEqual([]);
+  });
+
+  it('представления из view/ — разрешены', () => {
+    expect(
+      scan("import { PageViews } from './view/page-views';", CHANNEL_ROOT),
+    ).toEqual([]);
   });
 
   for (const text of [
@@ -239,7 +303,7 @@ describe('CoreImportScanner — привязка примера (packages/web-ui
     "import fs from 'node:fs';",
     "import { test } from 'bun:test';",
     "import { a } from 'dmg-core/app';",
-    "import { PageViews } from '../../src/client/page-views';",
+    "import { PageViews } from '../../src/view/page-views';",
     "import { UiIds } from '../../../core/src/address/ui-ids';",
   ]) {
     it(`${text} в привязке страниц — нарушение`, () => {
@@ -248,7 +312,7 @@ describe('CoreImportScanner — привязка примера (packages/web-ui
   }
 
   for (const text of [
-    "import { PageViews } from '../src/client/page-views';",
+    "import { PageViews } from '../src/view/page-views';",
     "import { UiIds } from '../../core/src/address/ui-ids';",
   ]) {
     it(`${text} во входе привязки (testing/index.ts) — нарушение`, () => {

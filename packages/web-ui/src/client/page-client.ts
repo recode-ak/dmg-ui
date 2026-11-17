@@ -12,6 +12,8 @@ import {
 } from 'dmg-ui';
 import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
+import type { PageViewState } from '../view/page-view-state.types';
+import type { ViewSource } from '../view/view-source.types';
 import type { ServerMessage } from '../wire/page-messages.types';
 import { PAGE_HOME, PAGE_NOTES } from './page-client.const';
 import type {
@@ -19,24 +21,20 @@ import type {
   PageFormValues,
   PageInboxEntry,
   PageRegionName,
-  PageRegionView,
   PageSnapshot,
   RegionMarks,
 } from './page-client.types';
 import { PageForms } from './page-forms';
 import { PageInbox } from './page-inbox';
 import { PageRegions } from './page-regions';
-import { PageRenderer } from './page-renderer';
 import { PageTraces } from './page-traces';
 import { WirePorts } from './wire-ports';
 
 export type {
   PageClientSpec,
-  PageConfirm,
   PageFormValues,
   PageInboxEntry,
   PageRegionName,
-  PageRegionView,
   PageRoute,
   PageSlotJson,
   PageSnapshot,
@@ -47,6 +45,9 @@ const SnapshotJson = v.object({
   main: v.optional(v.unknown()),
   side: v.optional(v.unknown()),
 });
+
+/** Область снимка: адрес — для `loading` до ответа `restore`. */
+const SlotAddress = v.object({ address: v.unknown() });
 
 /** Действие области: экземпляр и вход, с которым его исполнить. */
 type Act = {
@@ -59,11 +60,11 @@ type Act = {
 
 /**
  * Вкладка одной личности — «браузерная» половина: исполнитель экранов здесь,
- * его порты — поверх провода (`WirePorts`), сервер не виден. Сигналы —
- * `route`, `submit`, `confirm`, `local`, `openLink`, `retry`; исходы — по
- * таблице политик исходов (гайд `channel-package.md`). Допущения: сигналы сериализует
- * вызывающий (из двух открытий в область побеждает последнее); контекст
- * рендера — из `hello` на всё соединение (D-UI-33).
+ * порты — поверх провода (`WirePorts`), сервер не виден. Сигналы — `route`,
+ * `submit`, `confirm`, `local`, `openLink`, `retry`; исходы — по таблице
+ * политик исходов (гайд `channel-package.md`); состояние области — `source`
+ * (D-UI-70). Допущения: из двух открытий в область побеждает последнее
+ * начатое; контекст рендера — из `hello` на всё соединение (D-UI-33).
  */
 export class PageClient {
   private readonly spec: PageClientSpec;
@@ -114,21 +115,24 @@ export class PageClient {
     }
     this.spec = spec;
     this.start = home.address;
-    this.ports = new WirePorts(spec.end);
+    this.traces = new PageTraces(
+      spec.requestIds ?? (() => crypto.randomUUID()),
+      PAGE_CHANNEL,
+    );
+    this.regions = new PageRegions((node, error) => this.fault(node, error));
+    this.ports = new WirePorts(spec.end, (address) =>
+      this.regions.signalled(address),
+    );
     this.runtime = new ScreenRuntime({
       set: app.set,
       codes: spec.codes,
       ucs: this.ports,
       refresh: this.ports,
       observer: spec.observer,
+      ...(spec.faults === undefined ? {} : { faults: spec.faults }),
     });
-    this.traces = new PageTraces(
-      spec.requestIds ?? (() => crypto.randomUUID()),
-      PAGE_CHANNEL,
-    );
     this.codec = new AddressCodec(app.set);
     this.ids = new UiIds(app.set);
-    this.regions = new PageRegions(new PageRenderer(views));
     this.notes = new PageInbox(views, spec.observer, this.traces);
     spec.end.onMessage((message) => this.receive(message));
   }
@@ -232,15 +236,14 @@ export class PageClient {
     if (address !== undefined) await this.openJson(region, address);
   }
 
-  region(name: PageRegionName): PageRegionView {
-    return this.regions.view(name);
+  /** Источник состояния области — один объект на всё время жизни вкладки. */
+  source(name: PageRegionName): ViewSource<PageViewState> {
+    return this.regions.source(name);
   }
 
-  /** Текст страницы: обе области и входящие. */
-  page(): string {
-    return [this.regions.text(), this.notes.text(PAGE_NOTES.inbox)]
-      .filter((part) => part !== undefined && part !== '')
-      .join('\n\n---\n\n');
+  /** Текущее состояние области — `source(name).get()`. */
+  region(name: PageRegionName): PageViewState {
+    return this.regions.state(name);
   }
 
   /** Снимок обеих областей в форме JSON. */
@@ -249,20 +252,34 @@ export class PageClient {
   }
 
   /**
-   * Восстановление вкладки из снимка (внешние данные): мусор или
+   * Восстановление вкладки из снимка (внешние данные): область с
+   * декодируемым адресом — `loading` до ответа `restore`; мусор или
    * невосстановленный адрес `main` — вход `start`; невосстановленная
    * `side` — пуста.
    */
   async resume(json: unknown): Promise<void> {
     const parsed = v.safeParse(SnapshotJson, json);
     const slots = parsed.success ? parsed.output : {};
-    this.regions.clear('main');
-    this.regions.clear('side');
-    const main = await this.restore(slots.main);
-    if (main === undefined) await this.open('main', this.start);
-    else this.regions.place('main', main);
-    const side = await this.restore(slots.side);
-    if (side !== undefined) this.regions.place('side', side);
+    const main = this.resuming('main', slots.main);
+    const side = this.resuming('side', slots.side);
+    try {
+      const restoredMain =
+        main === undefined ? undefined : await this.restore(slots.main);
+      if (main === undefined || restoredMain === undefined) {
+        await this.open('main', this.start);
+      } else {
+        this.regions.place('main', main, restoredMain);
+      }
+      if (side === undefined) return;
+      const restoredSide = await this.restore(slots.side);
+      if (restoredSide === undefined) this.regions.clear('side');
+      else this.regions.place('side', side, restoredSide);
+    } catch (error) {
+      // Отказ — вызывающему; области снимка в `loading` не остаются.
+      this.regions.failed('main', main, { note: PAGE_NOTES.failed });
+      this.regions.failed('side', side, { note: PAGE_NOTES.failed });
+      throw error;
+    }
   }
 
   private async act(region: PageRegionName, act: Act): Promise<ActionOutcome> {
@@ -273,7 +290,11 @@ export class PageClient {
       confirmed: act.confirmed,
       trace: this.traces.next(),
     });
-    await this.settle(region, act, outcome);
+    // Экземпляр ушёл из области (переход, очистка) — побеждает последнее
+    // начатое: исход только вызывающему.
+    if (this.regions.instance(region) === act.instance) {
+      await this.settle(region, act, outcome);
+    }
     return outcome;
   }
 
@@ -315,7 +336,10 @@ export class PageClient {
         return;
       case 'stale':
         // Вид уже на перечитанных данных — форма заново по нему.
-        this.regions.mark(region, { note: PAGE_NOTES.stale });
+        this.regions.mark(region, {
+          note: PAGE_NOTES.stale,
+          stale: 'revision',
+        });
         return;
       case 'unavailable':
         this.regions.mark(region, { note: PageClient.note(outcome.reason) });
@@ -350,17 +374,45 @@ export class PageClient {
     await this.open(region, address.value);
   }
 
+  /** Прежний экземпляр снят до загрузки; опоздавший экземпляр `place` закроет. */
   private async open(
     region: PageRegionName,
     address: Address,
     marks?: RegionMarks,
   ): Promise<void> {
-    const instance = await this.runtime.open(address, this.options());
-    this.regions.place(region, instance, marks);
+    const ticket = this.regions.opening(
+      region,
+      this.codec.encode(address),
+      marks,
+    );
+    let instance: ScreenInstance;
+    try {
+      instance = await this.runtime.open(address, this.options());
+    } catch (error) {
+      // Отказ — вызывающему, как раньше; область в `loading` не остаётся.
+      this.regions.failed(region, ticket, { note: PAGE_NOTES.failed });
+      throw error;
+    }
+    this.regions.place(region, ticket, instance);
+  }
+
+  /**
+   * Область снимка до `restore`: адрес декодируется — `loading` и жетон;
+   * иначе область пуста, восстанавливать нечего.
+   */
+  private resuming(region: PageRegionName, json: unknown): number | undefined {
+    const slot = v.safeParse(SlotAddress, json);
+    const address = slot.success
+      ? this.codec.decode(slot.output.address)
+      : undefined;
+    if (address?.ok !== true) {
+      this.regions.clear(region);
+      return undefined;
+    }
+    return this.regions.opening(region, this.codec.encode(address.value));
   }
 
   private async restore(json: unknown): Promise<ScreenInstance | undefined> {
-    if (json === undefined) return undefined;
     const restored = await this.runtime.restore(json, this.options());
     return restored.ok ? restored.value : undefined;
   }
@@ -385,13 +437,27 @@ export class PageClient {
     }
   }
 
-  /** Действия нет: исход `unavailable` без исполнителя и заметка области. */
+  /**
+   * Действия нет: исход `unavailable` без исполнителя и заметка области;
+   * у области в `loading` отметки открытия остаются — они для нового экрана.
+   */
   private unavailable(
     region: PageRegionName,
     reason: UnavailableReason,
   ): Extract<ActionOutcome, { kind: 'unavailable' }> {
-    this.regions.mark(region, { note: PageClient.note(reason) });
+    if (this.regions.state(region).status !== 'loading') {
+      this.regions.mark(region, { note: PageClient.note(reason) });
+    }
     return { kind: 'unavailable', reason };
+  }
+
+  /** Бросок слушателя ячейки области — в точку диагностики; её бросок гасится. */
+  private fault(node: string, error: unknown): void {
+    try {
+      this.spec.faults?.({ node, trace: this.traces.next(), error });
+    } catch {
+      // Диагностика не рвёт сигнал вкладки: сообщить о её сбое некуда.
+    }
   }
 
   private options(): OpenOptions {

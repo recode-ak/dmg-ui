@@ -22,6 +22,7 @@ import {
   examplePageViews,
 } from '../testing';
 import { PageClient } from './client/page-client';
+import { PageText } from './client/page-text';
 import { PageHost } from './server/page-host';
 import type { ServerMessage as ServerMsg } from './wire/page-messages.types';
 import { PageWire } from './wire/page-wire';
@@ -53,7 +54,7 @@ const tab = async (host: PageServerPort, token: string) => {
       return `${token}-${requests}`;
     },
   });
-  return { wire, client };
+  return { wire, client, text: new PageText(client, examplePageViews) };
 };
 
 /** Учебное приложение, сервер UI и хост канала на личностях A и B. */
@@ -129,7 +130,7 @@ describe('PageClient — пути отказа через провод', () => {
     const side = b.client.region('side').view;
     expect(side).toMatchObject({ screen: CARD_ID, status: 'refused' });
     expect(side?.data).toBeUndefined();
-    expect(b.client.page()).not.toContain('Секрет');
+    expect(b.text.page()).not.toContain('Секрет');
   });
 
   test('ответ сервера не по схеме — загрузка отказана, а не висит; settled бросает', async () => {

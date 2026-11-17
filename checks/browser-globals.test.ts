@@ -96,6 +96,22 @@ describe('BrowserGlobalScanner — глобалы браузера вне кли
   });
 });
 
+describe('BrowserGlobalScanner — представления пакета (web-ui/src/view/)', () => {
+  // DOM представлению даёт только цель показа: свои глобалы браузера и среды
+  // в представлениях пакета запрещены.
+  const VIEW = `${SRC}/view/x.ts`;
+
+  for (const [line, name] of [
+    ["const d = document.createElement('div');", 'document.createElement'],
+    ['const s = new WebSocket(u);', 'WebSocket'],
+    ['Bun.serve({ port: 0 });', 'Bun'],
+  ] as const) {
+    it(`«${line}» в ${VIEW} — нарушение «${name}»`, () => {
+      expect(scan(line, VIEW)).toEqual([{ file: VIEW, line: 1, text: name }]);
+    });
+  }
+});
+
 describe('BrowserGlobalScanner — разрешённые зоны и не глобалы', () => {
   const lines = [
     'const s = new WebSocket(url);',

@@ -1,30 +1,21 @@
 // Учебный страничный канал: зародыш `dmg-ui/web-ui`. Половины
 // разделены границей JSON — клиент (`client/`) видит только конец провода,
-// сервер (`server/`) — только строки клиента. Внутренние `WirePorts`,
-// `PageConnection`, `PageRegions`, `PageForms` наружу не выходят.
+// сервер (`server/`) — только строки клиента; представления (`view/`) видят
+// только источник состояния и цель показа. Внутренние `WirePorts`,
+// `PageConnection`, `PageRegions`, `PageForms`, `ViewCell`,
+// `PageTextPresenter` наружу не выходят.
 
 export {
   PageClient,
   type PageClientSpec,
-  type PageConfirm,
   type PageFormValues,
   type PageInboxEntry,
   type PageRegionName,
-  type PageRegionView,
   type PageRoute,
   type PageSlotJson,
   type PageSnapshot,
 } from './client/page-client';
-export { PageRenderer } from './client/page-renderer';
-export {
-  type AnyPageNotePresenter,
-  type AnyPagePresenter,
-  PageNotePresenter,
-  type PageNoteRender,
-  PagePresenter,
-  type PageScreenRender,
-  PageViews,
-} from './client/page-views';
+export { PageText } from './client/page-text';
 export {
   PageGraphProvider,
   type PageGraphSpec,
@@ -42,6 +33,27 @@ export {
   type PageLogger,
   type PagePlace,
 } from './server/page-host';
+export type {
+  PageRegionPresenter,
+  PageTextTarget,
+} from './view/page-region-presenter.types';
+export { PageRenderer } from './view/page-renderer';
+export type {
+  PageConfirm,
+  PageStaleReason,
+  PageViewState,
+  PageViewStatus,
+} from './view/page-view-state.types';
+export {
+  type AnyPageNotePresenter,
+  type AnyPagePresenter,
+  PageNotePresenter,
+  type PageNoteRender,
+  PagePresenter,
+  type PageScreenRender,
+  PageViews,
+} from './view/page-views';
+export type { ViewSource } from './view/view-source.types';
 export { ClientMessage, ServerMessage } from './wire/page-messages';
 export type {
   CallMessage,

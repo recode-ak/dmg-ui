@@ -16,6 +16,8 @@ const PAGE_CLIENT = `${PAGE}/client`;
 const PAGE_SERVER = `${PAGE}/server`;
 const PAGE_WIRE = `${PAGE}/wire`;
 const PAGE_GRAPH = `${PAGE}/graph`;
+/** Представления страничного канала: видят только себя и публичные входы ядра. */
+const PAGE_VIEW = `${PAGE}/view`;
 /** Помощник рендера примеров: от канала и сервера не зависит. */
 const PREVIEW = 'packages/core/testing/preview';
 /** Пакет диалогового канала: код входа `dmg-ui/chat-ui`. */
@@ -50,8 +52,9 @@ export class CoreImportScanner {
    * `dmg-core`, `dmg-ui` и контракты учебного приложения — как у проекта;
    * относительные — внутри `example/`), помощник рендера (`testing/preview/`:
    * без сервера и графа). Пакеты каналов: `web-ui/src` (у `client/`,
-   * `wire/`, `server/`, `graph/` и корня свои белые списки, клиент не знает
-   * сервер и граф, сервер не знает клиент), `web-ui/testing` (привязка
+   * `view/`, `wire/`, `server/`, `graph/` и корня свои белые списки, клиент
+   * не знает сервер и граф, сервер не знает клиент, `view/` видит только
+   * себя, граф — `view/`, а не клиент), `web-ui/testing` (привязка
    * примера: плюс тестовые входы и пример, `dmg-ui/web-ui`),
    * `chat-ui/src` (публичные входы ядра; относительные — внутри пакета,
    * ARC-08), `chat-ui/testing` (плюс тестовые входы и пример, `dmg-ui/chat-ui`),
@@ -118,7 +121,20 @@ export class CoreImportScanner {
         forbidden,
         allowed: ['valibot', 'dmg-core', 'dmg-ui'],
         // Имя канала — для проверки приложения при сборке вкладки.
-        allowedPaths: [PAGE_CLIENT, PAGE_WIRE, `${PAGE}/page-channel.const`],
+        allowedPaths: [
+          PAGE_CLIENT,
+          PAGE_VIEW,
+          PAGE_WIRE,
+          `${PAGE}/page-channel.const`,
+        ],
+      },
+      {
+        include: [`${PAGE_VIEW}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-ui'],
+        // Представление получает только источник и цель показа (D-UI-70).
+        allowedPaths: [PAGE_VIEW],
       },
       {
         include: [`${PAGE_WIRE}/`],
@@ -146,8 +162,9 @@ export class CoreImportScanner {
           'dmg-ui',
           'dmg-ui/graph',
         ],
-        // Имя канала и версию поставщика граф берёт из `page-channel.const`.
-        allowedPaths: [PAGE_GRAPH, PAGE_CLIENT, `${PAGE}/page-channel.const`],
+        // Имя канала и версию поставщика граф берёт из `page-channel.const`,
+        // реестр представлений для рёбер `presents` — из `view/`.
+        allowedPaths: [PAGE_GRAPH, PAGE_VIEW, `${PAGE}/page-channel.const`],
       },
       {
         include: [`${PAGE}/`],
@@ -155,6 +172,7 @@ export class CoreImportScanner {
         // Корень канала — файлы `src/*.ts`; подкаталоги имеют свои зоны.
         excludeDirs: [
           `${PAGE_CLIENT}/`,
+          `${PAGE_VIEW}/`,
           `${PAGE_SERVER}/`,
           `${PAGE_WIRE}/`,
           `${PAGE_GRAPH}/`,

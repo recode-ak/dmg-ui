@@ -4,10 +4,17 @@ import type {
   AnyUiAppDef,
   CodeLoaders,
   FieldIssue,
-  InstanceView,
+  RefreshSignal,
   ScreenInstance,
+  UiFault,
   UiObserver,
 } from 'dmg-ui';
+import type {
+  PageConfirm,
+  PageStaleReason,
+  PageViewState,
+} from '../view/page-view-state.types';
+import type { PageViews } from '../view/page-views';
 import type {
   RefusedMessage,
   ResultMessage,
@@ -15,7 +22,7 @@ import type {
   WatchRefusedMessage,
 } from '../wire/page-messages.types';
 import type { ClientEnd } from '../wire/page-wire.types';
-import type { PageViews } from './page-views';
+import type { ViewCell } from './view-cell';
 
 /** Области страницы: основная и соседняя. */
 export type PageRegionName = 'main' | 'side';
@@ -39,17 +46,12 @@ export type PageClientSpec = {
   readonly observer: UiObserver;
   /** Id запросов следа; по умолчанию — `crypto.randomUUID`. */
   readonly requestIds?: () => string;
+  /** Сырые броски кода экранов и слушателей вида — для диагностики. */
+  readonly faults?: (fault: UiFault) => void;
 };
 
 /** Значения формы по именам полей — строки, как у формы страницы. */
 export type PageFormValues = Readonly<Record<string, string>>;
-
-/** Ожидающее подтверждение области — то, что видит пользователь. */
-export type PageConfirm = {
-  readonly action: string;
-  readonly label: string;
-  readonly description: string;
-};
 
 /** Подтверждение с тем, что нужно для повтора входа с `confirmed: true`. */
 export type PendingConfirm = PageConfirm & {
@@ -57,29 +59,29 @@ export type PendingConfirm = PageConfirm & {
   readonly revision: number;
 };
 
-/** Отметки области после сигнала: заметка, замечания формы, подтверждение. */
+/** Отметки области после сигнала: заметка, замечания формы, подтверждение, устаревание. */
 export type RegionMarks = {
   readonly note?: string;
   readonly issues?: readonly FieldIssue[];
   readonly confirm?: PendingConfirm;
+  readonly stale?: PageStaleReason;
 };
 
-/** Область для теста и рендера: вид экземпляра, отметки и текст. */
-export type PageRegionView = {
-  readonly view?: InstanceView;
-  readonly note?: string;
-  readonly issues: readonly FieldIssue[];
-  readonly confirm?: PageConfirm;
-  /** Текст области, перерисованный по последнему изменению. */
-  readonly text: string;
-};
-
-/** Одна область: живой экземпляр, отписка его `onChange`, отметки и текст. */
+/**
+ * Одна область: ячейка состояния, живой экземпляр и отписка его `onChange`,
+ * отметки, адрес идущего открытия и жетоны открытия и перечитывания.
+ */
 export type RegionSlot = {
+  readonly cell: ViewCell<PageViewState>;
   instance: ScreenInstance | undefined;
   unlisten: (() => void) | undefined;
   marks: RegionMarks;
-  text: string;
+  /** Адрес открытия, ждущего экземпляра; есть — область в `loading`. */
+  loading: AddressJson | undefined;
+  /** Жетон последнего начатого открытия или очистки. */
+  ticket: number;
+  /** Жетон идущего перечитывания; нет — признака `refreshing` нет. */
+  refresh: number | undefined;
 };
 
 /** Уведомление во входящих вкладки: текст и ссылки. */
@@ -107,6 +109,12 @@ export type PortMessage =
   | SignalMessage
   | WatchRefusedMessage
   | RefusedMessage;
+
+/** Подписка портов: слушатель исполнителя и адрес — для отвода сигнала. */
+export type PortWatch = {
+  readonly listener: (signal: RefreshSignal) => void;
+  readonly address: AddressJson;
+};
 
 /** Вызов UC, ждущий ответа сервера. */
 export type PendingCall = {

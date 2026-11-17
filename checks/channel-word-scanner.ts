@@ -8,7 +8,7 @@ export type ChannelWords = {
   stems: string[];
 };
 
-/** Поиск слов канала в тексте: текст режется на слова, сравнение по целым словам. Без аргумента — список ядра (сообщение, кнопка, страница, URL, мессенджеры); `chatUi()` — список пакета диалогового канала (слова конкретного мессенджера и его API). */
+/** Поиск слов канала в тексте: текст режется на слова, сравнение по целым словам. Без аргумента — список ядра (сообщение, кнопка, страница, URL, мессенджеры); `chatUi()` — список пакета диалогового канала (слова конкретного мессенджера и его API); `webUi()` — список страничного пакета (названия фреймворков и мессенджеров). */
 export class ChannelWordScanner {
   /** Латинские слова: токен равен слову, допускается множественное `s`/`es`. Расширяется решением в `decisions` пакета. */
   protected static readonly EXACT = [
@@ -65,6 +65,43 @@ export class ChannelWordScanner {
     stems: ['телеграм', 'ватсап', 'вотсап', 'слак', 'клавиатур'],
   };
 
+  /**
+   * Слова страничного пакета: фреймворки и мессенджеры — контракт подписки
+   * нейтрален к фреймворку. Русских основ фреймворков нет: основа «реакт»
+   * поймала бы «реактивность». Общие слова канала (страница, URL) разрешены.
+   * `solid-js` не ловится: дефис режет его на «solid» и «js», а «solid» — слово.
+   */
+  protected static readonly WEB_UI: ChannelWords = {
+    exact: [
+      'svelte',
+      'sveltekit',
+      'sveltejs',
+      'react',
+      'reactjs',
+      'preact',
+      'vue',
+      'vuejs',
+      'nuxt',
+      'nextjs',
+      'solidjs',
+      'angular',
+      'lit',
+      'jsx',
+      'htmx',
+      'alpine',
+      'jquery',
+      'qwik',
+      'telegram',
+      'tg',
+      'whatsapp',
+      'slack',
+      'discord',
+      'viber',
+    ],
+    exactRu: [],
+    stems: ['телеграм', 'ватсап', 'вотсап', 'слак', 'дискорд', 'вайбер'],
+  };
+
   protected static readonly TOKEN =
     /\p{Lu}{2,}s?(?!\p{Ll})|\p{Lu}?\p{Ll}+|\p{Lu}+/gu;
 
@@ -87,6 +124,11 @@ export class ChannelWordScanner {
   /** Сканер со списком слов пакета `chat-ui`. */
   static chatUi(): ChannelWordScanner {
     return new ChannelWordScanner(ChannelWordScanner.CHAT_UI);
+  }
+
+  /** Сканер со списком слов пакета `web-ui`. */
+  static webUi(): ChannelWordScanner {
+    return new ChannelWordScanner(ChannelWordScanner.WEB_UI);
   }
 
   /** Нарушение на каждую строку, где есть слово канала. */

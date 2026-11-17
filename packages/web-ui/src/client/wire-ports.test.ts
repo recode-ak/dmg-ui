@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { ok } from 'dmg-core';
-import type { RefreshSignal } from 'dmg-ui';
+import type { AddressJson, RefreshSignal } from 'dmg-ui';
 import type {
   ClientMessage as ClientMsg,
   ServerMessage as ServerMsg,
@@ -10,8 +10,9 @@ import type { ClientEnd } from '../wire/page-wire.types';
 import { WirePorts } from './wire-ports';
 
 // Порты исполнителя поверх клиентского конца провода: вызов не по схеме,
-// отказ подписки, отказ сервера по `id` вызова и обрыв провода. Конец
-// провода — заглушка: журнал отправленного, сообщения и обрыв по команде.
+// отказ подписки, отказ сервера по `id` вызова, обрыв провода и отвод
+// сигнала с адресом подписки. Конец провода — заглушка: журнал
+// отправленного, сообщения и обрыв по команде.
 
 const CONTEXT = {
   locale: 'ru-RU',
@@ -20,6 +21,7 @@ const CONTEXT = {
   readOnly: false,
 };
 const ADDRESS = { screen: 'exampleUi/todo/taskList', params: { page: 0 } };
+const OTHER = { screen: 'exampleUi/todo/taskCard', params: { taskId: 'x' } };
 const CALL = { module: 'todo', uc: 'listTasks', input: {}, requestId: 'r-1' };
 const SIGNAL: RefreshSignal = {
   event: 'todo.task.created',
@@ -56,6 +58,11 @@ class StubEnd implements ClientEnd {
     for (const handler of this.breaks) handler(error);
   }
 
+  /** `id` отправленных подписок по порядку. */
+  watchIds(): string[] {
+    return this.sent.flatMap((m) => (m.kind === 'watch' ? [m.watch] : []));
+  }
+
   /** `id` отправленных вызовов по порядку. */
   callIds(): string[] {
     return this.sent.flatMap((m) => (m.kind === 'call' ? [m.id] : []));
@@ -63,9 +70,9 @@ class StubEnd implements ClientEnd {
 }
 
 /** Порты на заглушке; сообщения сервера — в `receive` портов. */
-const ports = () => {
+const ports = (onSignal?: (address: AddressJson) => void) => {
   const end = new StubEnd();
-  const wire = new WirePorts(end);
+  const wire = new WirePorts(end, onSignal);
   end.onMessage((message) => {
     if (
       message.kind === 'result' ||
@@ -156,8 +163,11 @@ describe('WirePorts.call', () => {
 });
 
 describe('WirePorts.watch', () => {
-  test('watch-refused снимает слушателя: сигнала нет, отписка unwatch не шлёт', () => {
-    const { end, wire } = ports();
+  test('watch-refused снимает слушателя: сигнала и отвода нет, отписка unwatch не шлёт', () => {
+    const taps: AddressJson[] = [];
+    const { end, wire } = ports((address) => {
+      taps.push(address);
+    });
     const signals: RefreshSignal[] = [];
     const off = wire.watch(ADDRESS, (signal) => signals.push(signal));
     const watch = end.sent[0]?.kind === 'watch' ? end.sent[0].watch : '';
@@ -167,6 +177,54 @@ describe('WirePorts.watch', () => {
     off();
 
     expect(signals).toEqual([]);
+    expect(taps).toEqual([]);
     expect(end.sent.map((m) => m.kind)).toEqual(['watch']);
+  });
+});
+
+describe('WirePorts — отвод сигнала', () => {
+  test('сигнал по подписке — сначала слушатель, затем отвод с адресом этой подписки', () => {
+    const log: unknown[] = [];
+    const { end, wire } = ports((address) => {
+      log.push(address);
+    });
+    wire.watch(OTHER, () => {
+      log.push('другой слушатель');
+    });
+    wire.watch(ADDRESS, () => {
+      log.push('слушатель');
+    });
+    const [, watch = ''] = end.watchIds();
+
+    end.emit({ kind: 'signal', watch, signal: SIGNAL });
+
+    expect(log).toEqual(['слушатель', ADDRESS]);
+  });
+
+  test('снятая подписка — ни слушателя, ни отвода', () => {
+    const log: unknown[] = [];
+    const { end, wire } = ports((address) => {
+      log.push(address);
+    });
+    const off = wire.watch(ADDRESS, () => {
+      log.push('слушатель');
+    });
+    const [watch = ''] = end.watchIds();
+
+    off();
+    end.emit({ kind: 'signal', watch, signal: SIGNAL });
+
+    expect(log).toEqual([]);
+  });
+
+  test('без отвода сигнал доходит до слушателя, как раньше', () => {
+    const { end, wire } = ports();
+    const signals: RefreshSignal[] = [];
+    wire.watch(ADDRESS, (signal) => signals.push(signal));
+    const [watch = ''] = end.watchIds();
+
+    end.emit({ kind: 'signal', watch, signal: SIGNAL });
+
+    expect(signals).toEqual([SIGNAL]);
   });
 });

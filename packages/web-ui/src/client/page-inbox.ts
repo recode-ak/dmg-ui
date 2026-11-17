@@ -1,9 +1,9 @@
 import type { UiObserver } from 'dmg-ui';
+import type { PageViews } from '../view/page-views';
 import type { NotificationMessage } from '../wire/page-messages.types';
 import { PAGE_DEFECTS } from './page-client.const';
 import type { PageInboxEntry } from './page-client.types';
 import type { PageTraces } from './page-traces';
-import type { PageViews } from './page-views';
 
 /**
  * Входящие вкладки: уведомления сервера текстом представления и ссылками;
@@ -57,13 +57,5 @@ export class PageInbox {
       trace: this.traces.next(),
       text,
     });
-  }
-
-  /** Текст входящих для страницы; пусто — `undefined`. */
-  text(title: string): string | undefined {
-    if (this.entries.length === 0) return undefined;
-    return [title, ...this.entries.map((entry) => `- ${entry.text}`)].join(
-      '\n',
-    );
   }
 }

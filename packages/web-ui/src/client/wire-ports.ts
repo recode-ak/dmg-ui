@@ -11,24 +11,25 @@ import { ClientMessage } from '../wire/page-messages';
 import type { CallMessage } from '../wire/page-messages.types';
 import { MAX_CLIENT_TEXT } from '../wire/page-wire.const';
 import type { ClientEnd } from '../wire/page-wire.types';
-import type { PendingCall, PortMessage } from './page-client.types';
+import type { PendingCall, PortMessage, PortWatch } from './page-client.types';
 
 /**
  * Порты исполнителя экранов поверх клиентского конца провода: `call` —
  * сообщение `call` и ожидание `result` (или `refused`) с тем же `id`;
  * `watch` — сообщение `watch` и сигналы по `watchId`. Обрыв провода
  * отказывает все ожидающие вызовы. Подписка уходит раньше `call` загрузки —
- * провод сохраняет порядок (D-UI-33).
+ * провод сохраняет порядок (D-UI-33). Отвод `onSignal` узнаёт адрес
+ * подписки каждого сигнала — начало перечитывания для состояния области.
  */
 export class WirePorts implements UcPort, RefreshPort {
-  private readonly listeners = new Map<
-    string,
-    (signal: RefreshSignal) => void
-  >();
+  private readonly watches = new Map<string, PortWatch>();
   private readonly pending = new Map<string, PendingCall>();
   private next = 0;
 
-  constructor(private readonly end: ClientEnd) {
+  constructor(
+    private readonly end: ClientEnd,
+    private readonly onSignal?: (address: AddressJson) => void,
+  ) {
     end.onBreak((error) => this.fail(error));
   }
 
@@ -61,11 +62,11 @@ export class WirePorts implements UcPort, RefreshPort {
     listener: (signal: RefreshSignal) => void,
   ): () => void {
     const watch = this.id('w');
-    this.listeners.set(watch, listener);
+    this.watches.set(watch, { listener, address });
     this.end.send({ kind: 'watch', watch, address });
     return () => {
       // Снятую или отказанную сервером подписку снимать на сервере нечего.
-      if (this.listeners.delete(watch)) {
+      if (this.watches.delete(watch)) {
         this.end.send({ kind: 'unwatch', watch });
       }
     };
@@ -85,12 +86,18 @@ export class WirePorts implements UcPort, RefreshPort {
           );
         }
         return;
-      case 'signal':
-        this.listeners.get(message.watch)?.(message.signal);
+      case 'signal': {
+        const watch = this.watches.get(message.watch);
+        if (watch === undefined) return;
+        // Сначала слушатель: ядро ставит перечитывание в очередь сразу, и
+        // `settled()` из отвода его дождётся; в обратном порядке — нет (D-UI-49).
+        watch.listener(message.signal);
+        this.onSignal?.(watch.address);
         return;
+      }
       case 'watch-refused':
         // Экземпляр живёт без перечитывания: сигналов по ней не будет.
-        this.listeners.delete(message.watch);
+        this.watches.delete(message.watch);
         return;
       default:
         WirePorts.unknown(message);

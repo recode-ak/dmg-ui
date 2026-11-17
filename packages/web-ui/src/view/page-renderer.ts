@@ -6,13 +6,16 @@ import {
 } from 'dmg-ui';
 import type { PageViews } from './page-views';
 
-/** Тексты страницы, на которые опираются снимки. */
+/** Тексты страницы: подписи рендера вида (на них опираются снимки) и состояний области. */
 export const PAGE_TEXTS = {
   retry: 'Повторить',
   delegate: 'Вы работаете за другого человека',
   readOnly: 'только чтение',
   optional: 'необязательно',
   blank: '____',
+  loading: 'Загрузка…',
+  refreshing: 'Обновляется…',
+  confirm: 'Подтвердить',
 } as const;
 
 /**

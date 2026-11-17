@@ -9,20 +9,26 @@ import {
 } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
 import { TaskEvents } from 'dmg-core/testing/example';
+import type { UiFault } from 'dmg-ui';
 import {
   ASSIGNED_ID,
+  AssignedTasksScreenDef,
   CARD_ID,
   exampleCodes,
   LIST_ID,
   MemoryUiObserver,
   TASK_A,
   TASK_B,
+  TaskCardScreenDef,
+  TaskListScreenDef,
 } from 'dmg-ui/testing';
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
   examplePageViews,
 } from '../../testing';
+import { PAGE_CHANNEL } from '../page-channel.const';
+import type { PageViewState } from '../view/page-view-state.types';
 import type {
   ClientMessage as ClientMsg,
   ServerMessage as ServerMsg,
@@ -30,11 +36,15 @@ import type {
 import type { ClientEnd } from '../wire/page-wire.types';
 import { PageClient } from './page-client';
 import { PAGE_DEFECTS, PAGE_NOTES } from './page-client.const';
+import type { PageRegionName } from './page-client.types';
+import { PageText } from './page-text';
 
 // Клиентская половина страничного канала: две области (`main`, `side`),
-// политики исходов, входящие, снимок. Сервер — заглушка конца провода:
-// отвечает на `call` по имени UC и умеет сам прислать сообщение. Ответы —
-// микрозадачи, `flush()` отдаёт их без таймеров (TST-04).
+// политики исходов, входящие, снимок, состояния области. Сервер — заглушка
+// конца провода: отвечает на `call` по имени UC и умеет сам прислать
+// сообщение. Ответы — микрозадачи, `flush()` отдаёт их без таймеров
+// (TST-04); удержанный UC отвечает по `release`. Текст страницы — у
+// `PageText`, состояния — журнал `source(region).subscribe`.
 
 const TASK_C = testUuid(3);
 const TASKS = [
@@ -58,12 +68,27 @@ class StubEnd implements ClientEnd {
   readonly sent: ClientMsg[] = [];
   private readonly handlers: ((message: ServerMsg) => void)[] = [];
   private readonly answers = new Map<string, Answer>();
+  /** Удержанные UC: ответы ждут `release`. */
+  private readonly held = new Map<string, (() => void)[]>();
 
   constructor(readonly context = CONTEXT) {}
 
   answer(uc: string, result: Answer): this {
     this.answers.set(uc, result);
     return this;
+  }
+
+  /** Ответы на `uc` придут только по `release(uc)`. */
+  hold(uc: string): this {
+    this.held.set(uc, []);
+    return this;
+  }
+
+  /** Отдаёт удержанные ответы на `uc` по порядку вызовов. */
+  release(uc: string): void {
+    const queue = this.held.get(uc) ?? [];
+    this.held.delete(uc);
+    for (const reply of queue) reply();
   }
 
   onMessage(handler: (message: ServerMsg) => void): void {
@@ -79,13 +104,15 @@ class StubEnd implements ClientEnd {
     if (answer === undefined) {
       throw new Error(`StubEnd: нет ответа на ${message.call.uc}`);
     }
-    Promise.resolve().then(() =>
+    const reply = () =>
       this.emit({
         kind: 'result',
         id: message.id,
         result: typeof answer === 'function' ? answer(message.call) : answer,
-      }),
-    );
+      });
+    const queue = this.held.get(message.call.uc);
+    if (queue === undefined) Promise.resolve().then(reply);
+    else queue.push(reply);
   }
 
   close(): void {}
@@ -122,22 +149,30 @@ const denied = CoreErrors.ACCESS_DENIED.make({
   denyMessage: 'Выполнять задачи может только владелец.',
 });
 
-const tab = (end = new StubEnd().answer('listTasks', ok(TASKS))) => {
+const tab = (
+  end = new StubEnd().answer('listTasks', ok(TASKS)),
+  codes = exampleCodes(),
+) => {
   let requests = 0;
   const observer = new MemoryUiObserver();
+  const faults: UiFault[] = [];
   const client = new PageClient({
     app: ExamplePagesAppDef,
-    codes: exampleCodes(),
+    codes,
     views: examplePageViews,
     routes: examplePageRoutes,
     end,
     observer,
+    faults: (fault) => {
+      faults.push(fault);
+    },
     requestIds: () => {
       requests += 1;
       return `r-${requests}`;
     },
   });
-  return { client, end, observer };
+  const text = new PageText(client, examplePageViews);
+  return { client, end, observer, faults, text };
 };
 
 /** Вкладка со списком в `main`. */
@@ -145,6 +180,18 @@ const listed = async (end?: StubEnd) => {
   const t = tab(end);
   await t.client.route('/');
   return t;
+};
+
+/** Код экранов, загрузку которого можно сломать: `broken` — экран `id` не грузится. */
+const breakable = () => {
+  const codes = exampleCodes();
+  const screen = codes.screen.bind(codes);
+  const broken = new Set<string>();
+  codes.screen = (def) =>
+    broken.has(def.name)
+      ? Promise.reject(new Error(`код ${def.name} не загрузился`))
+      : screen(def);
+  return { codes, broken };
 };
 
 /** Сообщение сервера `signal` по подписке `watch` с событием `eventId`. */
@@ -170,6 +217,35 @@ const noteOf = (
   eventId,
 });
 
+/** Журнал состояний области: подписка сразу отдаёт текущее, затем каждое новое. */
+const journal = (client: PageClient, region: PageRegionName) => {
+  const log: PageViewState[] = [];
+  client.source(region).subscribe((state) => {
+    log.push(state);
+  });
+  return log;
+};
+
+const statuses = (log: readonly PageViewState[]) =>
+  log.map((state) => state.status);
+
+/** Сколько раз в журнале включался признак перечитывания. */
+const refreshPeriods = (log: readonly PageViewState[]) =>
+  log.filter(
+    (state, index) =>
+      state.refreshing && !(log[index - 1]?.refreshing ?? false),
+  ).length;
+
+/** Id подписки, отправленной на экран `screen`. */
+const watchOf = (end: StubEnd, screen: string): string => {
+  for (const message of end.sent) {
+    if (message.kind === 'watch' && message.address.screen === screen) {
+      return message.watch;
+    }
+  }
+  throw new Error(`нет подписки на ${screen}`);
+};
+
 const ASSIGNED_NOTE = 'exampleUi/todo/taskAssigned';
 const COMPLETED_NOTE = 'exampleUi/todo/taskCompleted';
 
@@ -194,12 +270,12 @@ describe('PageClient.route', () => {
 
   test('маршрут /assigned — вход assigned', async () => {
     const end = new StubEnd().answer('listAssignedTasks', ok([]));
-    const { client } = tab(end);
+    const { client, text } = tab(end);
 
     await client.route('/assigned');
 
     expect(client.region('main').view?.screen).toBe(ASSIGNED_ID);
-    expect(client.page()).toContain('Назначенные мне');
+    expect(text.page()).toContain('Назначенные мне');
   });
 
   test('неизвестный маршрут — заметка в main, ничего не открыто и не отправлено', async () => {
@@ -213,10 +289,10 @@ describe('PageClient.route', () => {
   });
 
   test('page() — текст страницы: заголовок экрана и задачи', async () => {
-    const { client } = await listed();
+    const { text } = await listed();
 
-    expect(client.page()).toContain('Мои задачи');
-    expect(client.page()).toContain('Хлеб');
+    expect(text.page()).toContain('Мои задачи');
+    expect(text.page()).toContain('Хлеб');
   });
 
   test('контекст hello — в виде: только чтение видно в шапке страницы', async () => {
@@ -224,12 +300,12 @@ describe('PageClient.route', () => {
       'listTasks',
       ok(TASKS),
     );
-    const { client } = await listed(end);
+    const { client, text } = await listed(end);
 
     expect(client.region('main').view?.context).toMatchObject({
       readOnly: true,
     });
-    expect(client.page()).toContain('только чтение');
+    expect(text.page()).toContain('только чтение');
   });
 
   test('наблюдатель исполнителя получает записи клиента', async () => {
@@ -241,7 +317,7 @@ describe('PageClient.route', () => {
 
 describe('PageClient — moved', () => {
   test('moved на тот же Def — на месте в main, прежний экземпляр закрыт', async () => {
-    const { client, end } = await listed();
+    const { client, end, text } = await listed();
     const [first = ''] = end.watches();
 
     const outcome = await client.submit('main', 'next', {});
@@ -253,7 +329,7 @@ describe('PageClient — moved', () => {
     });
     expect(client.region('side').view).toBeUndefined();
     expect(end.unwatches()).toEqual([first]);
-    expect(client.page()).toContain('Сыр');
+    expect(text.page()).toContain('Сыр');
   });
 
   test('moved на другой Def — в side; main остаётся списком: два экрана открыты вместе', async () => {
@@ -404,13 +480,13 @@ describe('PageClient — исходы действий', () => {
       'listTasks',
       err(ErrorDef.serialize(denied)),
     );
-    const { client } = tab(end);
+    const { client, text } = tab(end);
 
     await client.route('/');
 
     expect(client.region('main').view?.status).toBe('refused');
-    expect(client.region('main').text).toContain(ErrorText.of(denied).summary);
-    expect(client.region('main').text).toContain('[Повторить]');
+    expect(text.region('main')).toContain(ErrorText.of(denied).summary);
+    expect(text.region('main')).toContain('[Повторить]');
 
     end.answer('listTasks', ok(TASKS));
     await client.retry('main');
@@ -656,5 +732,571 @@ describe('PageClient — снимок вкладки', () => {
     await second.client.resume(broken);
 
     expect(second.client.region('main').view?.address).toEqual(LIST);
+  });
+});
+
+describe('PageClient — состояния области: открытие', () => {
+  test('первое открытие: route синхронно ставит loading с адресом, затем ready; журнал empty → loading → ready', async () => {
+    const { client } = tab();
+    const log = journal(client, 'main');
+
+    const routing = client.route('/');
+
+    expect(client.region('main')).toMatchObject({
+      status: 'loading',
+      address: LIST,
+      refreshing: false,
+    });
+    expect(client.region('main').view).toBeUndefined();
+    await routing;
+    expect(statuses(log)).toEqual(['empty', 'loading', 'ready']);
+    expect(log[0]).toEqual({ status: 'empty', refreshing: false, issues: [] });
+    const ready = client.region('main');
+    expect(ready.view?.screen).toBe(LIST_ID);
+    expect(ready.address).toEqual(LIST);
+    expect(ready.refreshing).toBe(false);
+    expect(ready.stale).toBeUndefined();
+  });
+
+  test('загрузка в отказ: журнал loading → refused, вид отказа', async () => {
+    const end = new StubEnd().answer(
+      'listTasks',
+      err(ErrorDef.serialize(denied)),
+    );
+    const { client } = tab(end);
+    const log = journal(client, 'main');
+
+    await client.route('/');
+
+    expect(statuses(log)).toEqual(['empty', 'loading', 'refused']);
+    expect(client.region('main').view?.status).toBe('refused');
+    expect(client.region('main').refreshing).toBe(false);
+  });
+
+  test('«Повторить»: снова loading с тем же адресом, затем ready', async () => {
+    const end = new StubEnd().answer(
+      'listTasks',
+      err(ErrorDef.serialize(denied)),
+    );
+    const { client } = tab(end);
+    await client.route('/');
+    end.answer('listTasks', ok(TASKS));
+    const log = journal(client, 'main');
+
+    const retrying = client.retry('main');
+
+    expect(client.region('main')).toMatchObject({
+      status: 'loading',
+      address: LIST,
+    });
+    await retrying;
+    expect(statuses(log)).toEqual(['refused', 'loading', 'ready']);
+  });
+
+  test('выход в main: в loading входа start уже видна заметка выхода', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('createTask', ok({ taskId: TASK_A }));
+    const { client } = await listed(end);
+    const log = journal(client, 'main');
+
+    await client.submit('main', 'create', { title: 'Хлеб' });
+
+    expect(statuses(log)).toEqual(['ready', 'loading', 'ready']);
+    expect(log[1]).toMatchObject({ address: LIST, note: 'Задача создана' });
+  });
+
+  test('пока грузится новый экран, прежнего экземпляра в области нет: подписка снята, действие — unavailable/closed', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('listAssignedTasks', ok([]))
+      .hold('listAssignedTasks');
+    const { client } = await listed(end);
+    const [list = ''] = end.watches();
+
+    const routing = client.route('/assigned');
+
+    expect(end.unwatches()).toEqual([list]);
+    expect(client.region('main')).toMatchObject({
+      status: 'loading',
+      address: ASSIGNED,
+    });
+    expect(await client.submit('main', 'next', {})).toEqual({
+      kind: 'unavailable',
+      reason: 'closed',
+    });
+    expect(client.region('main').note).toBeUndefined();
+    end.release('listAssignedTasks');
+    await routing;
+    expect(client.region('main').view?.screen).toBe(ASSIGNED_ID);
+    expect(client.region('main').note).toBeUndefined();
+  });
+
+  test('действие по области в loading заметку открытия не трогает: заметка выхода остаётся и на новом экране', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('createTask', ok({ taskId: TASK_A }));
+    const { client } = await listed(end);
+    end.hold('listTasks');
+
+    const creating = client.submit('main', 'create', { title: 'Хлеб' });
+    await end.flush();
+    expect(client.region('main')).toMatchObject({
+      status: 'loading',
+      note: 'Задача создана',
+    });
+    const outcome = await client.submit('main', 'next', {});
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'closed' });
+    expect(client.region('main').note).toBe('Задача создана');
+    end.release('listTasks');
+    await creating;
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      note: 'Задача создана',
+    });
+  });
+
+  test('исход действия ушедшего экземпляра область не трогает: выход после перехода не открывает вход start', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('listAssignedTasks', ok([]))
+      .answer('createTask', ok({ taskId: TASK_A }))
+      .hold('createTask');
+    const { client } = await listed(end);
+
+    const creating = client.submit('main', 'create', { title: 'Хлеб' });
+    await end.flush();
+    await client.route('/assigned');
+    const log = journal(client, 'main');
+    end.release('createTask');
+    const outcome = await creating;
+    await end.flush();
+
+    expect(outcome).toMatchObject({ kind: 'exited' });
+    expect(client.region('main').view?.screen).toBe(ASSIGNED_ID);
+    expect(client.region('main').note).toBeUndefined();
+    expect(statuses(log)).toEqual(['ready']);
+  });
+
+  test('неизвестный маршрут во время загрузки: область пуста с заметкой, опоздавший экземпляр закрыт', async () => {
+    const end = new StubEnd().answer('listTasks', ok(TASKS)).hold('listTasks');
+    const { client } = tab(end);
+
+    const routing = client.route('/');
+    await client.route('/нет');
+    end.release('listTasks');
+    await routing;
+    await end.flush();
+
+    expect(client.region('main')).toEqual({
+      status: 'empty',
+      refreshing: false,
+      note: PAGE_NOTES.notFound,
+      issues: [],
+    });
+    expect(end.unwatches()).toEqual([watchOf(end, LIST_ID)]);
+  });
+
+  test('недекодируемая ссылка во время загрузки side: side пуста с заметкой, опоздавший экземпляр закрыт', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('listAssignedTasks', ok([]))
+      .hold('listAssignedTasks');
+    const { client } = await listed(end);
+
+    const opening = client.openLink(ASSIGNED);
+    expect(client.region('side').status).toBe('loading');
+    await client.openLink({ screen: 'нет/такого', params: {} });
+    end.release('listAssignedTasks');
+    await opening;
+    await end.flush();
+
+    expect(client.region('side')).toMatchObject({
+      status: 'empty',
+      note: PAGE_NOTES.notFound,
+    });
+    expect(end.unwatches()).toEqual([watchOf(end, ASSIGNED_ID)]);
+  });
+
+  test('два открытия в одну область без ожидания: в области последнее начатое; экземпляр первого закрыт и в область не встал', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('listAssignedTasks', ok([]))
+      .hold('listTasks');
+    const { client } = tab(end);
+    const log = journal(client, 'main');
+
+    const first = client.route('/');
+    const second = client.route('/assigned');
+    await second;
+    end.release('listTasks');
+    await first;
+    await end.flush();
+
+    expect(client.region('main').view?.address).toEqual(ASSIGNED);
+    expect(end.unwatches()).toEqual([watchOf(end, LIST_ID)]);
+    expect(log.some((state) => state.view?.screen === LIST_ID)).toBe(false);
+  });
+
+  test('resume: области снимка проходят loading со своим адресом, затем ready', async () => {
+    const first = await listed();
+    await first.client.submit('main', 'open', { taskId: 'Молоко' });
+    const snapshot = first.client.snapshot();
+    const second = tab();
+    const main = journal(second.client, 'main');
+    const side = journal(second.client, 'side');
+
+    await second.client.resume(snapshot);
+
+    expect(statuses(main).slice(-2)).toEqual(['loading', 'ready']);
+    expect(main.at(-2)?.address).toEqual(LIST);
+    expect(statuses(side).slice(-2)).toEqual(['loading', 'ready']);
+    expect(side.at(-2)?.address).toEqual(snapshot.side?.address);
+  });
+});
+
+describe('PageClient — состояния области: отказ открытия', () => {
+  const failed: PageViewState = {
+    status: 'empty',
+    refreshing: false,
+    note: PAGE_NOTES.failed,
+    issues: [],
+  };
+
+  test('код экрана не загрузился: loading → empty с заметкой, route отказал; следующий route открывает экран', async () => {
+    const { codes, broken } = breakable();
+    broken.add(TaskListScreenDef.name);
+    const { client } = tab(undefined, codes);
+    const log = journal(client, 'main');
+
+    await expect(client.route('/')).rejects.toThrow('не загрузился');
+
+    expect(statuses(log)).toEqual(['empty', 'loading', 'empty']);
+    expect(client.region('main')).toEqual(failed);
+    broken.clear();
+    await client.route('/');
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+  });
+
+  test('отказ открытия поверх готового экрана: прежний снят, область пуста с заметкой; повтор — новым переходом', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('listAssignedTasks', ok([]));
+    const { codes, broken } = breakable();
+    const { client } = tab(end, codes);
+    await client.route('/');
+    const log = journal(client, 'main');
+    broken.add(AssignedTasksScreenDef.name);
+
+    await expect(client.route('/assigned')).rejects.toThrow('не загрузился');
+
+    expect(statuses(log)).toEqual(['ready', 'loading', 'empty']);
+    expect(client.region('main')).toEqual(failed);
+    expect(end.unwatches()).toEqual([watchOf(end, LIST_ID)]);
+    broken.clear();
+    await client.route('/assigned');
+    expect(client.region('main').view?.screen).toBe(ASSIGNED_ID);
+  });
+
+  test('опоздавший отказ открытия область не трогает: в ней последнее начатое', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('listAssignedTasks', ok([]))
+      .hold('listAssignedTasks');
+    const { codes, broken } = breakable();
+    broken.add(TaskListScreenDef.name);
+    const { client } = tab(end, codes);
+
+    const first = client.route('/');
+    const second = client.route('/assigned');
+    await expect(first).rejects.toThrow('не загрузился');
+    expect(client.region('main').status).toBe('loading');
+    end.release('listAssignedTasks');
+    await second;
+
+    expect(client.region('main').view?.screen).toBe(ASSIGNED_ID);
+    expect(client.region('main').note).toBeUndefined();
+  });
+
+  test('resume: main восстановлен, side бросил — main готова со своим видом, side пуста с заметкой', async () => {
+    const first = await listed();
+    await first.client.submit('main', 'open', { taskId: 'Молоко' });
+    const snapshot = first.client.snapshot();
+    const { codes, broken } = breakable();
+    broken.add(TaskCardScreenDef.name);
+    const second = tab(undefined, codes);
+
+    await expect(second.client.resume(snapshot)).rejects.toThrow(
+      'не загрузился',
+    );
+
+    expect(second.client.region('main')).toMatchObject({
+      status: 'ready',
+      address: LIST,
+    });
+    expect(second.client.region('main').view?.screen).toBe(LIST_ID);
+    expect(second.client.region('side')).toEqual(failed);
+  });
+
+  test('resume: отказ restore — отказ вызывающему, области снимка не остаются в loading', async () => {
+    const first = await listed();
+    await first.client.submit('main', 'open', { taskId: 'Молоко' });
+    const snapshot = first.client.snapshot();
+    const { codes, broken } = breakable();
+    broken.add(TaskListScreenDef.name);
+    const second = tab(undefined, codes);
+
+    await expect(second.client.resume(snapshot)).rejects.toThrow(
+      'не загрузился',
+    );
+
+    expect(second.client.region('main')).toEqual(failed);
+    expect(second.client.region('side').status).toBe('empty');
+  });
+});
+
+describe('PageClient — состояния области: перечитывание', () => {
+  test('сразу после сигнала — refreshing и прежняя ревизия; после flush — признак снят, ревизия 2', async () => {
+    const { client, end } = await listed();
+    const log = journal(client, 'main');
+    const [watch = ''] = end.watches();
+
+    end.emit(signalOf(watch, 'e-1'));
+
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      refreshing: true,
+    });
+    expect(client.region('main').view?.revision).toBe(1);
+    await end.flush();
+    expect(client.region('main').refreshing).toBe(false);
+    expect(client.region('main').view?.revision).toBe(2);
+    expect(refreshPeriods(log)).toBe(1);
+  });
+
+  test('два сигнала подряд — один период refreshing, итог снят, ревизия выросла', async () => {
+    const { client, end } = await listed();
+    const log = journal(client, 'main');
+    const [watch = ''] = end.watches();
+
+    end.emit(signalOf(watch, 'e-1'));
+    end.emit(signalOf(watch, 'e-2'));
+    await end.flush();
+
+    expect(refreshPeriods(log)).toBe(1);
+    expect(client.region('main').refreshing).toBe(false);
+    expect(client.region('main').view?.revision).toBeGreaterThan(1);
+  });
+
+  test('перечитывание в отказ — refused, refreshing снят', async () => {
+    const { client, end } = await listed();
+    const [watch = ''] = end.watches();
+    end.answer('listTasks', err(ErrorDef.serialize(denied)));
+
+    end.emit(signalOf(watch, 'e-1'));
+    await end.flush();
+
+    expect(client.region('main')).toMatchObject({
+      status: 'refused',
+      refreshing: false,
+    });
+    expect(client.region('main').view?.status).toBe('refused');
+  });
+
+  test('сигнал по подписке side не трогает refreshing в main', async () => {
+    const { client, end } = await listed();
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    end.emit(signalOf(watchOf(end, CARD_ID), 'e-1'));
+
+    expect(client.region('side').refreshing).toBe(true);
+    expect(client.region('main').refreshing).toBe(false);
+    await end.flush();
+    expect(client.region('side').refreshing).toBe(false);
+  });
+
+  test('сигнал во время загрузки refreshing не ставит: область в loading, после загрузки признак снят', async () => {
+    const end = new StubEnd().answer('listTasks', ok(TASKS)).hold('listTasks');
+    const { client } = tab(end);
+    const log = journal(client, 'main');
+
+    const routing = client.route('/');
+    await end.flush();
+    end.emit(signalOf(watchOf(end, LIST_ID), 'e-1'));
+
+    expect(client.region('main')).toMatchObject({
+      status: 'loading',
+      refreshing: false,
+    });
+    end.release('listTasks');
+    await routing;
+    await end.flush();
+    expect(client.region('main').refreshing).toBe(false);
+    expect(refreshPeriods(log)).toBe(0);
+  });
+
+  test('сигнал по неизвестной подписке refreshing не ставит', async () => {
+    const { client, end } = await listed();
+
+    end.emit(signalOf('w-нет', 'e-1'));
+
+    expect(client.region('main').refreshing).toBe(false);
+    expect(client.region('side').refreshing).toBe(false);
+  });
+});
+
+describe('PageClient — состояния области: устаревшее действие', () => {
+  /** Список после перечитывания до ревизии 2 и действие по ревизии 1. */
+  const staled = async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('createTask', ok({ taskId: TASK_A }));
+    const t = await listed(end);
+    end.emit(signalOf(watchOf(end, LIST_ID), 'e-1'));
+    await end.flush();
+    const outcome = await t.client.submit(
+      'main',
+      'create',
+      { title: 'Яйца' },
+      1,
+    );
+    return { ...t, outcome };
+  };
+
+  test('исход stale — stale: revision и заметка «Данные обновились»', async () => {
+    const { client, outcome } = await staled();
+
+    expect(outcome).toMatchObject({ kind: 'stale' });
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      stale: 'revision',
+      note: 'Данные обновились',
+    });
+  });
+
+  test('перечитывание отметку stale не снимает', async () => {
+    const { client, end } = await staled();
+
+    end.emit(signalOf(watchOf(end, LIST_ID), 'e-2'));
+    await end.flush();
+
+    expect(client.region('main').view?.revision).toBe(3);
+    expect(client.region('main')).toMatchObject({
+      stale: 'revision',
+      note: 'Данные обновились',
+    });
+  });
+
+  test.each([
+    {
+      name: 'rejected',
+      next: (client: PageClient) =>
+        client.submit('main', 'create', { title: '' }),
+    },
+    {
+      name: 'локальное changed',
+      next: (client: PageClient) =>
+        client.local('main', 'toggle', { taskId: 'Хлеб' }),
+    },
+  ])('следующий исход ($name) снимает stale', async ({ next }) => {
+    const { client } = await staled();
+
+    await next(client);
+
+    expect(client.region('main').stale).toBeUndefined();
+  });
+});
+
+describe('PageClient — состояния области: контракт источника', () => {
+  test('инварианты на каждом значении журнала: вид ⇔ ready/refused, адрес ⇔ не empty, значения JSON и не меняются после выдачи', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('createTask', ok({ taskId: TASK_A }));
+    const { client } = tab(end);
+    const seen: { state: PageViewState; json: string }[] = [];
+    for (const region of ['main', 'side'] as const) {
+      client.source(region).subscribe((state) => {
+        seen.push({ state, json: JSON.stringify(state) });
+      });
+    }
+    const main = journal(client, 'main');
+
+    await client.route('/нет');
+    await client.route('/');
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    end.emit(signalOf(watchOf(end, LIST_ID), 'e-1'));
+    await end.flush();
+    await client.submit('main', 'create', { title: '' });
+    await client.submit('main', 'create', { title: 'Яйца' }, 1);
+    await client.submit('main', 'create', { title: 'Хлеб' });
+    end.answer('listTasks', err(ErrorDef.serialize(denied)));
+    await client.retry('main');
+
+    expect(new Set(statuses(main))).toEqual(
+      new Set(['empty', 'loading', 'ready', 'refused']),
+    );
+    for (const [index, { state, json }] of seen.entries()) {
+      const viewed = state.status === 'ready' || state.status === 'refused';
+      expect(state.view !== undefined).toBe(viewed);
+      if (state.view !== undefined) {
+        expect(state.status).toBe(state.view.status);
+        expect(state.address).toEqual(state.view.address);
+      }
+      expect(state.address === undefined).toBe(state.status === 'empty');
+      expect(typeof state.refreshing).toBe('boolean');
+      expect(Array.isArray(state.issues)).toBe(true);
+      expect(JSON.parse(json)).toEqual(state);
+      expect(state).not.toBe(seen[index - 1]?.state);
+    }
+  });
+
+  test('бросок подписчика источника не рвёт submit: исход вернулся, faults получил UiFault с ошибкой', async () => {
+    const { client, faults } = await listed();
+    const boom = new Error('подписчик упал');
+    let armed = false;
+    client.source('main').subscribe(() => {
+      if (armed) throw boom;
+    });
+    armed = true;
+
+    const outcome = await client.submit('main', 'next', {});
+
+    expect(outcome).toMatchObject({ kind: 'moved' });
+    expect(client.region('main').view?.address).toEqual({
+      screen: LIST_ID,
+      params: { page: 1 },
+    });
+    const fault = faults.find((f) => f.error === boom);
+    expect(fault).toBeDefined();
+    expect(fault?.node).toBe(LIST_ID);
+    expect(fault?.trace).toBeDefined();
+  });
+
+  test('бросок подписчика пустой области — узел UiFault — имя канала', async () => {
+    const { client, faults } = tab();
+    const boom = new Error('подписчик упал');
+    let armed = false;
+    client.source('main').subscribe(() => {
+      if (armed) throw boom;
+    });
+    armed = true;
+
+    await client.route('/нет');
+
+    expect(faults.find((f) => f.error === boom)?.node).toBe(PAGE_CHANNEL);
+  });
+
+  test('source(name) — один объект на всё время жизни вкладки; region(name) — его текущее значение', async () => {
+    const { client } = tab();
+    const main = client.source('main');
+
+    await client.route('/');
+    await client.resume(client.snapshot());
+
+    expect(client.source('main')).toBe(main);
+    expect(client.source('side')).not.toBe(main);
+    expect(client.region('main')).toBe(main.get());
   });
 });
