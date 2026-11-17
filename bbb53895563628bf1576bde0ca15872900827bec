@@ -1,0 +1,4 @@
+Задача: доставка уведомлений беседы — удаление фасада и документы.
+Изменения: удалены Dialog, DialogChannel, DialogDelivery, ReplyMessenger, DialogIdentity, типы фасада, Conversation.link и Conversation.resume (читал только фасад и тесты); тесты фасада удалены после переезда сценариев на беседу и узел (dialog-delivery — 4, dialog-resume — 4, resume поверх экрана снимка — 1); вход dmg-ui/chat-ui — 17 значений; уточнены D-UI-24, 32, 43, 45, 48, 51; debt.md — DEBT-UI-16 удалён, DEBT-UI-10 сужен, новые DEBT-UI-21 и DEBT-UI-22; гайд «Пакет канала» §3, §5, §9–11, README, llms.txt.
+Причина: фасад остался без назначения после переезда уведомлений на беседу.
+Проверка: bun run check — biome и tsc чистые, 1566 pass (1575 − 9 удалённых тестов фасада), 0 fail, 14 снимков.
