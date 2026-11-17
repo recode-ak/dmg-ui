@@ -11,8 +11,7 @@ import type { Violation } from './violation.types';
  * каждый спецификатор. Спецификаторы ищет `ModuleSpecifiers`, поэтому динамический
  * `import(переменная)` и склейка имени не ловятся (DEBT-UI-5). Остальные места
  * репо (`packages`, `checks`, `acceptance`, `scripts`) сканер не ограничивает,
- * кроме запрета библиотеки; из запрета исключены тесты `CoreImportScanner`
- * (`checks/core-import-scanner*.test.ts`): имя библиотеки там — строка-фикстура.
+ * кроме запрета библиотеки.
  */
 export class ExampleZoneScanner {
   protected static readonly ZONE = 'examples/tg-bot';
@@ -42,8 +41,7 @@ export class ExampleZoneScanner {
   protected violation(path: string, specifier: string): string | undefined {
     if (
       ExampleZoneScanner.LIBRARY.test(specifier) &&
-      !ExampleZoneScanner.isAdapter(path) &&
-      !ExampleZoneScanner.isFixtureHolder(path)
+      !ExampleZoneScanner.isAdapter(path)
     ) {
       return `${specifier}: библиотека Telegram разрешена только в адаптере и опросе примера`;
     }
@@ -63,13 +61,6 @@ export class ExampleZoneScanner {
       ExampleZoneScanner.ADAPTER_FILES.includes(
         path.slice(ExampleZoneScanner.ADAPTER_DIR.length),
       )
-    );
-  }
-
-  /** Тесты `CoreImportScanner` держат имя библиотеки в строках-фикстурах: это текст проверяемого файла, не импорт. */
-  protected static isFixtureHolder(path: string): boolean {
-    return (
-      path.startsWith('checks/core-import-scanner') && path.endsWith('.test.ts')
     );
   }
 

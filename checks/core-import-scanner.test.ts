@@ -3,6 +3,9 @@ import { resolve } from 'node:path';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile, SourceTree } from './source-tree';
 
+// Имя библиотеки Telegram собрано из частей: строка-фикстура не должна читаться как импорт (ExampleZoneScanner).
+const LIB = ['gram', 'my'].join('');
+
 const ROOT = resolve(import.meta.dir, '..');
 const SRC = 'packages/core/src';
 
@@ -23,7 +26,7 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
         'относительный путь в testing ядра',
         "import { x } from '../testing/index';",
       ],
-      ['сторонний пакет grammy', "import { Bot } from 'grammy';"],
+      ['сторонний пакет grammy', `import { Bot } from '${LIB}';`],
       ['сторонний пакет react', "import React from 'react';"],
       [
         'сторонний подпуть dmg-core/other',
@@ -94,7 +97,7 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       "import { x } from 'dmg-core/testing';",
       "import { x } from 'dmg-core/gen';",
       "import { x } from 'dmg-core/cli';",
-      "import { x } from 'grammy';",
+      `import { x } from '${LIB}';`,
     ]) {
       it(`${text} в graph/ — нарушение`, () => {
         expect(scan(text, GRAPH)).toHaveLength(1);

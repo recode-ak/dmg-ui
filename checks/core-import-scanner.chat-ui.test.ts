@@ -2,6 +2,9 @@ import { describe, expect, it } from 'bun:test';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile } from './source-tree';
 
+// Имя библиотеки Telegram собрано из частей: строка-фикстура не должна читаться как импорт (ExampleZoneScanner).
+const LIB = ['gram', 'my'].join('');
+
 // Зоны пакета `chat-ui` (ARC-08): код канала знает только публичные входы
 // `dmg-ui` и `dmg-core` — не `src/` ядра и не пример по относительному пути;
 // подписка на события — `EventSubscriber` из `dmg-core/app` (D-98 `dmg-core`);
@@ -133,7 +136,7 @@ describe('CoreImportScanner — каркас Telegram-бота (packages/tg-bot/
   });
 
   for (const text of [
-    "import { Bot } from 'grammy';",
+    `import { Bot } from '${LIB}';`,
     "import fs from 'node:fs';",
     "import { test } from 'bun:test';",
     "import { a } from 'dmg-ui/testing';",
@@ -229,7 +232,7 @@ describe('CoreImportScanner — тестовый каталог пакета tg-
 
   for (const text of [
     "import fs from 'node:fs';",
-    "import { a } from 'grammy';",
+    `import { a } from '${LIB}';`,
     "import { a } from 'dmg-core/app';",
     "import { a } from '../src/index';",
     "import { a } from '../../core/src/index';",
