@@ -1,0 +1,4 @@
+Задача: политики — на месте или новым, след в истории, исходы, вид в отказе.
+Файлы: packages/chat-ui/src/conversation/{conversation-output.ts,sha256.ts,conversation-screens.ts,conversation.ts,conversation-outcomes.ts,conversation-input.ts,conversation-replies.ts,conversation.types.ts,conversation.const.ts,conversation-snapshot.ts,screen-fingerprint.ts} и тесты conversation-show.test.ts, conversation-outcomes.test.ts (переезд из dialog/dialog.test.ts), conversation-snapshot.test.ts, conversation.test.ts, conversations.test.ts, conversation-input.test.ts; packages/chat-ui/testing/{index.ts,messengers/memory-messenger.ts,messengers/memory-messenger.types.ts,messengers/memory-messenger.test.ts}; docs/decisions.md (D-UI-51, D-UI-52, D-UI-54).
+Причина: беседа правит экран на месте, когда он последний, и не оставляет живых вариантов у ушедшего сообщения.
+Гейт: bun run check — 1485 pass, 0 fail, 116 файлов, 14 снимков (два прогона).
