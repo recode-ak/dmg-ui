@@ -1,5 +1,6 @@
 import {
   type ActionField,
+  type AddressJson,
   type AnyScreenDef,
   type InstanceView,
   UiIds,
@@ -67,6 +68,19 @@ export class ConversationReplies {
         i === last ? this.options(message.options, view, serial, page) : [],
       ),
     );
+  }
+
+  /**
+   * Уведомление: текст и по варианту-ссылке `open` на каждый адрес; подпись —
+   * экрана-цели (вне набора — «Открыть»). Ссылки — после текста, не раньше.
+   */
+  notice(text: string, links: readonly AddressJson[]): Message {
+    const options = links.map((address) => {
+      const label =
+        this.ids.findScreen(address.screen)?.label ?? VIEW_TEXTS.open;
+      return this.option(label, { kind: 'open', address, label });
+    });
+    return this.message(TextBuilder.of(text), options);
   }
 
   /** Вопрос текущего поля черновика: варианты страницы или номера, «Пропустить», «Ещё»; `note` — замечание перед вопросом. */

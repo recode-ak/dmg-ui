@@ -10,6 +10,8 @@ import {
   MAX_LABEL_LENGTH,
   MAX_LINK_LENGTH,
   MAX_NAME_LENGTH,
+  MAX_NOTIFIED,
+  MAX_NOTIFIED_KEY,
   MAX_PATH,
   MAX_PERSON_LENGTH,
   MAX_REF_LENGTH,
@@ -195,6 +197,12 @@ export const ConversationSnapshotSchema: v.GenericSchema<
   seen: v.pipe(
     v.array(v.pipe(v.string(), v.maxLength(MAX_SIGNAL_ID))),
     v.maxLength(MAX_SEEN),
+  ),
+  notified: v.optional(
+    v.pipe(
+      v.array(v.pipe(v.string(), v.maxLength(MAX_NOTIFIED_KEY))),
+      v.maxLength(MAX_NOTIFIED),
+    ),
   ),
   screen: v.optional(LiveScreen),
   draft: v.optional(Draft),

@@ -16,7 +16,6 @@ import {
 } from 'dmg-ui/chat-ui';
 import {
   ApiAppDispatch,
-  type DeliveredNotification,
   type PersonPlaces,
   UiNotifier,
   UiServer,
@@ -25,6 +24,8 @@ import {
   ExampleUiSetDef,
   exampleCodes,
   MemoryUiObserver,
+  TaskAssignedNotificationDef,
+  TaskCompletedNotificationDef,
 } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
@@ -38,7 +39,8 @@ import {
 // Сквозной тест сторис на беседе (TST-09 — единственный; бывший
 // `ui-two-users.test.ts`): пользователи A и B, учебное приложение во
 // временном каталоге, сервер UI, узел бесед на подставном мессенджере и
-// уведомитель, чья доставка только записывает уведомления. Одна сторис — на
+// уведомитель, чья доставка — сам узел бесед: уведомление приходит в чат
+// получателя. Одна сторис — на
 // обоих подставных мессенджерах с одними представлениями и кодом экранов.
 
 const A = testUuid(1);
@@ -46,8 +48,6 @@ const B = testUuid(2);
 const LIST = 'exampleUi/todo/taskList';
 const CARD = 'exampleUi/todo/taskCard';
 const ASSIGNED = 'exampleUi/todo/assignedTasks';
-const TASK_ASSIGNED = 'exampleUi/todo/taskAssigned';
-const TASK_COMPLETED = 'exampleUi/todo/taskCompleted';
 const MORE = 'Ещё';
 const tmp = useTempDir('dmg-ui-conversation-story-');
 
@@ -96,6 +96,10 @@ const world = (messenger: MemoryMessenger) => {
     [WHO_A.sender, A],
     [WHO_B.sender, B],
   ]);
+  const peerOf = new Map([
+    [A, WHO_A.peer],
+    [B, WHO_B.peer],
+  ]);
   // Id запросов следа по порядку выдачи: номер запроса сигнала — последний
   // выданный после его обработки (один след на сигнал).
   const requests: string[] = [];
@@ -109,6 +113,7 @@ const world = (messenger: MemoryMessenger) => {
     store,
     logger: context.logger,
     people: async (sender) => people.get(sender),
+    peers: async (uuid) => peerOf.get(uuid),
     callers: example.callers,
     places,
     requestIds: () => {
@@ -117,17 +122,12 @@ const world = (messenger: MemoryMessenger) => {
       return id;
     },
   });
-  const notified: DeliveredNotification[] = [];
   new UiNotifier({
     app: ExampleDialogAppDef,
     codes,
     dispatch,
     callers: example.callers,
-    delivery: {
-      deliver: async (notification) => {
-        notified.push(notification);
-      },
-    },
+    delivery: conversations,
     observer,
     context,
   }).start();
@@ -157,6 +157,18 @@ const world = (messenger: MemoryMessenger) => {
 
   const journal = (who: Who) =>
     messenger.journal.filter((entry) => entry.peer === who.peer);
+
+  /** Уведомления, дошедшие до собеседника: записи журнала `notify`. */
+  const notices = (who: Who): Message[] =>
+    messenger.journal.flatMap((entry) =>
+      entry.op === 'sent' && entry.via === 'notify' && entry.peer === who.peer
+        ? [entry.message]
+        : [],
+    );
+
+  /** Показы экрана без уведомлений: порядок «показ / уведомление» не закреплён. */
+  const screens = (who: Who): Shown[] =>
+    shown(who).filter((s) => !(s.op === 'sent' && s.via === 'notify'));
 
   /** Живое место глазами собеседника — последнее неушедшее сообщение с вариантами. */
   const place = (who: Who): Message => {
@@ -237,6 +249,8 @@ const world = (messenger: MemoryMessenger) => {
     everyLabel: () => everyLabel(who),
     place: () => place(who),
     shown: () => shown(who),
+    screens: () => screens(who),
+    notices: () => notices(who),
     journal: () => journal(who),
     chat: () => messenger.chat(who.peer),
     reaction: () => reaction(who),
@@ -252,7 +266,6 @@ const world = (messenger: MemoryMessenger) => {
   return {
     a: person(WHO_A),
     b: person(WHO_B),
-    notified,
     settle,
     turns: () => turns,
   };
@@ -369,23 +382,24 @@ describe.each(MESSENGERS)('сторис на беседе (%s)', (name, make) =>
     await a.say(B);
     await w.settle();
 
-    // 9. У B — проактивный показ живого экрана и уведомление; карточку A
-    // событие назначения не перечитало. Показов B три: список, «Назначенные
-    // мне», проактивный — правкой на месте у мессенджера с правкой, новым
-    // сообщением у мессенджера без неё.
-    const shownB = b.shown();
-    expect(shownB).toHaveLength(3);
-    expect(shownB.at(-1)?.op).toBe(editing ? 'edited' : 'sent');
-    expect(b.chat()).toHaveLength(editing ? 2 : 3);
-    expect(textOf(b.place())).toContain('Сыр');
-    expect(w.notified).toMatchObject([
-      {
-        notification: TASK_ASSIGNED,
-        recipient: B,
-        data: { title: 'Сыр' },
-        links: [{ screen: ASSIGNED, params: {} }],
-      },
-    ]);
+    // 9. У B — проактивный показ живого экрана и уведомление в чате; карточку
+    // A событие назначения не перечитало. Показов экрана три: список,
+    // «Назначенные мне», проактивный; форма (правка или новое сообщение) и
+    // порядок относительно уведомления не закрепляются — проверяется набор
+    // видимого.
+    const screensB = b.screens();
+    expect(screensB).toHaveLength(3);
+    const proactive = screensB.at(-1);
+    if (proactive === undefined) throw new Error('показов экрана нет');
+    expect(textOf(proactive.message)).toContain('Сыр');
+    const [assigned, ...restB] = b.notices();
+    if (assigned === undefined) throw new Error('уведомления в чате B нет');
+    expect(restB).toEqual([]);
+    expect(textOf(assigned)).toBe(`${TaskAssignedNotificationDef.label}: Сыр`);
+    expect(labelsOf(assigned)).toEqual(['Назначенные мне']);
+    expect(
+      b.chat().some((line) => textOf(line.message).includes('Вам назначена')),
+    ).toBe(true);
     expect((await a.screen()).revision).toBe(2);
 
     // 10. A выполняет задачу на карточке: действие стало недоступным, B
@@ -393,13 +407,14 @@ describe.each(MESSENGERS)('сторис на беседе (%s)', (name, make) =>
     await a.press('Выполнить');
     await w.settle();
     expect(await a.everyLabel()).not.toContain('Выполнить');
-    expect(w.notified).toHaveLength(2);
-    expect(w.notified[1]).toMatchObject({
-      notification: TASK_COMPLETED,
-      recipient: B,
-      data: { title: 'Сыр' },
-      links: [{ screen: ASSIGNED, params: {} }],
-    });
+    expect(b.notices().map((n) => textOf(n))).toEqual([
+      `${TaskAssignedNotificationDef.label}: Сыр`,
+      `${TaskCompletedNotificationDef.label}: Сыр`,
+    ]);
+    expect(b.notices().map(labelsOf)).toEqual([
+      ['Назначенные мне'],
+      ['Назначенные мне'],
+    ]);
 
     // Лог операций: B читает от своего имени по событию с цепочкой запроса A;
     // A перечитывает свой список по своему событию;
@@ -441,8 +456,8 @@ describe.each(MESSENGERS)('сторис на беседе (%s)', (name, make) =>
     // Ревизии и уведомления: события A экран B не перечитывали (кроме
     // назначения), у A уведомлений нет, у B — ровно два.
     expect((await b.screen()).revision).toBe(2);
-    expect(w.notified.filter((n) => n.recipient === A)).toEqual([]);
-    expect(w.notified.filter((n) => n.recipient === B)).toHaveLength(2);
+    expect(a.notices()).toEqual([]);
+    expect(b.notices()).toHaveLength(2);
     // «Ещё» листается только у мессенджера с тремя вариантами.
     if (editing) expect(w.turns()).toBe(0);
     else expect(w.turns()).toBeGreaterThan(0);

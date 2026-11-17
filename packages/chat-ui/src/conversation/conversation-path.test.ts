@@ -1139,6 +1139,7 @@ describe('Conversations — путь в снимке', () => {
         store,
         logger: new MemoryLogger(),
         people: async () => A,
+        peers: async () => undefined,
         callers: example.callers,
         places: {
           place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),

@@ -279,6 +279,8 @@ export type ConversationSnapshot = {
   readonly refs: readonly RefEntry[];
   /** Не больше `MAX_SEEN`, каждый не длиннее `MAX_SIGNAL_ID`. */
   readonly seen: readonly string[];
+  /** Ключи отсева уведомлений (SHA-256 hex), не больше `MAX_NOTIFIED`, старые первыми; пустой — поля нет. */
+  readonly notified?: readonly string[];
   readonly screen?: LiveScreenJson;
   readonly draft?: DraftJson;
   /**
@@ -343,6 +345,8 @@ export type ConversationsSpec<U extends Identified> = {
   readonly logger: ServerContext['logger'];
   /** Личность транспорта → uuid; не знаем — `undefined`. Единственный источник личности. */
   readonly people: (sender: string) => Promise<string | undefined>;
+  /** uuid → собеседник в этом мессенджере (личный чат); нет — `undefined`. Обратный к `people`. */
+  readonly peers: (person: string) => Promise<string | undefined>;
   readonly callers: RecipientCallers<U>;
   readonly places: PersonPlaces;
   /** Вход «в начало»; по умолчанию `start`. */

@@ -1115,6 +1115,7 @@ describe('Conversation — перекрытие представлений по�
         store: new MemoryConversationStore(),
         logger: new MemoryLogger(),
         people: async () => A,
+        peers: async () => undefined,
         callers: example.callers,
         places: {
           place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
@@ -1178,6 +1179,7 @@ describe('Conversations — место в снимке и размер пока�
         store,
         logger: new MemoryLogger(),
         people: async () => A,
+        peers: async () => undefined,
         callers: example.callers,
         places: {
           place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),

@@ -8,6 +8,7 @@ import type {
   LocalView,
   ScreenInstance,
 } from 'dmg-ui';
+import type { DeliveredNotification } from 'dmg-ui/server';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
 import { ScreenComposer } from '../view/screen-composer';
 import {
@@ -25,6 +26,7 @@ import type {
 } from './conversation.types';
 import { ConversationInput } from './conversation-input';
 import { ConversationLog } from './conversation-log';
+import { ConversationNotices } from './conversation-notices';
 import { ConversationOutcomes } from './conversation-outcomes';
 import { ConversationOutput } from './conversation-output';
 import { ConversationPath } from './conversation-path';
@@ -33,7 +35,7 @@ import { ConversationReplies } from './conversation-replies';
 import { ConversationScreens } from './conversation-screens';
 import { OptionLayout } from './option-layout';
 import { RefTable } from './ref-table';
-import { SeenSignals } from './seen-signals';
+import { SeenIds } from './seen-ids';
 
 /**
  * Беседа одного собеседника (D-UI-43): сигналы мессенджера и проактивные
@@ -48,7 +50,8 @@ export class Conversation {
   private readonly spec: ConversationSpec;
   private readonly queue = new ConversationQueue();
   private readonly refs: RefTable;
-  private readonly seen: SeenSignals;
+  private readonly seen: SeenIds;
+  private readonly notices: ConversationNotices;
   private readonly replies: ConversationReplies;
   private readonly log: ConversationLog;
   private readonly output: ConversationOutput;
@@ -63,7 +66,7 @@ export class Conversation {
     Conversation.assertFits(spec.app, spec.home, spec.messenger.capabilities);
     this.spec = spec;
     this.refs = new RefTable(spec.epochs(), snapshot?.refs);
-    this.seen = new SeenSignals(snapshot?.seen);
+    this.seen = new SeenIds(snapshot?.seen);
     this.path = new ConversationPath(snapshot?.path);
     this.log = new ConversationLog(
       spec.logger,
@@ -86,6 +89,18 @@ export class Conversation {
         log: this.log,
       },
       snapshot?.screen,
+    );
+    this.notices = new ConversationNotices(
+      {
+        messenger: spec.messenger,
+        peer: spec.peer,
+        views: spec.views,
+        refs: this.refs,
+        replies: this.replies,
+        log: this.log,
+        output: this.output,
+      },
+      snapshot?.notified,
     );
     this.screens = new ConversationScreens(
       {
@@ -176,16 +191,28 @@ export class Conversation {
   snapshot(): ConversationSnapshot {
     const screen = this.screens.toJSON();
     const draft = this.input.toJSON();
+    const notified = this.notices.toJSON();
     return {
       version: 1,
       person: this.spec.person,
       serial: this.screens.last(),
       refs: this.refs.toJSON(),
       seen: this.seen.toJSON(),
+      ...(notified.length === 0 ? {} : { notified }),
       ...(screen === undefined ? {} : { screen }),
       ...(draft === undefined ? {} : { draft }),
       ...(this.path.empty() ? {} : { path: this.path.toJSON() }),
     };
+  }
+
+  /**
+   * Уведомление собеседнику, в очереди беседы; `true` — сообщение дошло,
+   * `false` — повтор по событию или порт отказал. Бросок представления — наружу.
+   */
+  notify(notification: DeliveredNotification): Promise<boolean> {
+    return this.queue.run(
+      async () => (await this.notices.deliver(notification)) === 'delivered',
+    );
   }
 
   /** Снимок живого экземпляра ядра; нет экрана — `undefined`. */

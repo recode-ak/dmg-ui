@@ -37,6 +37,21 @@ export class ConversationLog {
     this.warn(text, { kind });
   }
 
+  /** Уведомления нет в наборе приложения. */
+  noNotification(): void {
+    this.warn(CONVERSATION_TEXTS.noNotification, {});
+  }
+
+  /** У получателя уведомления нет собеседника. */
+  noPeer(): void {
+    this.warn(CONVERSATION_TEXTS.noPeer, {});
+  }
+
+  /** В беседе собеседника другая личность. */
+  noticeForeign(): void {
+    this.warn(CONVERSATION_TEXTS.noticeForeign, {});
+  }
+
   badSnapshot(): void {
     this.warn(CONVERSATION_TEXTS.badSnapshot, {});
   }
@@ -67,11 +82,11 @@ export class ConversationLog {
     });
   }
 
-  /** Дефект беседы на сигнале или проактивном показе: имя ошибки без её текста. */
+  /** Дефект беседы на сигнале, проактивном показе или уведомлении: имя ошибки без её текста. */
   defect(
     cause:
       | { readonly kind: ConversationSignal['kind'] }
-      | { readonly operation: 'refresh' },
+      | { readonly operation: 'refresh' | 'notify' },
     error: unknown,
   ): void {
     this.logger.error(LOG_SOURCE, CONVERSATION_TEXTS.defect, {

@@ -88,6 +88,7 @@ const SNAPSHOT: ConversationSnapshot = {
   serial: 3,
   refs: REFS,
   seen: ['u1', 'u2'],
+  notified: ['b'.repeat(64), 'c'.repeat(64)],
   screen: {
     serial: 2,
     instance: { address: LIST, state: { open: true }, revision: 4 },
@@ -159,6 +160,10 @@ const manyRefs = (count: number) =>
 
 const manySeen = (count: number) =>
   Array.from({ length: count }, (_, i) => `u${i}`);
+
+/** `count` ключей отсева уведомлений: SHA-256 в hex — 64 знака. */
+const manyNotified = (count: number) =>
+  Array.from({ length: count }, (_, i) => i.toString(16).padStart(64, '0'));
 
 /** Снимок с живым экраном, у которого `handles` — `count` сообщений. */
 const withHandles = (count: number) => ({
@@ -250,6 +255,9 @@ describe('ConversationSnapshotSchema', () => {
     ['ссылок 256', { ...BARE, refs: manyRefs(256) }],
     ['seen 128', { ...BARE, seen: manySeen(128) }],
     ['id в seen длиной 256', { ...BARE, seen: ['x'.repeat(256)] }],
+    ['notified 128', { ...BARE, notified: manyNotified(128) }],
+    ['ключ в notified длиной 64', { ...BARE, notified: ['x'.repeat(64)] }],
+    ['пустой notified', { ...BARE, notified: [] }],
     ['ссылка длиной 16', { ...BARE, refs: [openRef('a'.repeat(16))] }],
     ['фрагментов сообщения места 1024', withMessage(fragments(1024))],
     ['ссылка фрагмента длиной 2048', withMessage(linked(2048))],
@@ -314,6 +322,9 @@ describe('ConversationSnapshotSchema', () => {
     ],
     ['seen 129', { ...BARE, seen: manySeen(129) }],
     ['id в seen длиннее 256', { ...BARE, seen: ['x'.repeat(257)] }],
+    ['notified 129', { ...BARE, notified: manyNotified(129) }],
+    ['ключ в notified длиннее 64', { ...BARE, notified: ['x'.repeat(65)] }],
+    ['notified не массив строк', { ...BARE, notified: [1] }],
     ['отрицательный номер снимка', { ...SNAPSHOT, serial: -1 }],
     ['дробный номер снимка', { ...SNAPSHOT, serial: 1.5 }],
     [

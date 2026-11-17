@@ -124,6 +124,7 @@ const onDialog = async () => {
     store: new MemoryConversationStore(),
     logger: w.context.logger,
     people: async (sender) => (sender === WHO_A.sender ? A : undefined),
+    peers: async () => undefined,
     callers: w.example.callers,
     places,
     requestIds: counter(),

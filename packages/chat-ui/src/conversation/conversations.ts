@@ -1,6 +1,10 @@
 import { type Identified, Trace } from 'dmg-core';
-import { ScreenRuntime } from 'dmg-ui';
-import { RenderContexts } from 'dmg-ui/server';
+import { ScreenRuntime, UiIds } from 'dmg-ui';
+import {
+  type DeliveredNotification,
+  type NotificationDelivery,
+  RenderContexts,
+} from 'dmg-ui/server';
 import * as v from 'valibot';
 import type { Message } from '../message/message.types';
 import { TextBuilder } from '../message/text-builder';
@@ -48,7 +52,9 @@ const LATER: Message = {
  * проходит ту же схему и пишется после сигнала и проактивного показа; давняя нетронутая беседа сверх предела
  * выгружается. Внешний вход не бросает (ERR-01), лог без данных (ERR-07).
  */
-export class Conversations<U extends Identified> {
+export class Conversations<U extends Identified>
+  implements NotificationDelivery
+{
   private readonly spec: ConversationsSpec<U>;
   private readonly messenger: LimitedMessenger;
   private readonly log: ConversationLog;
@@ -58,6 +64,7 @@ export class Conversations<U extends Identified> {
   private readonly limit: number;
   private readonly epochs: () => string;
   private readonly hosted = new Map<string, Hosted>();
+  private readonly ids: UiIds;
   private readonly lines = new PeerQueues();
 
   /** Нет входа home, возможности не годятся, представления другого набора — бросок при сборке. */
@@ -75,6 +82,7 @@ export class Conversations<U extends Identified> {
     this.home = spec.home ?? CONVERSATION_HOME;
     Conversation.assertFits(app, this.home, this.messenger.capabilities);
     this.spec = spec;
+    this.ids = new UiIds(app.set);
     this.log = new ConversationLog(
       spec.logger,
       this.messenger.capabilities.name,
@@ -101,10 +109,32 @@ export class Conversations<U extends Identified> {
         await this.answer(signal);
         return;
       }
-      await this.lines.run(signal.peer, () => this.deliver(signal));
+      await this.lines.run(signal.peer, () => this.handle(signal));
       await this.unload(signal.peer);
     } catch (error) {
       this.log.defect({ kind: signal.kind }, error);
+    }
+  }
+
+  /**
+   * Уведомление получателю: беседа собеседника из `peers`, дошедшее
+   * пишется в снимок. Внешний вход: не бросает (ERR-01), лог без данных (ERR-07).
+   */
+  async deliver(notification: DeliveredNotification): Promise<void> {
+    try {
+      if (this.ids.findNotification(notification.notification) === undefined) {
+        this.log.noNotification();
+        return;
+      }
+      const peer = await this.spec.peers(notification.recipient);
+      if (peer === undefined) {
+        this.log.noPeer();
+        return;
+      }
+      await this.lines.run(peer, () => this.notify(peer, notification));
+      await this.unload(peer);
+    } catch (error) {
+      this.log.defect({ operation: 'notify' }, error);
     }
   }
 
@@ -127,7 +157,7 @@ export class Conversations<U extends Identified> {
   }
 
   /** Личность, беседа, исполнение и снимок — в очереди собеседника. */
-  private async deliver(signal: ConversationSignal): Promise<void> {
+  private async handle(signal: ConversationSignal): Promise<void> {
     let hosted: Hosted | undefined;
     try {
       hosted = await this.admit(signal);
@@ -146,6 +176,23 @@ export class Conversations<U extends Identified> {
       this.log.defect({ kind: signal.kind }, error);
     }
     if (accepted) await this.save(signal.peer, hosted.conversation);
+  }
+
+  /** Уведомление беседе собеседника, в его очереди; не дошло, чужая личность или хранилище не прочиталось — снимок не пишется. */
+  private async notify(
+    peer: string,
+    notification: DeliveredNotification,
+  ): Promise<void> {
+    const hosted = await this.host(peer, notification.recipient);
+    if (hosted === 'foreign') {
+      // Чужая беседа по `peers`: снимок прежний.
+      this.log.noticeForeign();
+      return;
+    }
+    if (hosted === 'unread') return;
+    if (await hosted.conversation.notify(notification)) {
+      await this.save(peer, hosted.conversation);
+    }
   }
 
   /** Беседа сигнала; сигнал не исполняется — отказ записан и отвечен, `undefined`. */

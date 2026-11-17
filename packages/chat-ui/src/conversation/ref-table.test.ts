@@ -230,3 +230,29 @@ describe('RefTable', () => {
     expect(refs.entry(issued[0] ?? '')).toMatchObject({ revision: 4 });
   });
 });
+
+describe('RefTable.drop', () => {
+  test('снятые ссылки уходят из таблицы, остальные и их порядок прежние; неизвестная ссылка — не ошибка', () => {
+    const refs = new RefTable(EPOCH);
+    const first = refs.add(NEXT);
+    const second = refs.add(OPEN);
+    const third = refs.add(NEXT);
+
+    refs.drop([second, 'zzzzz9']);
+
+    expect(refs.entry(second)).toBeUndefined();
+    expect(refs.toJSON().map((entry) => entry.ref)).toEqual([first, third]);
+  });
+
+  test('счётчик назад не идёт: следующая ссылка не повторяет снятую', () => {
+    const refs = new RefTable(EPOCH);
+    const dropped = refs.add(OPEN);
+
+    refs.drop([dropped]);
+    const next = refs.add(OPEN);
+
+    expect(next).not.toBe(dropped);
+    expect(refs.entry(dropped)).toBeUndefined();
+    expect(refs.entry(next)).toStrictEqual({ ref: next, ...OPEN });
+  });
+});

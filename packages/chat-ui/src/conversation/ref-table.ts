@@ -38,6 +38,11 @@ export class RefTable {
     return this.entries.get(ref);
   }
 
+  /** Снять ссылки (недошедшее уведомление); неизвестные — не ошибка; счётчик назад не идёт. */
+  drop(refs: readonly string[]): void {
+    for (const ref of refs) this.entries.delete(ref);
+  }
+
   /** Записи действий экрана с прежней ревизией получают новую; ссылки и порядок прежние. */
   rebase(screen: Serial, from: number, to: number): void {
     for (const [ref, entry] of this.entries) {

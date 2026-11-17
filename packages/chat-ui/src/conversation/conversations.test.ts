@@ -11,10 +11,12 @@ import {
   CreateTaskUcDef,
   ExampleApp,
   type ExampleUser,
+  TaskEvents,
 } from 'dmg-core/testing/example';
 import { type AnyUiAppDef, UiAppDef } from 'dmg-ui';
 import {
   ApiAppDispatch,
+  type DeliveredNotification,
   type PersonPlaces,
   type UcDispatch,
   type UcRequest,
@@ -37,7 +39,7 @@ import {
 } from '../../testing';
 import { PlainText } from '../message/plain-text';
 import type { OptionLimits } from '../messenger/messenger.types';
-import { MAX_PERSON_LENGTH } from './conversation.const';
+import { CONVERSATION_TEXTS, MAX_PERSON_LENGTH } from './conversation.const';
 import type {
   ConversationSignal,
   ConversationSnapshot,
@@ -123,6 +125,7 @@ type NodeOptions = {
   readonly limit?: number;
   readonly home?: string;
   readonly people?: (sender: string) => Promise<string | undefined>;
+  readonly peers?: (person: string) => Promise<string | undefined>;
   readonly places?: PersonPlaces;
   readonly callers?: ConversationsSpec<ExampleUser>['callers'];
   readonly epochs?: () => string;
@@ -153,6 +156,11 @@ const world = () => {
     return `e${String(epoch).padStart(4, '0')}`;
   };
 
+  const peers = new Map<string, string>([
+    [A, WHO_A.peer],
+    [B, WHO_B.peer],
+  ]);
+
   /** Узел бесед; новый узел на том же хранилище — «перезапуск». */
   const node = (options: NodeOptions = {}) => {
     const messenger = options.messenger ?? MemoryMessenger.editing();
@@ -167,6 +175,7 @@ const world = () => {
       store: options.store ?? store,
       logger,
       people: options.people ?? (async (sender: string) => people.get(sender)),
+      peers: options.peers ?? (async (person: string) => peers.get(person)),
       callers: options.callers ?? example.callers,
       places: options.places ?? places,
       ...(options.home === undefined ? {} : { home: options.home }),
@@ -237,7 +246,18 @@ const world = () => {
     }),
   };
 
-  return { bus, gate, store, example, people, node, create, complete, signals };
+  return {
+    bus,
+    gate,
+    store,
+    example,
+    people,
+    peers,
+    node,
+    create,
+    complete,
+    signals,
+  };
 };
 
 type Sent = Extract<MessengerEntry, { op: 'sent' }>;
@@ -290,6 +310,25 @@ const answered = (messenger: MemoryMessenger) =>
   messenger.journal.flatMap((entry) =>
     entry.op === 'answered' ? [entry.press] : [],
   );
+
+/** Сообщения, дошедшие собеседнику по `notify`. */
+const notices = (messenger: MemoryMessenger, peer: string = WHO_A.peer) =>
+  sent(messenger, peer).filter((entry) => entry.via === 'notify');
+
+/** Уведомление «назначена задача» получателю `recipient` по событию `eventId`; `over` подменяет поля. */
+const assigned = (
+  recipient: string,
+  eventId: string,
+  over: Partial<DeliveredNotification> = {},
+): DeliveredNotification => ({
+  notification: 'exampleUi/todo/taskAssigned',
+  recipient,
+  data: { title: 'Сыр' },
+  links: [{ screen: 'exampleUi/todo/assignedTasks', params: {} }],
+  cause: { event: TaskEvents.assigned.name, eventId },
+  trace: Trace.fromEvent({ eventId, correlationId: 'r-assign' }).toJSON(),
+  ...over,
+});
 
 const snapshotOf = async (
   store: ConversationStore,
@@ -1079,5 +1118,311 @@ describe('Conversations — хранилище и сборка', () => {
     expect(() => w.node({ messenger: withOptions({ max: 2 }) })).toThrow();
     expect(() => w.node({ messenger: withOptions({ ref: 15 }) })).toThrow();
     expect(() => w.node()).not.toThrow();
+  });
+});
+
+describe('Conversations — уведомления', () => {
+  test('получатель с беседой из хранилища: уведомление доставлено собеседнику из peers, снимок записан', async () => {
+    const w = world();
+    const first = w.node();
+    await first.conversations.receive(w.signals.enter('start'));
+    await first.conversations.close();
+    const before = await snapshotOf(w.store);
+    const second = w.node();
+
+    await expect(
+      second.conversations.deliver(assigned(A, 'e-1')),
+    ).resolves.toBeUndefined();
+
+    const [notice, ...rest] = notices(second.messenger);
+    expect(rest).toEqual([]);
+    if (notice === undefined) throw new Error('уведомление не дошло');
+    expect(text(notice)).toBe('Вам назначена задача: Сыр');
+    expect(notice.message.options.map((o) => o.label)).toEqual([
+      'Назначенные мне',
+    ]);
+    expect(
+      second.messenger.journal.filter((e) => e.peer !== WHO_A.peer),
+    ).toEqual([]);
+    const saved = await snapshotOf(w.store);
+    expect(saved.notified).toHaveLength(1);
+    expect(saved.refs).toHaveLength(before.refs.length + 1);
+    expect(saved.refs).toContainEqual(
+      expect.objectContaining({
+        ref: notice.message.options[0]?.ref,
+        kind: 'open',
+      }),
+    );
+    expect(second.logger.records).toEqual([]);
+  });
+
+  test('повтор по событию — один раз у каждого получателя: отсев в беседе каждого свой', async () => {
+    const w = world();
+    const node = w.node();
+    await node.conversations.receive(w.signals.enter('start', WHO_A));
+    await node.conversations.receive(w.signals.enter('start', WHO_B));
+
+    for (const recipient of [A, B, A, B]) {
+      await node.conversations.deliver(assigned(recipient, 'e-1'));
+    }
+
+    expect(notices(node.messenger, WHO_A.peer)).toHaveLength(1);
+    expect(notices(node.messenger, WHO_B.peer)).toHaveLength(1);
+  });
+
+  test('нет собеседника у получателя — warn без данных, не бросает, ничего не доставлено', async () => {
+    const w = world();
+    const asked: string[] = [];
+    const node = w.node({
+      peers: async (person) => {
+        asked.push(person);
+        return undefined;
+      },
+    });
+
+    await expect(
+      node.conversations.deliver(assigned(A, 'e-1')),
+    ).resolves.toBeUndefined();
+
+    expect(asked).toEqual([A]);
+    expect(node.messenger.journal).toEqual([]);
+    expect(await w.store.load(WHO_A.peer)).toBeUndefined();
+    expect(node.logger.records).toEqual([
+      {
+        level: 'warn',
+        source: 'chat-ui',
+        message: CONVERSATION_TEXTS.noPeer,
+        meta: { messenger: 'memory-editing' },
+      },
+    ]);
+  });
+
+  test('в беседе другая личность — warn, не бросает, ничего не доставлено, снимок прежний', async () => {
+    const w = world();
+    const first = w.node();
+    await first.conversations.receive(w.signals.enter('start', WHO_B));
+    await first.conversations.close();
+    const before = JSON.stringify(await w.store.load(WHO_B.peer));
+    // Получателю A указана чужая беседа собеседника B.
+    const asked: string[] = [];
+    const node = w.node({
+      peers: async (person) => {
+        asked.push(person);
+        return WHO_B.peer;
+      },
+    });
+
+    await expect(
+      node.conversations.deliver(assigned(A, 'e-1')),
+    ).resolves.toBeUndefined();
+
+    expect(asked).toEqual([A]);
+    expect(node.messenger.journal).toEqual([]);
+    expect(JSON.stringify(await w.store.load(WHO_B.peer))).toBe(before);
+    expect(node.logger.records).toMatchObject([
+      {
+        level: 'warn',
+        message: CONVERSATION_TEXTS.noticeForeign,
+        meta: { messenger: 'memory-editing' },
+      },
+    ]);
+  });
+
+  test('сбой чтения хранилища — error без данных, не бросает, ничего не доставлено; прежний снимок цел', async () => {
+    const w = world();
+    const first = w.node();
+    await first.conversations.receive(w.signals.enter('start'));
+    await first.conversations.close();
+    const before = JSON.stringify(await w.store.load(WHO_A.peer));
+    const broken: ConversationStore = {
+      load: async () => {
+        throw new Error('load-mark-q7');
+      },
+      save: (peer, snapshot) => w.store.save(peer, snapshot),
+    };
+    const node = w.node({ store: broken });
+
+    await expect(
+      node.conversations.deliver(assigned(A, 'e-1')),
+    ).resolves.toBeUndefined();
+
+    expect(node.messenger.journal).toEqual([]);
+    expect(JSON.stringify(await w.store.load(WHO_A.peer))).toBe(before);
+    expect(node.logger.records).toMatchObject([
+      {
+        level: 'error',
+        message: CONVERSATION_TEXTS.loadFailed,
+        meta: { operation: 'load' },
+      },
+    ]);
+    expect(JSON.stringify(node.logger.records)).not.toContain('mark-q7');
+  });
+
+  test('нет уведомления в наборе (чужой id, id экрана) — warn, не бросает, ничего не доставлено', async () => {
+    const w = world();
+    const asked: string[] = [];
+    const node = w.node({
+      peers: async (person) => {
+        asked.push(person);
+        return WHO_A.peer;
+      },
+    });
+
+    for (const id of ['exampleUi/todo/missing', 'exampleUi/todo/taskList']) {
+      await expect(
+        node.conversations.deliver(assigned(A, 'e-1', { notification: id })),
+      ).resolves.toBeUndefined();
+    }
+
+    expect(asked).toEqual([]);
+    expect(node.messenger.journal).toEqual([]);
+    expect(node.logger.records).toMatchObject([
+      {
+        level: 'warn',
+        message: CONVERSATION_TEXTS.noNotification,
+        meta: { messenger: 'memory-editing' },
+      },
+      {
+        level: 'warn',
+        message: CONVERSATION_TEXTS.noNotification,
+        meta: { messenger: 'memory-editing' },
+      },
+    ]);
+  });
+
+  test('уведомление и сигнал одного собеседника — по очереди: уведомление после сигнала, снимок содержит оба', async () => {
+    const w = await breadWorld();
+    const node = w.node({ app: w.app });
+    await node.conversations.receive(w.signals.enter('card'));
+    const held = w.gate.hold('completeTask');
+    const pressed = node.conversations.receive(
+      w.signals.press(refOf(node.messenger, 'Выполнить'), 'p-a'),
+    );
+    await held.reached;
+
+    const delivering = node.conversations.deliver(assigned(A, 'e-1'));
+    // Беседа другого собеседника за это время отработала целиком.
+    await node.conversations.receive(w.signals.enter('start', WHO_B));
+    const whileHeld = notices(node.messenger);
+    held.release();
+    await Promise.all([pressed, delivering]);
+    await w.bus.delivered();
+    await node.conversations.settled();
+
+    expect(whileHeld).toEqual([]);
+    const journal = node.messenger.journal.filter(
+      (entry) => entry.peer === WHO_A.peer,
+    );
+    const answeredAt = journal.findIndex((entry) => entry.op === 'answered');
+    const noticeAt = journal.findIndex(
+      (entry) => entry.op === 'sent' && entry.via === 'notify',
+    );
+    expect(answeredAt).toBeGreaterThanOrEqual(0);
+    expect(noticeAt).toBeGreaterThan(answeredAt);
+    const saved = await snapshotOf(w.store);
+    expect(saved.notified).toHaveLength(1);
+    expect(records('completeTask')).toMatchObject([{ result: { ok: true } }]);
+  });
+
+  test('дефект представления (данные не по схеме) — error с именем, deliver не бросает, ссылок в таблице не осталось', async () => {
+    const w = world();
+    const node = w.node();
+    await node.conversations.receive(w.signals.enter('start'));
+    const before = await snapshotOf(w.store);
+
+    await expect(
+      node.conversations.deliver(
+        assigned(A, 'e-1', { data: { title: 4242917 } }),
+      ),
+    ).resolves.toBeUndefined();
+    await node.conversations.close();
+
+    expect(node.logger.records).toEqual([
+      {
+        level: 'error',
+        source: 'chat-ui',
+        message: expect.any(String),
+        meta: {
+          messenger: 'memory-editing',
+          operation: 'notify',
+          name: 'ValiError',
+        },
+      },
+    ]);
+    expect(notices(node.messenger)).toEqual([]);
+    const saved = await snapshotOf(w.store);
+    expect(saved.refs).toEqual(before.refs);
+    expect(saved.notified ?? []).toEqual([]);
+  });
+
+  test('в лог дефекта представления и отсутствия собеседника данные не идут', async () => {
+    const w = world();
+    w.peers.delete(B);
+    const node = w.node();
+    await node.conversations.receive(w.signals.enter('start'));
+
+    await node.conversations.deliver(
+      assigned(A, 'ev-mark-q7', { data: { title: 4242917 } }),
+    );
+    await node.conversations.deliver(
+      assigned(B, 'ev-mark-q7', { data: { title: 'title-mark-q7' } }),
+    );
+    await node.conversations.close();
+
+    expect(node.logger.records).toMatchObject([
+      { level: 'error', meta: { operation: 'notify', name: 'ValiError' } },
+      { level: 'warn', message: CONVERSATION_TEXTS.noPeer },
+    ]);
+    const log = JSON.stringify(node.logger.records);
+    for (const mark of [
+      'mark-q7',
+      '4242917',
+      A,
+      B,
+      WHO_A.peer,
+      WHO_B.peer,
+      'assignedTasks',
+      'Назначенные мне',
+    ]) {
+      expect(log).not.toContain(mark);
+    }
+  });
+});
+
+describe('Conversations — снимок экрана не восстановлен', () => {
+  test.each([
+    ['снимок экземпляра — не объект', 'мусор'],
+    [
+      'параметры экрана не по схеме',
+      {
+        address: { screen: 'exampleUi/todo/taskList', params: { page: -1 } },
+        state: null,
+        revision: 1,
+      },
+    ],
+  ])('%s — заметка и вход start', async (_, instance) => {
+    const w = world();
+    const first = w.node();
+    await first.conversations.receive(w.signals.enter('start'));
+    await first.conversations.close();
+    const saved = await snapshotOf(w.store);
+    if (saved.screen === undefined) throw new Error('в снимке нет экрана');
+    w.store.put(WHO_A.peer, {
+      ...saved,
+      screen: { ...saved.screen, instance },
+    });
+    const second = w.node();
+
+    await second.conversations.receive(w.signals.cancel());
+
+    const texts = sent(second.messenger).map(text);
+    expect(texts[0]).toBe('Прежний экран не восстановлен — начнём сначала.');
+    expect(texts[1]).toContain('Мои задачи');
+    expect(texts).toHaveLength(2);
+    const now = v.parse(Instance, (await snapshotOf(w.store)).screen?.instance);
+    expect(now.address).toEqual({
+      screen: 'exampleUi/todo/taskList',
+      params: { page: 0 },
+    });
   });
 });
