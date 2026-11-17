@@ -1,0 +1,4 @@
+Задача: представления — реестр, перекрытие, несколько сообщений.
+Файлы: packages/chat-ui/src/view/{view.types.ts,view.const.ts,view-kit.ts,screen-presenter.ts,notification-presenter.ts,chat-views.ts,screen-composer.ts} и тесты chat-views.test.ts, screen-composer.test.ts; переезды из dialog/ (dialog-views.ts, dialog-views.types.ts, dialog-replies.ts); packages/chat-ui/src/conversation/* (показ над сборщиком, отпечаток, запись home, схема снимка); packages/chat-ui/src/dialog/* (тип реестра, рендерер); packages/chat-ui/src/index.ts; testing/example/example-dialog.views.ts; checks/package-manifest.chat-ui.test.ts; docs/decisions.md (D-UI-50); README.md.
+Причина: представление пишется один раз на общей части, не знает таблицы ссылок и может скрыть или переставить варианты.
+Гейт: bun run check — 1409 pass, 0 fail, 115 файлов, 14 снимков (два прогона).
