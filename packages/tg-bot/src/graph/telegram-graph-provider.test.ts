@@ -31,12 +31,12 @@ const tg = (report: ArchReport) =>
   report.lines.filter((line) => line.startsWith('TG-'));
 
 describe('TelegramGraphProvider', () => {
-  test('имя dmg-ui-tg, версия 0.1.0', () => {
+  test('имя dmg-ui-tg, версия 0.2.0', () => {
     const provider = new TelegramGraphProvider();
 
     expect(TELEGRAM_PROVIDER).toBe('dmg-ui-tg');
     expect(provider.name).toBe('dmg-ui-tg');
-    expect(provider.version).toBe('0.1.0');
+    expect(provider.version).toBe('0.2.0');
   });
 
   test('kinds() и contribute() пусты: вид chatEntryPoint повторно не регистрируется', () => {

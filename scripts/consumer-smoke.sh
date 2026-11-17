@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Проверка установки dmg-ui глазами потребителя: пустой проект, установка по
-# спецификатору, импорт девяти входов, запуск и tsc. Сеть и ssh нужны, поэтому
-# в `bun run check` скрипт не входит.
+# спецификатору, импорт девяти входов и сверка их с `exports`, запуск и tsc.
+# Сеть и ssh нужны, поэтому в `bun run check` скрипт не входит.
 #
-#   bun run smoke git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.1.0
-#   bun run smoke git+file:///путь/к/клону#v0.1.0
+#   bun run smoke git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.2.0
+#   bun run smoke git+file:///путь/к/клону#v0.2.0
 #
 # Аргумент — спецификатор источника dmg-ui. dmg-core ставится той же командой
 # (peer: Bun ищет его в npm и получает 404), тег — из devDependencies репо.
 set -euo pipefail
 
 if [ $# -ne 1 ]; then
-  echo "usage: consumer-smoke.sh <спецификатор dmg-ui, например git+ssh://…#v0.1.0>" >&2
+  echo "usage: consumer-smoke.sh <спецификатор dmg-ui, например git+ssh://…#v0.2.0>" >&2
   exit 2
 fi
 SOURCE="$1"
@@ -82,6 +82,22 @@ for (const [name, module] of Object.entries(entries)) {
   }
   console.log(`smoke: ${name} — ${count} экспортов`);
 }
+
+// Список выше держится руками: сверка с `exports` ловит вход, который пакет
+// объявил, а smoke не проверяет, и наоборот.
+const manifest = (await Bun.file('node_modules/dmg-ui/package.json').json()) as {
+  version: string;
+  exports: Record<string, unknown>;
+};
+const declared = Object.keys(manifest.exports)
+  .map((key) => (key === '.' ? 'dmg-ui' : `dmg-ui/${key.slice(2)}`))
+  .sort();
+const checked = Object.keys(entries).sort();
+if (declared.join() !== checked.join()) {
+  console.error(`smoke: входы пакета [${declared.join(', ')}] ≠ проверяемым [${checked.join(', ')}]`);
+  process.exit(1);
+}
+console.log(`smoke: установлен dmg-ui ${manifest.version}, входов ${checked.length}`);
 TS
 
 echo "smoke: bun run"
