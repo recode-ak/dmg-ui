@@ -42,11 +42,6 @@ const EXAMPLES = await ChatExamples.collect({
   codes: exampleCodes(),
 });
 
-/** Приложение сцены с манифестами сообщества. */
-type CommunityAppSpec = ChatAppSpec & {
-  readonly community?: ChatCommunitySpec;
-};
-
 /** Сигнал `left` → `removeUser`. */
 const GONE = {
   name: 'gone',
@@ -88,7 +83,7 @@ const pointsOf = (app: ChatAppSpec['app']) =>
 const dialog = (
   community?: ChatCommunitySpec,
   capabilities: MessengerCapabilities = EDITING,
-): CommunityAppSpec => ({
+): ChatAppSpec => ({
   app: ExampleDialogAppDef,
   views: exampleDialogViews,
   capabilities,
@@ -96,7 +91,7 @@ const dialog = (
   ...(community ? { community } : {}),
 });
 
-const windowed = (community?: ChatCommunitySpec): CommunityAppSpec => ({
+const windowed = (community?: ChatCommunitySpec): ChatAppSpec => ({
   app: ExampleWindowedAppDef,
   views: exampleDialogViews,
   capabilities: WINDOWED,
@@ -110,7 +105,7 @@ const windowed = (community?: ChatCommunitySpec): CommunityAppSpec => ({
  * видов `dmg-ui-chat`, как пакет мессенджера.
  */
 const sceneOf = (
-  apps: readonly CommunityAppSpec[],
+  apps: readonly ChatAppSpec[],
   extra: readonly GraphProvider[] = [],
 ): ArchApp => ({
   ...ExampleArch,

@@ -209,15 +209,24 @@ describe('CommunityManifest — ошибки сборки', () => {
   }
 });
 
+// Поставщик зовёт ту же проверку: сквозные сцены сигнала и реакции, весь
+// перечень ошибок — выше (TST-08).
 describe('ChatGraphProvider — манифест сообщества проверяет CommunityManifest', () => {
-  for (const { what, community } of BROKEN) {
-    test(`${what} — поставщик бросает тем же текстом, что CommunityManifest`, () => {
+  test.each([
+    ['имя сигнала повторено', { signals: [GONE, GONE] }],
+    [
+      'событие реакции вне приложения',
+      { reactions: [{ ...DROP, event: StrayEvents.happened }] },
+    ],
+  ] as const)(
+    '%s — поставщик бросает тем же текстом, что CommunityManifest',
+    (_, community) => {
       const expected = thrown(manifestOf(community));
 
       expect(expected).not.toBe('');
       expect(thrown(providerOf(community))).toBe(expected);
-    });
-  }
+    },
+  );
 
   test('манифест по правилам — поставщик не бросает', () => {
     expect(thrown(providerOf({ signals: [GONE], reactions: [DROP] }))).toBe('');

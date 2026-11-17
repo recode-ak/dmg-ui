@@ -8,19 +8,32 @@ import type {
   ChatSignalSpec,
 } from './community.types';
 
-// Исполнитель сообщества (D-UI-59): сборка `Communities`, пределы отсева и
-// манифесты, связанные с модулем-владельцем UC и системным вызывающим узла.
+// Исполнитель сообщества (D-UI-59): сборка `Communities`, пределы отсева,
+// порты перевода и манифесты, связанные с модулем-владельцем UC и системным
+// вызывающим узла.
 
-/** Пределы отсева повторов в памяти. */
+/** Пределы отсева повторов в памяти: целые ≥ 1, иначе бросок сборки. */
 export type CommunityLimits = {
-  /** id сигналов; по умолчанию `MAX_COMMUNITY_SIGNALS`. */
+  /** Ключей сигналов; по умолчанию `MAX_COMMUNITY_SIGNALS`. */
   readonly signals?: number;
   /** Ключей исполненных операций реакций; по умолчанию `MAX_REACTED`. */
   readonly reactions?: number;
 };
 
+/** Порты перевода мессенджер ↔ домен; не знаем — `undefined`, пустая строка — тоже. */
+export type CommunityPorts = {
+  /** Личность транспорта → uuid. Единственный источник личности. */
+  readonly people: (member: string) => Promise<string | undefined>;
+  /** uuid → личность транспорта в этом мессенджере. */
+  readonly members: (person: string) => Promise<string | undefined>;
+  /** handle группы → ключ домена сообщества. */
+  readonly keys: (handle: string) => Promise<string | undefined>;
+  /** Ключ домена сообщества → handle группы. */
+  readonly handles: (key: string) => Promise<string | undefined>;
+};
+
 /** Сборка исполнителя сообщества одного приложения мессенджера. */
-export type CommunitiesSpec<U extends Identified> = {
+export type CommunitiesSpec<U extends Identified> = CommunityPorts & {
   readonly app: AnyUiAppDef;
   /** Тот же объект, что у графа (`ChatAppSpec.community`). */
   readonly community: ChatCommunitySpec;
@@ -28,14 +41,6 @@ export type CommunitiesSpec<U extends Identified> = {
   readonly messenger: MessengerPort;
   readonly dispatch: UcDispatch<U>;
   readonly context: ServerContext;
-  /** Личность транспорта → uuid; не знаем — `undefined`. Единственный источник личности. */
-  readonly people: (member: string) => Promise<string | undefined>;
-  /** uuid → личность транспорта в этом мессенджере; нет — `undefined`. */
-  readonly members: (person: string) => Promise<string | undefined>;
-  /** handle группы → ключ домена сообщества; не знаем — `undefined`. */
-  readonly keys: (handle: string) => Promise<string | undefined>;
-  /** Ключ домена сообщества → handle группы; нет — `undefined`. */
-  readonly handles: (key: string) => Promise<string | undefined>;
   /** Id запросов следа сигнала; по умолчанию — `crypto.randomUUID`. */
   readonly requestIds?: () => string;
   readonly limit?: CommunityLimits;

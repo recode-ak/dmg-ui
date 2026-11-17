@@ -8,13 +8,15 @@ import { SeenIds } from '../conversation/seen-ids';
 import type { CommunitySignal } from '../messenger/messenger.types';
 import type { Bound, CommunitiesSpec } from './communities.types';
 import { MAX_COMMUNITY_SIGNALS } from './community.const';
-import type { ChatSignalSpec } from './community.types';
+import type { ChatSignalField, ChatSignalSpec } from './community.types';
 import type { CommunityLog } from './community-log';
+import type { CommunityLookup } from './community-lookup';
 
 /**
- * Сигналы сообщества: пределы, отсев по `id` до исполнения, очередь на
- * handle, ключ сообщества из `keys`, uuid — только `people(member)`; вход UC
- * по `input` манифеста. Операций сообщества не исполняет. Не бросает.
+ * Сигналы сообщества: пределы, отсев (вид, handle, участник, `id`) до
+ * исполнения, очередь на handle, ключ из `keys`, uuid — только
+ * `people(member)` и только если вход манифеста берёт человека; вход UC по
+ * `input`. Операций сообщества не исполняет. Не бросает.
  */
 export class CommunitySignals<U extends Identified> {
   private readonly seen: SeenIds;
@@ -24,6 +26,7 @@ export class CommunitySignals<U extends Identified> {
   constructor(
     private readonly spec: CommunitiesSpec<U>,
     private readonly bound: readonly Bound<ChatSignalSpec, U>[],
+    private readonly lookup: CommunityLookup,
     private readonly log: CommunityLog,
   ) {
     this.seen = new SeenIds([], spec.limit?.signals ?? MAX_COMMUNITY_SIGNALS);
@@ -41,8 +44,8 @@ export class CommunitySignals<U extends Identified> {
         ({ spec }) => spec.signal === signal.kind,
       );
       if (bound.length === 0) return;
-      // id принимается до исполнения: повтор после сбоя UC не вызывается.
-      if (!this.seen.accept(signal.id)) return;
+      // Ключ принимается до исполнения: повтор после сбоя UC не вызывается.
+      if (!this.seen.accept(CommunitySignals.seenKey(signal))) return;
       await this.lines.run(signal.community, () => this.handle(signal, bound));
     } catch (error) {
       this.log.signalFailed(signal.kind, error);
@@ -53,29 +56,35 @@ export class CommunitySignals<U extends Identified> {
     signal: CommunitySignal,
     bound: readonly Bound<ChatSignalSpec, U>[],
   ): Promise<void> {
-    const key = await this.spec.keys(signal.community);
+    const key = await this.lookup.key(signal.community);
     if (key === undefined) {
       this.log.unknownCommunity(signal.kind);
       return;
     }
     const { member } = signal;
     const person =
-      member === undefined || member === ''
+      member === undefined ||
+      member === '' ||
+      !bound.some(({ spec }) => CommunitySignals.takesPerson(spec))
         ? undefined
-        : await this.spec.people(member);
+        : await this.lookup.person(member);
     const trace = Trace.fromRequest({
       requestId: this.requestIds(),
       channel: { name: this.spec.app.channel },
     });
     for (const one of bound) {
-      if (person === undefined && one.spec.strangers !== true) {
+      // Фильтр незнакомых — только для входа с человеком: иначе личность не нужна.
+      const { spec } = one;
+      const stranger =
+        person === undefined && CommunitySignals.takesPerson(spec);
+      if (stranger && spec.strangers !== true) {
         this.log.stranger(signal.kind);
         continue;
       }
       await this.call(
         one,
         signal,
-        CommunitySignals.input(one.spec, key, person),
+        CommunitySignals.input(spec, key, person),
         trace,
       );
     }
@@ -112,24 +121,63 @@ export class CommunitySignals<U extends Identified> {
     // `fromEntries` — свои поля: имя поля `__proto__` не меняет прототип.
     return Object.fromEntries(
       Object.entries(spec.input).flatMap(([field, from]) => {
-        const value = from === 'community' ? key : person;
+        const value = CommunitySignals.value(from, key, person);
         return value === undefined ? [] : [[field, value]];
       }),
     );
   }
 
-  /** Предел сигнала нарушен — причина; в пределах — `undefined`. */
+  private static value(
+    from: ChatSignalField,
+    key: string,
+    person: string | undefined,
+  ): string | undefined {
+    switch (from) {
+      case 'community':
+        return key;
+      case 'person':
+        return person;
+      default:
+        return CommunitySignals.unknown(from);
+    }
+  }
+
+  /** Вход манифеста берёт uuid человека. */
+  private static takesPerson(spec: ChatSignalSpec): boolean {
+    return Object.values(spec.input).includes('person');
+  }
+
+  /** Ключ отсева: один `id` апдейта бывает у нескольких участников и групп. */
+  private static seenKey({ kind, community, member, id }: CommunitySignal) {
+    return JSON.stringify([kind, community, member ?? null, id]);
+  }
+
+  /**
+   * Предел сигнала нарушен — причина; в пределах — `undefined`. Поле не
+   * строкой (числа транспорта) — та же причина, что длина не по пределу.
+   */
   private static rejects(
     signal: CommunitySignal,
   ): 'signalId' | 'community' | 'member' | undefined {
-    if (signal.id.length > MAX_SIGNAL_ID) return 'signalId';
-    const { community, member } = signal;
-    if (community.length === 0 || community.length > MAX_PEER_LENGTH) {
+    const { id, community, member } = signal;
+    if (typeof id !== 'string' || id.length > MAX_SIGNAL_ID) return 'signalId';
+    if (
+      typeof community !== 'string' ||
+      community.length === 0 ||
+      community.length > MAX_PEER_LENGTH
+    ) {
       return 'community';
     }
-    if (member !== undefined && member.length > MAX_PEER_LENGTH) {
+    if (
+      member !== undefined &&
+      (typeof member !== 'string' || member.length > MAX_PEER_LENGTH)
+    ) {
       return 'member';
     }
     return undefined;
+  }
+
+  private static unknown(from: never): never {
+    throw new Error(`неизвестный источник поля сигнала: ${String(from)}`);
   }
 }

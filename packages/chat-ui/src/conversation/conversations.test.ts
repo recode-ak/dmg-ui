@@ -1183,7 +1183,7 @@ describe('Conversations — уведомления', () => {
     ]);
     expect(
       second.messenger.journal.filter(
-        (e) => e.op !== 'community' && e.peer !== WHO_A.peer,
+        (e) => e.op === 'community' || e.peer !== WHO_A.peer,
       ),
     ).toEqual([]);
     const saved = await snapshotOf(w.store);

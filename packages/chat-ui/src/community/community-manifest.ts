@@ -1,3 +1,4 @@
+import type { AnyModuleDef, AnyUseCaseDef } from 'dmg-core';
 import { DefIndex, GraphId } from 'dmg-core/graph';
 import type { AnyUiAppDef } from 'dmg-ui';
 import type {
@@ -74,7 +75,15 @@ export class CommunityManifest {
     }
   }
 
-  private fail(text: string): never {
+  /** Модуль-владелец UC манифеста: конструктор уже проверил, что он есть. */
+  moduleOf(uc: AnyUseCaseDef): AnyModuleDef {
+    const module = this.index.moduleOf(uc);
+    if (module === undefined) this.fail(`UC ${uc.name} вне приложения`);
+    return module;
+  }
+
+  /** Бросок сборки сообщества приложения: префикс — в одном месте. */
+  fail(text: string): never {
     throw new Error(`сообщество приложения ${this.app.name}: ${text}`);
   }
 

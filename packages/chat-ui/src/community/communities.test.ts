@@ -88,6 +88,16 @@ const GONE: ChatSignalSpec = {
 /** Тот же сигнал и для незнакомых (С3). */
 const ANYONE: ChatSignalSpec = { ...GONE, name: 'anyone', strangers: true };
 
+/** Бота добавили в группу: вход — только ключ сообщества, поля человека нет. */
+const ADDED: ChatSignalSpec = {
+  name: 'added',
+  label: 'Бота добавили',
+  description: 'Бота добавили в группу — сообщество отмечается.',
+  signal: 'added',
+  uc: RemoveUserUcDef,
+  input: { communityId: 'community' },
+};
+
 /** Реакция на `todo.task.assigned`: `getTask` → исключить владельца задачи. */
 const DROP: ChatReactionSpec = {
   name: 'drop',
@@ -127,6 +137,9 @@ class RecordingDispatch implements UcDispatch<ExampleUser> {
   private readonly answers = new Map<string, SerializedResult>();
   /** Следующие вызовы бросают. */
   broken: Error | undefined;
+  private gate:
+    | { readonly reached: () => void; readonly open: Promise<void> }
+    | undefined;
 
   constructor(private readonly inner?: UcDispatch<ExampleUser>) {}
 
@@ -135,8 +148,22 @@ class RecordingDispatch implements UcDispatch<ExampleUser> {
     return this;
   }
 
+  /** Следующий вызов ждёт `release`; `reached` — вызов дошёл до бэкенда. */
+  hold() {
+    const reached = Promise.withResolvers<void>();
+    const open = Promise.withResolvers<void>();
+    this.gate = { reached: reached.resolve, open: open.promise };
+    return { reached: reached.promise, release: open.resolve };
+  }
+
   async dispatch(request: UcRequest<ExampleUser>): Promise<SerializedResult> {
     this.requests.push(request);
+    const gate = this.gate;
+    if (gate !== undefined) {
+      this.gate = undefined;
+      gate.reached();
+      await gate.open;
+    }
     if (this.broken !== undefined) throw this.broken;
     if (this.inner !== undefined) return this.inner.dispatch(request);
     const answer = this.answers.get(request.uc.name);
@@ -542,6 +569,62 @@ describe('Communities — незнакомый человек и незнако�
     ]);
   });
 
+  test('манифест без поля person от незнакомого — UC вызывается без strangers, people не спрашивается', async () => {
+    const { communities, dispatch, logger, calls } = sceneOf({
+      community: { signals: [ADDED] },
+    });
+
+    await communities.receive(signal({ kind: 'added', member: STRANGER }));
+    await communities.receive({
+      id: 'sig-bare',
+      kind: 'added',
+      community: GROUP,
+    });
+
+    expect(calls.people).toEqual([]);
+    expect(dispatch.requests.map((r) => r.input)).toStrictEqual([
+      { communityId: KEY },
+      { communityId: KEY },
+    ]);
+    expect(logger.records).toEqual([]);
+  });
+
+  test('манифесты вида с человеком и без: незнакомому — только манифест без человека, за другой — warn stranger', async () => {
+    const { communities, dispatch, logger } = sceneOf({
+      community: {
+        signals: [GONE, { ...ADDED, name: 'bare', signal: 'left' }],
+      },
+    });
+
+    await communities.receive(signal({ member: STRANGER }));
+
+    expect(
+      dispatch.requests.map(
+        (r) => (r.caller.toLog() as { from: { name: string } }).from.name,
+      ),
+    ).toEqual(['exampleDialog/signal-bare']);
+    expect(records(logger)).toEqual([
+      logged('warn', { kind: 'left', reason: 'stranger' }),
+    ]);
+  });
+
+  test.each([
+    ['people', { people: async () => '' }, 'stranger'],
+    ['keys', { keys: async () => '' }, 'unknownCommunity'],
+  ] as const)(
+    'порт %s вернул пустую строку — как «не знаем»: UC не вызывается, warn %s',
+    async (_, ports, reason) => {
+      const { communities, dispatch, logger } = sceneOf({ ports });
+
+      await communities.receive(signal());
+
+      expect(dispatch.requests).toEqual([]);
+      expect(records(logger)).toEqual([
+        logged('warn', { kind: 'left', reason }),
+      ]);
+    },
+  );
+
   test('незнакомое сообщество (keys → undefined) — UC не вызывается, people не спрашивается, warn unknownCommunity', async () => {
     const { communities, dispatch, logger, calls } = sceneOf({
       community: { signals: [ANYONE] },
@@ -560,15 +643,71 @@ describe('Communities — незнакомый человек и незнако�
 });
 
 describe('Communities — отсев повтора сигнала', () => {
-  test('повтор сигнала по id — UC один раз', async () => {
+  test('повтор сигнала (тот же вид, сообщество, участник и id) — UC один раз', async () => {
     const { communities, dispatch } = sceneOf();
     const once = signal();
 
     await communities.receive(once);
     await communities.receive(once);
-    await communities.receive({ ...once, member: MEMBER_B });
+    await communities.receive({ ...once });
 
     expect(dispatch.requests).toHaveLength(1);
+  });
+
+  test('один id — разные участники, вид или сообщество (один апдейт на несколько вступивших): UC на каждый сигнал', async () => {
+    const { communities, dispatch } = sceneOf({
+      community: {
+        signals: [GONE, { ...GONE, name: 'came', signal: 'joined' }],
+      },
+      ports: { keys: async () => KEY },
+    });
+    const id = 'update-1';
+
+    await communities.receive(signal({ id, member: MEMBER_A }));
+    await communities.receive(signal({ id, member: MEMBER_B }));
+    await communities.receive(signal({ id, kind: 'joined' }));
+    await communities.receive(signal({ id, community: 'group-handle-2' }));
+    await communities.receive(signal({ id, member: MEMBER_B }));
+
+    expect(dispatch.requests.map((r) => r.input)).toEqual([
+      { userId: A, communityId: KEY },
+      { userId: B, communityId: KEY },
+      { userId: A, communityId: KEY },
+      { userId: A, communityId: KEY },
+    ]);
+  });
+
+  test('очередь на handle: второй сигнал того же сообщества ждёт первого, сигнал другого — нет', async () => {
+    const dispatch = new RecordingDispatch().answer(RemoveUserUcDef, ok({}));
+    const { reached, release } = dispatch.hold();
+    const asked: string[] = [];
+    const { communities } = sceneOf({
+      dispatch,
+      ports: {
+        keys: async (handle: string) => {
+          asked.push(handle);
+          return KEY;
+        },
+      },
+    });
+
+    const first = communities.receive(signal({ member: MEMBER_A }));
+    await reached;
+    const second = communities.receive(signal({ member: MEMBER_B }));
+    await communities.receive(signal({ community: 'group-handle-2' }));
+
+    expect(asked).toEqual([GROUP, 'group-handle-2']);
+    expect(dispatch.requests).toHaveLength(2);
+
+    release();
+    await Promise.all([first, second]);
+
+    expect(asked).toEqual([GROUP, 'group-handle-2', GROUP]);
+    expect(dispatch.requests.map((r) => r.input)).toEqual([
+      { userId: A, communityId: KEY },
+      { userId: A, communityId: KEY },
+      { userId: B, communityId: KEY },
+    ]);
   });
 
   test('id принимается до исполнения: после броска бэкенда повтор того же id не вызывает UC', async () => {
@@ -616,6 +755,14 @@ describe('Communities — пределы сигнала', () => {
       { member: 'm'.repeat(MAX_PEER_LENGTH + 1) },
       'member',
     ],
+    // Транспорт отдаёт id числами: не строка — отказ той же причиной.
+    ['id не строка', { id: 7 } as unknown as Partial<Signal>, 'signalId'],
+    [
+      'community не строка',
+      { community: 42 } as unknown as Partial<Signal>,
+      'community',
+    ],
+    ['member не строка', { member: 5 } as unknown as Partial<Signal>, 'member'],
   ] as const)(
     '%s — UC не вызывается, порты и мессенджер не тронуты, warn с причиной',
     async (_, over, reason) => {
@@ -631,6 +778,21 @@ describe('Communities — пределы сигнала', () => {
       ]);
     },
   );
+
+  test('вид вне COMMUNITY_SIGNALS — в записи предела поля kind нет', async () => {
+    const { communities, dispatch, logger } = sceneOf();
+    const forged = {
+      ...signal({ id: 'i'.repeat(MAX_SIGNAL_ID + 1) }),
+      kind: 'kind-forged',
+    } as unknown as Signal;
+
+    await communities.receive(forged);
+
+    expect(dispatch.requests).toEqual([]);
+    expect(logger.records.map(({ meta }) => meta)).toEqual([
+      { messenger: EDITING.name, reason: 'signalId' },
+    ]);
+  });
 
   test('ровно на пределах — UC вызывается', async () => {
     const community = 'g'.repeat(MAX_PEER_LENGTH);
@@ -1013,9 +1175,16 @@ describe('Communities — отсев повтора события и очере
 });
 
 describe('Communities — отказы и сбои реакции', () => {
+  /** Порт перевода сцены, который «не знает»: `undefined` или пустая строка. */
+  const unknown =
+    (value: '' | undefined) => async (): Promise<string | undefined> =>
+      value;
+
   test.each([
-    ['handles → undefined', { handles: async () => undefined }, 'noHandle'],
-    ['members → undefined', { members: async () => undefined }, 'noMember'],
+    ['handles → undefined', { handles: unknown(undefined) }, 'noHandle'],
+    ['members → undefined', { members: unknown(undefined) }, 'noMember'],
+    ['handles → пустая строка', { handles: unknown('') }, 'noHandle'],
+    ['members → пустая строка', { members: unknown('') }, 'noMember'],
   ] as const)('%s — warn, операции нет', async (_, ports, reason) => {
     const { communities, bus, messenger, logger } = sceneOf({ ports });
     communities.start();
@@ -1267,11 +1436,13 @@ describe('Communities — сборка', () => {
         ],
       },
       'drop',
+      'не query',
     ],
     [
       'UC сигнала — query',
       { signals: [{ ...GONE, uc: GetUserUcDef, input: { userId: 'person' } }] },
       'gone',
+      'не command',
     ],
     [
       'нет system в callers UC сигнала',
@@ -1279,6 +1450,7 @@ describe('Communities — сборка', () => {
         signals: [{ ...GONE, uc: CreateTaskUcDef, input: { title: 'person' } }],
       },
       'gone',
+      'нет system в callers',
     ],
     [
       'нет system в callers UC реакции',
@@ -1286,14 +1458,16 @@ describe('Communities — сборка', () => {
         reactions: [{ ...DROP, uc: ListTasksUcDef, input: { page: 'taskId' } }],
       },
       'drop',
+      'нет system в callers',
     ],
   ] as const)(
-    '%s — бросок с именем приложения и манифеста',
-    (_, community, name) => {
+    '%s — бросок с именем приложения и манифеста и причиной',
+    (_, community, name, reason) => {
       const text = build(community);
 
       expect(text).toContain('exampleDialog');
       expect(text).toContain(name);
+      expect(text).toContain(reason);
     },
   );
 
@@ -1306,11 +1480,21 @@ describe('Communities — сборка', () => {
   });
 
   test.each([
-    ['сигнала нет в возможностях мессенджера', { signals: [GONE] }, 'gone'],
-    ['операции нет в возможностях мессенджера', { reactions: [DROP] }, 'drop'],
+    [
+      'сигнала нет в возможностях мессенджера',
+      { signals: [GONE] },
+      'gone',
+      'не принимает сигнал left',
+    ],
+    [
+      'операции нет в возможностях мессенджера',
+      { reactions: [DROP] },
+      'drop',
+      'не исполняет exclude',
+    ],
   ] as const)(
-    '%s — бросок с именем приложения и манифеста',
-    (_, community, name) => {
+    '%s — бросок с именем приложения и манифеста и причиной',
+    (_, community, name, reason) => {
       const partial: MessengerCapabilities = {
         ...EDITING,
         name: 'memory-partial',
@@ -1320,11 +1504,38 @@ describe('Communities — сборка', () => {
 
       expect(text).toContain('exampleDialog');
       expect(text).toContain(name);
+      expect(text).toContain(reason);
     },
   );
 
-  test('манифест есть, порта сообщества у мессенджера нет — бросок', () => {
-    expect(build(COMMUNITY, portOf(EDITING))).toContain('exampleDialog');
+  test('реакция есть, порта сообщества у мессенджера нет — бросок с причиной', () => {
+    const text = build(COMMUNITY, portOf(EDITING));
+
+    expect(text).toContain('exampleDialog');
+    expect(text).toContain('нет порта сообщества');
+  });
+
+  // Закрепляющая: отклонение шага C — сигналам порт сообщества не нужен.
+  test('только сигналы, порта сообщества нет — собирается', () => {
+    expect(build({ signals: [GONE, ANYONE] }, portOf(EDITING))).toBe('');
+  });
+
+  test.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'предел limit %p — не целое ≥ 1: бросок сборки с именем приложения и предела',
+    (value) => {
+      for (const name of ['signals', 'reactions'] as const) {
+        const text = thrown(() => sceneOf({ limit: { [name]: value } }));
+
+        expect(text).toContain('exampleDialog');
+        expect(text).toContain(`limit.${name}`);
+      }
+    },
+  );
+
+  test('предел limit 1 — собирается', () => {
+    expect(thrown(() => sceneOf({ limit: { signals: 1, reactions: 1 } }))).toBe(
+      '',
+    );
   });
 
   test('без манифестов мессенджер без порта сообщества собирается', () => {

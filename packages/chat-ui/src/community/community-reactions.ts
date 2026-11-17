@@ -18,6 +18,7 @@ import type {
 import { MAX_REACTED, MAX_TARGETS } from './community.const';
 import type { ChatReactionSpec, ChatReactionTargets } from './community.types';
 import type { CommunityLog } from './community-log';
+import type { CommunityLookup } from './community-lookup';
 
 /** Реакция одного узла: манифест, связанный сборкой. */
 type Reaction<U extends Identified> = Bound<ChatReactionSpec, U>;
@@ -37,6 +38,7 @@ export class CommunityReactions<U extends Identified> {
     private readonly spec: CommunitiesSpec<U>,
     private readonly bound: readonly Reaction<U>[],
     private readonly port: CommunityPort,
+    private readonly lookup: CommunityLookup,
     private readonly log: CommunityLog,
   ) {
     this.seen = new SeenIds([], spec.limit?.reactions ?? MAX_REACTED);
@@ -144,12 +146,12 @@ export class CommunityReactions<U extends Identified> {
     );
     await this.lines.run(key, async () => {
       if (this.seen.has(seen)) return;
-      const handle = await this.spec.handles(key);
+      const handle = await this.lookup.handle(key);
       if (handle === undefined) {
         this.log.skipped(cause, 'noHandle');
         return;
       }
-      const member = await this.spec.members(person);
+      const member = await this.lookup.member(person);
       if (member === undefined) {
         this.log.skipped(cause, 'noMember');
         return;

@@ -1,19 +1,18 @@
-import {
-  type AnyModuleDef,
-  type AnyUseCaseDef,
-  type Identified,
-  SystemCaller,
-} from 'dmg-core';
-import { DefIndex } from 'dmg-core/graph';
+import { type AnyUseCaseDef, type Identified, SystemCaller } from 'dmg-core';
 import { ChatIds } from '../graph/chat-ids';
 import type {
   CommunityPort,
   CommunitySignal,
   MessengerPort,
 } from '../messenger/messenger.types';
-import type { Bound, CommunitiesSpec } from './communities.types';
+import type {
+  Bound,
+  CommunitiesSpec,
+  CommunityLimits,
+} from './communities.types';
 import type { ChatReactionSpec, ChatSignalSpec } from './community.types';
 import { CommunityLog } from './community-log';
+import { CommunityLookup } from './community-lookup';
 import { CommunityManifest } from './community-manifest';
 import { CommunityReactions } from './community-reactions';
 import { CommunitySignals } from './community-signals';
@@ -31,7 +30,7 @@ export class Communities<U extends Identified> {
   private readonly app: CommunitiesSpec<U>['app'];
   private readonly signals: CommunitySignals<U>;
   private readonly reactions: CommunityReactions<U> | undefined;
-  private readonly index: DefIndex;
+  private readonly manifest: CommunityManifest;
   /** Отписка действующего запуска; `undefined` — не запущен. */
   private running: (() => void) | undefined;
 
@@ -39,7 +38,8 @@ export class Communities<U extends Identified> {
     const { app, messenger } = spec;
     const manifest = new CommunityManifest(app, spec.community);
     this.app = app;
-    this.index = DefIndex.from(app.set.app.modules);
+    this.manifest = manifest;
+    this.assertLimits(spec.limit ?? {});
     const { signals, operations } = messenger.capabilities.community;
     for (const { name, uc, signal } of manifest.signals) {
       this.assertUc('сигнал', name, uc, 'command');
@@ -63,9 +63,11 @@ export class Communities<U extends Identified> {
       messenger.capabilities.name,
     );
     const ids = new ChatIds(app.set);
+    const lookup = new CommunityLookup(spec);
     this.signals = new CommunitySignals(
       spec,
       manifest.signals.map((one) => this.bind(one, ids.signal(app, one.name))),
+      lookup,
       log,
     );
     this.reactions =
@@ -77,6 +79,7 @@ export class Communities<U extends Identified> {
               this.bind(one, ids.reaction(app, one.name)),
             ),
             this.portOf(messenger),
+            lookup,
             log,
           );
   }
@@ -111,7 +114,7 @@ export class Communities<U extends Identified> {
   ): Bound<S, U> {
     return {
       spec,
-      module: this.moduleOf(spec.uc),
+      module: this.manifest.moduleOf(spec.uc),
       node,
       caller: new SystemCaller<U>({
         kind: 'app',
@@ -130,11 +133,13 @@ export class Communities<U extends Identified> {
     return port;
   }
 
-  private moduleOf(uc: AnyUseCaseDef): AnyModuleDef {
-    const module = this.index.moduleOf(uc);
-    // `CommunityManifest` уже проверил: UC — в приложении.
-    if (module === undefined) this.fail(`UC ${uc.name} вне приложения`);
-    return module;
+  /** Пределы отсева — целые ≥ 1: `0`, `NaN` или дробь выключили бы отсев. */
+  private assertLimits(limit: CommunityLimits): void {
+    for (const [name, value] of Object.entries(limit)) {
+      if (value !== undefined && !(Number.isInteger(value) && value >= 1)) {
+        this.fail(`предел limit.${name} — не целое число ≥ 1`);
+      }
+    }
   }
 
   /** UC манифеста — нужного типа и с `system` в `callers` (MAN-11). */
@@ -153,6 +158,6 @@ export class Communities<U extends Identified> {
   }
 
   private fail(text: string): never {
-    throw new Error(`сообщество приложения ${this.app.name}: ${text}`);
+    return this.manifest.fail(text);
   }
 }

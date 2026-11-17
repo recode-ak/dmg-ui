@@ -1,5 +1,5 @@
 import type { ServerContext } from 'dmg-ui/server';
-import { LOG_SOURCE } from '../messenger/messenger.const';
+import { COMMUNITY_SIGNALS, LOG_SOURCE } from '../messenger/messenger.const';
 import type {
   CommunityOperation,
   CommunitySignalKind,
@@ -20,12 +20,12 @@ export class CommunityLog {
     private readonly messenger: string,
   ) {}
 
-  /** Сигнал отвергнут по пределу длины. */
+  /** Сигнал отвергнут по пределу; `kind` ещё не сверен — вне видов без поля. */
   rejected(
     kind: CommunitySignalKind,
     reason: 'signalId' | 'community' | 'member',
   ): void {
-    this.warn(COMMUNITY_TEXTS.rejected, { kind, reason });
+    this.warn(COMMUNITY_TEXTS.rejected, { ...CommunityLog.kind(kind), reason });
   }
 
   /** Сообщества нет у домена (`keys` → `undefined`). */
@@ -48,7 +48,7 @@ export class CommunityLog {
   /** Бросок порта перевода или бэкенда UC: имя ошибки без её текста. */
   signalFailed(kind: CommunitySignalKind, error: unknown): void {
     this.error(COMMUNITY_TEXTS.signalFailed, {
-      kind,
+      ...CommunityLog.kind(kind),
       name: CommunityLog.nameOf(error),
     });
   }
@@ -92,6 +92,14 @@ export class CommunityLog {
 
   private error(text: string, meta: Record<string, string>): void {
     this.logger.error(LOG_SOURCE, text, { messenger: this.messenger, ...meta });
+  }
+
+  /** Поле вида сигнала — только для вида из `COMMUNITY_SIGNALS`. */
+  private static kind(
+    kind: CommunitySignalKind,
+  ): Readonly<Record<string, string>> {
+    const known: readonly string[] = COMMUNITY_SIGNALS;
+    return known.includes(kind) ? { kind } : {};
   }
 
   private static nameOf(error: unknown): string {
