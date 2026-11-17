@@ -3,7 +3,6 @@ import type {
   LimitCut,
   MessengerCapabilities,
 } from '../../messenger/messenger.types';
-import type { ChatViews } from '../../view/chat-views';
 import { ExampleFit } from './example-fit';
 import { STUB_REF } from './example-limits.const';
 import type { NoticeLink } from './example-limits.rule.types';
@@ -11,21 +10,18 @@ import type { NoticeLink } from './example-limits.rule.types';
 /**
  * Мера уведомления для CH-01 — как его строит беседа (`notice`): текст
  * представления строкой, по варианту на ссылку с подписью экрана-цели.
- * Без ссылок текст меряется по `text`, со ссылками — по `textWithOptions`.
+ * Без ссылок текст меряется по `text`, со ссылками — по `textWithOptions`;
+ * ссылки беседа не раскладывает — их число меряется по `options.max`.
  */
 export class NotificationLimits {
   private readonly fit: ExampleFit;
 
-  constructor(
-    private readonly views: ChatViews,
-    capabilities: MessengerCapabilities,
-  ) {
-    this.fit = new ExampleFit(capabilities);
+  constructor(capabilities: MessengerCapabilities) {
+    this.fit = ExampleFit.notice(capabilities);
   }
 
-  /** Нарушения уведомления `id` с данными примера — без текста и данных. Бросок представления — бросок. */
-  check(id: string, data: unknown, links: readonly NoticeLink[]): string[] {
-    const text = this.views.notification(id).text(data);
+  /** Нарушения текста уведомления со ссылками — без текста и данных. */
+  check(text: string, links: readonly NoticeLink[]): string[] {
     return this.fit
       .cuts({
         kind: 'text',
@@ -50,7 +46,7 @@ export class NotificationLimits {
         ];
       }
       case 'options':
-        return [];
+        return [`ссылок больше лимита ${ExampleFit.measure(cut)}`];
       default: {
         const unknownLimit: never = cut.limit;
         throw new Error(

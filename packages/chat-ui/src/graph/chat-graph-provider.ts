@@ -14,6 +14,7 @@ import type {
   ChatAppSpec,
   ChatEntryPointSpec,
   ChatGraphSpec,
+  NumberedEntryPoint,
 } from './chat-graph-provider.types';
 import { ChatIds } from './chat-ids';
 import {
@@ -167,7 +168,7 @@ export class ChatGraphProvider implements GraphProvider {
   /** Номер точки внутри её входа, с 1, в порядке `entryPoints`. */
   private static numbered(
     points: readonly ChatEntryPointSpec[],
-  ): { point: ChatEntryPointSpec; n: number }[] {
+  ): NumberedEntryPoint[] {
     const counts = new Map<string, number>();
     return points.map((point) => {
       const n = (counts.get(point.entry) ?? 0) + 1;

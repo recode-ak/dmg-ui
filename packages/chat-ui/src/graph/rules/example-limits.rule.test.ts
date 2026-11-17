@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ok } from 'dmg-core';
 import type { ArchApp } from 'dmg-core/arch';
-import { AppGraph, Graph } from 'dmg-core/graph';
+import { AppGraph, Graph, type GraphProvider } from 'dmg-core/graph';
 import { ExampleArch } from 'dmg-core/testing';
 import {
   ExampleAppDef,
@@ -55,7 +55,8 @@ import { ChatGraphProvider } from '../chat-graph-provider';
 // последнее сообщение — по `textWithOptions`, остальные — по `text`,
 // подписи вариантов — по `options.label`; число вариантов не нарушение.
 // Уведомление: без ссылок — `text`, со ссылками — `textWithOptions`,
-// подпись ссылки — `label` экрана-цели. Сцены ставят точку входа на каждый
+// подпись ссылки — `label` экрана-цели, число ссылок — по `options.max`
+// (беседа ссылки не раскладывает). Сцены ставят точку входа на каждый
 // вход приложения (без неё CH-02 даёт код 1) и проверяют строки CH-01.
 
 const EDITING = MemoryMessenger.editing().capabilities;
@@ -302,16 +303,33 @@ const PingNotificationDef = NotificationDef.define({
   },
 });
 
-/** Уведомление со ссылкой на доску. */
+/** Второй экран-цель ссылок уведомления: подпись короче лимитов сцен. */
+const ShelfScreenDef = ScreenDef.define({
+  name: 'shelf',
+  label: 'Полка',
+  description: 'Второй экран-цель ссылки уведомления.',
+  reads: [ListTasksUcDef],
+  data: v.object({}),
+  examples: {
+    plain: {
+      label: 'Полка',
+      description: 'Пустая полка.',
+      params: {},
+      data: {},
+    },
+  },
+});
+
+/** Уведомление со ссылками на доску и полку. */
 const CallNotificationDef = NotificationDef.define({
   name: 'call',
   label: 'Вызов',
-  description: 'Уведомление со ссылкой на доску.',
+  description: 'Уведомление со ссылками на доску и полку.',
   event: TaskEvents.assigned,
   recipients: { from: 'payload', fields: ['assigneeId'] },
   reads: [ListTasksUcDef],
   data: v.object({ title: v.string() }),
-  links: () => [BoardScreenDef],
+  links: () => [BoardScreenDef, ShelfScreenDef],
   examples: {
     sample: {
       label: 'Вызов',
@@ -331,8 +349,8 @@ const NoteUiSetDef = UiSetDef.define({
     UiModuleDef.define({
       name: 'desk',
       label: 'Стол',
-      description: 'Доска и два уведомления.',
-      screens: [BoardScreenDef],
+      description: 'Доска, полка и два уведомления.',
+      screens: [BoardScreenDef, ShelfScreenDef],
       stories: [],
       notifications: [PingNotificationDef, CallNotificationDef],
     }),
@@ -362,6 +380,12 @@ class BoardScreenCode extends ScreenCode<typeof BoardScreenDef> {
   }
 }
 
+class ShelfScreenCode extends ScreenCode<typeof ShelfScreenDef> {
+  override async load() {
+    return ok({});
+  }
+}
+
 class PingNotificationCode extends NotificationCode<
   typeof PingNotificationDef
 > {
@@ -382,6 +406,7 @@ const NOTE_EXAMPLES = await ChatExamples.collect({
   set: NoteUiSetDef,
   codes: CodeLoaders.of(NoteUiSetDef, [
     CodeLoader.screen(BoardScreenDef, async () => new BoardScreenCode()),
+    CodeLoader.screen(ShelfScreenDef, async () => new ShelfScreenCode()),
     CodeLoader.notification(
       PingNotificationDef,
       async () => new PingNotificationCode(),
@@ -395,6 +420,7 @@ const NOTE_EXAMPLES = await ChatExamples.collect({
 
 const noteViews = ChatViews.of(NoteUiSetDef, [
   ScreenPresenter.for(BoardScreenDef, () => 'Доска'),
+  ScreenPresenter.for(ShelfScreenDef, () => 'Полка'),
   NotificationPresenter.for(
     PingNotificationDef,
     ({ title }) => `Напоминание о задаче: ${title}`,
@@ -448,6 +474,25 @@ describe('CH-01: уведомление', () => {
     expect(lines[0]).toMatch(
       /^CH-01: приложение noteChat: уведомление noteUi\/desk\/call, пример sample: ссылка на noteUi\/desk\/board: подпись длиннее лимита \(\d+ из 10 grapheme\)$/,
     );
+  });
+
+  test('ссылок уведомления больше options.max — нарушение с числом ссылок и лимитом: беседа ссылки не раскладывает, лишние отбросит страж', () => {
+    const report = noteReport(
+      tight({ options: { ...EDITING.options, max: 1 } }),
+    );
+
+    expect(report.code).toBe(1);
+    expect(report.rule('CH-01')).toEqual([
+      'CH-01: приложение noteChat: уведомление noteUi/desk/call, пример sample: ссылок больше лимита (2 из 1)',
+    ]);
+  });
+
+  test('ссылок уведомления ровно options.max — нарушения нет', () => {
+    const report = noteReport(
+      tight({ options: { ...EDITING.options, max: 2 } }),
+    );
+
+    expect(report.rule('CH-01')).toEqual([]);
   });
 });
 
@@ -550,15 +595,18 @@ describe('CH-01: граница с другими правилами', () => {
     expect(report.rule('CH-01')).toEqual([]);
   });
 
-  test('свойства chatMessenger не по схеме — check правила не бросает, вывод — строки', () => {
-    const scene = exampleScene(EDITING);
+  test('свойства chatMessenger не по схеме — check не бросает: строка о возможностях у сломанного приложения, мера его примеров не идёт, у второго приложения строк нет', () => {
+    const scene = exampleScene(
+      tight({ textWithOptions: { max: 30, unit: 'codePoint' } }),
+    );
     const provider = (scene.providers ?? []).find(
       (item) => item instanceof ChatGraphProvider,
     );
     const rule = provider?.rules?.().find((item) => item.id === 'CH-01');
     const built = new AppGraph(scene).build();
-    // Сборщик графа проверяет свойства схемой вида — узел не по схеме
-    // собирается в обход него, как граф с чужими правками.
+    // Сборщик графа проверяет свойства схемой вида и узел не по схеме не
+    // пропустит: сцена собирает граф конструктором `Graph` в обход него,
+    // как граф с чужими правками. Другого пути к такому графу нет.
     const broken = new Graph({
       providers: built.providers,
       nodes: built
@@ -572,12 +620,48 @@ describe('CH-01: граница с другими правилами', () => {
     });
 
     expect(rule).toBeDefined();
+    expect(rule?.check(built).length).toBeGreaterThan(0);
     let lines: readonly string[] = [];
     expect(() => {
       lines = rule?.check(broken) ?? [];
     }).not.toThrow();
-    for (const line of lines) {
-      expect(typeof line).toBe('string');
-    }
+    expect(lines).toEqual([
+      'приложение exampleWindowed: возможности мессенджера не по схеме',
+    ]);
+  });
+
+  test('ребро presents другого поставщика на цель без представления в реестре приложения — CH-01 молчит: это не дефект представления', () => {
+    const views = ChatViews.of(ExampleUiSetDef, [
+      TaskListView,
+      AssignedTasksView,
+      TaskCompletedView,
+    ]);
+    const scene = exampleScene(EDITING, views);
+    const stub: GraphProvider = {
+      name: 'scene-presents',
+      version: '1.0.0',
+      kinds: () => ({ nodes: [], edges: [] }),
+      contribute: () => ({
+        nodes: [],
+        edges: [CARD, 'exampleUi/todo/taskAssigned'].map((to) => ({
+          kind: 'presents',
+          from: WINDOWED,
+          to,
+        })),
+      }),
+    };
+
+    const withStub = {
+      ...scene,
+      providers: [...(scene.providers ?? []), stub],
+    };
+
+    expect(
+      new AppGraph(withStub)
+        .build()
+        .outgoing(WINDOWED, 'presents')
+        .map((edge) => edge.to),
+    ).toContain(CARD);
+    expect(ArchReport.of(withStub).rule('CH-01')).toEqual([]);
   });
 });

@@ -7,21 +7,31 @@ import type {
 import { UNLIMITED_OPTIONS } from './example-limits.const';
 
 /**
- * Мера сообщения примера для CH-01: подгонка стража (`MessageFit`) с
- * лимитом числа вариантов, снятым до `UNLIMITED_OPTIONS`, — своей
- * арифметики лимитов нет. Разрезы — то, что страж обрезал бы.
+ * Мера сообщения примера для CH-01: подгонка стража (`MessageFit`), своей
+ * арифметики лимитов нет. Показ экрана — с лимитом числа вариантов, снятым
+ * до `UNLIMITED_OPTIONS` (варианты раскладывает беседа); уведомление — с
+ * настоящим `options.max` (ссылки беседа не раскладывает, лишние отбросит
+ * страж). Разрезы — то, что страж обрезал бы.
  */
 export class ExampleFit {
-  private readonly fit: MessageFit;
+  private constructor(private readonly fit: MessageFit) {}
 
-  constructor(capabilities: MessengerCapabilities) {
-    this.fit = new MessageFit({
-      ...capabilities,
-      options: { ...capabilities.options, max: UNLIMITED_OPTIONS },
-    });
+  /** Мера сообщения показа экрана: число вариантов не меряется. */
+  static screen(capabilities: MessengerCapabilities): ExampleFit {
+    return new ExampleFit(
+      new MessageFit({
+        ...capabilities,
+        options: { ...capabilities.options, max: UNLIMITED_OPTIONS },
+      }),
+    );
   }
 
-  /** Разрезы сообщения по порядку: подписи, текст. */
+  /** Мера сообщения уведомления: лимиты стража целиком, с числом вариантов. */
+  static notice(capabilities: MessengerCapabilities): ExampleFit {
+    return new ExampleFit(new MessageFit(capabilities));
+  }
+
+  /** Разрезы сообщения по порядку: число вариантов, подписи, текст. */
   cuts(message: Message): readonly LimitCut[] {
     return this.fit.message(message).cuts;
   }

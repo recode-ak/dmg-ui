@@ -1,9 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { AppGraph } from 'dmg-core/graph';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
-import { ExampleDialogAppDef } from './example-dialog.app';
 import { ExampleDialogArch } from './example-dialog.arch';
-import { ExampleWindowedAppDef } from './example-windowed.app';
 
 // Граф учебного примера (критерий фазы): `ExampleArch` + поставщик `dmg-ui`
 // + представления канала и точки входа двух приложений — без нарушений
@@ -24,26 +22,6 @@ describe('граф учебного примера', () => {
       'arch:check example: нарушений — 0',
       'arch:check: нарушений нет',
     ]);
-  });
-
-  test('у каждого входа обоих приложений есть точка входа: chatEntryPoint под приложением, chatOpens на вход', () => {
-    const built = graph();
-    const points = (app: string, entry: string) =>
-      built
-        .incoming(`${app}/enter-${entry}`, 'chatOpens')
-        .map((edge) => built.node(edge.from))
-        .filter(
-          (node) => node?.kind === 'chatEntryPoint' && node.parent === app,
-        )
-        .map((node) => node?.props);
-
-    for (const app of [ExampleDialogAppDef, ExampleWindowedAppDef]) {
-      for (const entry of Object.keys(app.entries)) {
-        expect(points(app.name, entry)).toContainEqual(
-          expect.objectContaining({ entry, via: 'message' }),
-        );
-      }
-    }
   });
 
   test('taskCompleted: recipients — getTaskAssignee, reads — listAssignedTasks', () => {

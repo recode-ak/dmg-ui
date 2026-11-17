@@ -14,6 +14,12 @@ export type ChatEntryPointSpec = {
   readonly key: string;
 };
 
+/** Точка входа с номером внутри её входа, с 1, в порядке `entryPoints`. */
+export type NumberedEntryPoint = {
+  readonly point: ChatEntryPointSpec;
+  readonly n: number;
+};
+
 /** Приложение мессенджера в графе: Def, реестр представлений, возможности мессенджера и точки входа. */
 export type ChatAppSpec = {
   readonly app: AnyUiAppDef;

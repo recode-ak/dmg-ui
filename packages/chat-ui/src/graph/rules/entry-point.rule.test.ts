@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import type { ArchApp } from 'dmg-core/arch';
-import { AppGraph, Graph, type GraphRule } from 'dmg-core/graph';
+import {
+  AppGraph,
+  Graph,
+  type GraphContribution,
+  type GraphProvider,
+  type GraphRule,
+} from 'dmg-core/graph';
 import { ExampleArch } from 'dmg-core/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
@@ -48,8 +54,15 @@ const windowed = (entryPoints?: ChatAppSpec['entryPoints']): ChatAppSpec => ({
   ...(entryPoints ? { entryPoints } : {}),
 });
 
-/** Сцена: домен примера, поставщик `dmg-ui` и `ChatGraphProvider` на `apps`. */
-const sceneOf = (apps: readonly ChatAppSpec[]): ArchApp => ({
+/**
+ * Сцена: домен примера, поставщик `dmg-ui`, `ChatGraphProvider` на `apps` и
+ * подставные поставщики `extra` — реестр видов общий, они ставят узлы и
+ * рёбра видов `dmg-ui-chat` через сборщик графа, как пакет мессенджера.
+ */
+const sceneOf = (
+  apps: readonly ChatAppSpec[],
+  extra: readonly GraphProvider[] = [],
+): ArchApp => ({
   ...ExampleArch,
   providers: [
     new UiGraphProvider({
@@ -57,7 +70,32 @@ const sceneOf = (apps: readonly ChatAppSpec[]): ArchApp => ({
       apps: apps.map((spec) => spec.app),
     }),
     new ChatGraphProvider({ apps, examples: EXAMPLES }),
+    ...extra,
   ],
+});
+
+/** Подставной поставщик сцены без своих видов: только узлы и рёбра. */
+const stub = (contribution: GraphContribution): GraphProvider => ({
+  name: 'scene-stub',
+  version: '1.0.0',
+  kinds: () => ({ nodes: [], edges: [] }),
+  contribute: () => contribution,
+});
+
+/** Ребро `chatOpens` от `from` на вход `assigned` приложения `exampleDialog`. */
+const opensAssigned = (from: string) => ({
+  kind: 'chatOpens',
+  from,
+  to: 'exampleDialog/enter-assigned',
+});
+
+/** Узел `chatEntryPoint` на вход `assigned` с `id` `id`. */
+const pointNode = (id: string) => ({
+  kind: 'chatEntryPoint',
+  id,
+  label: 'Точка сцены',
+  description: 'Точка входа подставного поставщика.',
+  props: { entry: 'assigned', via: 'message', key: 'assigned' },
 });
 
 /** Правило CH-02 поставщика сцены. */
@@ -131,15 +169,54 @@ describe('CH-02: два приложения в одном графе', () => {
   });
 });
 
-describe('CH-02: читает только узлы и рёбра', () => {
-  // Сборщик графа проверяет свойства схемой вида — узлы не по схеме и вход
-  // без приложения собираются конструктором `Graph` в обход него, как граф с
-  // чужими правками.
-  const scene = sceneOf([dialog([point('start')]), windowed([point('start')])]);
-  const built = new AppGraph(scene).build();
+describe('CH-02: точка входа — под тем же приложением, что вход', () => {
+  test('ребро chatOpens от точки входа другого приложения — вход без точки', () => {
+    const report = ArchReport.of(
+      sceneOf(
+        [dialog([point('start')]), windowed([point('start')])],
+        [
+          stub({
+            nodes: [],
+            edges: [opensAssigned('exampleWindowed/point-start-1')],
+          }),
+        ],
+      ),
+    );
 
+    expect(report.rule('CH-02')).toEqual([
+      'CH-02: вход assigned приложения exampleDialog: нет точки входа',
+    ]);
+  });
+
+  test('точка входа другого поставщика под тем же приложением — засчитывается', () => {
+    const report = ArchReport.of(
+      sceneOf(
+        [dialog([point('start')])],
+        [
+          stub({
+            nodes: [pointNode('exampleDialog/point-scene')],
+            edges: [opensAssigned('exampleDialog/point-scene')],
+          }),
+        ],
+      ),
+    );
+
+    expect(report.rule('CH-02')).toEqual([]);
+    expect(report.code).toBe(0);
+  });
+});
+
+describe('CH-02: читает только узлы и рёбра', () => {
   test('свойства chatEntry и chatEntryPoint не по схеме — check не бросает, строки те же, что у целого графа', () => {
+    const scene = sceneOf([
+      dialog([point('start')]),
+      windowed([point('start')]),
+    ]);
+    const built = new AppGraph(scene).build();
     const rule = ruleOf(scene);
+    // Сборщик графа проверяет свойства схемой вида и узлы не по схеме не
+    // пропустит: сцена собирает граф конструктором `Graph` в обход него,
+    // как граф с чужими правками. Другого пути к такому графу нет.
     const broken = new Graph({
       providers: built.providers,
       nodes: built
@@ -163,48 +240,51 @@ describe('CH-02: читает только узлы и рёбра', () => {
     ]);
   });
 
-  test('узел chatEntry без узла приложения-родителя и без свойств — check не бросает, вывод — строки', () => {
-    const rule = ruleOf(scene);
-    const orphan = built.nodes().find((node) => node.kind === 'chatEntry');
-    const broken = new Graph({
-      providers: built.providers,
-      nodes: [
-        ...built.nodes(),
-        ...(orphan ? [{ ...orphan, id: 'enter-orphan', props: {} }] : []),
-      ],
-      edges: built.edges(),
+  test('узел chatEntry не прямо под узлом приложения UI (в корне и под мессенджером) — CH-02 его не видит: строки те же, что без него', () => {
+    const orphan = (id: string) => ({
+      kind: 'chatEntry',
+      id,
+      label: 'Вход сцены',
+      description: 'Вход подставного поставщика не под приложением.',
+      props: { entry: 'orphan' },
     });
+    const report = ArchReport.of(
+      sceneOf(
+        [dialog([point('start')])],
+        [
+          stub({
+            nodes: [
+              orphan('enter-orphan'),
+              orphan('exampleDialog/messenger/enter-orphan'),
+            ],
+            edges: [],
+          }),
+        ],
+      ),
+    );
 
-    expect(rule).toBeDefined();
-    expect(orphan).toBeDefined();
-    let lines: readonly string[] = [];
-    expect(() => {
-      lines = rule?.check(broken) ?? [];
-    }).not.toThrow();
-    for (const line of lines) {
-      expect(typeof line).toBe('string');
-    }
+    expect(report.rule('ARC-13')).toEqual([]);
+    expect(report.rule('CH-02')).toEqual([
+      'CH-02: вход assigned приложения exampleDialog: нет точки входа',
+    ]);
   });
 
   test('ребро chatOpens не от точки входа — вход без точки', () => {
-    const rule = ruleOf(scene);
-    const broken = new Graph({
-      providers: built.providers,
-      nodes: built.nodes(),
-      edges: [
-        ...built.edges(),
-        {
-          kind: 'chatOpens',
-          from: 'exampleDialog/messenger',
-          to: 'exampleDialog/enter-assigned',
-          provider: 'dmg-ui-chat',
-          props: {},
-        },
-      ],
-    });
+    const report = ArchReport.of(
+      sceneOf(
+        [dialog([point('start')])],
+        [
+          stub({
+            nodes: [],
+            edges: [opensAssigned('exampleDialog/messenger')],
+          }),
+        ],
+      ),
+    );
 
-    expect(rule?.check(broken)).toEqual([
-      'вход assigned приложения exampleDialog: нет точки входа',
+    expect(report.rule('ARC-13')).toEqual([]);
+    expect(report.rule('CH-02')).toEqual([
+      'CH-02: вход assigned приложения exampleDialog: нет точки входа',
     ]);
   });
 });

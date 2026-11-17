@@ -21,18 +21,21 @@ export class ScreenLimits {
 
   constructor(views: ChatViews, capabilities: MessengerCapabilities) {
     this.composer = new ScreenComposer(views, capabilities);
-    this.fit = new ExampleFit(capabilities);
+    this.fit = ExampleFit.screen(capabilities);
   }
 
-  /** Нарушения показа вида — без текста примера и данных вида. */
-  check(view: InstanceView): string[] {
-    return this.composer
-      .compose(view, true)
-      .messages.flatMap((message, index) =>
-        this.fit
-          .cuts(ScreenLimits.message(message))
-          .flatMap((cut) => ScreenLimits.line(cut, index + 1)),
-      );
+  /** Сообщения показа вида — вызов представления; его дефект — бросок. */
+  compose(view: InstanceView): readonly ViewMessage[] {
+    return this.composer.compose(view, true).messages;
+  }
+
+  /** Нарушения сообщений показа — без текста примера и данных вида. */
+  check(messages: readonly ViewMessage[]): string[] {
+    return messages.flatMap((message, index) =>
+      this.fit
+        .cuts(ScreenLimits.message(message))
+        .flatMap((cut) => ScreenLimits.line(cut, index + 1)),
+    );
   }
 
   /** Сообщение вида → сообщение порта: подписи вида, ссылки — заглушки. */

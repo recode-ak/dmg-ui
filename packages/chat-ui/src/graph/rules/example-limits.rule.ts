@@ -20,8 +20,9 @@ export type { ExampleLimitsSpec } from './example-limits.rule.types';
 /**
  * CH-01 (D-UI-58): примеры экранов и уведомлений, которые приложение
  * показывает (`presents`), укладываются в лимиты его мессенджера (узел
- * `chatMessenger`). Число вариантов и ссылки — не нарушение. `check` не
- * бросает: свойства не по схеме и дефект представления — строкой.
+ * `chatMessenger`). Число вариантов экрана — не нарушение, число ссылок
+ * уведомления — нарушение. `check` не бросает: свойства не по схеме и
+ * дефект представления — строкой, цель без представления в реестре — молча.
  */
 export class ExampleLimitsRule implements GraphRule {
   readonly id = 'CH-01';
@@ -49,29 +50,43 @@ export class ExampleLimitsRule implements GraphRule {
     if (!parsed.success) {
       return [`приложение ${app}: возможности мессенджера не по схеме`];
     }
-    const presented = new Set(
-      graph.outgoing(app, UI_EDGE_KINDS.presents).map((edge) => edge.to),
-    );
+    const targets = ExampleLimitsRule.targets(graph, app, views);
     return [
-      ...this.screens(app, views, parsed.output, presented),
-      ...this.notifications(graph, app, views, parsed.output, presented),
+      ...this.screens(app, views, parsed.output, targets),
+      ...this.notifications(graph, app, views, parsed.output, targets),
     ];
+  }
+
+  /** Цели меры: концы `presents` от приложения, у которых есть представление в его реестре. */
+  private static targets(
+    graph: Graph,
+    app: string,
+    views: ChatViews,
+  ): ReadonlySet<string> {
+    const registered = new Set(views.presented());
+    return new Set(
+      graph
+        .outgoing(app, UI_EDGE_KINDS.presents)
+        .map((edge) => edge.to)
+        .filter((id) => registered.has(id)),
+    );
   }
 
   private screens(
     app: string,
     views: ChatViews,
     capabilities: MessengerCapabilities,
-    presented: ReadonlySet<string>,
+    targets: ReadonlySet<string>,
   ): string[] {
     const limits = new ScreenLimits(views, capabilities);
     return this.examples
       .screens()
-      .filter(({ id }) => presented.has(id))
+      .filter(({ id }) => targets.has(id))
       .flatMap(({ id, name, view }) =>
         ExampleLimitsRule.lines(
           `приложение ${app}: экран ${id}, пример ${name}`,
-          () => limits.check(view),
+          () => limits.compose(view),
+          (messages) => limits.check(messages),
         ),
       );
   }
@@ -81,18 +96,21 @@ export class ExampleLimitsRule implements GraphRule {
     app: string,
     views: ChatViews,
     capabilities: MessengerCapabilities,
-    presented: ReadonlySet<string>,
+    targets: ReadonlySet<string>,
   ): string[] {
-    const limits = new NotificationLimits(views, capabilities);
+    const limits = new NotificationLimits(capabilities);
     return this.examples
       .notifications()
-      .filter(({ id }) => presented.has(id))
-      .flatMap(({ id, name, data }) =>
-        ExampleLimitsRule.lines(
+      .filter(({ id }) => targets.has(id))
+      .flatMap(({ id, name, data }) => {
+        const presenter = views.notification(id);
+        const links = ExampleLimitsRule.links(graph, id);
+        return ExampleLimitsRule.lines(
           `приложение ${app}: уведомление ${id}, пример ${name}`,
-          () => limits.check(id, data, ExampleLimitsRule.links(graph, id)),
-        ),
-      );
+          () => presenter.text(data),
+          (text) => limits.check(text, links),
+        );
+      });
   }
 
   /** Ссылки уведомления (`links`) с подписью экрана-цели — как её ставит беседа. */
@@ -103,12 +121,21 @@ export class ExampleLimitsRule implements GraphRule {
     }));
   }
 
-  /** Строки примера с местом; бросок меры — одна строка без текста броска. */
-  private static lines(place: string, measure: () => string[]): string[] {
+  /**
+   * Строки примера с местом. В `try` — только вызов представления: его
+   * бросок — одна строка без текста броска; мера идёт вне `try`.
+   */
+  private static lines<T>(
+    place: string,
+    show: () => T,
+    measure: (shown: T) => readonly string[],
+  ): string[] {
+    let shown: T;
     try {
-      return measure().map((problem) => `${place}: ${problem}`);
+      shown = show();
     } catch {
       return [`${place}: ${NOT_COMPOSED}`];
     }
+    return measure(shown).map((problem) => `${place}: ${problem}`);
   }
 }
