@@ -11,7 +11,10 @@ export const BotApiAnswerSchema = v.variant('ok', [
     error_code: v.pipe(v.number(), v.integer()),
     description: v.string(),
     parameters: v.optional(
-      v.looseObject({ retry_after: v.optional(v.number()) }),
+      v.looseObject({
+        retry_after: v.optional(v.number()),
+        migrate_to_chat_id: v.optional(v.number()),
+      }),
     ),
   }),
 ]);

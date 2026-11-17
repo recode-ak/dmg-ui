@@ -81,13 +81,37 @@ export type SetMyCommandsParams = {
   readonly scope?: BotCommandScope;
 };
 
+/** Бан участника; `until_date` — секунды Unix, меньше 30 с или больше 366 дней от сейчас — навсегда. */
+export type BanChatMemberParams = {
+  readonly chat_id: number;
+  readonly user_id: number;
+  readonly until_date?: number;
+};
+
+/** Снятие бана; `only_if_banned` — не трогать участника, который не в бане (без него Bot API удалит его из группы). */
+export type UnbanChatMemberParams = {
+  readonly chat_id: number;
+  readonly user_id: number;
+  readonly only_if_banned?: boolean;
+};
+
+/** Принятие заявки на вступление: нужно право бота `can_invite_users`. */
+export type ApproveChatJoinRequestParams = {
+  readonly chat_id: number;
+  readonly user_id: number;
+};
+
 /** Отказ Bot API: код и описание сервера. */
 export type BotApiRefusal = {
   readonly ok: false;
   readonly error_code: number;
   /** Только `description` из JSON ответа Telegram (уходит в лог); сбой транспорта — бросок, не отказ. */
   readonly description: string;
-  readonly parameters?: { readonly retry_after?: number };
+  /** `migrate_to_chat_id` — группа стала супергруппой (D-UI-65): новый id пакет не читает дальше факта. */
+  readonly parameters?: {
+    readonly retry_after?: number;
+    readonly migrate_to_chat_id?: number;
+  };
 };
 
 /** Ответ Bot API; `result` пакет сверяет схемой — транспорту не верит. */
@@ -108,6 +132,13 @@ export type BotApi = {
     params: AnswerCallbackQueryParams,
   ): Promise<BotApiResult<unknown>>;
   setMyCommands(params: SetMyCommandsParams): Promise<BotApiResult<unknown>>;
+  banChatMember(params: BanChatMemberParams): Promise<BotApiResult<unknown>>;
+  unbanChatMember(
+    params: UnbanChatMemberParams,
+  ): Promise<BotApiResult<unknown>>;
+  approveChatJoinRequest(
+    params: ApproveChatJoinRequestParams,
+  ): Promise<BotApiResult<unknown>>;
 };
 
 /** Имя метода порта — для лога и журнала. */

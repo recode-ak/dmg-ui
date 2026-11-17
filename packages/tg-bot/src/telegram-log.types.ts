@@ -4,4 +4,7 @@ export type TelegramOperation =
   | 'update'
   | 'retire'
   | 'notify'
-  | 'publishMenu';
+  | 'publishMenu'
+  | 'exclude'
+  | 'approve'
+  | 'invite';

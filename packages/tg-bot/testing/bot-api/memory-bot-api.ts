@@ -1,11 +1,15 @@
 import type {
   AnswerCallbackQueryParams,
+  ApproveChatJoinRequestParams,
+  BanChatMemberParams,
   BotApi,
+  BotApiMethod,
   BotApiResult,
   EditMessageReplyMarkupParams,
   EditMessageTextParams,
   SendMessageParams,
   SetMyCommandsParams,
+  UnbanChatMemberParams,
 } from 'dmg-ui/tg-bot';
 import { MEMORY_BOT_API_TEXTS } from './memory-bot-api.const';
 import type {
@@ -19,9 +23,10 @@ import type {
 /**
  * Подставной порт Bot API в памяти (D-UI-63): журнал вызовов как есть,
  * `message_id` растёт в каждом чате; правка неизвестного сообщения и правка
- * тем же содержимым отвечают отказом 400, как Bot API; `failNext` и
- * `throwNext` действуют на один следующий вызов (он есть в журнале, чат не
- * меняется). `chat(chatId)` — сообщения чата глазами собеседника.
+ * тем же содержимым отвечают отказом 400, как Bot API; `failNext`, `throwNext`
+ * и `failOn(метод)` действуют на один следующий вызов (он есть в журнале,
+ * чат не меняется); `holdOn(метод)` держит такой вызов до `release` — очередь
+ * без таймеров. Операции группы — журнал и `ok`, модели членства нет.
  *
  * @see memory-bot-api.test.ts
  */
@@ -29,6 +34,8 @@ export class MemoryBotApi implements BotApi {
   readonly journal: BotApiCall[] = [];
   private readonly chats = new Map<number, StoredMessage[]>();
   private planned: PlannedFailure | undefined;
+  private readonly plannedOn = new Map<BotApiMethod, BotApiFailNext>();
+  private readonly held = new Map<BotApiMethod, Promise<void>>();
 
   /** Следующий вызов получит этот отказ. */
   failNext(failure: BotApiFailNext): void {
@@ -38,6 +45,23 @@ export class MemoryBotApi implements BotApi {
   /** Следующий вызов бросит (сбой транспорта). */
   throwNext(error: unknown = new Error(MEMORY_BOT_API_TEXTS.thrown)): void {
     this.planned = { kind: 'throw', error };
+  }
+
+  /** Следующий вызов этого метода получит отказ; вызовы других методов его не расходуют. */
+  failOn(method: BotApiMethod, failure: BotApiFailNext): void {
+    this.plannedOn.set(method, failure);
+  }
+
+  /** Следующий вызов этого метода ждёт возвращённого `release`; вызов уже в журнале. */
+  holdOn(method: BotApiMethod): () => void {
+    let release: () => void = () => undefined;
+    this.held.set(
+      method,
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    );
+    return release;
   }
 
   /** Сообщения чата по порядку отправки. */
@@ -100,14 +124,42 @@ export class MemoryBotApi implements BotApi {
     }));
   }
 
-  /** Запись в журнал, затем заданный сбой или обычный ответ. */
-  private handle(
+  async banChatMember(
+    params: BanChatMemberParams,
+  ): Promise<BotApiResult<unknown>> {
+    return this.handle({ method: 'banChatMember', params }, MemoryBotApi.done);
+  }
+
+  async unbanChatMember(
+    params: UnbanChatMemberParams,
+  ): Promise<BotApiResult<unknown>> {
+    return this.handle(
+      { method: 'unbanChatMember', params },
+      MemoryBotApi.done,
+    );
+  }
+
+  async approveChatJoinRequest(
+    params: ApproveChatJoinRequestParams,
+  ): Promise<BotApiResult<unknown>> {
+    return this.handle(
+      { method: 'approveChatJoinRequest', params },
+      MemoryBotApi.done,
+    );
+  }
+
+  /** Запись в журнал, ожидание `release`, затем заданный сбой или обычный ответ. */
+  private async handle(
     call: BotApiCall,
     answer: () => BotApiResult<unknown>,
-  ): BotApiResult<unknown> {
+  ): Promise<BotApiResult<unknown>> {
     this.journal.push(call);
-    const planned = this.planned;
-    this.planned = undefined;
+    const planned = this.takePlanned(call.method);
+    const gate = this.held.get(call.method);
+    if (gate !== undefined) {
+      this.held.delete(call.method);
+      await gate;
+    }
     if (planned === undefined) return answer();
     switch (planned.kind) {
       case 'fail':
@@ -118,6 +170,18 @@ export class MemoryBotApi implements BotApi {
         planned satisfies never;
         return answer();
     }
+  }
+
+  /** Сбой для вызова метода: свой `failOn`, иначе общий `failNext`/`throwNext`. */
+  private takePlanned(method: BotApiMethod): PlannedFailure | undefined {
+    const failure = this.plannedOn.get(method);
+    if (failure !== undefined) {
+      this.plannedOn.delete(method);
+      return { kind: 'fail', failure };
+    }
+    const planned = this.planned;
+    this.planned = undefined;
+    return planned;
   }
 
   /** Правка на месте; без изменений — 400 «message is not modified». */
@@ -181,6 +245,10 @@ export class MemoryBotApi implements BotApi {
         text: stored.text,
       },
     };
+  }
+
+  private static done(): BotApiResult<unknown> {
+    return { ok: true, result: true };
   }
 
   private static badRequest(description: string): BotApiResult<unknown> {

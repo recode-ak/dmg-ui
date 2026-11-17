@@ -1,11 +1,14 @@
 import type {
   AnswerCallbackQueryParams,
+  ApproveChatJoinRequestParams,
+  BanChatMemberParams,
   EditMessageReplyMarkupParams,
   EditMessageTextParams,
   InlineKeyboardButton,
   MessageEntity,
   SendMessageParams,
   SetMyCommandsParams,
+  UnbanChatMemberParams,
 } from 'dmg-ui/tg-bot';
 
 /** Запись журнала подставного порта: метод и параметры как есть. */
@@ -26,13 +29,28 @@ export type BotApiCall =
   | {
       readonly method: 'setMyCommands';
       readonly params: SetMyCommandsParams;
+    }
+  | {
+      readonly method: 'banChatMember';
+      readonly params: BanChatMemberParams;
+    }
+  | {
+      readonly method: 'unbanChatMember';
+      readonly params: UnbanChatMemberParams;
+    }
+  | {
+      readonly method: 'approveChatJoinRequest';
+      readonly params: ApproveChatJoinRequestParams;
     };
 
 /** Отказ, который получит следующий вызов. */
 export type BotApiFailNext = {
   readonly error_code: number;
   readonly description: string;
-  readonly parameters?: { readonly retry_after?: number };
+  readonly parameters?: {
+    readonly retry_after?: number;
+    readonly migrate_to_chat_id?: number;
+  };
 };
 
 /** Сообщение чата глазами собеседника: последнее содержимое и число правок. */

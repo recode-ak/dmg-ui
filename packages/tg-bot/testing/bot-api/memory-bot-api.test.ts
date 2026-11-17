@@ -366,3 +366,179 @@ describe('MemoryBotApi — меню команд', () => {
     expect(api.chat(CHAT)).toHaveLength(1);
   });
 });
+
+// Операции группы: журнал как есть, ответ ok с result true, модели
+// членства нет (TST-09). `failOn(method, failure)` — отказ на один следующий
+// вызов именно этого метода, `holdOn(method)` — один следующий вызов метода
+// ждёт `release` (без таймеров): так тест ставит очередь сообщества.
+
+const GROUP = -1004001234567;
+const MEMBER = 7350001234;
+const BAN = { chat_id: GROUP, user_id: MEMBER, until_date: 1_700_000_060 };
+const UNBAN = { chat_id: GROUP, user_id: MEMBER, only_if_banned: true };
+const APPROVE = { chat_id: GROUP, user_id: MEMBER };
+
+/** Ждёт условия микрозадачами, без таймеров; не наступило — тест падает явно. */
+const until = async (condition: () => boolean): Promise<void> => {
+  for (let turn = 0; turn < 1000; turn += 1) {
+    if (condition()) return;
+    await Promise.resolve();
+  }
+  throw new Error('условие не наступило');
+};
+
+describe('MemoryBotApi — операции группы', () => {
+  test('banChatMember, unbanChatMember, approveChatJoinRequest — ok с result true, журнал — метод и параметры как есть', async () => {
+    const api = new MemoryBotApi();
+
+    expect(await api.banChatMember(BAN)).toEqual({ ok: true, result: true });
+    expect(await api.unbanChatMember(UNBAN)).toEqual({
+      ok: true,
+      result: true,
+    });
+    expect(await api.approveChatJoinRequest(APPROVE)).toEqual({
+      ok: true,
+      result: true,
+    });
+    expect(api.journal).toEqual([
+      { method: 'banChatMember', params: BAN },
+      { method: 'unbanChatMember', params: UNBAN },
+      { method: 'approveChatJoinRequest', params: APPROVE },
+    ]);
+  });
+
+  test('операции группы чат не создают и message_id не трогают', async () => {
+    const api = new MemoryBotApi();
+
+    await api.banChatMember(BAN);
+    const sent = await api.sendMessage({ chat_id: GROUP, text: 'один' });
+
+    expect(sent).toMatchObject({ ok: true, result: { message_id: 1 } });
+  });
+
+  test('повторный ban того же участника — снова ok: модели членства у подставного порта нет', async () => {
+    const api = new MemoryBotApi();
+
+    await api.banChatMember(BAN);
+
+    expect(await api.banChatMember(BAN)).toEqual({ ok: true, result: true });
+    expect(api.journal).toHaveLength(2);
+  });
+});
+
+describe('MemoryBotApi — failOn', () => {
+  const FAILURE = { error_code: 400, description: 'Bad Request: x' };
+
+  test('failOn(method) бьёт по следующему вызову этого метода; вызов в журнале, следующий вызов — обычный', async () => {
+    const api = new MemoryBotApi();
+    api.failOn('unbanChatMember', FAILURE);
+
+    expect(await api.unbanChatMember(UNBAN)).toEqual({ ok: false, ...FAILURE });
+    expect(await api.unbanChatMember(UNBAN)).toEqual({
+      ok: true,
+      result: true,
+    });
+    expect(api.journal.map((call) => call.method)).toEqual([
+      'unbanChatMember',
+      'unbanChatMember',
+    ]);
+  });
+
+  test('failOn бьёт только по своему методу: вызовы других проходят и отказ не расходуют', async () => {
+    const api = new MemoryBotApi();
+    api.failOn('unbanChatMember', FAILURE);
+
+    expect(await api.banChatMember(BAN)).toEqual({ ok: true, result: true });
+    expect(
+      await api.sendMessage({ chat_id: MEMBER, text: 'один' }),
+    ).toMatchObject({ ok: true });
+    expect(await api.unbanChatMember(UNBAN)).toEqual({ ok: false, ...FAILURE });
+  });
+
+  test('failOn с retry_after и migrate_to_chat_id — параметры в ответе как есть', async () => {
+    const api = new MemoryBotApi();
+    api.failOn('banChatMember', {
+      error_code: 400,
+      description: 'Bad Request: group chat was upgraded to a supergroup chat',
+      parameters: { migrate_to_chat_id: -1009990001111 },
+    });
+
+    expect(await api.banChatMember(BAN)).toEqual({
+      ok: false,
+      error_code: 400,
+      description: 'Bad Request: group chat was upgraded to a supergroup chat',
+      parameters: { migrate_to_chat_id: -1009990001111 },
+    });
+  });
+
+  test('failNext и throwNext — прежние: бьют по следующему вызову любого метода группы', async () => {
+    const api = new MemoryBotApi();
+    api.failNext(FAILURE);
+    expect(await api.approveChatJoinRequest(APPROVE)).toEqual({
+      ok: false,
+      ...FAILURE,
+    });
+    api.throwNext(new TypeError('сеть'));
+    await expect(api.banChatMember(BAN)).rejects.toThrow(TypeError);
+    expect(api.journal.map((call) => call.method)).toEqual([
+      'approveChatJoinRequest',
+      'banChatMember',
+    ]);
+  });
+});
+
+describe('MemoryBotApi — holdOn', () => {
+  test('holdOn держит вызов до release: вызов уже в журнале, ответа нет; после release — обычный ответ', async () => {
+    const api = new MemoryBotApi();
+    const release = api.holdOn('banChatMember');
+    let answered = false;
+
+    const call = api.banChatMember(BAN).then((answer) => {
+      answered = true;
+      return answer;
+    });
+    await until(() => api.journal.length === 1);
+    for (let turn = 0; turn < 50; turn += 1) await Promise.resolve();
+
+    expect(answered).toBe(false);
+    release();
+    expect(await call).toEqual({ ok: true, result: true });
+  });
+
+  test('holdOn держит только свой метод и только один следующий вызов', async () => {
+    const api = new MemoryBotApi();
+    const release = api.holdOn('banChatMember');
+
+    const held = api.banChatMember(BAN);
+    await until(() => api.journal.length === 1);
+    expect(await api.unbanChatMember(UNBAN)).toEqual({
+      ok: true,
+      result: true,
+    });
+    release();
+    await held;
+
+    expect(await api.banChatMember(BAN)).toEqual({ ok: true, result: true });
+    expect(api.journal.map((call) => call.method)).toEqual([
+      'banChatMember',
+      'unbanChatMember',
+      'banChatMember',
+    ]);
+  });
+
+  test('holdOn и failOn на один метод — после release вызов получает отказ', async () => {
+    const api = new MemoryBotApi();
+    api.failOn('banChatMember', { error_code: 403, description: 'Forbidden' });
+    const release = api.holdOn('banChatMember');
+
+    const held = api.banChatMember(BAN);
+    await until(() => api.journal.length === 1);
+    release();
+
+    expect(await held).toEqual({
+      ok: false,
+      error_code: 403,
+      description: 'Forbidden',
+    });
+  });
+});

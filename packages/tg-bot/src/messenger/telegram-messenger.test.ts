@@ -113,6 +113,9 @@ const brokenResult = (result: unknown): BotApi => {
     editMessageReplyMarkup: (params) => api.editMessageReplyMarkup(params),
     answerCallbackQuery: (params) => api.answerCallbackQuery(params),
     setMyCommands: (params) => api.setMyCommands(params),
+    banChatMember: (params) => api.banChatMember(params),
+    unbanChatMember: (params) => api.unbanChatMember(params),
+    approveChatJoinRequest: (params) => api.approveChatJoinRequest(params),
   };
 };
 
@@ -701,6 +704,18 @@ describe('TelegramMessenger — возможности', () => {
 
   test('возможности мессенджера — TELEGRAM_CAPABILITIES', () => {
     expect(setup().messenger.capabilities).toBe(TELEGRAM_CAPABILITIES);
+  });
+
+  test('community — порт сообщества с объявленными операциями: exclude и approve есть; возможности объявляют ровно их', () => {
+    const { messenger } = setup();
+
+    expect(typeof messenger.community.exclude).toBe('function');
+    expect(typeof messenger.community.approve).toBe('function');
+    expect(typeof messenger.community.invite).toBe('function');
+    expect(messenger.capabilities.community.operations).toEqual([
+      'exclude',
+      'approve',
+    ]);
   });
 });
 

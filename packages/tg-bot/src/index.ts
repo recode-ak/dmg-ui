@@ -1,11 +1,13 @@
 // Вход dmg-ui/tg-bot: мессенджер Telegram поверх узкого порта Bot API, его
-// возможности, приём апдейтов (апдейт → сигнал беседы), точки входа,
+// возможности, приём апдейтов (апдейт → сигнал беседы или сообщества), точки входа,
 // меню команд и поставщик графа Telegram (правила TG); типы порта и
 // подмножества JSON Bot API — для реализации порта проектом и подставного
 // порта.
 
 export type {
   AnswerCallbackQueryParams,
+  ApproveChatJoinRequestParams,
+  BanChatMemberParams,
   BotApi,
   BotApiMethod,
   BotApiRefusal,
@@ -21,6 +23,7 @@ export type {
   MessageEntityType,
   SendMessageParams,
   SetMyCommandsParams,
+  UnbanChatMemberParams,
 } from './bot-api/bot-api.types';
 export { TELEGRAM_VIA } from './entries/telegram-entries.const';
 export type { TelegramVia } from './entries/telegram-entries.types';

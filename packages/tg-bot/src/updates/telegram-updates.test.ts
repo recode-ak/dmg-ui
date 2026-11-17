@@ -6,6 +6,7 @@ import {
   useTempDir,
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
+import type { CommunitySignal } from 'dmg-ui/chat-ui';
 import {
   type ConversationSignal,
   Conversations,
@@ -45,6 +46,8 @@ const ENTRY_POINTS = [
 ];
 const OTHER = 7350009999;
 const GROUP = -1004001234567;
+const NEWBIE = 7350003333;
+const ADMIN = 7350002222;
 const PRESS = 'cq-secret-7';
 const DATA = 'r1secret';
 const SECRET_TEXT = 'Хлеб-секрет';
@@ -91,6 +94,7 @@ type Receiver = (signal: ConversationSignal) => Promise<void>;
 const setup = (
   receive?: Receiver,
   entryPoints: readonly (typeof ENTRY_POINTS)[number][] = ENTRY_POINTS,
+  communities?: { receive(signal: CommunitySignal): Promise<void> },
 ) => {
   const api = new MemoryBotApi();
   const logger = new MemoryLogger();
@@ -109,6 +113,7 @@ const setup = (
     logger,
     entryPoints,
     bot: BOT,
+    ...(communities === undefined ? {} : { communities }),
   });
   return { api, logger, signals, updates };
 };
@@ -120,6 +125,8 @@ const clean = (logger: MemoryLogger) => {
     String(ME),
     String(OTHER),
     String(GROUP),
+    String(NEWBIE),
+    String(ADMIN),
     PRESS,
     DATA,
     SECRET_TEXT,
@@ -242,13 +249,7 @@ describe('TelegramUpdates — вне диалога', () => {
     ]);
   });
 
-  test.each([
-    'edited_message',
-    'channel_post',
-    'my_chat_member',
-    'chat_member',
-    'chat_join_request',
-  ])(
+  test.each(['edited_message', 'channel_post'])(
     '%s — ничего: сигнала нет, порт не вызван, записей лога нет',
     async (key) => {
       const { api, logger, signals, updates } = setup();
@@ -474,5 +475,227 @@ describe('TelegramUpdates — вход, которого нет в таблиц�
     const lines = api.chat(ME);
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.map((line) => line.text)).not.toContain(NO_ENTRY);
+  });
+});
+
+// Сообщество: сигнал сообщества уходит в `communities.receive`
+// (отсев повторов и очередь — в `Communities`, `chat-ui`); эхо бота и апдейты
+// группы без порта сообщества — ничего, без записи; отказ апдейта и бросок
+// порта сообщества — запись без данных группы и участников (ERR-07).
+
+/** Приём апдейтов с портом сообщества, который пишет сигналы. */
+const withCommunities = (
+  receive?: (signal: CommunitySignal) => Promise<void>,
+) => {
+  const received: CommunitySignal[] = [];
+  const scene = setup(undefined, ENTRY_POINTS, {
+    receive:
+      receive ??
+      (async (signal) => {
+        received.push(signal);
+      }),
+  });
+  return { ...scene, received };
+};
+
+describe('TelegramUpdates — сообщество', () => {
+  test('вступление, выход, добавление бота, удаление бота и заявка уходят в communities.receive сигналами по порядку; узел бесед не вызван', async () => {
+    const { received, signals, updates, api, logger } = withCommunities();
+    const builder = new TestUpdates();
+
+    await updates.receive(builder.joined(GROUP, NEWBIE, ADMIN));
+    await updates.receive(builder.left(GROUP, NEWBIE, ADMIN));
+    await updates.receive(builder.botAdded(GROUP, ADMIN));
+    await updates.receive(builder.botRemoved(GROUP, ADMIN));
+    await updates.receive(builder.joinRequest(GROUP, NEWBIE));
+
+    expect(received).toEqual([
+      {
+        id: '1',
+        kind: 'joined',
+        community: String(GROUP),
+        member: String(NEWBIE),
+      },
+      {
+        id: '2',
+        kind: 'left',
+        community: String(GROUP),
+        member: String(NEWBIE),
+      },
+      {
+        id: '3',
+        kind: 'added',
+        community: String(GROUP),
+        member: String(ADMIN),
+      },
+      {
+        id: '4',
+        kind: 'removed',
+        community: String(GROUP),
+        member: String(ADMIN),
+      },
+      {
+        id: '5',
+        kind: 'requested',
+        community: String(GROUP),
+        member: String(NEWBIE),
+      },
+    ]);
+    expect(signals).toEqual([]);
+    expect(api.journal).toEqual([]);
+    expect(logger.records).toEqual([]);
+  });
+
+  test('эхо бота: chat_member от самого бота — порт сообщества не вызван, записей нет', async () => {
+    const { received, updates, logger, api } = withCommunities();
+    const builder = new TestUpdates();
+
+    await updates.receive(builder.left(GROUP, NEWBIE, BOT));
+    await updates.receive(builder.joined(GROUP, NEWBIE, BOT));
+    expect(received).toEqual([]);
+    expect(api.journal).toEqual([]);
+    expect(logger.records).toEqual([]);
+
+    await updates.receive(builder.left(GROUP, NEWBIE, ADMIN));
+    expect(received).toHaveLength(1);
+  });
+
+  test('сообщение и команда в группе — порт сообщества не вызван, узел бесед не вызван, записей нет', async () => {
+    const { received, signals, updates, logger, api } = withCommunities();
+    const builder = new TestUpdates();
+
+    await updates.receive(builder.groupText(GROUP, NEWBIE, 'Хлеб'));
+    await updates.receive(builder.groupText(GROUP, NEWBIE, '/start@bot'));
+
+    expect(received).toEqual([]);
+    expect(signals).toEqual([]);
+    expect(api.journal).toEqual([]);
+    expect(logger.records).toEqual([]);
+  });
+
+  test('communities не передан — апдейты группы ничего: узел бесед не вызван, порт не вызван, записей нет', async () => {
+    const { signals, updates, logger, api } = setup();
+    const builder = new TestUpdates();
+
+    await updates.receive(builder.joined(GROUP, NEWBIE, ADMIN));
+    await updates.receive(builder.botAdded(GROUP, ADMIN));
+    await updates.receive(builder.joinRequest(GROUP, NEWBIE));
+
+    expect(signals).toEqual([]);
+    expect(api.journal).toEqual([]);
+    expect(logger.records).toEqual([]);
+  });
+
+  test('communities.receive бросает — receive не бросает, error с видом сигнала и именем ошибки без её текста', async () => {
+    const { updates, logger } = withCommunities(async () => {
+      throw new RangeError(`сбой ${SECRET_TEXT}`);
+    });
+
+    await expect(
+      updates.receive(new TestUpdates().joinRequest(GROUP, NEWBIE)),
+    ).resolves.toBeUndefined();
+
+    const errors = logger.records.filter((record) => record.level === 'error');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.source).toBe('tg-bot');
+    expect(errors[0]?.meta).toMatchObject({
+      signal: 'requested',
+      name: 'RangeError',
+    });
+    clean(logger);
+  });
+
+  test('апдейт группы не по схеме — порт не вызван, один warn с причиной и видом апдейта, без данных', async () => {
+    const { received, updates, logger } = withCommunities();
+    const update = {
+      update_id: 301,
+      chat_member: {
+        chat: chat(GROUP, 'supergroup'),
+        from: user(ADMIN),
+        date: 1,
+        old_chat_member: { user: user(NEWBIE), status: 'restricted' },
+        new_chat_member: { user: user(NEWBIE), status: 'member' },
+      },
+    };
+
+    await expect(updates.receive(update)).resolves.toBeUndefined();
+
+    expect(received).toEqual([]);
+    expect(logger.records).toHaveLength(1);
+    expect(logger.records[0]).toMatchObject({
+      level: 'warn',
+      source: 'tg-bot',
+      meta: { reason: 'schema', update: 'chat_member' },
+    });
+    clean(logger);
+  });
+
+  test('заявка в канал — порт не вызван, один warn с причиной chat и видом апдейта, без данных', async () => {
+    const { received, updates, logger } = withCommunities();
+    const asChannel = {
+      update_id: 303,
+      chat_join_request: {
+        chat: chat(GROUP, 'channel'),
+        from: user(NEWBIE),
+        user_chat_id: NEWBIE,
+        date: 1,
+      },
+    };
+
+    await updates.receive(asChannel);
+
+    expect(received).toEqual([]);
+    expect(logger.records).toHaveLength(1);
+    expect(logger.records[0]).toMatchObject({
+      level: 'warn',
+      meta: { reason: 'chat', update: 'chat_join_request' },
+    });
+    clean(logger);
+  });
+
+  test('блокировка бота в личном чате — порт сообщества не вызван, записей нет', async () => {
+    const { received, updates, logger } = withCommunities();
+
+    await updates.receive({
+      update_id: 302,
+      my_chat_member: {
+        chat: chat(ME),
+        from: user(ME),
+        date: 1,
+        old_chat_member: { user: user(BOT), status: 'member' },
+        new_chat_member: { user: user(BOT), status: 'kicked' },
+      },
+    });
+
+    expect(received).toEqual([]);
+    expect(logger.records).toEqual([]);
+  });
+
+  test('сообщение и нажатие личного чата по-прежнему идут в узел бесед, порт сообщества не вызван', async () => {
+    const { received, signals, updates } = withCommunities();
+
+    await updates.receive(text());
+    await updates.receive(press());
+
+    expect(signals.map((signal) => signal.kind)).toEqual(['text', 'press']);
+    expect(received).toEqual([]);
+  });
+
+  test('bot неверный — бросок сборки приёма: 0, отрицательный, дробный', () => {
+    for (const bot of [0, -5, 1.5]) {
+      expect(
+        () =>
+          new TelegramUpdates({
+            conversations: { receive: async () => undefined },
+            messenger: new TelegramMessenger({
+              api: new MemoryBotApi(),
+              logger: new MemoryLogger(),
+            }),
+            logger: new MemoryLogger(),
+            entryPoints: ENTRY_POINTS,
+            bot,
+          }),
+      ).toThrow();
+    }
   });
 });

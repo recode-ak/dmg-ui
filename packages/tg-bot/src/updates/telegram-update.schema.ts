@@ -46,11 +46,48 @@ export const CallbackQuerySchema = v.looseObject({
   data: v.optional(v.string()),
 });
 
-/** Апдейт: прочие виды (`edited_message`, `channel_post`, апдейты участников) не читаются. */
+/** Статус участника чата; `restricted` обязан сказать, в группе ли он (`is_member`). */
+export const MemberStatusSchema = v.pipe(
+  v.looseObject({
+    user: UserSchema,
+    status: v.picklist([
+      'creator',
+      'administrator',
+      'member',
+      'restricted',
+      'left',
+      'kicked',
+    ]),
+    is_member: v.optional(v.boolean()),
+  }),
+  v.check(
+    (member) =>
+      member.status !== 'restricted' || member.is_member !== undefined,
+  ),
+);
+
+/** Смена статуса участника (`chat_member`) или самого бота (`my_chat_member`): кто, где, был и стал. */
+export const ChatMemberUpdatedSchema = v.looseObject({
+  chat: ChatSchema,
+  from: UserSchema,
+  old_chat_member: MemberStatusSchema,
+  new_chat_member: MemberStatusSchema,
+});
+
+/** Заявка на вступление: чат и подавший заявку. */
+export const JoinRequestSchema = v.looseObject({
+  chat: ChatSchema,
+  from: UserSchema,
+});
+
+/** Апдейт: прочие виды (`edited_message`, `channel_post`) не читаются. */
 export const TelegramUpdateSchema = v.looseObject({
   update_id: IdSchema,
   message: v.optional(TelegramMessageSchema),
   callback_query: v.optional(CallbackQuerySchema),
+  my_chat_member: v.optional(ChatMemberUpdatedSchema),
+  chat_member: v.optional(ChatMemberUpdatedSchema),
+  chat_join_request: v.optional(JoinRequestSchema),
 });
 
 /** id нажатия апдейта не по схеме: ответ на нажатие обязателен и тогда. */

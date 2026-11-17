@@ -1,4 +1,4 @@
-import type { ConversationSignal } from 'dmg-ui/chat-ui';
+import type { CommunitySignal, ConversationSignal } from 'dmg-ui/chat-ui';
 import type { TelegramMessenger } from '../messenger/telegram-messenger';
 import { TelegramLog } from '../telegram-log';
 import { TelegramSignals } from './telegram-signals';
@@ -8,23 +8,25 @@ import type {
 } from './telegram-updates.types';
 
 /**
- * Приём апдейтов Telegram (D-UI-62, D-UI-64). Личность держится на подлинности апдейта:
- * проект подаёт только апдейты от Telegram (getUpdates или вебхук с секретным
- * токеном). Отвергнутое нажатие получает ровно один ответ без текста, затем
- * `warn` с причиной. `receive` не бросает (ERR-01): бросок узла бесед —
- * `error` с видом сигнала и именем ошибки, без данных (ERR-07).
+ * Приём апдейтов Telegram (D-UI-62): личность держится на подлинности
+ * апдейта (проект подаёт только апдейты от Telegram). Нажатие, которое
+ * отвергнуто, получает один ответ без текста и `warn`. `receive` не бросает
+ * (ERR-01): бросок узла бесед или сообщества — `error` с видом сигнала и
+ * именем ошибки, без данных (ERR-07).
  */
 export class TelegramUpdates {
   private readonly conversations: TelegramUpdatesSpec['conversations'];
   private readonly messenger: TelegramMessenger;
   private readonly log: TelegramLog;
   private readonly signals: TelegramSignals;
+  private readonly communities: TelegramUpdatesSpec['communities'];
 
   constructor(spec: TelegramUpdatesSpec) {
     this.conversations = spec.conversations;
     this.messenger = spec.messenger;
     this.log = new TelegramLog(spec.logger);
     this.signals = new TelegramSignals(spec);
+    this.communities = spec.communities;
   }
 
   async receive(update: unknown): Promise<void> {
@@ -32,6 +34,8 @@ export class TelegramUpdates {
     switch (outcome.kind) {
       case 'signal':
         return this.deliver(outcome.signal);
+      case 'community':
+        return this.deliverCommunity(outcome.signal);
       case 'refused':
         return this.refuse(outcome);
       case 'ignored':
@@ -45,6 +49,16 @@ export class TelegramUpdates {
   private async deliver(signal: ConversationSignal): Promise<void> {
     try {
       await this.conversations.receive(signal);
+    } catch (error) {
+      this.log.signalFailed(signal.kind, error);
+    }
+  }
+
+  /** Сигнал сообщества — в его приём; приёма нет — «ничего» без записи; бросок — запись с видом сигнала. */
+  private async deliverCommunity(signal: CommunitySignal): Promise<void> {
+    if (this.communities === undefined) return;
+    try {
+      await this.communities.receive(signal);
     } catch (error) {
       this.log.signalFailed(signal.kind, error);
     }

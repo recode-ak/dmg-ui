@@ -1,5 +1,6 @@
 import { err, ok } from 'dmg-core';
 import type {
+  CommunityPort,
   Delivery,
   Message,
   MessageHandle,
@@ -12,6 +13,7 @@ import { SentMessageSchema } from '../bot-api/bot-api.schema';
 import type { BotApi } from '../bot-api/bot-api.types';
 import { BotApiCaller } from '../bot-api/bot-api-caller';
 import type { BotApiOutcome } from '../bot-api/bot-api-caller.types';
+import { TelegramCommunity } from '../community/telegram-community';
 import { TelegramLog } from '../telegram-log';
 import type { TelegramOperation } from '../telegram-log.types';
 import {
@@ -40,6 +42,8 @@ const UNAVAILABLE = err({ reason: 'unavailable' as const });
  */
 export class TelegramMessenger implements MessengerPort {
   readonly capabilities: MessengerCapabilities = TELEGRAM_CAPABILITIES;
+  /** Операции группы (D-UI-65): на том же порту; в `Communities` идёт мимо стража. */
+  readonly community: CommunityPort;
   private readonly api: BotApi;
   private readonly log: TelegramLog;
   private readonly caller: BotApiCaller;
@@ -48,6 +52,12 @@ export class TelegramMessenger implements MessengerPort {
     this.api = spec.api;
     this.log = new TelegramLog(spec.logger);
     this.caller = new BotApiCaller(this.log);
+    this.community = new TelegramCommunity({
+      api: spec.api,
+      caller: this.caller,
+      log: this.log,
+      now: spec.now ?? Date.now,
+    });
   }
 
   /** Инициатива не меняет способ: Telegram пишет первым после первого входящего, это сверяет беседа. */

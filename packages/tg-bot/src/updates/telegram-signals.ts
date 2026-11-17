@@ -9,11 +9,13 @@ import {
   UNKNOWN_ENTRY,
 } from '../entries/telegram-entries.const';
 import { TelegramEntryTable } from '../entries/telegram-entry-table';
+import { TelegramCommunitySignals } from './telegram-community-signals';
 import { PressIdSchema, TelegramUpdateSchema } from './telegram-update.schema';
 import {
   ATTACHMENT_FIELDS,
   BOT_COMMAND,
   COMMAND,
+  COMMUNITY_UPDATES,
   START_PARAM,
 } from './telegram-updates.const';
 import type {
@@ -27,15 +29,15 @@ import type {
 const IGNORED: SignalOutcome = { kind: 'ignored' };
 
 /**
- * Перевод апдейта Bot API в сигнал беседы (D-UI-62, D-UI-64) — чистый, без
- * порта и лога; экземпляр со спекой — таблицей точек входа и id бота. Диалог — только личный чат, где отправитель и собеседник — один
- * человек: `chat.type === 'private'`, целое `chat.id` > 0, `from.id ===
- * chat.id`. Поля сигнала — строки: `id` — `update_id`, `peer` — `chat.id`,
- * `sender` — `from.id`. Сообщение вне личного чата и прочие виды апдейтов —
- * «ничего»; отвергнутое нажатие несёт свой id — ответ обязателен.
+ * Перевод апдейта Bot API в сигнал беседы или сообщества (D-UI-62) — чистый,
+ * без порта и лога; экземпляр со спекой — таблицей точек входа и id бота.
+ * Диалог — только личный чат, где `from.id === chat.id` > 0; поля сигнала —
+ * строки. Апдейты группы — `TelegramCommunitySignals`; сообщение вне личного
+ * чата — «ничего»; отвергнутое нажатие несёт свой id — ответ обязателен.
  */
 export class TelegramSignals {
   private readonly table: TelegramEntryTable;
+  private readonly community: TelegramCommunitySignals;
 
   /** Сборка: `bot` — безопасное целое > 0, иначе бросок (нужен приёму сообщества для отсева эха). */
   constructor(spec: TelegramSignalsSpec) {
@@ -43,6 +45,7 @@ export class TelegramSignals {
       throw new Error('TelegramSignals: bot — безопасное целое больше нуля');
     }
     this.table = new TelegramEntryTable(spec.entryPoints);
+    this.community = new TelegramCommunitySignals(spec.bot);
   }
 
   of(update: unknown): SignalOutcome {
@@ -52,15 +55,38 @@ export class TelegramSignals {
     const id = String(update_id);
     if (callback_query !== undefined) return this.press(id, callback_query);
     if (message !== undefined) return this.message(id, message);
+    const { my_chat_member, chat_member, chat_join_request } = parsed.output;
+    if (chat_member !== undefined) {
+      return this.community.member(update_id, chat_member);
+    }
+    if (my_chat_member !== undefined) {
+      return this.community.bots(update_id, my_chat_member);
+    }
+    if (chat_join_request !== undefined) {
+      return this.community.request(update_id, chat_join_request);
+    }
     return IGNORED;
   }
 
-  /** Апдейт не по схеме; id нажатия читается — отказ с ним. */
+  /** Апдейт не по схеме; id нажатия читается — отказ с ним; апдейт группы — с видом. */
   private static unreadable(update: unknown): SignalOutcome {
     const press = v.safeParse(PressIdSchema, update);
-    return press.success
-      ? TelegramSignals.refusedPress('schema', press.output.callback_query.id)
-      : { kind: 'refused', reason: 'schema' };
+    if (press.success) {
+      return TelegramSignals.refusedPress(
+        'schema',
+        press.output.callback_query.id,
+      );
+    }
+    const kind_ = COMMUNITY_UPDATES.find(
+      (kind) =>
+        typeof update === 'object' &&
+        update !== null &&
+        Object.hasOwn(update, kind) &&
+        typeof (update as Record<string, unknown>)[kind] === 'object',
+    );
+    return kind_ === undefined
+      ? { kind: 'refused', reason: 'schema' }
+      : { kind: 'refused', reason: 'schema', update: kind_ };
   }
 
   private press(id: string, query: CallbackQuery): SignalOutcome {

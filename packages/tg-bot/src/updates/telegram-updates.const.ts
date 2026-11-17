@@ -33,3 +33,10 @@ export const TELEGRAM_ALLOWED_UPDATES = [
   'chat_member',
   'chat_join_request',
 ] as const;
+
+/** Виды апдейта группы: при апдейте не по схеме вид попадает в отказ. */
+export const COMMUNITY_UPDATES = [
+  'my_chat_member',
+  'chat_member',
+  'chat_join_request',
+] as const;

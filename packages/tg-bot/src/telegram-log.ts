@@ -1,4 +1,4 @@
-import type { ConversationSignal } from 'dmg-ui/chat-ui';
+import type { CommunitySignal, ConversationSignal } from 'dmg-ui/chat-ui';
 import type { ServerContext } from 'dmg-ui/server';
 import type { BotApiMethod } from './bot-api/bot-api.types';
 import type { BotApiFailure } from './bot-api/bot-api-failure';
@@ -24,6 +24,24 @@ export class TelegramLog {
   /** Собеседник не целое положительное число: в группу или канал не пишем. */
   badPeer(operation: TelegramOperation): void {
     this.error(LOG_TEXTS.badPeer, { operation, reason: 'peer' });
+  }
+
+  /** Группа не отрицательное каноническое целое или участник не положительное: вызова нет. */
+  badTarget(
+    operation: TelegramOperation,
+    subject: 'community' | 'member',
+  ): void {
+    this.error(LOG_TEXTS.badTarget, { operation, reason: subject });
+  }
+
+  /** Операция сообщества, которую Telegram не объявляет: вызова нет. */
+  notDeclared(operation: TelegramOperation): void {
+    this.error(LOG_TEXTS.notDeclared, { operation, reason: 'operation' });
+  }
+
+  /** Отказ с новым id группы: id в запись не идёт (DEBT-UI-27). */
+  migrated(operation: TelegramOperation): void {
+    this.warn(LOG_TEXTS.migrated, { operation, reason: 'migrated' });
   }
 
   badCallbackData(operation: TelegramOperation): void {
@@ -81,8 +99,11 @@ export class TelegramLog {
     this.warn(text, update === undefined ? { reason } : { reason, update });
   }
 
-  /** Узел бесед бросил: вид сигнала и имя ошибки без её текста. */
-  signalFailed(kind: ConversationSignal['kind'], error: unknown): void {
+  /** Узел бесед или сообщества бросил: вид сигнала и имя ошибки без её текста. */
+  signalFailed(
+    kind: ConversationSignal['kind'] | CommunitySignal['kind'],
+    error: unknown,
+  ): void {
     this.error(LOG_TEXTS.signalFailed, {
       signal: kind,
       name: TelegramLog.nameOf(error),
