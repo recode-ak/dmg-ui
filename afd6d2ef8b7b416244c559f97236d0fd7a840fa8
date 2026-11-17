@@ -1,0 +1,5 @@
+Задача: ядро — поиск уведомления по id (уведомления беседы).
+Изменения: UiIds.findNotification(id) рядом с findScreen — карта уведомлений набора, чужой id и id экрана дают undefined; запись D-UI-55; гайд «Пакет канала» §4.
+Файлы: packages/core/src/address/ui-ids.ts, ui-ids.test.ts, docs/decisions.md, docs/guides/channel-package.md.
+Причина: канал получает уведомление с id узла и отличает чужой id от отсутствующего представления.
+Проверка: biome чистый; bun test packages/core checks acceptance — 964 pass; ошибки tsc — только в red-тестах следующего шага (packages/chat-ui).
