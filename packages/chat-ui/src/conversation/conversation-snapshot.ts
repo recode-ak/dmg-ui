@@ -1,9 +1,14 @@
 import * as v from 'valibot';
+import { TEXT_STYLES } from '../message/message.const';
 import {
+  HASH_PATTERN,
   MAX_FIELD_CHOICES,
   MAX_FIELDS,
+  MAX_FRAGMENT_TEXT,
+  MAX_FRAGMENTS,
   MAX_HANDLES,
   MAX_LABEL_LENGTH,
+  MAX_LINK_LENGTH,
   MAX_NAME_LENGTH,
   MAX_PERSON_LENGTH,
   MAX_REF_LENGTH,
@@ -19,6 +24,8 @@ import type { ConversationSnapshot } from './conversation.types';
 // Схема снимка беседы (D-UI-45). Строгая в пределах: массивы и строки
 // ограничены (`MAX_*` в `conversation.const.ts`), ссылка — `[a-z0-9]` до 16
 // знаков, номера — целые не меньше 0.
+// Последнее сообщение живого места — по схеме текстового сообщения с
+// пределами, хэш ключа следа — 64 знака hex.
 // Снимок экземпляра ядра (`screen.instance`), параметры адреса, вход
 // подтверждения и начальное значение поля схема не проверяет — их проверяет
 // ядро. Аннотация
@@ -111,12 +118,37 @@ const RefEntrySchema = v.variant('kind', [
   v.object({ ref: Ref, kind: v.literal('home'), label: Label }),
 ]);
 
+/** Последнее сообщение живого места: текстовое, со ссылками таблицы. */
+const PlaceMessage = v.object({
+  kind: v.literal('text'),
+  text: v.pipe(
+    v.array(
+      v.object({
+        text: v.pipe(v.string(), v.maxLength(MAX_FRAGMENT_TEXT)),
+        styles: v.pipe(
+          v.array(v.picklist(TEXT_STYLES)),
+          v.maxLength(TEXT_STYLES.length),
+        ),
+        link: v.optional(v.pipe(v.string(), v.maxLength(MAX_LINK_LENGTH))),
+      }),
+    ),
+    v.maxLength(MAX_FRAGMENTS),
+  ),
+  options: v.pipe(
+    v.array(v.object({ ref: Ref, label: Label })),
+    v.maxLength(MAX_REFS),
+  ),
+});
+
 const LiveScreen = v.object({
   serial: Count,
   instance: v.unknown(),
   shown: v.pipe(v.string(), v.maxLength(MAX_SHOWN_LENGTH)),
   handles: v.pipe(v.array(v.string()), v.maxLength(MAX_HANDLES)),
   page: Count,
+  latest: v.optional(v.boolean()),
+  history: v.optional(v.pipe(v.string(), v.regex(HASH_PATTERN))),
+  message: v.optional(PlaceMessage),
 });
 
 const Field = v.object({

@@ -7,6 +7,7 @@ export { ExampleDialogArch } from './example/example-dialog.arch';
 export { exampleDialogViews } from './example/example-dialog.views';
 export { MemoryMessenger } from './messengers/memory-messenger';
 export type {
+  ChatLine,
   MemoryMessengerSpec,
   MessengerEntry,
 } from './messengers/memory-messenger.types';

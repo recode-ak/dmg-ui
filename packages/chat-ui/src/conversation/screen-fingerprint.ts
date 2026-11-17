@@ -1,26 +1,19 @@
 import type { ViewMessage, ViewOption } from '../view/view.types';
+import { Sha256 } from './sha256';
 
 /**
  * Отпечаток показанного вида (D-UI-46): SHA-256 (hex) канонического JSON
  * сообщений показа по порядку — фрагменты текста (строка, стили, ссылка) и
  * варианты (вид, имя цели, подпись), массивами без ключей. Лишние поля
  * (ссылки вариантов, заметка перед видом, ключ истории) не входят. Хэш —
- * глобальный `crypto.subtle`.
+ * `Sha256`.
  */
 export class ScreenFingerprint {
   private constructor(private readonly messages: readonly ViewMessage[]) {}
 
   /** 64 знака hex. */
   static async of(messages: readonly ViewMessage[]): Promise<string> {
-    return new ScreenFingerprint(messages).digest();
-  }
-
-  private async digest(): Promise<string> {
-    const bytes = new TextEncoder().encode(this.canonical());
-    const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
-    return Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join(
-      '',
-    );
+    return Sha256.hex(new ScreenFingerprint(messages).canonical());
   }
 
   private canonical(): string {

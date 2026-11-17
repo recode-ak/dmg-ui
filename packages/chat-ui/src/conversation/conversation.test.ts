@@ -39,6 +39,7 @@ import type {
   MessageHandle,
   OptionLimits,
   SendOptions,
+  Updated,
 } from '../messenger/messenger.types';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
@@ -221,7 +222,7 @@ const refreshSignal = (eventId: string): RefreshSignal => ({
 
 /**
  * Подставной мессенджер с отказами порта: ответ на нажатие не доставляется,
- * показ по инициативе бросает (дефект порта).
+ * показ и правка по инициативе бросают (дефект порта).
  */
 class FaultyMessenger extends MemoryMessenger {
   constructor(
@@ -251,6 +252,18 @@ class FaultyMessenger extends MemoryMessenger {
       throw new Error('show-mark-q7');
     }
     return super.show(peer, message, send);
+  }
+
+  override async update(
+    peer: string,
+    handle: MessageHandle,
+    message: Message,
+    send?: SendOptions,
+  ): Promise<Delivery<Updated>> {
+    if (this.faults.initiative === true && send?.initiative === true) {
+      throw new Error('update-mark-q7');
+    }
+    return super.update(peer, handle, message, send);
   }
 }
 
@@ -327,8 +340,16 @@ const sceneOf = (
 
 type Sent = Extract<MessengerEntry, { op: 'sent' }>;
 
+/** Видимое содержимое: новое сообщение или правка на месте. */
+type Shown = Extract<MessengerEntry, { op: 'sent' | 'edited' }>;
+
 const sent = (messenger: MemoryMessenger): Sent[] =>
   messenger.journal.filter((entry): entry is Sent => entry.op === 'sent');
+
+const visible = (messenger: MemoryMessenger): Shown[] =>
+  messenger.journal.filter(
+    (entry): entry is Shown => entry.op === 'sent' || entry.op === 'edited',
+  );
 
 const lastSent = (messenger: MemoryMessenger): Sent => {
   const entry = sent(messenger).at(-1);
@@ -336,13 +357,20 @@ const lastSent = (messenger: MemoryMessenger): Sent => {
   return entry;
 };
 
-const text = (entry: Sent) => PlainText.of(entry.message.text);
+/** Последнее, что показано: новое сообщение или правка на месте. */
+const lastShown = (messenger: MemoryMessenger): Shown => {
+  const entry = visible(messenger).at(-1);
+  if (entry === undefined) throw new Error('сообщений нет');
+  return entry;
+};
 
-const labels = (entry: Sent) => entry.message.options.map((o) => o.label);
+const text = (entry: Shown) => PlainText.of(entry.message.text);
 
-/** Ссылка варианта `label` из самого свежего сообщения, где он есть. */
+const labels = (entry: Shown) => entry.message.options.map((o) => o.label);
+
+/** Ссылка варианта `label` из самого свежего показа, где он есть. */
 const refOf = (messenger: MemoryMessenger, label: string): string => {
-  for (const entry of [...sent(messenger)].reverse()) {
+  for (const entry of [...visible(messenger)].reverse()) {
     const option = entry.message.options.find((o) => o.label === label);
     if (option !== undefined) return option.ref;
   }
@@ -435,7 +463,7 @@ describe('Conversation — вход и нажатие по записи', () => 
       peer: PEER,
       press: 'p-save',
     });
-    expect(text(lastSent(s.messenger))).toBe('Главная: задач 2, отметок 0');
+    expect(text(lastShown(s.messenger))).toBe('Главная: задач 2, отметок 0');
   });
 
   test('неизвестная ссылка — «Такого варианта нет.» и ответ на нажатие', async () => {
@@ -444,8 +472,14 @@ describe('Conversation — вход и нажатие по записи', () => 
 
     await s.conversation.receive(s.signals.press('zzzzz9', 'p-unknown'));
 
-    expect(text(lastSent(s.messenger))).toBe('Такого варианта нет.');
-    expect(labels(lastSent(s.messenger))).toEqual([]);
+    // У мессенджера с ответом на нажатие реакция — текст ответа, без сообщения.
+    expect(sent(s.messenger)).toHaveLength(1);
+    expect(s.messenger.journal.at(-1)).toEqual({
+      op: 'answered',
+      peer: PEER,
+      press: 'p-unknown',
+      text: 'Такого варианта нет.',
+    });
     expect(answered(s.messenger)).toEqual(['p-unknown']);
     expect(acted(s.kit)).toBe(0);
   });
@@ -455,12 +489,22 @@ describe('Conversation — вход и нажатие по записи', () => 
     await s.conversation.receive(s.signals.enter('start'));
     const save = refOf(s.messenger, 'Сохранить');
     await s.conversation.receive(s.signals.press(refOf(s.messenger, 'Дальше')));
-    const moved = text(lastSent(s.messenger));
+    const moved = text(lastShown(s.messenger));
+    const journal = s.messenger.journal.length;
 
-    await s.conversation.receive(s.signals.press(save));
+    await s.conversation.receive(s.signals.press(save, 'p-closed'));
 
     expect(moved).toBe('Другой экран');
-    expect(text(lastSent(s.messenger))).toBe('Экран уже закрыт.');
+    // Реакция на нажатие — текст ответа; показанное не меняется.
+    expect(s.messenger.journal.slice(journal)).toEqual([
+      {
+        op: 'answered',
+        peer: PEER,
+        press: 'p-closed',
+        text: 'Экран уже закрыт.',
+      },
+    ]);
+    expect(text(lastShown(s.messenger))).toBe('Другой экран');
     expect(acted(s.kit)).toBe(1);
     expect(completed(s.kit)).toBe(0);
     expect(s.conversation.screen()?.address.screen).toBe('convUi/conv/other');
@@ -475,10 +519,10 @@ describe('Conversation — вход и нажатие по записи', () => 
 
     await s.conversation.receive(s.signals.press(save));
 
-    const shown = lastSent(s.messenger);
-    expect(text(shown)).toBe('Экран обновился.\n\nГлавная: задач 2, отметок 0');
-    expect(labels(shown)).toEqual(['Сохранить', 'Дальше', 'Отметить']);
-    expect(shown.message.options.map((o) => o.ref)).not.toContain(save);
+    const last = lastShown(s.messenger);
+    expect(text(last)).toBe('Экран обновился.\n\nГлавная: задач 2, отметок 0');
+    expect(labels(last)).toEqual(['Сохранить', 'Дальше', 'Отметить']);
+    expect(last.message.options.map((o) => o.ref)).not.toContain(save);
     expect(completed(s.kit)).toBe(0);
   });
 
@@ -490,7 +534,7 @@ describe('Conversation — вход и нажатие по записи', () => 
     await s.conversation.settled();
 
     await s.conversation.receive(s.signals.press(tick));
-    const stale = text(lastSent(s.messenger));
+    const stale = text(lastShown(s.messenger));
     const state = s.conversation.screen()?.state;
     await s.conversation.receive(
       s.signals.press(refOf(s.messenger, 'Отметить')),
@@ -498,7 +542,7 @@ describe('Conversation — вход и нажатие по записи', () => 
 
     expect(stale).toBe('Экран обновился.\n\nГлавная: задач 2, отметок 0');
     expect(state).toEqual({ ticks: 0 });
-    expect(text(lastSent(s.messenger))).toBe('Главная: задач 2, отметок 1');
+    expect(text(lastShown(s.messenger))).toBe('Главная: задач 2, отметок 1');
   });
 });
 
@@ -525,18 +569,17 @@ describe('Conversation — очередь и отсев повтора', () => {
 
     expect(
       s.messenger.journal.map((entry) =>
-        entry.op === 'sent'
-          ? `sent: ${text(entry)}`
+        entry.op === 'sent' || entry.op === 'edited'
+          ? `${entry.op}: ${text(entry)}`
           : entry.op === 'answered'
-            ? `answered: ${entry.press}`
+            ? `answered: ${entry.press}${entry.text === undefined ? '' : ` — ${entry.text}`}`
             : entry.op,
       ),
     ).toEqual([
       'sent: Главная: задач 2, отметок 0',
-      'sent: Главная: задач 2, отметок 0',
+      'edited: Главная: задач 2, отметок 0',
       'answered: p-first',
-      'sent: Такого варианта нет.',
-      'answered: p-second',
+      'answered: p-second — Такого варианта нет.',
     ]);
   });
 
@@ -569,7 +612,7 @@ describe('Conversation — отказы порта мессенджера', () =
       s.signals.press(refOf(s.messenger, 'Отметить'), 'p-tick-2'),
     );
 
-    expect(text(lastSent(s.messenger))).toBe('Главная: задач 2, отметок 2');
+    expect(text(lastShown(s.messenger))).toBe('Главная: задач 2, отметок 2');
     const undelivered = {
       level: 'warn' as const,
       source: 'chat-ui',
@@ -653,9 +696,10 @@ describe('Conversation — проактивный показ', () => {
     await s.conversation.receive(s.signals.cancel());
 
     expect(text(inWindow)).toBe('Главная: задач 1, отметок 0');
+    // Место последнее — проактивный показ идёт правкой (`update`) по инициативе.
     expect(late).toEqual({
       op: 'undelivered',
-      via: 'show',
+      via: 'update',
       peer: PEER,
       reason: 'window',
     });
@@ -666,7 +710,7 @@ describe('Conversation — проактивный показ', () => {
         message: expect.any(String),
         meta: {
           messenger: 'memory-windowed',
-          operation: 'show',
+          operation: 'update',
           reason: 'window',
         },
       },

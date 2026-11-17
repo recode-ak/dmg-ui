@@ -17,6 +17,7 @@ import {
   WINDOWED_CAPABILITIES,
 } from './memory-messenger.const';
 import type {
+  ChatLine,
   MemoryMessengerSpec,
   MemoryOperation,
   MessengerEntry,
@@ -65,6 +66,29 @@ export class MemoryMessenger implements MessengerPort {
   /** Следующая операция не дойдёт с этой причиной. */
   failNext(reason: UndeliveredReason): void {
     this.failure = reason;
+  }
+
+  /** Беседа глазами собеседника: строка на каждое новое сообщение, по порядку появления; правки и уход — из журнала. */
+  chat(peer: string): readonly ChatLine[] {
+    const lines = new Map<MessageHandle, ChatLine>();
+    for (const entry of this.journal) {
+      if (entry.peer !== peer) continue;
+      if (entry.op === 'sent') {
+        const { handle, message } = entry;
+        lines.set(handle, { handle, message, edits: 0, retired: false });
+        continue;
+      }
+      if (entry.op !== 'edited' && entry.op !== 'retired') continue;
+      const line = lines.get(entry.handle);
+      if (line === undefined) continue;
+      lines.set(
+        entry.handle,
+        entry.op === 'edited'
+          ? { ...line, message: entry.message, edits: line.edits + 1 }
+          : MemoryMessenger.retired(line, entry.chosen),
+      );
+    }
+    return [...lines.values()];
   }
 
   async show(
@@ -210,6 +234,13 @@ export class MemoryMessenger implements MessengerPort {
   ): Delivery<never> {
     this.journal.push({ op: 'undelivered', via, peer, reason });
     return err({ reason });
+  }
+
+  /** Строка после ухода: `chosen` — из последней записи ухода. */
+  private static retired(line: ChatLine, chosen: string | undefined): ChatLine {
+    const { handle, message, edits } = line;
+    const base = { handle, message, edits, retired: true };
+    return chosen === undefined ? base : { ...base, chosen };
   }
 
   private unknownInitiative(initiative: never): never {

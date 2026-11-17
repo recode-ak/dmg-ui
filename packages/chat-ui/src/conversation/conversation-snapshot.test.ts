@@ -1,18 +1,21 @@
 import { describe, expect, test } from 'bun:test';
 import * as v from 'valibot';
+import type { Message } from '../message/message.types';
 import {
   MAX_FIELD_CHOICES,
   MAX_FIELDS,
   MAX_HANDLES,
   MAX_LABEL_LENGTH,
+  MAX_REFS,
 } from './conversation.const';
 import type { ConversationSnapshot, RefEntry } from './conversation.types';
 import { ConversationSnapshotSchema } from './conversation-snapshot';
 
 // Схема снимка беседы: пределы на массивах и строках, ссылка — `[a-z0-9]`
 // до 16 знаков, номера — целые не меньше 0. Снимок экземпляра ядра внутри
-// схема не проверяет — это делает ядро при восстановлении. Внешние данные:
-// мусор — не по схеме, без броска.
+// схема не проверяет — это делает ядро при восстановлении. Живое место —
+// положение, хэш ключа следа (64 знака hex) и последнее сообщение по схеме
+// сообщения с пределами. Внешние данные: мусор — не по схеме, без броска.
 
 const LIST = { screen: 'exampleUi/todo/taskList', params: { page: 0 } };
 
@@ -61,7 +64,22 @@ const REFS: readonly RefEntry[] = [
     label: 'Ещё',
   },
   { ref: 'abcde7', kind: 'open', address: LIST, label: 'К списку' },
+  { ref: 'abcde8', kind: 'home', label: 'В начало' },
 ];
+
+/** Последнее сообщение живого места — со стилями, ссылкой фрагмента и вариантами. */
+const PLACE: Message = {
+  kind: 'text',
+  text: [
+    { text: 'Мои задачи', styles: ['bold'] },
+    { text: '\nХлеб — ', styles: [] },
+    { text: 'карточка', styles: [], link: 'https://example.org/task' },
+  ],
+  options: [
+    { ref: 'abcde1', label: 'Добавить' },
+    { ref: 'abcde8', label: 'В начало' },
+  ],
+};
 
 const SNAPSHOT: ConversationSnapshot = {
   version: 1,
@@ -75,6 +93,9 @@ const SNAPSHOT: ConversationSnapshot = {
     shown: 'a'.repeat(64),
     handles: ['h1', 'h2'],
     page: 0,
+    latest: true,
+    history: '0123456789abcdef'.repeat(4),
+    message: PLACE,
   },
   draft: {
     serial: 3,
@@ -136,6 +157,36 @@ const withHandles = (count: number) => ({
   },
 });
 
+/** Снимок, у живого места которого последнее сообщение — `message`. */
+const withMessage = (message: unknown) => ({
+  ...SNAPSHOT,
+  screen: { ...SNAPSHOT.screen, message },
+});
+
+/** Сообщение места из `count` фрагментов без стилей. */
+const fragments = (count: number) => ({
+  ...PLACE,
+  text: Array.from({ length: count }, (_, i) => ({
+    text: `ф${i}`,
+    styles: [],
+  })),
+});
+
+/** Сообщение места с одним фрагментом-ссылкой длиной `length`. */
+const linked = (length: number) => ({
+  ...PLACE,
+  text: [{ text: 'карточка', styles: [], link: 'h'.repeat(length) }],
+});
+
+/** Сообщение места с `count` вариантами. */
+const options = (count: number) => ({
+  ...PLACE,
+  options: Array.from({ length: count }, (_, i) => ({
+    ref: `abc${i.toString(36)}`,
+    label: `В${i}`,
+  })),
+});
+
 /** Снимок с черновиком: `count` полей, все отвечены. */
 const withFields = (count: number) => {
   const names = Array.from({ length: count }, (_, i) => `f${i}`);
@@ -178,6 +229,29 @@ describe('ConversationSnapshotSchema', () => {
     ['seen 128', { ...BARE, seen: manySeen(128) }],
     ['id в seen длиной 256', { ...BARE, seen: ['x'.repeat(256)] }],
     ['ссылка длиной 16', { ...BARE, refs: [openRef('a'.repeat(16))] }],
+    ['фрагментов сообщения места 1024', withMessage(fragments(1024))],
+    ['ссылка фрагмента длиной 2048', withMessage(linked(2048))],
+    [
+      'текст фрагмента длиной 65 536',
+      withMessage({
+        ...PLACE,
+        text: [{ text: 'т'.repeat(65_536), styles: [] }],
+      }),
+    ],
+    [`вариантов сообщения места ${MAX_REFS}`, withMessage(options(MAX_REFS))],
+    [
+      'место без положения, хэша и сообщения (снимок прежней формы)',
+      {
+        ...SNAPSHOT,
+        screen: {
+          serial: 2,
+          instance: SNAPSHOT.screen?.instance,
+          shown: 'a'.repeat(64),
+          handles: ['h1'],
+          page: 0,
+        },
+      },
+    ],
   ])('на пределе — по схеме: %s', (_, value) => {
     expect(valid(value)).toBe(true);
   });
@@ -246,6 +320,48 @@ describe('ConversationSnapshotSchema', () => {
           fields: [{ name: 'f'.repeat(257), label: 'Поле', optional: true }],
         },
       },
+    ],
+    [
+      'положение не boolean',
+      { ...SNAPSHOT, screen: { ...SNAPSHOT.screen, latest: 'да' } },
+    ],
+    [
+      'хэш ключа следа не hex',
+      { ...SNAPSHOT, screen: { ...SNAPSHOT.screen, history: 'z'.repeat(64) } },
+    ],
+    [
+      'хэш ключа следа длиннее 64',
+      { ...SNAPSHOT, screen: { ...SNAPSHOT.screen, history: 'a'.repeat(65) } },
+    ],
+    ['сообщение места не по схеме', withMessage({ kind: 'text', text: [] })],
+    ['сообщение места другого вида', withMessage({ ...PLACE, kind: 'image' })],
+    ['фрагментов сообщения места 1025', withMessage(fragments(1025))],
+    [
+      'текст фрагмента длиннее 65 536',
+      withMessage({
+        ...PLACE,
+        text: [{ text: 'т'.repeat(65_537), styles: [] }],
+      }),
+    ],
+    ['ссылка фрагмента длиннее 2048', withMessage(linked(2049))],
+    [
+      'стиль фрагмента не из списка',
+      withMessage({ ...PLACE, text: [{ text: 'т', styles: ['underline'] }] }),
+    ],
+    [
+      `вариантов сообщения места ${MAX_REFS + 1}`,
+      withMessage(options(MAX_REFS + 1)),
+    ],
+    [
+      'ссылка варианта сообщения места R1 (заглавная)',
+      withMessage({ ...PLACE, options: [{ ref: 'R1', label: 'Да' }] }),
+    ],
+    [
+      'подпись варианта сообщения места длиннее 1024',
+      withMessage({
+        ...PLACE,
+        options: [{ ref: 'abcde1', label: 'л'.repeat(MAX_LABEL_LENGTH + 1) }],
+      }),
     ],
   ])('мусор — не по схеме, без броска: %s', (_, value) => {
     expect(() => v.safeParse(ConversationSnapshotSchema, value)).not.toThrow();

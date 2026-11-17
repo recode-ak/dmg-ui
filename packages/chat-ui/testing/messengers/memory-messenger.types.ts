@@ -20,6 +20,15 @@ export type MemoryOperation =
   | 'answer'
   | 'notify';
 
+/** Сообщение беседы глазами собеседника: последнее содержимое, число правок, уход и нажатый вариант. */
+export type ChatLine = {
+  readonly handle: MessageHandle;
+  readonly message: Message;
+  readonly edits: number;
+  readonly retired: boolean;
+  readonly chosen?: string;
+};
+
 /** Запись журнала подставного мессенджера. */
 export type MessengerEntry =
   | {

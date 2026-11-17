@@ -14,6 +14,7 @@ import type {
   ServerContext,
   UiServer,
 } from 'dmg-ui/server';
+import type { Message } from '../message/message.types';
 import type {
   MessageHandle,
   MessengerPort,
@@ -210,6 +211,18 @@ export type RefTarget =
     }
   | { readonly kind: 'home'; readonly label: string };
 
+/** Живое место беседы в снимке: сообщения последнего показа, положение, след и последнее сообщение. */
+export type PlaceJson = {
+  /** Сообщения живого места — последнего показа вида или шага, по порядку. */
+  readonly handles: readonly MessageHandle[];
+  /** Живое место последнее в беседе; нет — нет. */
+  readonly latest?: boolean;
+  /** SHA-256 (hex) ключа следа в истории, если место показывает вид экрана со следом. */
+  readonly history?: string;
+  /** Последнее сообщение места со ссылками — для `retire` после перезапуска. */
+  readonly message?: Message;
+};
+
 /** Живой экран беседы в снимке. */
 export type LiveScreenJson = {
   readonly serial: Serial;
@@ -217,10 +230,16 @@ export type LiveScreenJson = {
   readonly instance: unknown;
   /** Отпечаток вида, показанного последним (`ScreenFingerprint`). */
   readonly shown: string;
-  /** Сообщения живого экрана у мессенджера — для политик показа. */
+  /** Сообщения живого места — последнего показа вида или шага. */
   readonly handles: readonly MessageHandle[];
   /** Страница вариантов экрана при листании. */
   readonly page: number;
+  /** Живое место последнее в беседе; нет — нет. */
+  readonly latest?: boolean;
+  /** SHA-256 (hex) ключа следа в истории, если место показывает вид экрана со следом. */
+  readonly history?: string;
+  /** Последнее сообщение места со ссылками — для `retire` после перезапуска. */
+  readonly message?: Message;
 };
 
 /** Черновик входа в снимке: чьё действие собирается, поля и ответы. */

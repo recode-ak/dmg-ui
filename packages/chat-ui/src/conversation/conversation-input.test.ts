@@ -295,17 +295,27 @@ const lastSent = (messenger: MemoryMessenger, peer: string = PEER_A): Sent => {
   return entry;
 };
 
-const text = (entry: Sent) => PlainText.of(entry.message.text);
+/** Видимое содержимое: новое сообщение или правка на месте. */
+type Shown = Extract<MessengerEntry, { op: 'sent' | 'edited' }>;
 
-const labels = (entry: Sent) => entry.message.options.map((o) => o.label);
+/** Показы собеседника по порядку: новые сообщения и правки на месте. */
+const visible = (messenger: MemoryMessenger, peer: string = PEER_A): Shown[] =>
+  messenger.journal.filter(
+    (entry): entry is Shown =>
+      (entry.op === 'sent' || entry.op === 'edited') && entry.peer === peer,
+  );
 
-/** Ссылка варианта `label` из самого свежего сообщения собеседника, где он есть. */
+const text = (entry: Shown) => PlainText.of(entry.message.text);
+
+const labels = (entry: Shown) => entry.message.options.map((o) => o.label);
+
+/** Ссылка варианта `label` из самого свежего показа собеседника, где он есть. */
 const refOf = (
   messenger: MemoryMessenger,
   label: string,
   peer: string = PEER_A,
 ): string => {
-  for (const entry of [...sent(messenger, peer)].reverse()) {
+  for (const entry of [...visible(messenger, peer)].reverse()) {
     const option = entry.message.options.find((o) => o.label === label);
     if (option !== undefined) return option.ref;
   }
@@ -417,13 +427,21 @@ describe('Conversation — черновик входа', () => {
     await conversation.receive(signals.cancel());
     const cancelled = lastSent(messenger);
     const draft = conversation.snapshot().draft;
+    const journal = messenger.journal.length;
     await conversation.receive(signals.press(small));
 
     expect(text(cancelled)).toBe('Ввод отменён.\n\nФорма');
     expect(labels(cancelled)).toEqual(['Отправить']);
     expect(draft).toBeUndefined();
-    expect(text(lastSent(messenger))).toBe('Действие сейчас недоступно.');
-    expect(labels(lastSent(messenger))).toEqual([]);
+    // Реакция на нажатие у мессенджера с ответом — текст ответа, без сообщения.
+    expect(messenger.journal.slice(journal)).toEqual([
+      {
+        op: 'answered',
+        peer: PEER_A,
+        press: expect.any(String),
+        text: 'Действие сейчас недоступно.',
+      },
+    ]);
     expect(w.calls.inputs).toEqual([]);
   });
 

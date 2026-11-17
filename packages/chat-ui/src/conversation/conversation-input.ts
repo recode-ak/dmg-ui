@@ -7,6 +7,7 @@ import type {
   Serial,
   StepEntry,
 } from './conversation.types';
+import type { ConversationOutput } from './conversation-output';
 import type { ConversationReplies } from './conversation-replies';
 import type { ConversationScreens } from './conversation-screens';
 import { InputDraft } from './input-draft';
@@ -15,6 +16,8 @@ import { InputDraft } from './input-draft';
 type InputParts = {
   readonly screens: ConversationScreens;
   readonly replies: ConversationReplies;
+  /** Живое место: вопрос поля — шагом; заметки и реакции на нажатие. */
+  readonly output: ConversationOutput;
   /** Вход собран: беседа исполняет цель черновика (`input` — `undefined`, если полей не заполнено). */
   readonly run: (
     draft: InputDraft,
@@ -80,7 +83,7 @@ export class ConversationInput {
     const draft = this.primary();
     // Действие без полей случайный текст не запускает.
     if (draft === undefined || !draft.answer(text)) {
-      await this.parts.screens.note(CONVERSATION_TEXTS.choose);
+      await this.parts.output.note(CONVERSATION_TEXTS.choose);
       return;
     }
     this.draft = draft;
@@ -96,12 +99,12 @@ export class ConversationInput {
     );
   }
 
-  /** Шаг по записи `choice`, `skip` или `page` поля; чужой черновик или поле — тот же вопрос с «Действие сейчас недоступно.». */
+  /** Шаг по записи `choice`, `skip` или `page` поля; чужое поле — тот же вопрос с «Действие сейчас недоступно.», без черновика — реакция. */
   async step(entry: StepEntry, trace: Trace): Promise<void> {
     const draft = this.active();
     if (draft === undefined || !ConversationInput.fits(draft, entry)) {
       if (draft === undefined) {
-        await this.parts.screens.note(CONVERSATION_TEXTS.unavailable);
+        await this.parts.output.react(CONVERSATION_TEXTS.unavailable);
       } else await this.ask(draft, CONVERSATION_TEXTS.unavailable);
       return;
     }
@@ -180,7 +183,7 @@ export class ConversationInput {
 
   private async ask(draft: InputDraft, note?: string): Promise<void> {
     const question = this.parts.replies.question(draft, note);
-    if (question !== undefined) await this.parts.screens.send(question);
+    if (question !== undefined) await this.parts.output.step(question);
   }
 
   /** Черновик основного действия живого экрана, если оно доступно и у него есть поля. */

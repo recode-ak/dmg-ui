@@ -247,20 +247,34 @@ const sent = (messenger: MemoryMessenger, peer: string = WHO_A.peer): Sent[] =>
     (entry): entry is Sent => entry.op === 'sent' && entry.peer === peer,
   );
 
-const text = (entry: Sent) => PlainText.of(entry.message.text);
+/** Видимое содержимое: новое сообщение или правка на месте. */
+type Shown = Extract<MessengerEntry, { op: 'sent' | 'edited' }>;
 
+/** Показы собеседника по порядку: новые сообщения и правки на месте. */
+const visible = (
+  messenger: MemoryMessenger,
+  peer: string = WHO_A.peer,
+): Shown[] =>
+  messenger.journal.filter(
+    (entry): entry is Shown =>
+      (entry.op === 'sent' || entry.op === 'edited') && entry.peer === peer,
+  );
+
+const text = (entry: Shown) => PlainText.of(entry.message.text);
+
+/** Текст последнего показа: нового сообщения или правки на месте. */
 const lastText = (
   messenger: MemoryMessenger,
   peer: string = WHO_A.peer,
 ): string => {
-  const entry = sent(messenger, peer).at(-1);
+  const entry = visible(messenger, peer).at(-1);
   if (entry === undefined) throw new Error('сообщений нет');
   return text(entry);
 };
 
-/** Ссылка варианта `label` из самого свежего сообщения, где он есть. */
+/** Ссылка варианта `label` из самого свежего показа, где он есть. */
 const refOf = (messenger: MemoryMessenger, label: string): string => {
-  for (const entry of [...sent(messenger)].reverse()) {
+  for (const entry of [...visible(messenger)].reverse()) {
     const option = entry.message.options.find((o) => o.label === label);
     if (option !== undefined) return option.ref;
   }
@@ -604,7 +618,12 @@ describe('Conversations — пределы', () => {
         },
       },
     ]);
-    expect(node.messenger.journal.length).toBe(journal + 2);
+    // Вход сбивает положение: прежнее место уходит, экран — новым сообщением.
+    expect(node.messenger.journal.slice(journal).map((e) => e.op)).toEqual([
+      'answered',
+      'retired',
+      'sent',
+    ]);
     expect(lastText(node.messenger)).toContain('Мои задачи');
   });
 
@@ -645,7 +664,7 @@ describe('Conversations — пределы', () => {
     await w.create('Молоко');
     await w.bus.delivered();
     await node.conversations.settled();
-    const counts = peers.map((peer) => sent(node.messenger, peer).length);
+    const counts = peers.map((peer) => visible(node.messenger, peer).length);
     const before = refsOf(node.messenger, 'peer-1').length;
     await node.conversations.receive(
       w.signals.cancel({ peer: 'peer-1', sender: WHO_A.sender }),
@@ -720,9 +739,10 @@ describe('Conversations — независимость, лог и settled', () =
     expect(metas).toEqual(
       expect.arrayContaining([
         { messenger: 'memory-editing' },
+        // Текст сбивает положение: первой уходит `retire` прежнего места.
         {
           messenger: 'memory-editing',
-          operation: 'show',
+          operation: 'retire',
           reason: 'unavailable',
         },
         { messenger: 'memory-editing', kind: 'press', reason: 'signalId' },
@@ -747,7 +767,7 @@ describe('Conversations — независимость, лог и settled', () =
     await w.bus.delivered();
     await node.conversations.settled();
 
-    expect(sent(node.messenger)).toHaveLength(2);
+    expect(visible(node.messenger)).toHaveLength(2);
     expect(lastText(node.messenger)).toContain('Молоко');
   });
 
@@ -764,7 +784,7 @@ describe('Conversations — независимость, лог и settled', () =
     const second = w.node();
     await second.conversations.receive(w.signals.press(create, 'p-create'));
 
-    expect(sent(first.messenger)).toHaveLength(2);
+    expect(visible(first.messenger)).toHaveLength(2);
     expect(refreshed).toContain('Молоко');
     const texts = sent(second.messenger).map(text);
     expect(texts).toHaveLength(1);

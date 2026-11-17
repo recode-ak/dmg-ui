@@ -5,12 +5,14 @@ import type {
   MessageOption,
   MessengerCapabilities,
 } from 'dmg-ui/chat-ui';
+import type { ChatLine } from '..';
 import { MemoryMessenger } from './memory-messenger';
 
 // Подставной мессенджер в памяти: одна реализация порта, поведение выводится
 // из возможностей. Правка — только при `edit`; окно инициативы — по часам
 // теста; сообщение, которое страж изменил бы, и пустой текст без вариантов
 // отвергаются. Недоставка — значение и запись `undelivered` в журнале.
+// `chat` — тот же журнал глазами собеседника: что он видит и что ушло.
 
 const DAY = 86_400_000;
 const T0 = 1_700_000_000_000;
@@ -434,6 +436,78 @@ describe('MemoryMessenger — строгость к лимитам', () => {
     await expect(port.notify(B, HELLO)).resolves.toEqual(
       err({ reason: 'window' }),
     );
+  });
+});
+
+describe('MemoryMessenger.chat — беседа глазами собеседника', () => {
+  test('сообщения по порядку появления с последним содержимым и числом правок', async () => {
+    const port = MemoryMessenger.editing();
+    const asked = message('Выбери', [option(1)]);
+    await port.show(A, HELLO);
+    await port.show(A, asked);
+    await port.update(A, 'm1', BYE);
+    await port.update(A, 'm1', asked);
+
+    const lines: readonly ChatLine[] = port.chat(A);
+
+    expect(lines).toStrictEqual([
+      { handle: 'm1', message: asked, edits: 2, retired: false },
+      { handle: 'm2', message: asked, edits: 0, retired: false },
+    ]);
+  });
+
+  test('уход сообщения — признак и ссылка нажатого; без нажатого — без поля chosen', async () => {
+    const port = MemoryMessenger.editing();
+    const asked = message('Выбери', [option(1), option(2)]);
+    await port.show(A, asked);
+    await port.show(A, asked);
+    await port.retire(A, 'm1', asked, 'r2');
+    await port.retire(A, 'm2', asked);
+
+    expect(port.chat(A)).toStrictEqual([
+      { handle: 'm1', message: asked, edits: 0, retired: true, chosen: 'r2' },
+      { handle: 'm2', message: asked, edits: 0, retired: true },
+    ]);
+  });
+
+  test('собеседники раздельны: у каждого свои сообщения, правки и уход', async () => {
+    const port = MemoryMessenger.editing();
+    await port.show(A, HELLO);
+    await port.show(B, HELLO);
+    await port.update(B, 'm2', BYE);
+    await port.retire(A, 'm1', HELLO);
+
+    expect(port.chat(A)).toStrictEqual([
+      { handle: 'm1', message: HELLO, edits: 0, retired: true },
+    ]);
+    expect(port.chat(B)).toStrictEqual([
+      { handle: 'm2', message: BYE, edits: 1, retired: false },
+    ]);
+    expect(port.chat('peer-c')).toEqual([]);
+  });
+
+  test('windowed: update — новая строка, прежняя без правок; retire ухода не отмечает', async () => {
+    const port = MemoryMessenger.windowed(() => T0);
+    await port.show(A, HELLO);
+    await port.update(A, 'm1', BYE);
+    await port.retire(A, 'm1', HELLO, 'r1');
+
+    expect(port.chat(A)).toStrictEqual([
+      { handle: 'm1', message: HELLO, edits: 0, retired: false },
+      { handle: 'm2', message: BYE, edits: 0, retired: false },
+    ]);
+  });
+
+  test('уведомление — строка беседы; недоставка и ответ на нажатие строк не дают', async () => {
+    const port = MemoryMessenger.editing();
+    await port.notify(A, HELLO);
+    port.failNext('unavailable');
+    await port.show(A, BYE);
+    await port.answer(A, 'press-1', 'Принято');
+
+    expect(port.chat(A)).toStrictEqual([
+      { handle: 'm1', message: HELLO, edits: 0, retired: false },
+    ]);
   });
 });
 

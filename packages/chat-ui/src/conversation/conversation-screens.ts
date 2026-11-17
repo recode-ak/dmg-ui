@@ -6,35 +6,31 @@ import {
   type InstanceJson,
   type ScreenInstance,
 } from 'dmg-ui';
-import type { Message } from '../message/message.types';
-import { PlainText } from '../message/plain-text';
-import type { MessageHandle, SendOptions } from '../messenger/messenger.types';
+import type { SendOptions } from '../messenger/messenger.types';
 import type { ScreenComposer } from '../view/screen-composer';
-import { CONVERSATION_TEXTS, MAX_HANDLES } from './conversation.const';
+import { CONVERSATION_TEXTS } from './conversation.const';
 import type {
   ConversationSpec,
   LiveScreenJson,
   Serial,
 } from './conversation.types';
-import type { ConversationLog } from './conversation-log';
+import type { ConversationOutput } from './conversation-output';
 import type { ConversationReplies } from './conversation-replies';
 import type { RefTable } from './ref-table';
 import { ScreenFingerprint } from './screen-fingerprint';
 
-/** Живой экран беседы: номер, экземпляр ядра, отпечаток показанного и его сообщения. */
+/** Живой экран беседы: номер, экземпляр ядра, отпечаток показанного и страница вариантов. */
 type LiveScreen = {
   readonly serial: Serial;
   readonly instance: ScreenInstance;
   readonly unlisten: () => void;
   shown: string;
-  handles: MessageHandle[];
   page: number;
 };
 
-/** Показанное живого экрана: отпечаток, сообщения, страница вариантов. */
+/** Показанное живого экрана: отпечаток и страница вариантов. */
 type ShownState = {
   readonly shown: string;
-  readonly handles: readonly MessageHandle[];
   readonly page: number;
 };
 
@@ -44,8 +40,9 @@ type ScreensParts = {
   /** Вид → показ представления; путь беседа пока не ведёт — «Назад» нет. */
   readonly composer: ScreenComposer;
   readonly replies: ConversationReplies;
+  /** Живое место: показ вида, заметки, реакции на нажатие. */
+  readonly output: ConversationOutput;
   readonly refs: RefTable;
-  readonly log: ConversationLog;
   /** Экземпляр перечитан по событию: беседа ставит показ в свою очередь. */
   readonly refreshed: (instance: ScreenInstance) => void;
   /** Вид экрана снимка совпал с показанным: ревизия `to` вместо прежней — для черновика беседы. */
@@ -54,7 +51,7 @@ type ScreensParts = {
 
 /**
  * Живой экран беседы (D-UI-46): открытие и восстановление экземпляра ядра,
- * показ вида и заметок новым сообщением, номера экранов. Экран снимка
+ * сборка показа вида в живое место, номера экранов. Экран снимка
  * поднимается лениво, на первом сигнале: отпечаток вида совпал с показанным —
  * ссылки экрана переходят на ревизию восстановленного экземпляра.
  */
@@ -87,7 +84,7 @@ export class ConversationScreens {
   > {
     const live = this.live;
     if (live !== undefined && live.serial === serial) return live;
-    await this.note(CONVERSATION_TEXTS.closed);
+    await this.parts.output.react(CONVERSATION_TEXTS.closed);
     return undefined;
   }
 
@@ -115,7 +112,7 @@ export class ConversationScreens {
     const restored = await this.restore(pending.instance, trace);
     this.pending = undefined;
     if (restored === undefined) {
-      await this.note(CONVERSATION_TEXTS.notRestored);
+      await this.parts.output.note(CONVERSATION_TEXTS.notRestored);
       return false;
     }
     const view = restored.view();
@@ -136,7 +133,7 @@ export class ConversationScreens {
     const restored = await this.restore(json, trace);
     this.pending = undefined;
     if (restored === undefined) {
-      await this.note(CONVERSATION_TEXTS.notRestored);
+      await this.parts.output.note(CONVERSATION_TEXTS.notRestored);
       await this.home(trace);
       return;
     }
@@ -148,15 +145,15 @@ export class ConversationScreens {
   async openJson(json: AddressJson, trace: Trace): Promise<void> {
     const address = this.codec.decode(json);
     if (!address.ok) {
-      await this.note(CONVERSATION_TEXTS.notRestored);
+      await this.parts.output.note(CONVERSATION_TEXTS.notRestored);
       await this.home(trace);
       return;
     }
     await this.open(address.value, trace);
   }
 
-  /** Вход «в начало». */
-  async home(trace: Trace): Promise<void> {
+  /** Вход «в начало»; `lead` — текст перед видом входа (выход сторис). */
+  async home(trace: Trace, lead?: string): Promise<void> {
     const { app, home } = this.parts.spec;
     const entry = app.entries[home];
     if (entry === undefined) {
@@ -164,20 +161,20 @@ export class ConversationScreens {
         `Conversation: у приложения ${app.name} нет входа ${home}`,
       );
     }
-    await this.open(entry.address, trace);
+    await this.open(entry.address, trace, lead);
   }
 
-  async open(address: Address, trace: Trace): Promise<void> {
+  async open(address: Address, trace: Trace, lead?: string): Promise<void> {
     const { runtime, contexts } = this.parts.spec;
     const instance = await runtime.open(address, {
       context: await contexts.context(trace),
       trace: trace.toJSON(),
     });
     this.replace(instance);
-    await this.show();
+    await this.show(lead);
   }
 
-  /** Вид живого экрана новыми сообщениями по порядку; `lead` — заметка перед видом. */
+  /** Вид живого экрана в живое место; `lead` — заметка перед видом. */
   async show(lead?: string, send?: SendOptions): Promise<void> {
     const live = this.live;
     if (live === undefined) return;
@@ -191,19 +188,14 @@ export class ConversationScreens {
       live.page,
     );
     live.shown = await ScreenFingerprint.of(composed.messages);
-    for (const message of messages) {
-      const handle = await this.send(message, send);
-      if (handle !== undefined) {
-        live.handles = [...live.handles, handle].slice(-MAX_HANDLES);
-      }
-    }
+    await this.parts.output.view(live.serial, messages, composed.history, send);
   }
 
   /** Страница вариантов живого экрана `serial` («Ещё»); чужой экран — «Экран уже закрыт.». */
   async turn(serial: Serial, page: number): Promise<void> {
     const live = this.live;
     if (live === undefined || live.serial !== serial) {
-      await this.note(CONVERSATION_TEXTS.closed);
+      await this.parts.output.react(CONVERSATION_TEXTS.closed);
       return;
     }
     live.page = page;
@@ -216,40 +208,27 @@ export class ConversationScreens {
     await this.show(undefined, { initiative: true });
   }
 
-  async note(text: string): Promise<void> {
-    await this.send(this.parts.replies.note(text));
-  }
-
-  /** Новое сообщение; пустое в порт не уходит, недоставка — `warn` без данных. */
-  async send(
-    message: Message,
-    send?: SendOptions,
-  ): Promise<MessageHandle | undefined> {
-    if (message.options.length === 0 && PlainText.of(message.text) === '') {
-      return undefined;
-    }
-    const { messenger, peer } = this.parts.spec;
-    const delivery = await messenger.show(peer, message, send);
-    if (delivery.ok) return delivery.value;
-    this.parts.log.undelivered('show', delivery.error.reason);
-    return undefined;
-  }
-
   /** Снимок экземпляра живого экрана. */
   instance(): InstanceJson | undefined {
     return this.live?.instance.snapshot();
   }
 
-  /** Для снимка беседы: живой экран или ещё не поднятый экран снимка. */
+  /** Для снимка беседы: живой экран или ещё не поднятый экран снимка; место — от живого места. */
   toJSON(): LiveScreenJson | undefined {
     const live = this.live;
-    if (live === undefined) return this.pending;
+    const place = this.parts.output.toJSON();
+    if (live === undefined) {
+      const pending = this.pending;
+      if (pending === undefined) return undefined;
+      const { serial, instance, shown, page } = pending;
+      return { serial, instance, shown, page, ...place };
+    }
     return {
       serial: live.serial,
       instance: live.instance.snapshot(),
       shown: live.shown,
-      handles: [...live.handles],
       page: live.page,
+      ...place,
     };
   }
 
@@ -272,7 +251,7 @@ export class ConversationScreens {
 
   /** Новый живой экран со следующим номером; прежний закрыт. */
   private replace(instance: ScreenInstance): void {
-    this.attach(instance, this.issue(), { shown: '', handles: [], page: 0 });
+    this.attach(instance, this.issue(), { shown: '', page: 0 });
   }
 
   private attach(
@@ -291,7 +270,6 @@ export class ConversationScreens {
       instance,
       unlisten,
       shown: from.shown,
-      handles: [...from.handles],
       page: from.page,
     };
   }

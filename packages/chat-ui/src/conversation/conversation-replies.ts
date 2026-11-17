@@ -114,7 +114,7 @@ export class ConversationReplies {
   }
 
   /** Текст выхода из Def экрана: подпись и описание. */
-  exit(view: InstanceView, exit: string): Message {
+  exit(view: InstanceView, exit: string): string {
     const def = this.def(view.screen);
     const found = Object.entries(def.exits).find(
       ([name]) => name === exit,
@@ -124,9 +124,7 @@ export class ConversationReplies {
         `ConversationReplies: у экрана ${view.screen} нет выхода ${exit}`,
       );
     }
-    return this.note(
-      ConversationReplies.join([found.label, found.description]),
-    );
+    return ConversationReplies.join([found.label, found.description]);
   }
 
   /** Подтверждение действия: «Да» исполняет с собранным входом, «Нет» — вид снова. */

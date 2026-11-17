@@ -9,6 +9,7 @@ import type { ScreenComposer } from '../view/screen-composer';
 import { CONVERSATION_TEXTS } from './conversation.const';
 import type { Serial } from './conversation.types';
 import type { ConversationInput } from './conversation-input';
+import type { ConversationOutput } from './conversation-output';
 import type { ConversationReplies } from './conversation-replies';
 import type { ConversationScreens } from './conversation-screens';
 import type { InputDraft } from './input-draft';
@@ -31,6 +32,8 @@ export type ActTarget = {
 type OutcomeParts = {
   readonly screens: ConversationScreens;
   readonly replies: ConversationReplies;
+  /** Живое место: шаг подтверждения и реакции на нажатие. */
+  readonly output: ConversationOutput;
   /** Текст отказа: у кода из `catches` — текст представления. */
   readonly composer: ScreenComposer;
   /** Черновик беседы — для повтора поля по отвергнутому входу. */
@@ -38,10 +41,11 @@ type OutcomeParts = {
 };
 
 /**
- * Исполнение действия живого экрана и политика по исходу ядра (таблица
- * политик исходов — гайд `channel-package.md`): переход, вид снова, выход
- * во вход «в начало», подтверждение, отказ, отвергнутый вход с повтором
- * поля черновика. Неизвестный исход — дефект беседы, бросок (ERR-06).
+ * Исполнение действия живого экрана и политика по исходу ядра (D-UI-54):
+ * переход, вид снова, выход во вход «в начало» с текстом выхода перед видом,
+ * подтверждение шагом в место, отказ, отвергнутый вход с повтором поля
+ * черновика, недоступное — реакцией на нажатие; таблица — гайд
+ * `channel-package.md`. Неизвестный исход — дефект беседы, бросок (ERR-06).
  */
 export class ConversationOutcomes {
   constructor(private readonly parts: OutcomeParts) {}
@@ -125,7 +129,7 @@ export class ConversationOutcomes {
     trace: Trace,
     draft: InputDraft | undefined,
   ): Promise<void> {
-    const { screens, replies } = this.parts;
+    const { screens, replies, output } = this.parts;
     const { instance } = on;
     switch (outcome.kind) {
       case 'moved':
@@ -135,11 +139,10 @@ export class ConversationOutcomes {
         await screens.show();
         return;
       case 'exited':
-        await screens.send(replies.exit(instance.view(), outcome.exit));
-        await screens.home(trace);
+        await screens.home(trace, replies.exit(instance.view(), outcome.exit));
         return;
       case 'confirm':
-        await screens.send(
+        await output.step(
           replies.confirm(outcome.label, outcome.description, {
             screen: on.serial,
             revision: target.revision,
@@ -185,7 +188,7 @@ export class ConversationOutcomes {
         'Conversation: ссылка на действие, которого нет у экрана',
       );
     }
-    await this.parts.screens.note(
+    await this.parts.output.react(
       reason === 'closed'
         ? CONVERSATION_TEXTS.closed
         : CONVERSATION_TEXTS.unavailable,

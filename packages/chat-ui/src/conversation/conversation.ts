@@ -26,6 +26,7 @@ import type {
 import { ConversationInput } from './conversation-input';
 import { ConversationLog } from './conversation-log';
 import { ConversationOutcomes } from './conversation-outcomes';
+import { ConversationOutput } from './conversation-output';
 import { ConversationQueue } from './conversation-queue';
 import { ConversationReplies } from './conversation-replies';
 import { ConversationScreens } from './conversation-screens';
@@ -48,6 +49,7 @@ export class Conversation {
   private readonly seen: SeenSignals;
   private readonly replies: ConversationReplies;
   private readonly log: ConversationLog;
+  private readonly output: ConversationOutput;
   private readonly screens: ConversationScreens;
   private readonly input: ConversationInput;
   private readonly outcomes: ConversationOutcomes;
@@ -72,13 +74,22 @@ export class Conversation {
       spec.views,
       spec.messenger.capabilities,
     );
+    this.output = new ConversationOutput(
+      {
+        messenger: spec.messenger,
+        peer: spec.peer,
+        replies: this.replies,
+        log: this.log,
+      },
+      snapshot?.screen,
+    );
     this.screens = new ConversationScreens(
       {
         spec,
         composer,
         replies: this.replies,
+        output: this.output,
         refs: this.refs,
-        log: this.log,
         refreshed: (instance) => this.refreshed(instance),
         rebased: (serial, from, to) => this.input.rebase(serial, from, to),
       },
@@ -89,6 +100,7 @@ export class Conversation {
       {
         screens: this.screens,
         replies: this.replies,
+        output: this.output,
         run: (draft, input, trace) => this.outcomes.run(draft, input, trace),
       },
       snapshot?.draft,
@@ -96,6 +108,7 @@ export class Conversation {
     this.outcomes = new ConversationOutcomes({
       screens: this.screens,
       replies: this.replies,
+      output: this.output,
       composer,
       input: this.input,
     });
@@ -134,14 +147,22 @@ export class Conversation {
     return undefined;
   }
 
-  /** Сигнал в очередь; повтор id — false и ничего. Дефект беседы — бросок наружу. */
+  /**
+   * Сигнал в очередь; повтор id — false и ничего. На нажатие — ровно один
+   * ответ, последней операцией: с текстом реакции, если она его дала; при
+   * дефекте — без текста. Дефект беседы — бросок наружу.
+   */
   receive(signal: ConversationSignal): Promise<boolean> {
     if (!this.seen.accept(signal.id)) return Promise.resolve(false);
     return this.queue.run(async () => {
+      this.output.begin(signal);
+      let done = false;
       try {
         await this.handle(signal);
+        done = true;
       } finally {
-        if (signal.kind === 'press') await this.answer(signal.press);
+        const reply = this.output.end(done);
+        if (signal.kind === 'press') await this.answer(signal.press, reply);
       }
       return true;
     });
@@ -216,7 +237,7 @@ export class Conversation {
         await this.press(signal.ref, trace);
         return;
       case 'attachment':
-        await this.screens.note(CONVERSATION_TEXTS.attachment);
+        await this.output.note(CONVERSATION_TEXTS.attachment);
         return;
       case 'cancel':
         await this.screens.show(
@@ -237,7 +258,7 @@ export class Conversation {
     // Имя входа — внешние данные: `constructor` и прочие имена прототипа — не вход.
     const entry = Object.hasOwn(entries, name) ? entries[name] : undefined;
     if (entry === undefined) {
-      await this.screens.note(CONVERSATION_TEXTS.noEntry);
+      await this.output.note(CONVERSATION_TEXTS.noEntry);
       return;
     }
     await this.screens.open(entry.address, trace);
@@ -247,7 +268,7 @@ export class Conversation {
   private async press(ref: string, trace: Trace): Promise<void> {
     const entry = this.refs.entry(ref);
     if (entry === undefined) {
-      await this.screens.note(CONVERSATION_TEXTS.unknownRef);
+      await this.output.react(CONVERSATION_TEXTS.unknownRef);
       return;
     }
     // Шаг черновика — его дело; любой другой вариант черновик сбрасывает.
@@ -342,8 +363,9 @@ export class Conversation {
       });
   }
 
-  private async answer(press: string): Promise<void> {
-    const delivery = await this.spec.messenger.answer(this.spec.peer, press);
+  private async answer(press: string, text?: string): Promise<void> {
+    const { messenger, peer } = this.spec;
+    const delivery = await messenger.answer(peer, press, text);
     if (!delivery.ok) this.log.undelivered('answer', delivery.error.reason);
   }
 }
