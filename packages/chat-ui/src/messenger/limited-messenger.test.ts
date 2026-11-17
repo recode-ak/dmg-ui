@@ -162,29 +162,6 @@ describe('LimitedMessenger', () => {
     ]);
   });
 
-  test('лимит текста без вариантов — warn с limit text', async () => {
-    const port = MemoryMessenger.windowed(() => T0);
-    const { guard, logger } = guarded(port);
-
-    await guard.show(PEER, message('a'.repeat(5000)));
-
-    expect(logger.records).toStrictEqual([
-      {
-        level: 'warn',
-        source: 'chat-ui',
-        message: LIMIT_TEXTS.trimmed,
-        meta: {
-          messenger: port.capabilities.name,
-          operation: 'show',
-          limit: 'text',
-          unit: 'codePoint',
-          max: 4096,
-          length: 5000,
-        },
-      },
-    ]);
-  });
-
   test('лишние варианты — error с числом вариантов и пределом', async () => {
     const port = MemoryMessenger.windowed(() => T0);
     const { guard, logger } = guarded(port);

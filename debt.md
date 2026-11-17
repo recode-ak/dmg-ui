@@ -80,16 +80,10 @@
 - **Суть:** то же самое проверяет тест графа учебного приложения в `dmg-core` (`app-graph.test.ts`). Тест оставлен как опора на внешний пакет: он падает, если в среде окажется версия платформы без нужного признака `visible`.
 - **Триггер:** следующая чистка тестов.
 
-### DEBT-UI-16: учебный диалог — фасад над беседой с репликами `DialogReply`
-- **Место:** `packages/chat-ui/src/dialog/dialog.ts` (`Dialog`), `packages/chat-ui/src/dialog/reply-messenger.ts` (`ReplyMessenger`).
-- **Суть:** сторис, приёмка и тесты диалога идут через фасад: беседа показывает через мессенджер реплик, который превращает сообщение в строку и варианты, а не через подставные мессенджеры. Политики показа на двух мессенджерах эти тесты не проверяют; две формы показа (`DialogReply` и `Message`) живут рядом.
-- **Погашает:** перевод сторис, приёмки и тестов политик на беседу с подставными мессенджерами и уведомления беседы — фасад удаляется.
-- **Лишний тест (TST-08):** в `packages/chat-ui/src/dialog/dialog.test.ts` тесты «moved — новый живой экран, прежний закрыт: старая ссылка — «Экран уже закрыт»», «stale — старая ссылка после перечитывания: «Экран обновился»» и «перечитывание по событию — новая реплика с видом без входящего сигнала» повторяют сценарии `packages/chat-ui/src/conversation/conversation.test.ts`; дубль живёт, пока жив фасад, и удаляется вместе с ним.
-
-### DEBT-UI-17: лишний тест (TST-08): дубли в тестах границы мессенджеров и стража
-- **Место:** `packages/chat-ui/testing/messengers/messengers-boundary.test.ts` — схема и круг JSON наборов повторяют `capabilities-schema.test.ts`, журналы сценария повторяют `memory-messenger.test.ts`, `windowed` через страж повторяет `limited-messenger.test.ts`; `packages/chat-ui/src/messenger/limited-messenger.test.ts` — запись с `limit: 'text'` повторяет тест точного `meta` и `message-fit.test.ts`.
-- **Суть:** дубли закрепляют различимость подставных мессенджеров одним именованным тестом, но удваивают правку при смене наборов.
-- **Триггер:** беседа получает собственные сценарии на двух подставных мессенджерах либо правка наборов возможностей.
+### DEBT-UI-16: учебный диалог — фасад над беседой для уведомлений и снимка экземпляра
+- **Место:** `packages/chat-ui/src/dialog/dialog.ts` (`Dialog`), `packages/chat-ui/src/dialog/dialog-channel.ts` (`DialogChannel`), `packages/chat-ui/src/dialog/dialog-delivery.ts` (`DialogDelivery`), `packages/chat-ui/src/dialog/reply-messenger.ts` (`ReplyMessenger`).
+- **Суть:** фасад нужен только уведомлениям (входящие реплики `DialogReply`, отсев `DialogDelivery`) и снимку экземпляра (`suspend`/`resume`): у беседы нет своей доставки уведомлений. Пока фасад жив, рядом живут две формы показа (`DialogReply` и `Message`), а текст уведомления проверяет тест фасада, а не сторис.
+- **Погашает:** уведомления беседы `chat-ui` — фасад удаляется.
 
 ### DEBT-UI-18: действие может исполниться дважды
 - **Место:** `packages/chat-ui/src/conversation/conversations.ts` (`Conversations`) — снимок пишется после сигнала; `packages/chat-ui/src/conversation/seen-signals.ts` — отсев повтора по id из снимка.

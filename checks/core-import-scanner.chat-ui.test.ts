@@ -103,9 +103,9 @@ describe('CoreImportScanner — тестовый вход канала (packages
   it('*.test.ts тестового входа — вне зоны', () => {
     const text = "import { test } from 'bun:test';\nimport 'node:fs';";
 
-    expect(scan(text, 'packages/chat-ui/testing/dialog-story.test.ts')).toEqual(
-      [],
-    );
+    expect(
+      scan(text, 'packages/chat-ui/testing/conversation-story.test.ts'),
+    ).toEqual([]);
   });
 });
 

@@ -13,12 +13,22 @@ import {
   ListTasksUcDef,
   TodoModuleDef,
 } from 'dmg-core/testing/example';
-import { type Dialog, DialogChannel } from 'dmg-ui/chat-ui';
+import {
+  type ConversationSignal,
+  Conversations,
+  MemoryConversationStore,
+} from 'dmg-ui/chat-ui';
 import {
   ExampleDialogAppDef,
   exampleDialogViews,
+  MemoryMessenger,
 } from 'dmg-ui/chat-ui/testing';
-import { ApiAppDispatch, UiNotifier, UiServer } from 'dmg-ui/server';
+import {
+  ApiAppDispatch,
+  type PersonPlaces,
+  UiNotifier,
+  UiServer,
+} from 'dmg-ui/server';
 import {
   ExamplePagesAppDef,
   ExampleUiSetDef,
@@ -34,11 +44,15 @@ import { T0 } from 'dmg-ui/testing/fixtures';
 
 // Приёмка нейтральности ядра: один сценарий сторис
 // `finishTasks` — создать задачу, открыть карточку, выполнить — на двух
-// каналах, диалоговом и страничном, над одним кодом, экранами и сторис.
-// Лог операций не сравнивается: страничный канал держит открытым и
-// перечитывает список.
+// каналах, диалоговом (беседа на подставном мессенджере) и страничном, над
+// одним кодом, экранами и сторис. Лог операций не сравнивается: страничный
+// канал держит открытым и перечитывает список.
 
 const A = testUuid(1);
+const WHO_A = { peer: 'peer-a', sender: 'sender-a' } as const;
+const places: PersonPlaces = {
+  place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
+};
 const TITLE = 'Хлеб';
 const tmp = useTempDir('dmg-ui-channels-story-');
 
@@ -85,25 +99,33 @@ const tasksOf = async (example: ExampleApp) => {
   return result.value.map((t) => ({ title: t.title, status: t.status }));
 };
 
-const pressLabel = (dialog: Dialog, label: string) => {
-  for (const reply of [...dialog.replies].reverse()) {
-    const option = reply.options.find((o) => o.label === label);
-    if (option !== undefined) return dialog.press(option.ref);
-  }
-  throw new Error(`нет варианта «${label}»`);
+/** Ссылка варианта `label` живого места — последнего неушедшего сообщения с вариантами. */
+const refOf = (messenger: MemoryMessenger, label: string): string => {
+  const place = [...messenger.chat(WHO_A.peer)]
+    .reverse()
+    .find((line) => !line.retired && line.message.options.length > 0);
+  const option = place?.message.options.find((o) => o.label === label);
+  if (option === undefined) throw new Error(`нет варианта «${label}»`);
+  return option.ref;
 };
 
-/** Сценарий на диалоговом канале. */
+/** Сценарий на диалоговом канале: беседа на подставном мессенджере. */
 const onDialog = async () => {
   const w = base('dialog');
   const codes = exampleCodes();
-  const channel = new DialogChannel({
+  const messenger = MemoryMessenger.editing();
+  const conversations = new Conversations({
     app: ExampleDialogAppDef,
     codes,
     server: w.server,
     views: exampleDialogViews,
     observer: w.observer,
-    identities: () => w.example.callers,
+    messenger,
+    store: new MemoryConversationStore(),
+    logger: w.context.logger,
+    people: async (sender) => (sender === WHO_A.sender ? A : undefined),
+    callers: w.example.callers,
+    places,
     requestIds: counter(),
   });
   new UiNotifier({
@@ -111,17 +133,30 @@ const onDialog = async () => {
     codes,
     dispatch: w.dispatch,
     callers: w.example.callers,
-    delivery: channel.delivery,
+    delivery: { deliver: async () => {} },
     observer: w.observer,
     context: w.context,
   }).start();
-  const a = channel.person(A);
-  await a.start('start');
-  await a.say(TITLE);
-  await pressLabel(a, 'Открыть задачу');
-  await pressLabel(a, TITLE);
-  await pressLabel(a, 'Выполнить');
+  let ids = 0;
+  const head = () => {
+    ids += 1;
+    return { id: `s-${ids}`, ...WHO_A };
+  };
+  const send = (signal: ConversationSignal) => conversations.receive(signal);
+  const press = (label: string) =>
+    send({
+      ...head(),
+      kind: 'press',
+      ref: refOf(messenger, label),
+      press: `p-${ids}`,
+    });
+  await send({ ...head(), kind: 'enter', entry: 'start' });
+  await send({ ...head(), kind: 'text', text: TITLE });
+  await press('Открыть задачу');
+  await press(TITLE);
+  await press('Выполнить');
   await w.bus.delivered();
+  await conversations.settled();
   return w;
 };
 
