@@ -1,0 +1,1 @@
+Задача: правки по проверке кода беседы. Проверка: bun run check — 1527 pass, 0 fail, 117 файлов, 14 снимков. Файлы: conversation-output.ts, conversation-screens.ts, conversation.types.ts, conversation-replies.ts, screen-fingerprint.ts, view/screen-composer.ts; тесты: conversation-show, conversation-outcomes, conversation-path, conversation; docs/decisions.md.
