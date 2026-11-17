@@ -45,12 +45,15 @@ const MORE = VIEW_TEXTS.more;
 /** Подставной мессенджер, который помнит сообщения, пришедшие на `notify` (в том числе недошедшие). */
 class RecordingMessenger extends MemoryMessenger {
   readonly notified: Message[] = [];
+  /** Порт бросает на `notify` (дефект порта). */
+  broken: Error | undefined;
 
   override async notify(
     peer: string,
     message: Message,
   ): Promise<Delivery<MessageHandle>> {
     this.notified.push(message);
+    if (this.broken !== undefined) throw this.broken;
     return super.notify(peer, message);
   }
 }
@@ -485,6 +488,22 @@ describe.each(MESSENGERS)('уведомление беседы (%s)', (name, mak
     expect(Number.parseInt(later.slice(5), 36)).toBeGreaterThan(
       Number.parseInt(dropped.slice(5), 36),
     );
+  });
+
+  test('бросок порта notify: ссылки сняты, отсев и положение места прежние, бросок идёт наружу', async () => {
+    const s = sceneOf(make);
+    await s.enter('start');
+    const before = s.conversation.snapshot();
+    s.messenger.broken = new Error('port-mark-z3');
+
+    await expect(s.notify(assigned('e-1'))).rejects.toThrow('port-mark-z3');
+
+    const after = s.conversation.snapshot();
+    expect(s.messenger.notified).toHaveLength(1);
+    expect(after.refs).toEqual(before.refs);
+    expect(notifiedOf(s.conversation)).toEqual([]);
+    expect(after.screen?.latest).toBe(true);
+    expect(withNotified(after)).toEqual(withNotified(before));
   });
 
   test('в лог недошедшего данные не идут', async () => {

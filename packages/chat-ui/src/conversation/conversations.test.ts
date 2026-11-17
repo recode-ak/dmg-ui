@@ -39,7 +39,11 @@ import {
 } from '../../testing';
 import { PlainText } from '../message/plain-text';
 import type { OptionLimits } from '../messenger/messenger.types';
-import { CONVERSATION_TEXTS, MAX_PERSON_LENGTH } from './conversation.const';
+import {
+  CONVERSATION_TEXTS,
+  MAX_PEER_LENGTH,
+  MAX_PERSON_LENGTH,
+} from './conversation.const';
 import type {
   ConversationSignal,
   ConversationSnapshot,
@@ -664,6 +668,42 @@ describe('Conversations — пределы', () => {
       'sent',
     ]);
     expect(lastText(node.messenger)).toContain('Мои задачи');
+  });
+
+  test('пустой собеседник и длиннее MAX_PEER_LENGTH — сигнал отвергнут: не исполнен, хранилище не читается, запись без данных; ровно MAX_PEER_LENGTH — принят', async () => {
+    const w = world();
+    const spy = spied(w.store);
+    const node = w.node({ store: spy.store });
+    const edge = 'p'.repeat(MAX_PEER_LENGTH);
+
+    for (const peer of ['', 'p'.repeat(MAX_PEER_LENGTH + 1)]) {
+      await node.conversations.receive(
+        w.signals.enter('start', { peer, sender: WHO_A.sender }),
+      );
+    }
+    const rejected = [...node.messenger.journal];
+    const loads = [...spy.loads];
+    await node.conversations.receive(
+      w.signals.enter('start', { peer: edge, sender: WHO_A.sender }),
+    );
+
+    expect(rejected).toEqual([]);
+    expect(loads).toEqual([]);
+    expect(node.logger.records).toEqual([
+      {
+        level: 'warn',
+        source: 'chat-ui',
+        message: expect.any(String),
+        meta: { messenger: 'memory-editing', kind: 'enter', reason: 'peer' },
+      },
+      {
+        level: 'warn',
+        source: 'chat-ui',
+        message: expect.any(String),
+        meta: { messenger: 'memory-editing', kind: 'enter', reason: 'peer' },
+      },
+    ]);
+    expect(lastText(node.messenger, edge)).toContain('Мои задачи');
   });
 
   test('текст длиннее 65 536 символов — отвергнут без броска; ровно 65 536 — принят', async () => {
@@ -1387,6 +1427,209 @@ describe('Conversations — уведомления', () => {
       expect(log).not.toContain(mark);
     }
   });
+});
+
+/** Хранилище с учётом обращений: что читали и что писали. */
+const spied = (inner: ConversationStore) => {
+  const loads: string[] = [];
+  const saves: string[] = [];
+  const store: ConversationStore = {
+    load: (peer) => {
+      loads.push(peer);
+      return inner.load(peer);
+    },
+    save: (peer, snapshot) => {
+      saves.push(peer);
+      return inner.save(peer, snapshot);
+    },
+  };
+  return { store, loads, saves };
+};
+
+/** Эпоха ссылок последнего уведомления собеседнику: меняется, когда беседу подняли заново. */
+const epochOfNotice = (messenger: MemoryMessenger, peer: string) =>
+  notices(messenger, peer).at(-1)?.message.options[0]?.ref.slice(0, 5);
+
+/** Мессенджер, чей порт `notify` бросает. */
+class BrokenNotify extends MemoryMessenger {
+  constructor() {
+    super({
+      capabilities: MemoryMessenger.editing().capabilities,
+      clock: () => T0,
+    });
+  }
+
+  override async notify(): Promise<never> {
+    throw new Error('port-mark-z3');
+  }
+}
+
+describe('Conversations — уведомления: отказы и выгрузка', () => {
+  test('peers бросает — deliver не бросает, error с именем ошибки и операцией notify, ничего не доставлено', async () => {
+    const w = world();
+    const node = w.node({
+      peers: async () => {
+        throw new TypeError('peers-mark-z3');
+      },
+    });
+
+    await expect(
+      node.conversations.deliver(assigned(A, 'ev-mark-z3')),
+    ).resolves.toBeUndefined();
+
+    expect(node.messenger.journal).toEqual([]);
+    expect(node.logger.records).toMatchObject([
+      {
+        level: 'error',
+        meta: {
+          messenger: 'memory-editing',
+          operation: 'notify',
+          name: 'TypeError',
+        },
+      },
+    ]);
+    const log = JSON.stringify(node.logger.records);
+    for (const mark of ['mark-z3', A, 'Сыр']) expect(log).not.toContain(mark);
+  });
+
+  test('порт notify бросает — deliver не бросает, error, снимок не записан, беседа выгружена', async () => {
+    const w = world();
+    const spy = spied(w.store);
+    const node = w.node({
+      messenger: new BrokenNotify(),
+      store: spy.store,
+      limit: 1,
+    });
+
+    await expect(
+      node.conversations.deliver(assigned(A, 'ev-mark-z3')),
+    ).resolves.toBeUndefined();
+
+    expect(spy.saves).toEqual([]);
+    expect(node.logger.records).toMatchObject([
+      {
+        level: 'error',
+        meta: {
+          messenger: 'memory-editing',
+          operation: 'notify',
+          name: 'Error',
+        },
+      },
+    ]);
+    const log = JSON.stringify(node.logger.records);
+    for (const mark of ['mark-z3', A, 'Сыр']) expect(log).not.toContain(mark);
+  });
+
+  test('чужая личность у беседы в памяти — warn noticeForeign, ничего не доставлено', async () => {
+    const w = world();
+    const node = w.node({ peers: async () => WHO_B.peer });
+    await node.conversations.receive(w.signals.enter('start', WHO_B));
+    const before = node.messenger.journal.length;
+
+    await expect(
+      node.conversations.deliver(assigned(A, 'e-1')),
+    ).resolves.toBeUndefined();
+
+    expect(node.messenger.journal).toHaveLength(before);
+    expect(node.logger.records).toMatchObject([
+      {
+        level: 'warn',
+        message: CONVERSATION_TEXTS.noticeForeign,
+        meta: { messenger: 'memory-editing' },
+      },
+    ]);
+  });
+
+  test('у собеседника нет беседы и снимка — создаётся беседа получателя, уведомление доставлено, снимок с личностью получателя', async () => {
+    const w = world();
+    const node = w.node();
+
+    await node.conversations.deliver(assigned(B, 'e-1'));
+
+    expect(notices(node.messenger, WHO_B.peer)).toHaveLength(1);
+    const saved = await snapshotOf(w.store, WHO_B.peer);
+    expect(saved.person).toBe(B);
+    expect(saved.notified).toHaveLength(1);
+    expect(node.logger.records).toEqual([]);
+  });
+
+  test('недошедшее уведомление снимок не пишет', async () => {
+    const w = world();
+    const spy = spied(w.store);
+    const messenger = MemoryMessenger.editing();
+    const node = w.node({ messenger, store: spy.store });
+    messenger.failNext('unavailable');
+
+    await node.conversations.deliver(assigned(A, 'e-1'));
+
+    expect(notices(messenger)).toEqual([]);
+    expect(spy.saves).toEqual([]);
+    expect(node.logger.records).toMatchObject([
+      { level: 'warn', meta: { operation: 'notify', reason: 'unavailable' } },
+    ]);
+  });
+
+  test('после доставки беседа выгружается: бесед в памяти не больше предела', async () => {
+    const w = world();
+    const node = w.node({ limit: 1 });
+
+    await node.conversations.deliver(assigned(A, 'e-1'));
+    const first = epochOfNotice(node.messenger, WHO_A.peer);
+    await node.conversations.deliver(assigned(B, 'e-1'));
+    await node.conversations.deliver(assigned(A, 'e-2'));
+
+    // Беседа A была выгружена и поднята из хранилища: эпоха ссылок новая.
+    expect(first).toBeDefined();
+    expect(epochOfNotice(node.messenger, WHO_A.peer)).not.toBe(first);
+  });
+
+  test('бросок представления беседу в памяти не оставляет', async () => {
+    const w = world();
+    const node = w.node({ limit: 1 });
+
+    await node.conversations.deliver(assigned(A, 'e-1'));
+    const first = epochOfNotice(node.messenger, WHO_A.peer);
+    await node.conversations.deliver(
+      assigned(B, 'e-1', { data: { title: 4242917 } }),
+    );
+    await node.conversations.deliver(assigned(A, 'e-2'));
+
+    expect(epochOfNotice(node.messenger, WHO_A.peer)).not.toBe(first);
+    expect(node.logger.records).toMatchObject([
+      { level: 'error', meta: { operation: 'notify', name: 'ValiError' } },
+    ]);
+  });
+
+  test.each([
+    ['пустой', ''],
+    ['длиннее предела', 'x'.repeat(MAX_PEER_LENGTH + 1)],
+  ])(
+    'собеседник из peers %s — warn noPeer, хранилище не читается',
+    async (_, peer) => {
+      const w = world();
+      const spy = spied(w.store);
+      const node = w.node({ peers: async () => peer, store: spy.store });
+
+      await expect(
+        node.conversations.deliver(assigned(A, 'ev-mark-z3')),
+      ).resolves.toBeUndefined();
+
+      expect(spy.loads).toEqual([]);
+      expect(node.messenger.journal).toEqual([]);
+      expect(node.logger.records).toEqual([
+        {
+          level: 'warn',
+          source: 'chat-ui',
+          message: CONVERSATION_TEXTS.noPeer,
+          meta: { messenger: 'memory-editing' },
+        },
+      ]);
+      const log = JSON.stringify(node.logger.records);
+      for (const mark of ['mark-z3', A, 'xxxx']) {
+        expect(log).not.toContain(mark);
+      }
+    },
+  );
 });
 
 describe('Conversations — снимок экрана не восстановлен', () => {

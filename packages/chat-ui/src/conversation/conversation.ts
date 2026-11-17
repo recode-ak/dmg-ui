@@ -12,6 +12,7 @@ import type { MessengerCapabilities } from '../messenger/messenger.types';
 import { ScreenComposer } from '../view/screen-composer';
 import {
   CONVERSATION_TEXTS,
+  MAX_PEER_LENGTH,
   MAX_REF_LENGTH,
   MAX_SIGNAL_ID,
   MAX_SIGNAL_TEXT,
@@ -157,8 +158,16 @@ export class Conversation {
     }
   }
 
+  /** Собеседник годится: непустой, не длиннее `MAX_PEER_LENGTH` (сигнал и порт `peers`). */
+  static fitsPeer(peer: string): boolean {
+    return peer.length > 0 && peer.length <= MAX_PEER_LENGTH;
+  }
+
   /** Предел сигнала нарушен — причина; сигнал в пределах — `undefined`. */
-  static rejects(signal: ConversationSignal): 'signalId' | 'text' | undefined {
+  static rejects(
+    signal: ConversationSignal,
+  ): 'peer' | 'signalId' | 'text' | undefined {
+    if (!Conversation.fitsPeer(signal.peer)) return 'peer';
     if (signal.id.length > MAX_SIGNAL_ID) return 'signalId';
     if (signal.kind === 'text' && signal.text.length > MAX_SIGNAL_TEXT) {
       return 'text';

@@ -22,7 +22,7 @@ export class ConversationLog {
   /** Сигнал отвергнут по пределу длины id или текста. */
   rejected(
     kind: ConversationSignal['kind'],
-    reason: 'signalId' | 'text',
+    reason: 'peer' | 'signalId' | 'text',
   ): void {
     this.warn(CONVERSATION_TEXTS.signalRejected, { kind, reason });
   }

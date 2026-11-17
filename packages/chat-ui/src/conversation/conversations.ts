@@ -46,11 +46,12 @@ const LATER: Message = {
 };
 
 /**
- * Узел бесед одного приложения мессенджера (D-UI-43): личность отправителя —
- * только порт `people`, беседа — в памяти или из хранилища по схеме снимка;
- * хранилище не прочиталось — сигнал не исполняется. Снимок перед записью
- * проходит ту же схему и пишется после сигнала и проактивного показа; давняя нетронутая беседа сверх предела
- * выгружается. Внешний вход не бросает (ERR-01), лог без данных (ERR-07).
+ * Узел бесед одного приложения мессенджера (D-UI-43): принимает сигналы
+ * (`receive`) и уведомления (`deliver`). Личность отправителя — порт `people`,
+ * собеседник получателя — порт `peers`; беседа — в памяти или из хранилища по
+ * схеме снимка. Снимок пишется после сигнала, уведомления и проактивного
+ * показа; давняя беседа сверх предела выгружается. Входы не бросают
+ * (ERR-01), лог без данных (ERR-07).
  */
 export class Conversations<U extends Identified>
   implements NotificationDelivery
@@ -109,8 +110,11 @@ export class Conversations<U extends Identified>
         await this.answer(signal);
         return;
       }
-      await this.lines.run(signal.peer, () => this.handle(signal));
-      await this.unload(signal.peer);
+      try {
+        await this.lines.run(signal.peer, () => this.handle(signal));
+      } finally {
+        await this.unload(signal.peer);
+      }
     } catch (error) {
       this.log.defect({ kind: signal.kind }, error);
     }
@@ -127,12 +131,15 @@ export class Conversations<U extends Identified>
         return;
       }
       const peer = await this.spec.peers(notification.recipient);
-      if (peer === undefined) {
+      if (peer === undefined || !Conversation.fitsPeer(peer)) {
         this.log.noPeer();
         return;
       }
-      await this.lines.run(peer, () => this.notify(peer, notification));
-      await this.unload(peer);
+      try {
+        await this.lines.run(peer, () => this.notify(peer, notification));
+      } finally {
+        await this.unload(peer);
+      }
     } catch (error) {
       this.log.defect({ operation: 'notify' }, error);
     }
@@ -256,7 +263,7 @@ export class Conversations<U extends Identified>
     return { ok: true, snapshot: undefined };
   }
 
-  /** Сессия сервера и исполнитель личности — как у диалогового канала. */
+  /** Сессия сервера и исполнитель личности получателя. */
   private build(
     peer: string,
     uuid: string,

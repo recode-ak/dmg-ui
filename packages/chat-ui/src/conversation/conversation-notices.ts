@@ -46,13 +46,23 @@ export class ConversationNotices {
   ): Promise<'delivered' | 'repeat' | 'undelivered'> {
     const { messenger, peer, views, refs, replies, log, output } = this.parts;
     // Получатель — сама беседа: в ключ не входит; в снимок идёт хэш, не id события.
-    const key = await Sha256.hex(`${n.notification} ${n.cause.eventId}`);
+    const key = await Sha256.hex(
+      JSON.stringify([n.notification, n.cause.eventId]),
+    );
     if (this.seen.has(key)) return 'repeat';
     const text = views.notification(n.notification).text(n.data);
     const message: Message = replies.notice(text, n.links);
-    const delivery = await messenger.notify(peer, message);
+    const links = message.options.map((option) => option.ref);
+    let delivery: Awaited<ReturnType<typeof messenger.notify>>;
+    try {
+      delivery = await messenger.notify(peer, message);
+    } catch (error) {
+      // Бросок порта: ссылок в таблице не остаётся, бросок идёт к узлу.
+      refs.drop(links);
+      throw error;
+    }
     if (!delivery.ok) {
-      refs.drop(message.options.map((option) => option.ref));
+      refs.drop(links);
       log.undelivered('notify', delivery.error.reason);
       return 'undelivered';
     }

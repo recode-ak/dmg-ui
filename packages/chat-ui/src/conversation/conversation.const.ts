@@ -12,6 +12,9 @@ export const MAX_NOTIFIED = 128;
 /** Длина ключа отсева уведомления: SHA-256 в hex. */
 export const MAX_NOTIFIED_KEY = 64;
 
+/** Длина собеседника (`peer`) сигнала и порта `peers` в символах; пустой — не собеседник. */
+export const MAX_PEER_LENGTH = 256;
+
 /** Длина id сигнала в символах. */
 export const MAX_SIGNAL_ID = 256;
 
