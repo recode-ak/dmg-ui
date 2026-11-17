@@ -1,0 +1,4 @@
+Задача: аудит безопасности и ревью беседы — правки по находкам (error не было).
+Файлы: packages/chat-ui/src/conversation/{conversations.ts,conversation.ts,conversation-screens.ts,conversation-input.ts,conversation-outcomes.ts,conversation-replies.ts,conversation-log.ts,conversation-snapshot.ts,conversation.const.ts,conversation.types.ts,conversation-store.types.ts} и тесты conversations.test.ts, conversation.test.ts, conversation-snapshot.test.ts; packages/chat-ui/src/dialog/dialog.ts; packages/core/src/runtime/screen-instance.ts (комментарий); docs/decisions.md; docs/guides/channel-package.md; llms.txt; debt.md (DEBT-UI-18, DEBT-UI-19).
+Причина: сбой хранилища и портов не должен терять состояние беседы и пускать чужую личность мимо сверки владельца.
+Гейт: bun run check — 1382 pass, 0 fail, 113 файлов, 14 снимков (два прогона).
