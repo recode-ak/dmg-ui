@@ -187,6 +187,21 @@ describe('каталог правил и решения репо', () => {
     expect(inCatalog).toContain('CH-02: правила нет в коде');
   });
 
+  it('каталог видит CH-03 и в коде пакета, и в docs/reference/rules.md', () => {
+    const code = TextTree.read(ROOT, 'packages', ['.ts']).filter(
+      (f) => !f.path.endsWith('.test.ts'),
+    );
+    const inCode = catalog
+      .checkRules(code, file('empty.md', ''))
+      .map((v) => v.text);
+    const inCatalog = catalog
+      .checkRules([], read('docs/reference/rules.md'))
+      .map((v) => v.text);
+
+    expect(inCode).toContain('CH-03: правила нет в empty.md');
+    expect(inCatalog).toContain('CH-03: правила нет в коде');
+  });
+
   it('каждое D-UI-<n> из кода и документов определено в docs/decisions.md', () => {
     const optional = ['README.md', 'llms.txt', 'debt.md'].flatMap((path) => {
       const f = TextTree.file(ROOT, path);

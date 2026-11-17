@@ -1,9 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 import { ok } from 'dmg-core';
 import type { ArchApp } from 'dmg-core/arch';
-import { AppGraph, type Graph } from 'dmg-core/graph';
+import { AppGraph, DomainIds, type Graph } from 'dmg-core/graph';
 import { ExampleArch } from 'dmg-core/testing';
-import { ExampleAppDef } from 'dmg-core/testing/example';
+import {
+  CompleteTaskUcDef,
+  ExampleAppDef,
+  GetTaskUcDef,
+  RemoveUserUcDef,
+  TaskEvents,
+} from 'dmg-core/testing/example';
 import {
   type AnyUiAppDef,
   CodeLoader,
@@ -35,6 +41,7 @@ import {
   TaskAssignedView,
   TaskCompletedView,
 } from '../../testing/example/task-notes.view';
+import type { ChatCommunitySpec } from '../community/community.types';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
@@ -524,5 +531,225 @@ describe('ChatGraphProvider — ошибки сборки', () => {
 
     expect(message).toMatch(/exampleDialog/);
     expect(message).toMatch(/пример/);
+  });
+});
+
+// Сообщество: сигнал мессенджера — узел `chatSignal` под
+// приложением с ребром ядра `invokes` к объявленному UC; реакция — узел
+// `chatReaction` с рёбрами ядра `notifiedBy` к событию и `reads` к query UC.
+// Тип UC поставщик не проверяет: реакцию на command UC ловит UI-10.
+
+/** `id` узлов домена учебного приложения — концы рёбер сообщества. */
+const domain = new DomainIds(ExampleAppDef);
+
+/** Приложение сцены с манифестами сообщества. */
+type CommunityAppSpec = AppSpec & { readonly community?: ChatCommunitySpec };
+
+/** `exampleDialog` на `editing` с манифестами `community`. */
+const dialogWith = (community: ChatCommunitySpec): CommunityAppSpec => ({
+  ...dialogSpec(),
+  community,
+});
+
+/** Сигнал `left` → `removeUser`; человек — в поле `userId`. */
+const GONE = {
+  name: 'gone',
+  label: 'Участник вышел',
+  description: 'Участник вышел из группы — учётная запись удаляется.',
+  signal: 'left',
+  uc: RemoveUserUcDef,
+  input: { userId: 'person' },
+} as const;
+
+/** Реакция на `todo.task.assigned`: `getTask` → исключить владельца задачи. */
+const DROP = {
+  name: 'drop',
+  label: 'Исключить владельца',
+  description: 'Владелец назначенной задачи исключается из группы.',
+  event: TaskEvents.assigned,
+  uc: GetTaskUcDef,
+  input: { taskId: 'taskId' },
+  operation: 'exclude',
+  targets: { community: 'uuid', person: 'ownerId' },
+} as const;
+
+const COMMUNITY: ChatCommunitySpec = { signals: [GONE], reactions: [DROP] };
+
+/** Граф сцены: `exampleDialog` с сообществом `community`, `exampleWindowed` — без. */
+const communityGraph = (community: ChatCommunitySpec = COMMUNITY) =>
+  new AppGraph(sceneOf([dialogWith(community), windowedSpec()])).build();
+
+describe('ChatGraphProvider — сообщество: узлы', () => {
+  test('узлы chatSignal и chatReaction под приложением: id <app>/signal-<имя> и <app>/reaction-<имя>, props { signal } и { operation }, поставщик dmg-ui-chat', () => {
+    const built = communityGraph();
+
+    expect(childrenOf(built, DIALOG, 'chatSignal')).toEqual([
+      expect.objectContaining({
+        kind: 'chatSignal',
+        id: 'exampleDialog/signal-gone',
+        parent: DIALOG,
+        provider: 'dmg-ui-chat',
+        props: { signal: 'left' },
+      }),
+    ]);
+    expect(childrenOf(built, DIALOG, 'chatReaction')).toEqual([
+      expect.objectContaining({
+        kind: 'chatReaction',
+        id: 'exampleDialog/reaction-drop',
+        parent: DIALOG,
+        provider: 'dmg-ui-chat',
+        props: { operation: 'exclude' },
+      }),
+    ]);
+  });
+
+  test('приложение без community — узлов chatSignal и chatReaction под ним нет', () => {
+    const built = communityGraph();
+
+    expect(childrenOf(built, WINDOWED_APP, 'chatSignal')).toEqual([]);
+    expect(childrenOf(built, WINDOWED_APP, 'chatReaction')).toEqual([]);
+  });
+
+  test('виды поставщика — среди них chatSignal и chatReaction; рёбра сообщества — виды ядра, поставщик их не объявляет', () => {
+    const chat = new ChatGraphProvider({
+      apps: [dialogWith(COMMUNITY)],
+      examples: EXAMPLES,
+    });
+    const kinds = chat.kinds();
+
+    expect(kinds.nodes.map((kind) => kind.kind)).toEqual(
+      expect.arrayContaining(['chatSignal', 'chatReaction']),
+    );
+    const edges = kinds.edges.map((kind) => kind.kind);
+    expect(edges).not.toContain('invokes');
+    expect(edges).not.toContain('notifiedBy');
+    expect(edges).not.toContain('reads');
+  });
+
+  test('правила поставщика — ровно CH-01, CH-02 и CH-03', () => {
+    const chat = new ChatGraphProvider({
+      apps: [dialogSpec()],
+      examples: EXAMPLES,
+    });
+
+    expect(chat.rules().map((rule) => rule.id)).toEqual([
+      'CH-01',
+      'CH-02',
+      'CH-03',
+    ]);
+  });
+});
+
+describe('ChatGraphProvider — сообщество: рёбра', () => {
+  test('invokes ведёт от сигнала к UC сигнала, конец — DomainIds.operation', () => {
+    const built = communityGraph();
+
+    expect(targets(built, 'exampleDialog/signal-gone', 'invokes')).toEqual([
+      domain.operation(RemoveUserUcDef),
+    ]);
+  });
+
+  test('notifiedBy ведёт от реакции к событию, reads — к query UC реакции; концы по DomainIds', () => {
+    const built = communityGraph();
+
+    expect(targets(built, 'exampleDialog/reaction-drop', 'notifiedBy')).toEqual(
+      [domain.event(TaskEvents.assigned)],
+    );
+    expect(targets(built, 'exampleDialog/reaction-drop', 'reads')).toEqual([
+      domain.operation(GetTaskUcDef),
+    ]);
+  });
+
+  test('рёбра сообщества ставит поставщик dmg-ui-chat, других рёбер у узлов сообщества нет', () => {
+    const built = communityGraph();
+    const from = (id: string) =>
+      built
+        .edges()
+        .filter((edge) => edge.from === id)
+        .map((edge) => ({ kind: edge.kind, provider: edge.provider }))
+        .sort((a, b) => a.kind.localeCompare(b.kind));
+
+    expect(from('exampleDialog/signal-gone')).toEqual([
+      { kind: 'invokes', provider: 'dmg-ui-chat' },
+    ]);
+    expect(from('exampleDialog/reaction-drop')).toEqual([
+      { kind: 'notifiedBy', provider: 'dmg-ui-chat' },
+      { kind: 'reads', provider: 'dmg-ui-chat' },
+    ]);
+  });
+});
+
+describe('ChatGraphProvider — сообщество: правила ядра', () => {
+  test('реакция читает command UC — поставщик не бросает, UI-10 в отчёте, код 1', () => {
+    const scene = sceneOf([
+      dialogWith({ reactions: [{ ...DROP, uc: CompleteTaskUcDef }] }),
+    ]);
+
+    const report = ArchReport.of(scene);
+
+    expect(report.code).toBe(1);
+    expect(report.rule('UI-10')).toEqual([
+      `UI-10: exampleDialog/reaction-drop привязан к событию и вызывает command UC ${domain.operation(CompleteTaskUcDef)}`,
+    ]);
+  });
+
+  test('сообщество exampleDialog на мессенджере, который всё умеет, — arch:check без нарушений', () => {
+    const report = ArchReport.of(
+      sceneOf([dialogWith(COMMUNITY), windowedSpec()]),
+    );
+
+    expect(report.lines).toEqual([
+      'arch:check example: нарушений — 0',
+      'arch:check: нарушений нет',
+    ]);
+    expect(report.code).toBe(0);
+  });
+});
+
+describe('ChatGraphProvider — сообщество: документ графа', () => {
+  test('граф с сообществом собирается документом dmg-core graph: свойства chatSignal и chatReaction — JSON', () => {
+    const scene = sceneOf([dialogWith(COMMUNITY), windowedSpec()]);
+    const json: { nodes: { id: string; kind: string; props: unknown }[] } =
+      JSON.parse(new AppGraph(scene).document('0.0.0').serialize());
+    const community = json.nodes
+      .filter(
+        (node) => node.kind === 'chatSignal' || node.kind === 'chatReaction',
+      )
+      .map((node) => ({ id: node.id, kind: node.kind, props: node.props }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    expect(community).toEqual([
+      {
+        id: 'exampleDialog/reaction-drop',
+        kind: 'chatReaction',
+        props: { operation: 'exclude' },
+      },
+      {
+        id: 'exampleDialog/signal-gone',
+        kind: 'chatSignal',
+        props: { signal: 'left' },
+      },
+    ]);
+  });
+
+  test('граф примера без community: узлов сообщества и рёбер invokes, notifiedBy, reads поставщика dmg-ui-chat нет', () => {
+    const built = graph();
+
+    expect(
+      built
+        .nodes()
+        .filter(
+          (node) => node.kind === 'chatSignal' || node.kind === 'chatReaction',
+        ),
+    ).toEqual([]);
+    expect(
+      built
+        .edges()
+        .filter(
+          (edge) =>
+            edge.provider === 'dmg-ui-chat' &&
+            ['invokes', 'notifiedBy', 'reads'].includes(edge.kind),
+        ),
+    ).toEqual([]);
   });
 });

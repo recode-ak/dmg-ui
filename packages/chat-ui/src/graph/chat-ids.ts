@@ -29,6 +29,16 @@ export class ChatIds {
     return this.under(app, `point-${entry}-${n}`);
   }
 
+  /** Сигнал сообщества: `<app>/signal-<имя манифеста>`. */
+  signal(app: AnyUiAppDef, name: string): string {
+    return this.under(app, `signal-${name}`);
+  }
+
+  /** Реакция сообщества: `<app>/reaction-<имя манифеста>`. */
+  reaction(app: AnyUiAppDef, name: string): string {
+    return this.under(app, `reaction-${name}`);
+  }
+
   /** Имя входа из `id` узла `chatEntry`; `id` не этой формы — он сам. */
   static entryName(id: string): string {
     const segment = id.slice(id.lastIndexOf('/') + 1);

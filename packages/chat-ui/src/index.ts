@@ -3,8 +3,15 @@
 // намерениями, их реестр с перекрытием под мессенджер; сообщение, помощники
 // лимита, порт мессенджера, его возможности и страж лимитов; поставщик графа
 // общей части мессенджеров, его имя и примеры для его правил, рендерер
-// примеров; узел бесед доставляет и уведомления.
+// примеров, манифесты сообщества; узел бесед доставляет и уведомления.
 
+export type {
+  ChatCommunitySpec,
+  ChatReactionSpec,
+  ChatReactionTargets,
+  ChatSignalField,
+  ChatSignalSpec,
+} from './community/community.types';
 export type {
   Attachment,
   AttachmentKind,

@@ -3,6 +3,8 @@ import {
   CHAT_ENTRY_POINT_PROPS,
   CHAT_ENTRY_PROPS,
   CHAT_MESSENGER_PROPS,
+  CHAT_REACTION_PROPS,
+  CHAT_SIGNAL_PROPS,
 } from './chat-props';
 
 /** Имя поставщика графа общей части мессенджеров; не имя канала приложения. */
@@ -16,6 +18,8 @@ export const CHAT_NODE_KINDS = {
   messenger: 'chatMessenger',
   entry: 'chatEntry',
   point: 'chatEntryPoint',
+  signal: 'chatSignal',
+  reaction: 'chatReaction',
 } as const;
 
 /** Имена видов рёбер поставщика `dmg-ui-chat`; `opens` занято страничным каналом. */
@@ -24,7 +28,10 @@ export const CHAT_EDGE_KINDS = {
   opens: 'chatOpens',
 } as const;
 
-/** Виды узлов и рёбер поставщика `dmg-ui-chat`; данные, как `DOMAIN_KINDS`. */
+/**
+ * Виды узлов и рёбер поставщика `dmg-ui-chat`; данные, как `DOMAIN_KINDS`.
+ * Рёбра сообщества — виды ядра (`invokes`, `notifiedBy`, `reads`).
+ */
 export const CHAT_KINDS: GraphKinds = {
   nodes: [
     {
@@ -47,6 +54,20 @@ export const CHAT_KINDS: GraphKinds = {
       description:
         'Способ попасть на вход беседы; способ и ключ — слова пакета мессенджера.',
       props: CHAT_ENTRY_POINT_PROPS,
+    },
+    {
+      kind: CHAT_NODE_KINDS.signal,
+      label: 'Сигнал сообщества',
+      description:
+        'Сигнал мессенджера о группе, вызывающий объявленный command UC.',
+      props: CHAT_SIGNAL_PROPS,
+    },
+    {
+      kind: CHAT_NODE_KINDS.reaction,
+      label: 'Реакция сообщества',
+      description:
+        'Операция мессенджера над группой по событию домена; цель — из выхода query UC.',
+      props: CHAT_REACTION_PROPS,
     },
   ],
   edges: [

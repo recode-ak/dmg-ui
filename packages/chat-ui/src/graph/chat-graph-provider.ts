@@ -1,14 +1,16 @@
-import type {
-  GraphContribution,
-  GraphEdgeInput,
-  GraphKinds,
-  GraphNodeInput,
-  GraphProvider,
-  GraphRule,
+import {
+  DomainIds,
+  type GraphContribution,
+  type GraphEdgeInput,
+  type GraphKinds,
+  type GraphNodeInput,
+  type GraphProvider,
+  type GraphRule,
 } from 'dmg-core/graph';
-import { UiIds } from 'dmg-ui';
+import { type AnyUiAppDef, UiIds } from 'dmg-ui';
 import { UI_EDGE_KINDS } from 'dmg-ui/graph';
 import * as v from 'valibot';
+import { CommunityManifest } from '../community/community-manifest';
 import { MessengerCapabilitiesSchema } from '../messenger/capabilities-schema';
 import type {
   ChatAppSpec,
@@ -24,6 +26,7 @@ import {
   CHAT_PROVIDER,
   CHAT_VERSION,
 } from './chat-kinds';
+import { CommunityCapabilitiesRule } from './rules/community-capabilities.rule';
 import { EntryPointRule } from './rules/entry-point.rule';
 import { ExampleLimitsRule } from './rules/example-limits.rule';
 
@@ -35,19 +38,27 @@ export type {
 
 /**
  * Поставщик графа общей части мессенджеров (D-UI-57) — один на все
- * приложения: под приложением UI узел `chatMessenger`, входы `chatEntry`
- * (ребро `chatEnters`), точки входа `chatEntryPoint` (ребро `chatOpens`),
- * рёбра `presents` — от реестра; правила CH-01, CH-02. Повтор приложения,
- * реестр или примеры другого набора, возможности не по схеме, точка на
- * несуществующий вход — бросок.
+ * приложения: под приложением UI узлы `chatMessenger`, `chatEntry`,
+ * `chatEntryPoint`, сигналы `chatSignal` и реакции `chatReaction` сообщества;
+ * рёбра `presents` — от реестра; правила CH-01…CH-03. Бросок — повтор
+ * приложения, реестр или примеры другого набора, возможности не по схеме,
+ * точка на несуществующий вход, манифест не прошёл `CommunityManifest`.
  */
 export class ChatGraphProvider implements GraphProvider {
   readonly name = CHAT_PROVIDER;
   readonly version = CHAT_VERSION;
 
+  private readonly communities = new Map<AnyUiAppDef, CommunityManifest>();
+
   constructor(private readonly spec: ChatGraphSpec) {
     const seen = new Set<string>();
-    for (const { app, views, capabilities, entryPoints = [] } of spec.apps) {
+    for (const {
+      app,
+      views,
+      capabilities,
+      entryPoints = [],
+      community,
+    } of spec.apps) {
       if (seen.has(app.name)) {
         throw new Error(
           `ChatGraphProvider: приложение ${app.name} указано дважды`,
@@ -76,6 +87,7 @@ export class ChatGraphProvider implements GraphProvider {
           );
         }
       }
+      this.communities.set(app, new CommunityManifest(app, community ?? {}));
     }
   }
 
@@ -83,7 +95,7 @@ export class ChatGraphProvider implements GraphProvider {
     return CHAT_KINDS;
   }
 
-  /** CH-01: примеры в лимитах мессенджера своего приложения; CH-02: у входа есть точка входа. */
+  /** CH-01: примеры в лимитах мессенджера; CH-02: у входа есть точка входа; CH-03: мессенджер умеет сигналы и реакции. */
   rules(): readonly GraphRule[] {
     return [
       new ExampleLimitsRule({
@@ -96,6 +108,7 @@ export class ChatGraphProvider implements GraphProvider {
         ),
       }),
       new EntryPointRule(),
+      new CommunityCapabilitiesRule(),
     ];
   }
 
@@ -134,10 +147,28 @@ export class ChatGraphProvider implements GraphProvider {
         description: `Точка входа ${n} на вход ${point.entry} приложения ${app.name}.`,
         props: { entry: point.entry, via: point.via, key: point.key },
       })),
+      ...this.community(app).signals.map((signal) => ({
+        kind: CHAT_NODE_KINDS.signal,
+        id: ids.signal(app, signal.name),
+        label: signal.label,
+        description: signal.description,
+        props: { signal: signal.signal },
+      })),
+      ...this.community(app).reactions.map((reaction) => ({
+        kind: CHAT_NODE_KINDS.reaction,
+        id: ids.reaction(app, reaction.name),
+        label: reaction.label,
+        description: reaction.description,
+        props: { operation: reaction.operation },
+      })),
     ];
   }
 
-  /** Рёбра `chatEnters` из Def приложения (`entries`), `chatOpens` — из точек входа, `presents` — из `presented()`. */
+  /**
+   * Рёбра `chatEnters` из Def приложения (`entries`), `chatOpens` — из точек
+   * входа, `presents` — из `presented()`; от сигнала `invokes` к UC, от
+   * реакции `notifiedBy` к событию и `reads` к UC — концы по `DomainIds`.
+   */
   private edges({
     app,
     views,
@@ -146,6 +177,8 @@ export class ChatGraphProvider implements GraphProvider {
     const ui = new UiIds(app.set);
     const ids = new ChatIds(app.set);
     const from = ui.app(app);
+    const domain = new DomainIds(app.set.app);
+    const { signals, reactions } = this.community(app);
     return [
       ...Object.entries(app.entries).map(([entry, spec]) => ({
         kind: CHAT_EDGE_KINDS.enters,
@@ -162,7 +195,29 @@ export class ChatGraphProvider implements GraphProvider {
         from,
         to,
       })),
+      ...signals.map((signal) => ({
+        kind: UI_EDGE_KINDS.invokes,
+        from: ids.signal(app, signal.name),
+        to: domain.operation(signal.uc),
+      })),
+      ...reactions.flatMap((reaction) => [
+        {
+          kind: UI_EDGE_KINDS.notifiedBy,
+          from: ids.reaction(app, reaction.name),
+          to: domain.event(reaction.event),
+        },
+        {
+          kind: UI_EDGE_KINDS.reads,
+          from: ids.reaction(app, reaction.name),
+          to: domain.operation(reaction.uc),
+        },
+      ]),
     ];
+  }
+
+  /** Проверенные манифесты сообщества приложения; без `community` — пустые списки. */
+  private community(app: AnyUiAppDef): CommunityManifest {
+    return this.communities.get(app) ?? new CommunityManifest(app, {});
   }
 
   /** Номер точки внутри её входа, с 1, в порядке `entryPoints`. */

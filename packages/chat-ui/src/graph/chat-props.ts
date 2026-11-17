@@ -1,5 +1,9 @@
 import * as v from 'valibot';
 import { MessengerCapabilitiesSchema } from '../messenger/capabilities-schema';
+import {
+  COMMUNITY_OPERATIONS,
+  COMMUNITY_SIGNALS,
+} from '../messenger/messenger.const';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
 
 // Схемы свойств своих узлов поставщика `dmg-ui-chat`; свойства чужих узлов
@@ -23,4 +27,14 @@ export const CHAT_ENTRY_POINT_PROPS = v.strictObject({
   entry: v.string(),
   via: v.string(),
   key: v.string(),
+});
+
+/** Свойства узла `chatSignal` — вид сигнала сообщества. */
+export const CHAT_SIGNAL_PROPS = v.strictObject({
+  signal: v.picklist(COMMUNITY_SIGNALS),
+});
+
+/** Свойства узла `chatReaction` — операция сообщества, в том числе объявленная без исполнения. */
+export const CHAT_REACTION_PROPS = v.strictObject({
+  operation: v.picklist(COMMUNITY_OPERATIONS),
 });
