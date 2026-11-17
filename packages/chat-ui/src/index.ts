@@ -57,10 +57,13 @@ export { TextLength } from './limit/text-length';
 export { TextSplitter } from './limit/text-splitter';
 export { TextTrimmer } from './limit/text-trimmer';
 export type {
+  Accent,
   FormattedText,
   Message,
   MessageKind,
   MessageOption,
+  Moment,
+  MomentShow,
   TextFragment,
   TextMessage,
   TextStyle,

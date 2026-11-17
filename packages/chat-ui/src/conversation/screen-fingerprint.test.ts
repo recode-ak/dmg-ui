@@ -131,4 +131,40 @@ describe('ScreenFingerprint', () => {
 
     expect(await fingerprint(withRefsAndNote)).toBe(await fingerprint(SHOWN));
   });
+
+  test('смена только акцента варианта — другой отпечаток; тот же акцент — тот же', async () => {
+    const withAccent = (accent: 'primary' | 'positive' | 'danger') =>
+      changed({
+        options: [
+          { kind: 'action', name: 'complete', label: 'Выполнить', accent },
+          ...MESSAGE.options.slice(1),
+        ],
+      });
+
+    const positive = await fingerprint(withAccent('positive'));
+
+    expect(positive).not.toBe(await fingerprint(SHOWN));
+    expect(positive).not.toBe(await fingerprint(withAccent('danger')));
+    expect(positive).toBe(await fingerprint(withAccent('positive')));
+  });
+
+  test('смена только момента — другой отпечаток: время, вид показа, появление и снятие', async () => {
+    const at = (moment?: { at: number; show: 'date' | 'time' }) =>
+      changed({
+        text: [{ text: 'Срок', styles: [], ...(moment && { moment }) }],
+      });
+
+    const base = await fingerprint(at({ at: 1_800_000_000, show: 'date' }));
+
+    expect(base).not.toBe(await fingerprint(at()));
+    expect(base).not.toBe(
+      await fingerprint(at({ at: 1_800_000_060, show: 'date' })),
+    );
+    expect(base).not.toBe(
+      await fingerprint(at({ at: 1_800_000_000, show: 'time' })),
+    );
+    expect(base).toBe(
+      await fingerprint(at({ at: 1_800_000_000, show: 'date' })),
+    );
+  });
 });

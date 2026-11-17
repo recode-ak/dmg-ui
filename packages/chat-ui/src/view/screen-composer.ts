@@ -76,7 +76,11 @@ export class ScreenComposer {
     const [first, ...rest] = text;
     if (first === undefined) return TextBuilder.of(head);
     const paragraph = `${head}\n\n`;
-    if (first.styles.length === 0 && first.link === undefined) {
+    if (
+      first.styles.length === 0 &&
+      first.link === undefined &&
+      first.moment === undefined
+    ) {
       return [{ ...first, text: paragraph + first.text }, ...rest];
     }
     return [...TextBuilder.of(paragraph), ...text];

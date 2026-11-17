@@ -256,3 +256,97 @@ describe('TextBuilder', () => {
     ]);
   });
 });
+
+// Момент времени: фрагмент несёт `moment { at, show }`, `text` —
+// запасной текст. `at` — секунды Unix: целое, не меньше 0, безопасное.
+
+const AT = 1_800_000_000;
+
+describe('TextBuilder.moment', () => {
+  test('момент — отдельный фрагмент с `text` как запасным текстом', () => {
+    expect(
+      new TextBuilder()
+        .text('Срок: ')
+        .moment('18 ноября', AT, 'date')
+        .text('.')
+        .build(),
+    ).toEqual([
+      { text: 'Срок: ', styles: [] },
+      { text: '18 ноября', styles: [], moment: { at: AT, show: 'date' } },
+      { text: '.', styles: [] },
+    ]);
+  });
+
+  test.each(['date', 'time', 'dateTime', 'relative'] as const)(
+    'вид показа %s принимается и сохраняется',
+    (show) => {
+      expect(new TextBuilder().moment('сегодня', 0, show).build()).toEqual([
+        { text: 'сегодня', styles: [], moment: { at: 0, show } },
+      ]);
+    },
+  );
+
+  test('момент не склеивается с соседним обычным текстом и с другим моментом', () => {
+    const built = new TextBuilder()
+      .text('а')
+      .moment('б', AT, 'time')
+      .text('в')
+      .build();
+
+    expect(built).toHaveLength(3);
+    expect(
+      new TextBuilder()
+        .moment('а', AT, 'date')
+        .moment('б', AT + 60, 'date')
+        .build(),
+    ).toHaveLength(2);
+  });
+
+  test('момент внутри bold и quote сохраняется вместе со стилем', () => {
+    expect(
+      new TextBuilder().bold((b) => b.moment('18:00', AT, 'time')).build(),
+    ).toEqual([
+      { text: '18:00', styles: ['bold'], moment: { at: AT, show: 'time' } },
+    ]);
+    expect(
+      new TextBuilder().quote((b) => b.moment('18:00', AT, 'time')).build(),
+    ).toEqual([
+      { text: '18:00', styles: ['quote'], moment: { at: AT, show: 'time' } },
+    ]);
+  });
+
+  test('построенный момент — JSON: круг через JSON его не меняет', () => {
+    const built = new TextBuilder().moment('18:00', AT, 'dateTime').build();
+
+    expect(JSON.parse(JSON.stringify(built))).toStrictEqual(built);
+  });
+
+  test('пустой запасной текст пропускается, как и прочий пустой текст', () => {
+    expect(new TextBuilder().moment('', AT, 'date').build()).toEqual([]);
+  });
+
+  test.each([
+    ['дробное at', 1.5],
+    ['отрицательное at', -1],
+    ['at больше безопасного целого', Number.MAX_SAFE_INTEGER + 1],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+  ])('%s — бросок построителя', (_, at) => {
+    new TextBuilder().moment('х', AT, 'date'); // верный вход не бросает
+    expect(() => new TextBuilder().moment('х', at, 'date')).toThrow();
+  });
+
+  test('вид показа вне перечня — бросок построителя', () => {
+    new TextBuilder().moment('х', AT, 'date'); // верный вход не бросает
+    expect(() =>
+      new TextBuilder().moment('х', AT, 'weekday' as never),
+    ).toThrow();
+  });
+
+  test('граничные at — 0 и наибольшее безопасное целое — принимаются', () => {
+    expect(() => new TextBuilder().moment('х', 0, 'date')).not.toThrow();
+    expect(() =>
+      new TextBuilder().moment('х', Number.MAX_SAFE_INTEGER, 'date'),
+    ).not.toThrow();
+  });
+});

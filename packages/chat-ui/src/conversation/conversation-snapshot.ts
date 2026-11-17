@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { TEXT_STYLES } from '../message/message.const';
+import { ACCENTS, MOMENT_SHOWS, TEXT_STYLES } from '../message/message.const';
 import {
   HASH_PATTERN,
   MAX_FIELD_CHOICES,
@@ -134,12 +134,24 @@ export const PlaceMessageSchema = v.object({
           v.maxLength(TEXT_STYLES.length),
         ),
         link: v.optional(v.pipe(v.string(), v.maxLength(MAX_LINK_LENGTH))),
+        moment: v.optional(
+          v.object({
+            at: v.pipe(v.number(), v.safeInteger(), v.minValue(0)),
+            show: v.picklist(MOMENT_SHOWS),
+          }),
+        ),
       }),
     ),
     v.maxLength(MAX_FRAGMENTS),
   ),
   options: v.pipe(
-    v.array(v.object({ ref: Ref, label: Label })),
+    v.array(
+      v.object({
+        ref: Ref,
+        label: Label,
+        accent: v.optional(v.picklist(ACCENTS)),
+      }),
+    ),
     v.maxLength(MAX_REFS),
   ),
 });

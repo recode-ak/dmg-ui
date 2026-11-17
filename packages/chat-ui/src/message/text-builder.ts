@@ -1,5 +1,15 @@
-import { INLINE_STYLES, LINE_BREAK, TEXT_STYLES } from './message.const';
-import type { FormattedText, TextFragment, TextStyle } from './message.types';
+import {
+  INLINE_STYLES,
+  LINE_BREAK,
+  MOMENT_SHOWS,
+  TEXT_STYLES,
+} from './message.const';
+import type {
+  FormattedText,
+  MomentShow,
+  TextFragment,
+  TextStyle,
+} from './message.types';
 
 /** Вложенный текст: стиль внешнего вызова ложится на все фрагменты, что построил `inner`. */
 export type NestedText = (inner: TextBuilder) => TextBuilder;
@@ -47,6 +57,23 @@ export class TextBuilder {
 
   link(label: string, url: string): this {
     this.add({ text: label, styles: [], link: url });
+    return this;
+  }
+
+  /**
+   * Момент времени: `text` — запасной текст, `at` — секунды Unix
+   * (целое не меньше 0, безопасное). Неверный `at` или `show` — бросок.
+   */
+  moment(text: string, at: number, show: MomentShow): this {
+    if (!Number.isSafeInteger(at) || at < 0) {
+      throw new Error(
+        `TextBuilder.moment: at — целое не меньше 0, безопасное (получено ${at})`,
+      );
+    }
+    if (!MOMENT_SHOWS.includes(show)) {
+      throw new Error(`TextBuilder.moment: неизвестный вид показа ${show}`);
+    }
+    this.add({ text, styles: [], moment: { at, show } });
     return this;
   }
 
@@ -143,6 +170,8 @@ export class TextBuilder {
 
   private sameFormat(a: TextFragment, b: TextFragment): boolean {
     return (
+      a.moment === undefined &&
+      b.moment === undefined &&
       a.link === b.link &&
       a.styles.length === b.styles.length &&
       a.styles.every((style, index) => style === b.styles[index])

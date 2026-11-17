@@ -70,7 +70,7 @@ export class MeasuredText {
     return low;
   }
 
-  /** Фрагменты между границами: стили и ссылка — исходные, пустых нет, целый фрагмент — тот же объект. */
+  /** Фрагменты между границами: стили и ссылка — исходные, пустых нет, целый фрагмент — тот же объект; оборванный теряет момент. */
   slice(from: number, to: number): FormattedText {
     const start = this.offset(from);
     const end = this.offset(to);
@@ -84,13 +84,23 @@ export class MeasuredText {
         sliced.push(
           left === at && right === next
             ? fragment
-            : { ...fragment, text: fragment.text.slice(left - at, right - at) },
+            : MeasuredText.torn(fragment, left - at, right - at),
         );
       }
       if (next >= end) break;
       at = next;
     }
     return sliced;
+  }
+
+  /** Оборванный фрагмент теряет момент: остаётся запасной текст. */
+  private static torn(
+    fragment: TextFragment,
+    from: number,
+    to: number,
+  ): TextFragment {
+    const { moment: _moment, ...rest } = fragment;
+    return { ...rest, text: fragment.text.slice(from, to) };
   }
 
   private sum(boundary: number): number {

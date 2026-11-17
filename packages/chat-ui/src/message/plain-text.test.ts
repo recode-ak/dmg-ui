@@ -30,4 +30,17 @@ describe('PlainText', () => {
   test('пустой текст — пустая строка', () => {
     expect(PlainText.of([])).toBe('');
   });
+
+  test('у момента — запасной текст: дата не вычисляется, момент не виден', () => {
+    const text: FormattedText = [
+      { text: 'срок ', styles: [] },
+      {
+        text: '18 ноября, 18:00',
+        styles: ['bold'],
+        moment: { at: 1_800_000_000, show: 'dateTime' },
+      },
+    ];
+
+    expect(PlainText.of(text)).toBe('срок 18 ноября, 18:00');
+  });
 });

@@ -26,9 +26,11 @@ export class TextTrimmer {
     const kept = measured.slice(0, measured.reach(0, budget));
     const last = kept.at(-1);
     if (last === undefined) return [{ text: ELLIPSIS, styles: [] }];
+    // С `…` текст фрагмента уже не тот, что у момента: момент снимается.
+    const { moment: _moment, ...rest } = last;
     return [
       ...kept.slice(0, -1),
-      { ...last, text: last.text.trimEnd() + ELLIPSIS },
+      { ...rest, text: last.text.trimEnd() + ELLIPSIS },
     ];
   }
 

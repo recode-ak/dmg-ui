@@ -1,4 +1,9 @@
-import type { MessageKind, TextStyle } from './message.types';
+import type {
+  Accent,
+  MessageKind,
+  MomentShow,
+  TextStyle,
+} from './message.types';
 
 /** Все виды сообщения. */
 export const MESSAGE_KINDS = [
@@ -24,3 +29,18 @@ export const INLINE_STYLES: readonly TextStyle[] = ['bold', 'italic', 'strike'];
 
 /** Перевод строки, которым построитель ставит блок на целые строки. */
 export const LINE_BREAK = '\n';
+
+/** Все акценты варианта. */
+export const ACCENTS = [
+  'primary',
+  'positive',
+  'danger',
+] as const satisfies readonly Accent[];
+
+/** Все виды показа момента. */
+export const MOMENT_SHOWS = [
+  'date',
+  'time',
+  'dateTime',
+  'relative',
+] as const satisfies readonly MomentShow[];

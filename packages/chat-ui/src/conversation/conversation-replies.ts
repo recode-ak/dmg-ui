@@ -6,6 +6,7 @@ import {
   UiIds,
 } from 'dmg-ui';
 import type {
+  Accent,
   FormattedText,
   Message,
   MessageOption,
@@ -176,7 +177,11 @@ export class ConversationReplies {
       ...options
         .slice(slice.start, slice.end)
         .map((option) =>
-          this.option(option.label, this.target(view, serial, option)),
+          this.option(
+            option.label,
+            this.target(view, serial, option),
+            ConversationReplies.accent(option),
+          ),
         ),
       ...this.more(slice, 'screen', serial),
     ];
@@ -257,8 +262,32 @@ export class ConversationReplies {
     };
   }
 
-  private option(label: string, target: RefTarget): MessageOption {
-    return { ref: this.refs.add(target), label };
+  /** Единственное место переноса акцента: он есть только у `action` и `local`. */
+  private option(
+    label: string,
+    target: RefTarget,
+    accent?: Accent,
+  ): MessageOption {
+    const ref = this.refs.add(target);
+    return accent === undefined ? { ref, label } : { ref, label, accent };
+  }
+
+  private static accent(option: ViewOption): Accent | undefined {
+    switch (option.kind) {
+      case 'action':
+      case 'local':
+        return option.accent;
+      case 'back':
+      case 'retry':
+      case 'home':
+        return undefined;
+      default: {
+        const unknownKind: never = option;
+        throw new Error(
+          `ConversationReplies: неизвестный вид варианта ${(unknownKind as ViewOption).kind}`,
+        );
+      }
+    }
   }
 
   /** Строка без стилей — в сообщение. */

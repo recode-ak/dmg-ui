@@ -5,7 +5,7 @@ import type {
   NotificationDataOf,
   ScreenViewOf,
 } from 'dmg-ui';
-import type { FormattedText } from '../message/message.types';
+import type { Accent, FormattedText } from '../message/message.types';
 import type { ViewKit } from './view-kit';
 
 // Вывод представления беседы (D-UI-50): сообщения с вариантами-намерениями
@@ -14,8 +14,18 @@ import type { ViewKit } from './view-kit';
 
 /** Вариант представления — намерение без ссылки; ссылку ставит беседа. */
 export type ViewOption =
-  | { readonly kind: 'action'; readonly name: string; readonly label: string }
-  | { readonly kind: 'local'; readonly name: string; readonly label: string }
+  | {
+      readonly kind: 'action';
+      readonly name: string;
+      readonly label: string;
+      readonly accent?: Accent;
+    }
+  | {
+      readonly kind: 'local';
+      readonly name: string;
+      readonly label: string;
+      readonly accent?: Accent;
+    }
   | { readonly kind: 'back'; readonly label: string }
   | { readonly kind: 'retry'; readonly label: string }
   | { readonly kind: 'home'; readonly label: string };

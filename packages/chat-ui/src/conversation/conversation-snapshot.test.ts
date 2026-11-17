@@ -217,6 +217,24 @@ const withFields = (count: number) => {
   };
 };
 
+/** Последнее сообщение места с акцентом варианта и моментом во фрагменте. */
+const PLACE_RICH: Message = {
+  kind: 'text',
+  text: [
+    { text: 'Срок: ', styles: [] },
+    {
+      text: '18 ноября',
+      styles: ['bold'],
+      moment: { at: 1_800_000_000, show: 'date' },
+    },
+  ],
+  options: [
+    { ref: 'abcde1', label: 'Выполнить', accent: 'positive' },
+    { ref: 'abcde8', label: 'Удалить', accent: 'danger' },
+    { ref: 'abcde2', label: 'Подробнее' },
+  ],
+};
+
 describe('ConversationSnapshotSchema', () => {
   test('снимок со всеми частями проходит схему и круг JSON без изменений', () => {
     const round = JSON.parse(JSON.stringify(SNAPSHOT));
@@ -469,5 +487,58 @@ describe('ConversationSnapshotSchema', () => {
         value,
       );
     }
+  });
+
+  test('акцент вариантов и момент фрагмента проходят круг JSON и схему без потерь', () => {
+    const value = withMessage(PLACE_RICH);
+    const round = JSON.parse(JSON.stringify(value));
+
+    const parsed = v.parse(ConversationSnapshotSchema, round);
+
+    expect<unknown>(parsed).toStrictEqual(value);
+    expect<unknown>(parsed.screen?.message).toStrictEqual(PLACE_RICH);
+  });
+
+  test('снимок места без акцента и момента (прежний) читается как есть, без полей', () => {
+    const parsed = v.parse(ConversationSnapshotSchema, withMessage(PLACE));
+    const message = parsed.screen?.message;
+
+    expect(message).toStrictEqual(PLACE);
+    expect('accent' in (message?.options[0] ?? {})).toBe(false);
+    expect('moment' in (message?.text[0] ?? {})).toBe(false);
+  });
+
+  test.each([
+    [
+      'акцент вне перечня',
+      { ...PLACE, options: [{ ref: 'abcde1', label: 'А', accent: 'red' }] },
+    ],
+    [
+      'вид показа момента вне перечня',
+      {
+        ...PLACE,
+        text: [{ text: 'х', styles: [], moment: { at: 1, show: 'week' } }],
+      },
+    ],
+    [
+      'at момента дробное',
+      {
+        ...PLACE,
+        text: [{ text: 'х', styles: [], moment: { at: 1.5, show: 'date' } }],
+      },
+    ],
+    [
+      'at момента отрицательное',
+      {
+        ...PLACE,
+        text: [{ text: 'х', styles: [], moment: { at: -1, show: 'date' } }],
+      },
+    ],
+    [
+      'момент без show',
+      { ...PLACE, text: [{ text: 'х', styles: [], moment: { at: 1 } }] },
+    ],
+  ])('сообщение места с недопустимым полем не по схеме: %s', (_, message) => {
+    expect(valid(withMessage(message))).toBe(false);
   });
 });

@@ -87,6 +87,14 @@ describe('ChannelWordScanner.chatUi — в chat-ui нет слов конкре�
     'link',
     'emoji',
     'callback_data',
+    'accent',
+    'moment',
+    'primary',
+    'positive',
+    'danger',
+    'dateTime',
+    'relative',
+    'show',
   ]) {
     it(`разрешённое слово «${allowed}» не срабатывает`, () => {
       expect(scan(`// ${allowed}`)).toEqual([]);

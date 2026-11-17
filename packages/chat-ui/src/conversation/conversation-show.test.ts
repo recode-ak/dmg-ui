@@ -1148,6 +1148,82 @@ describe('Conversation — перекрытие представлений по�
   });
 });
 
+describe('Conversation — акцент варианта', () => {
+  test('акцент из ViewOption доходит до MessageOption того же варианта; без акцента поля нет', async () => {
+    const bus = new AwaitingBus();
+    const example = new ExampleApp(
+      { mode: 'test', dataDir: tmp().path, users: [A] },
+      { bus, logger: new MemoryLogger(), clock: () => T0 },
+    );
+    const server = new UiServer({
+      set: ExampleUiSetDef,
+      dispatch: new ApiAppDispatch(example.api),
+      context: { bus, logger: new MemoryLogger() },
+    });
+    const accented = exampleDialogViews.over([
+      ScreenPresenter.of(TaskListScreenDef, {
+        render: (view, kit) =>
+          kit.message(
+            `Список: ${view.data?.tasks.length ?? 0}`,
+            kit.options.map((option) =>
+              option.label === 'Создать задачу'
+                ? { ...option, accent: 'positive' as const }
+                : option.label === 'Закрыть'
+                  ? { ...option, accent: 'danger' as const }
+                  : option,
+            ),
+          ),
+      }),
+    ]);
+    const nodeOf = (registry: ChatViews) => {
+      const messenger = MemoryMessenger.editing();
+      const conversations = new Conversations({
+        app: ExampleDialogAppDef,
+        codes: exampleCodes(),
+        server,
+        views: registry,
+        observer: new MemoryUiObserver(),
+        messenger,
+        store: new MemoryConversationStore(),
+        logger: new MemoryLogger(),
+        people: async () => A,
+        peers: async () => undefined,
+        callers: example.callers,
+        places: {
+          place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
+        },
+      });
+      return { conversations, messenger };
+    };
+    const common = nodeOf(exampleDialogViews);
+    const own = nodeOf(accented);
+
+    for (const [i, node] of [common, own].entries()) {
+      await node.conversations.receive({
+        id: `accent-${i}`,
+        peer: PEER,
+        sender: 'sender-a',
+        kind: 'enter',
+        entry: 'start',
+      });
+    }
+
+    const commonOptions = lineAt(common.messenger, 0).message.options;
+    const ownOptions = lineAt(own.messenger, 0).message.options;
+    expect(ownOptions.map((o) => o.label)).toEqual(
+      commonOptions.map((o) => o.label),
+    );
+    expect(ownOptions.length).toBeGreaterThan(1);
+    expect(ownOptions.find((o) => o.label === 'Создать задачу')?.accent).toBe(
+      'positive',
+    );
+    expect(ownOptions.find((o) => o.label === 'Закрыть')?.accent).toBe(
+      'danger',
+    );
+    for (const option of commonOptions) expect('accent' in option).toBe(false);
+  });
+});
+
 describe('Conversations — место в снимке и размер показанного', () => {
   test('экран с текстом больше предела схемы — снимок записан: свежие seen и экран, у места нет сообщения; после перезапуска сигнал без броска и без retire', async () => {
     const bus = new AwaitingBus();

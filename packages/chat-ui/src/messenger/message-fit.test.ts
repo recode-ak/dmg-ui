@@ -186,6 +186,80 @@ describe('MessageFit.message', () => {
   });
 });
 
+describe('MessageFit — акцент и момент', () => {
+  test('обрезка текста: целый фрагмент с моментом сохраняет его, оборванный теряет', () => {
+    const whole = {
+      text: 'завтра',
+      styles: [],
+      moment: { at: 1_800_000_000, show: 'date' },
+    } as const;
+    const torn = {
+      text: 'б'.repeat(5000),
+      styles: [],
+      moment: { at: 1_800_000_000, show: 'dateTime' },
+    } as const;
+    const long: Message = {
+      kind: 'text',
+      text: [whole, { text: ' ', styles: [] }, torn],
+      options: [],
+    };
+
+    const fitted = fit().message(long);
+
+    expect(fitted.cuts).toHaveLength(1);
+    const [first, , last] = (fitted.value as Message).text;
+    expect(first).toEqual(whole);
+    expect(last?.moment).toBeUndefined();
+    expect(last?.text.endsWith('…')).toBe(true);
+  });
+
+  test('уложившийся текст с моментом — тот же объект', () => {
+    const fitting: Message = {
+      kind: 'text',
+      text: [
+        {
+          text: 'завтра',
+          styles: [],
+          moment: { at: 1_800_000_000, show: 'relative' },
+        },
+      ],
+      options: [],
+    };
+
+    expect(fit().message(fitting).value).toBe(fitting);
+  });
+
+  test('обрезка подписи сохраняет акцент варианта', () => {
+    const source = message('Выбери', [
+      { ref: 'r1', label: 'д'.repeat(21), accent: 'danger' },
+      { ref: 'r2', label: 'Да', accent: 'positive' },
+      option(3),
+    ]);
+
+    const fitted = fit().message(source);
+
+    expect((fitted.value as Message).options).toEqual([
+      { ref: 'r1', label: `${'д'.repeat(19)}…`, accent: 'danger' },
+      { ref: 'r2', label: 'Да', accent: 'positive' },
+      option(3),
+    ]);
+  });
+
+  test('лишние варианты с хвоста отброшены, у оставленных акцент цел', () => {
+    const source = message('Выбери', [
+      { ref: 'r1', label: 'А', accent: 'primary' },
+      option(2),
+      option(3),
+      { ref: 'r4', label: 'Лишний', accent: 'danger' },
+    ]);
+
+    const kept = (fit().message(source).value as Message).options;
+
+    expect(kept[0]).toEqual({ ref: 'r1', label: 'А', accent: 'primary' });
+    expect(kept).toHaveLength(3);
+  });
+});
+
 describe('MessageFit.answer', () => {
   test('лимит ответа на нажатие', () => {
     const fitted = fit().answer('a'.repeat(201));
