@@ -2,8 +2,7 @@
 // схема снимка беседы; представления беседы — сообщения с вариантами-
 // намерениями, их реестр с перекрытием под мессенджер; сообщение, помощники
 // лимита, порт мессенджера, его возможности и страж лимитов; поставщик графа
-// и рендерер примеров; учебный диалоговый канал — фасад над беседой для
-// уведомлений и снимка экземпляра на публичных входах ядра.
+// и рендерер примеров; узел бесед доставляет и уведомления.
 
 export type {
   Attachment,
@@ -23,15 +22,9 @@ export { MemoryConversationStore } from './conversation/memory-conversation-stor
 
 export {
   DIALOG_CHANNEL,
-  type Dialog,
-  DialogChannel,
-  type DialogChannelSpec,
   DialogGraphProvider,
   type DialogGraphSpec,
-  type DialogOption,
-  type DialogPlace,
   DialogRenderer,
-  type DialogReply,
 } from './dialog';
 export type { LengthUnit, TextLimit } from './limit/limit.types';
 export { TextLength } from './limit/text-length';

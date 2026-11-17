@@ -2,7 +2,6 @@ import type { Trace } from 'dmg-core';
 import type {
   ActionField,
   ActionView,
-  AddressJson,
   AnyUiAppDef,
   InstanceJson,
   LocalView,
@@ -218,20 +217,6 @@ export class Conversation {
   /** Снимок живого экземпляра ядра; нет экрана — `undefined`. */
   screen(): InstanceJson | undefined {
     return this.screens.instance();
-  }
-
-  /** Открыть экран из снимка экземпляра (внешние данные): отказ — заметка и вход home. В очереди. */
-  resume(instance: unknown): Promise<void> {
-    return this.queue.run(() =>
-      this.screens.resume(instance, this.spec.traces.next()),
-    );
-  }
-
-  /** Ссылка «открыть адрес» в таблице беседы (ссылки уведомления). В очереди. */
-  link(address: AddressJson, label: string): Promise<string> {
-    return this.queue.run(async () =>
-      this.refs.add({ kind: 'open', address, label }),
-    );
   }
 
   /** Очередь беседы и очередь живого экземпляра отработали, новых задач не пришло (TST-04). */

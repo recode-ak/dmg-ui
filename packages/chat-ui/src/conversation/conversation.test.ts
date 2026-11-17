@@ -657,27 +657,6 @@ describe('Conversation — отказы порта мессенджера', () =
 });
 
 describe('Conversation — экран снимка', () => {
-  test('resume поверх экрана снимка — открыт экран resume, экран снимка следующим сигналом не поднимается', async () => {
-    const first = sceneOf();
-    await first.conversation.receive(first.signals.enter('other'));
-    const other = first.conversation.screen();
-    await first.conversation.receive(first.signals.enter('start'));
-    const saved = first.conversation.snapshot();
-    first.conversation.close();
-    const s = sceneOf({ snapshot: saved });
-
-    await s.conversation.resume(other);
-    // id сигналов сцены начинаются заново: свой id, чтобы отсев не съел сигнал.
-    await s.conversation.receive({ ...s.signals.cancel(), id: 's-after' });
-
-    expect(saved.screen).toBeDefined();
-    expect(sent(s.messenger).map(text)).toEqual([
-      'Другой экран',
-      'Другой экран',
-    ]);
-    expect(s.conversation.screen()?.address.screen).toBe('convUi/conv/other');
-  });
-
   test('представление бросает при подъёме экрана снимка — дефект, экран остаётся в снимке, экземпляр закрыт; после починки сигнал экран поднимает', async () => {
     let broken = false;
     const fragile = ChatViews.of(ConvSetDef, [

@@ -138,20 +138,6 @@ export class ConversationScreens {
     return true;
   }
 
-  /** Экран из снимка экземпляра (внешние данные) вместо экрана снимка беседы; отказ — заметка и вход home. */
-  async resume(json: unknown, trace: Trace): Promise<void> {
-    const restored = await this.restore(json, trace);
-    this.pending = undefined;
-    if (restored === undefined) {
-      await this.parts.output.note(CONVERSATION_TEXTS.notRestored);
-      await this.home(trace);
-      return;
-    }
-    this.parts.path.reset();
-    this.replace(restored);
-    await this.show();
-  }
-
   /**
    * «Назад»: верхний элемент пути через `restore` — новый живой экран без
    * записи в путь; путь пуст — живой экран снова. Элемент снимается, когда

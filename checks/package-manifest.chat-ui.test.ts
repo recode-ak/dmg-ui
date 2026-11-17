@@ -11,7 +11,6 @@ const CHAT_UI = [
   'ConversationSnapshotSchema',
   'Conversations',
   'DIALOG_CHANNEL',
-  'DialogChannel',
   'DialogGraphProvider',
   'DialogRenderer',
   'LimitedMessenger',

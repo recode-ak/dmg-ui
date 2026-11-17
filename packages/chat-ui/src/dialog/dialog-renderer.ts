@@ -4,7 +4,22 @@ import type { MessengerCapabilities } from '../messenger/messenger.types';
 import type { ChatViews } from '../view/chat-views';
 import { ScreenComposer } from '../view/screen-composer';
 import type { ViewMessage } from '../view/view.types';
-import { REPLY_CAPABILITIES } from './reply-messenger';
+
+/** Предел текста и подписей с запасом: тексты примеров не режутся. */
+const ROOMY_TEXT = { max: 1_000_000, unit: 'utf16' } as const;
+
+/** Возможности по умолчанию: вариантов с запасом, раскладка всегда целиком. */
+const ROOMY_CAPABILITIES: MessengerCapabilities = {
+  name: 'dialog-renderer',
+  kinds: ['text'],
+  edit: false,
+  text: ROOMY_TEXT,
+  textWithOptions: ROOMY_TEXT,
+  options: { max: 1_000, label: ROOMY_TEXT, ref: 64 },
+  form: false,
+  initiative: { kind: 'always' },
+  community: { signals: [], operations: [] },
+};
 
 /**
  * Рендер вида и уведомления в текст без живого диалога, канала и сервера —
@@ -18,7 +33,7 @@ export class DialogRenderer {
   /** Возможности по умолчанию — просторные: тексты примеров не режутся. */
   constructor(
     private readonly views: ChatViews,
-    capabilities: MessengerCapabilities = REPLY_CAPABILITIES,
+    capabilities: MessengerCapabilities = ROOMY_CAPABILITIES,
   ) {
     this.composer = new ScreenComposer(views, capabilities);
   }
