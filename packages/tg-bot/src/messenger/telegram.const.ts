@@ -49,8 +49,11 @@ export const CHOSEN_SEPARATOR = '\n\n';
 export const LINK_SCHEMES =
   /^(?:https?:\/\/\S+|tg:\/\/(?:resolve|user)(?:\?\S*)?)$/i;
 
-/** Каноническое десятичное целое > 0: собеседник (личный чат) и `message_id`. */
+/** Каноническое десятичное целое > 0: собеседник (личный чат), `message_id`, участник группы. */
 export const POSITIVE_INTEGER = /^[1-9][0-9]*$/;
+
+/** Каноническое десятичное целое < 0: группа и супергруппа. */
+export const NEGATIVE_INTEGER = /^-[1-9][0-9]*$/;
 
 /** Предпросмотр ссылок выключен у всех сообщений. */
 export const NO_PREVIEW = { is_disabled: true } as const;

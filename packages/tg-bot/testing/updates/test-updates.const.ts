@@ -4,6 +4,6 @@ export const TEST_UPDATES = {
   firstName: 'Тест',
   chatInstance: '-1',
   /** id бота в апдейтах `my_chat_member`: статус самого бота. */
-  botId: 7_350_000_001,
+  botId: 7_350_007_777,
   groupTitle: 'Группа',
 } as const;

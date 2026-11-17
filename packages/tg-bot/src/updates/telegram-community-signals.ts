@@ -8,15 +8,24 @@ import type {
 } from './telegram-updates.types';
 
 const IGNORED: SignalOutcome = { kind: 'ignored' };
+const WRONG_BOT: SignalOutcome = { kind: 'wrongBot' };
 
 /**
  * Перевод апдейтов группы в сигнал сообщества (D-UI-65) — чистый. Группа —
  * `group`/`supergroup` с `chat.id` < 0, иначе отказ `chat`; бот в личном чате
  * или канале (`my_chat_member`, `chat_member` канала) — «ничего». Эхо:
- * `chat_member` от самого бота — «ничего». Поля сигнала — строки.
+ * `chat_member` от самого бота — «ничего». `my_chat_member` не про `bot`
+ * проекта — `wrongBot`. Поля сигнала — строки. `bot` — безопасное целое > 0,
+ * иначе бросок сборки.
  */
 export class TelegramCommunitySignals {
-  constructor(private readonly bot: number) {}
+  constructor(private readonly bot: number) {
+    if (!Number.isSafeInteger(bot) || bot <= 0) {
+      throw new Error(
+        'TelegramCommunitySignals: bot — безопасное целое больше нуля',
+      );
+    }
+  }
 
   /** Смена статуса участника: вошёл — `joined`, вышел — `left`, прочее — «ничего». */
   member(id: number, update: ChatMemberUpdated): SignalOutcome {
@@ -36,6 +45,7 @@ export class TelegramCommunitySignals {
 
   /** Смена статуса бота: добавили — `added`, убрали — `removed`; `member` — кто это сделал. */
   bots(id: number, update: ChatMemberUpdated): SignalOutcome {
+    if (update.new_chat_member.user.id !== this.bot) return WRONG_BOT;
     const skipped = TelegramCommunitySignals.place(
       'my_chat_member',
       update.chat,

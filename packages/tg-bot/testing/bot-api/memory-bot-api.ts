@@ -25,8 +25,8 @@ import type {
  * `message_id` растёт в каждом чате; правка неизвестного сообщения и правка
  * тем же содержимым отвечают отказом 400, как Bot API; `failNext`, `throwNext`
  * и `failOn(метод)` действуют на один следующий вызов (он есть в журнале,
- * чат не меняется); `holdOn(метод)` держит такой вызов до `release` — очередь
- * без таймеров. Операции группы — журнал и `ok`, модели членства нет.
+ * чат не меняется); `holdOn(метод)` держит такой вызов до `release`, `reached`
+ * ждёт записи вызова — очередь без таймеров. Операции группы — журнал и `ok`, модели членства нет.
  *
  * @see memory-bot-api.test.ts
  */
@@ -36,6 +36,10 @@ export class MemoryBotApi implements BotApi {
   private planned: PlannedFailure | undefined;
   private readonly plannedOn = new Map<BotApiMethod, BotApiFailNext>();
   private readonly held = new Map<BotApiMethod, Promise<void>>();
+  private watchers: {
+    predicate: (journal: readonly BotApiCall[]) => boolean;
+    resolve: () => void;
+  }[] = [];
 
   /** Следующий вызов получит этот отказ. */
   failNext(failure: BotApiFailNext): void {
@@ -62,6 +66,19 @@ export class MemoryBotApi implements BotApi {
       }),
     );
     return release;
+  }
+
+  /**
+   * Разрешается, когда журнал удовлетворяет условию: сразу, если уже так, иначе
+   * при записи вызова, после которой оно стало истинным. Без таймеров.
+   */
+  reached(
+    predicate: (journal: readonly BotApiCall[]) => boolean,
+  ): Promise<void> {
+    if (predicate(this.journal)) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.watchers.push({ predicate, resolve });
+    });
   }
 
   /** Сообщения чата по порядку отправки. */
@@ -154,6 +171,7 @@ export class MemoryBotApi implements BotApi {
     answer: () => BotApiResult<unknown>,
   ): Promise<BotApiResult<unknown>> {
     this.journal.push(call);
+    this.notify();
     const planned = this.takePlanned(call.method);
     const gate = this.held.get(call.method);
     if (gate !== undefined) {
@@ -170,6 +188,15 @@ export class MemoryBotApi implements BotApi {
         planned satisfies never;
         return answer();
     }
+  }
+
+  /** После записи в журнал: будит ожидающих `reached`, чьё условие выполнено. */
+  private notify(): void {
+    const ready = this.watchers.filter(({ predicate }) =>
+      predicate(this.journal),
+    );
+    this.watchers = this.watchers.filter((watcher) => !ready.includes(watcher));
+    for (const { resolve } of ready) resolve();
   }
 
   /** Сбой для вызова метода: свой `failOn`, иначе общий `failNext`/`throwNext`. */

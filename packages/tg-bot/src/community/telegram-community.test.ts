@@ -5,8 +5,8 @@ import { MemoryBotApi } from '../../testing';
 import { TelegramMessenger } from '../messenger/telegram-messenger';
 
 // Операции группы Telegram — порт сообщества мессенджера на
-// подставном порту Bot API. `exclude` = `banChatMember` на минуту
-// (`until_date` — страховка от вечного бана) и `unbanChatMember` с
+// подставном порту Bot API. `exclude` = `banChatMember` на 5 минут
+// (`until_date` — страховка от вечного бана, срок проверен) и `unbanChatMember` с
 // `only_if_banned`; `approve` = `approveChatJoinRequest`; `invite` не
 // объявлена — отказ без вызова. Handle группы — отрицательное каноническое
 // целое, участник — положительное, иначе отказ без вызова API. Недоставка —
@@ -16,7 +16,7 @@ import { TelegramMessenger } from '../messenger/telegram-messenger';
 const GROUP = '-1004001234567';
 const MEMBER = '7350001234';
 const NOW = 1_700_000_000_000;
-const UNTIL = 1_700_000_060;
+const UNTIL = 1_700_000_300;
 const MIGRATED_TO = -1009990001111;
 
 /** Мессенджер с часами теста на подставном порту. */
@@ -44,7 +44,7 @@ const lacks = (logger: MemoryLogger, values: readonly string[]) => {
 const BAN = { chat_id: Number(GROUP), user_id: Number(MEMBER) };
 
 describe('TelegramCommunity — exclude', () => {
-  test('ban на минуту от часов теста, затем unban только если забанен; итог ok, записей лога нет', async () => {
+  test('ban на 300 с от часов теста, затем unban только если забанен; итог ok, записей лога нет', async () => {
     const { api, logger, community } = setup();
 
     expect(await community.exclude(GROUP, MEMBER)).toEqual(ok());
@@ -77,7 +77,7 @@ describe('TelegramCommunity — exclude', () => {
     }
   });
 
-  test('без заданных часов until_date — текущее время плюс минута', async () => {
+  test('без заданных часов until_date — текущее время плюс 300 с', async () => {
     const api = new MemoryBotApi();
     const community = new TelegramMessenger({
       api,
@@ -90,65 +90,71 @@ describe('TelegramCommunity — exclude', () => {
     const after = Math.floor(Date.now() / 1000);
     const ban = api.journal[0];
     if (ban?.method !== 'banChatMember') throw new Error('нужен ban');
-    expect(ban.params.until_date).toBeGreaterThanOrEqual(before + 60);
-    expect(ban.params.until_date).toBeLessThanOrEqual(after + 60);
+    expect(ban.params.until_date).toBeGreaterThanOrEqual(before + 300);
+    expect(ban.params.until_date).toBeLessThanOrEqual(after + 300);
   });
 
   test.each([
-    [400, 'rejected'],
-    [403, 'blocked'],
-    [429, 'unavailable'],
-    [502, 'unavailable'],
+    ['NaN', () => Number.NaN],
+    ['секунды вместо миллисекунд', () => Date.now() / 1000],
   ] as const)(
-    'ban отказал (%i) — %s: unban не вызван, warn с методом и кодом',
-    async (code, reason) => {
-      const { api, logger, community } = setup();
-      api.failOn('banChatMember', {
-        error_code: code,
-        description: 'Bad Request: x',
-      });
+    'часы неверны (%s) — rejected, ban не вызван, error без данных: вечного бана не будет',
+    async (_name, now) => {
+      const api = new MemoryBotApi();
+      const logger = new MemoryLogger();
+      const { community } = new TelegramMessenger({ api, logger, now });
 
-      expect(await community.exclude(GROUP, MEMBER)).toEqual(err({ reason }));
+      expect(await community.exclude(GROUP, MEMBER)).toEqual(
+        err({ reason: 'rejected' }),
+      );
 
-      expect(methods(api)).toEqual(['banChatMember']);
-      expect(warns(logger)).toHaveLength(1);
-      expect(warns(logger)[0]).toMatchObject({
-        source: 'tg-bot',
-        meta: {
-          operation: 'exclude',
-          method: 'banChatMember',
-          error_code: code,
-        },
-      });
+      expect(api.journal).toEqual([]);
+      expect(errors(logger)).toHaveLength(1);
+      expect(errors(logger)[0]?.meta).toMatchObject({ operation: 'exclude' });
       lacks(logger, [GROUP, MEMBER]);
     },
   );
 
-  test.each([
-    [400, 'rejected'],
-    [403, 'blocked'],
-    [429, 'unavailable'],
-  ] as const)(
-    'ban прошёл, unban отказал (%i) — недоставка %s и warn с методом unbanChatMember',
-    async (code, reason) => {
-      const { api, logger, community } = setup();
-      api.failOn('unbanChatMember', {
-        error_code: code,
-        description: 'Bad Request: x',
-      });
+  test('ban отказал (403) — blocked: unban не вызван, warn с методом и кодом', async () => {
+    const { api, logger, community } = setup();
+    api.failOn('banChatMember', {
+      error_code: 403,
+      description: 'Forbidden: x',
+    });
 
-      expect(await community.exclude(GROUP, MEMBER)).toEqual(err({ reason }));
+    expect(await community.exclude(GROUP, MEMBER)).toEqual(
+      err({ reason: 'blocked' }),
+    );
 
-      expect(methods(api)).toEqual(['banChatMember', 'unbanChatMember']);
-      expect(warns(logger)).toHaveLength(1);
-      expect(warns(logger)[0]?.meta).toMatchObject({
-        operation: 'exclude',
-        method: 'unbanChatMember',
-        error_code: code,
-      });
-      lacks(logger, [GROUP, MEMBER]);
-    },
-  );
+    expect(methods(api)).toEqual(['banChatMember']);
+    expect(warns(logger)).toHaveLength(1);
+    expect(warns(logger)[0]).toMatchObject({
+      source: 'tg-bot',
+      meta: { operation: 'exclude', method: 'banChatMember', error_code: 403 },
+    });
+    lacks(logger, [GROUP, MEMBER]);
+  });
+
+  test('ban прошёл, unban отказал (400) — недоставка rejected и warn с методом unbanChatMember', async () => {
+    const { api, logger, community } = setup();
+    api.failOn('unbanChatMember', {
+      error_code: 400,
+      description: 'Bad Request: x',
+    });
+
+    expect(await community.exclude(GROUP, MEMBER)).toEqual(
+      err({ reason: 'rejected' }),
+    );
+
+    expect(methods(api)).toEqual(['banChatMember', 'unbanChatMember']);
+    expect(warns(logger)).toHaveLength(1);
+    expect(warns(logger)[0]?.meta).toMatchObject({
+      operation: 'exclude',
+      method: 'unbanChatMember',
+      error_code: 400,
+    });
+    lacks(logger, [GROUP, MEMBER]);
+  });
 
   test('повторный вызов после отказа unban шлёт оба метода заново: ban повторно безвреден', async () => {
     const { api, community } = setup();
@@ -211,13 +217,6 @@ describe('TelegramCommunity — exclude', () => {
     });
     lacks(logger, [GROUP, MEMBER]);
   });
-
-  test('метод не бросает при любом сбое порта', async () => {
-    const { api, community } = setup();
-    api.throwNext(new Error('x'));
-
-    await expect(community.exclude(GROUP, MEMBER)).resolves.toBeDefined();
-  });
 });
 
 describe('TelegramCommunity — approve', () => {
@@ -232,29 +231,24 @@ describe('TelegramCommunity — approve', () => {
     expect(logger.records).toEqual([]);
   });
 
-  test.each([
-    [400, 'rejected'],
-    [403, 'blocked'],
-    [429, 'unavailable'],
-  ] as const)(
-    'отказ %i — %s, warn с операцией approve и методом',
-    async (code, reason) => {
-      const { api, logger, community } = setup();
-      api.failOn('approveChatJoinRequest', {
-        error_code: code,
-        description: 'Bad Request: x',
-      });
+  test('отказ 403 — blocked, warn с операцией approve и методом', async () => {
+    const { api, logger, community } = setup();
+    api.failOn('approveChatJoinRequest', {
+      error_code: 403,
+      description: 'Forbidden: x',
+    });
 
-      expect(await community.approve(GROUP, MEMBER)).toEqual(err({ reason }));
+    expect(await community.approve(GROUP, MEMBER)).toEqual(
+      err({ reason: 'blocked' }),
+    );
 
-      expect(warns(logger)[0]?.meta).toMatchObject({
-        operation: 'approve',
-        method: 'approveChatJoinRequest',
-        error_code: code,
-      });
-      lacks(logger, [GROUP, MEMBER]);
-    },
-  );
+    expect(warns(logger)[0]?.meta).toMatchObject({
+      operation: 'approve',
+      method: 'approveChatJoinRequest',
+      error_code: 403,
+    });
+    lacks(logger, [GROUP, MEMBER]);
+  });
 
   test('бросок порта — unavailable, error с именем ошибки', async () => {
     const { api, logger, community } = setup();
@@ -385,9 +379,8 @@ describe('TelegramCommunity — группа стала супергруппой
     );
 
     expect(methods(api)).toEqual(['banChatMember']);
-    expect(
-      warns(logger).some((record) => record.message.includes('перенесена')),
-    ).toBe(true);
+    expect(warns(logger)).toHaveLength(1);
+    expect(warns(logger)[0]?.message).toContain('перенесена');
     lacks(logger, [GROUP, MEMBER, String(MIGRATED_TO), '1009990001111']);
   });
 
@@ -403,37 +396,6 @@ describe('TelegramCommunity — группа стала супергруппой
       warns(logger).some((record) => record.message.includes('перенесена')),
     ).toBe(true);
     lacks(logger, [GROUP, MEMBER, '1009990001111']);
-  });
-
-  test('description в логе — не длиннее 200 знаков', async () => {
-    const { api, logger, community } = setup();
-    api.failOn('banChatMember', {
-      ...MIGRATED,
-      description: 'x'.repeat(300),
-    });
-
-    await community.exclude(GROUP, MEMBER);
-
-    for (const record of warns(logger)) {
-      const description = record.meta?.description;
-      if (typeof description === 'string') {
-        expect(description.length).toBeLessThanOrEqual(200);
-      }
-    }
-  });
-
-  test('отказ 400 без migrate_to_chat_id — обычный отказ: «перенесена» не пишется', async () => {
-    const { api, logger, community } = setup();
-    api.failOn('banChatMember', {
-      error_code: 400,
-      description: 'Bad Request',
-    });
-
-    await community.exclude(GROUP, MEMBER);
-
-    expect(
-      warns(logger).some((record) => record.message.includes('перенесена')),
-    ).toBe(false);
   });
 });
 

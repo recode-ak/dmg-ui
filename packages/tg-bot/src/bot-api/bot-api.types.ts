@@ -73,7 +73,7 @@ export type BotCommand = {
 };
 
 /** Область меню команд, JSON Bot API как есть; пакет задаёт `all_private_chats` (в группах бот на команды молчит). */
-export type BotCommandScope = { readonly type: string };
+export type BotCommandScope = { readonly type: 'all_private_chats' };
 
 /** Список команд меню; `language_code` пакет не задаёт. */
 export type SetMyCommandsParams = {
@@ -107,7 +107,7 @@ export type BotApiRefusal = {
   readonly error_code: number;
   /** Только `description` из JSON ответа Telegram (уходит в лог); сбой транспорта — бросок, не отказ. */
   readonly description: string;
-  /** `migrate_to_chat_id` — группа стала супергруппой (D-UI-65): новый id пакет не читает дальше факта. */
+  /** `migrate_to_chat_id` — группа стала супергруппой: новый id пакет не читает дальше факта. */
   readonly parameters?: {
     readonly retry_after?: number;
     readonly migrate_to_chat_id?: number;

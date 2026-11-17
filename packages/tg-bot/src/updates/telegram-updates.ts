@@ -4,6 +4,7 @@ import { TelegramLog } from '../telegram-log';
 import { TelegramSignals } from './telegram-signals';
 import type {
   RefusedUpdate,
+  SignalOutcome,
   TelegramUpdatesSpec,
 } from './telegram-updates.types';
 
@@ -30,7 +31,7 @@ export class TelegramUpdates {
   }
 
   async receive(update: unknown): Promise<void> {
-    const outcome = this.signals.of(update);
+    const outcome = this.translate(update);
     switch (outcome.kind) {
       case 'signal':
         return this.deliver(outcome.signal);
@@ -38,11 +39,23 @@ export class TelegramUpdates {
         return this.deliverCommunity(outcome.signal);
       case 'refused':
         return this.refuse(outcome);
+      case 'wrongBot':
+        this.log.wrongBot();
+        return;
       case 'ignored':
         return;
       default:
         outcome satisfies never;
         return;
+    }
+  }
+
+  /** Перевод апдейта; бросок (геттер чужого объекта) — отказ `schema` без данных. */
+  private translate(update: unknown): SignalOutcome {
+    try {
+      return this.signals.of(update);
+    } catch {
+      return { kind: 'refused', reason: 'schema' };
     }
   }
 

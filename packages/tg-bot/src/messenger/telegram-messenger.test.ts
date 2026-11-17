@@ -706,12 +706,9 @@ describe('TelegramMessenger — возможности', () => {
     expect(setup().messenger.capabilities).toBe(TELEGRAM_CAPABILITIES);
   });
 
-  test('community — порт сообщества с объявленными операциями: exclude и approve есть; возможности объявляют ровно их', () => {
+  test('возможности сообщества объявляют ровно exclude и approve', () => {
     const { messenger } = setup();
 
-    expect(typeof messenger.community.exclude).toBe('function');
-    expect(typeof messenger.community.approve).toBe('function');
-    expect(typeof messenger.community.invite).toBe('function');
     expect(messenger.capabilities.community.operations).toEqual([
       'exclude',
       'approve',

@@ -33,7 +33,9 @@ export class BotApiCaller {
     }
     if (parsed.output.ok) return { kind: 'done', result: parsed.output.result };
     const failure = new BotApiFailure(parsed.output);
-    if (!failure.notModified()) this.log.refused(method, failure, operation);
+    if (failure.migrated()) this.log.migrated(method, operation);
+    else if (!failure.notModified())
+      this.log.refused(method, failure, operation);
     return { kind: 'refused', failure };
   }
 }

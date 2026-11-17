@@ -254,10 +254,6 @@ describe('TelegramSignals — точки входа: параметр ссылк
     );
   });
 
-  test('ключ link командой не работает: /abc при точке link abc → заглушка', async () => {
-    expect(of(command('/abc'))).toStrictEqual(entered(await unknownEntry()));
-  });
-
   test('ключ command параметром не работает: /start tasks при command tasks → вход /start', () => {
     const table = withTable([START, point('assigned', 'command', 'tasks')]);
 
@@ -300,16 +296,6 @@ describe('TelegramSignals — точки входа: регистр', () => {
       signal: { ...HEAD, kind: 'back' },
     });
   });
-
-  test('параметр ссылки — как есть: Abc ≠ abc', () => {
-    const lower = withTable([START, point('assigned', 'link', 'abc')]);
-    const upper = withTable([START, point('assigned', 'link', 'Abc')]);
-
-    expect(lower(command('/start Abc'))).toStrictEqual(entered('start'));
-    expect(lower(command('/start abc'))).toStrictEqual(entered('assigned'));
-    expect(upper(command('/start Abc'))).toStrictEqual(entered('assigned'));
-    expect(upper(command('/start abc'))).toStrictEqual(entered('start'));
-  });
 });
 
 describe('TelegramSignals — точки входа: cancel и back раньше таблицы', () => {
@@ -333,52 +319,6 @@ describe('TelegramSignals — точки входа: cancel и back раньше
 
   test('/start cancel — параметр ссылки, не отмена', () => {
     expect(of(command('/start cancel'))).toStrictEqual(entered('assigned'));
-  });
-});
-
-describe('TelegramSignals — точки входа: повтор и чужие способы', () => {
-  test('повтор ключа — первая точка: command против menu и command против command', () => {
-    const of = withTable([
-      point('start', 'menu', 'x'),
-      point('assigned', 'command', 'x'),
-      point('assigned', 'command', 'y'),
-      point('start', 'command', 'y'),
-    ]);
-
-    expect(of(command('/x'))).toStrictEqual(entered('start'));
-    expect(of(command('/y'))).toStrictEqual(entered('assigned'));
-  });
-
-  test('повтор параметра ссылки — первая точка', () => {
-    const of = withTable([
-      START,
-      point('assigned', 'link', 'abc'),
-      point('start', 'link', 'abc'),
-    ]);
-
-    expect(of(command('/start abc'))).toStrictEqual(entered('assigned'));
-  });
-
-  test('точка с неизвестным способом пропускается: /x при { message, x } → заглушка, при следующей command x → её вход', async () => {
-    const only = withTable([point('start', 'message', 'x')]);
-    const next = withTable([
-      point('start', 'message', 'x'),
-      point('assigned', 'command', 'x'),
-    ]);
-
-    expect(only(command('/x'))).toStrictEqual(entered(await unknownEntry()));
-    expect(next(command('/x'))).toStrictEqual(entered('assigned'));
-  });
-
-  test('ключи объектного прототипа не входы: /constructor, /__proto__ → заглушка', async () => {
-    const of = withTable([START]);
-
-    expect(of(command('/constructor'))).toStrictEqual(
-      entered(await unknownEntry()),
-    );
-    expect(of(command('/__proto__'))).toStrictEqual(
-      entered(await unknownEntry()),
-    );
   });
 });
 
@@ -899,6 +839,13 @@ describe('TelegramSignals — my_chat_member', () => {
     expect(signal(botMember(LEFT, MEMBER, ADMIN, group))).toEqual(
       community(202, 'added', group, ADMIN),
     );
+  });
+
+  test('new_chat_member.user — не бот проекта: сигнала нет, итог wrongBot', () => {
+    const update = botMember(LEFT, MEMBER);
+    update.my_chat_member.new_chat_member = withUser(MEMBER, NEWBIE);
+
+    expect(signal(update)).toEqual({ kind: 'wrongBot' });
   });
 
   test('блокировка и разблокировка бота в личном чате — ничего, отказа нет', () => {

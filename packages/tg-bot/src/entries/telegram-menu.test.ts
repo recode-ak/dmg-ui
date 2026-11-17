@@ -20,7 +20,7 @@ const TABLE = [
   { entry: 'assigned', via: 'command', key: 'mine' },
 ];
 
-const SCOPE = { type: 'all_private_chats' };
+const SCOPE = { type: 'all_private_chats' } as const;
 
 /** Меню на подставном порту; таблица — `TABLE`, если не задана. */
 const setup = (entryPoints: typeof TABLE = TABLE) => {

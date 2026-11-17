@@ -26,7 +26,7 @@ export class BotApiFailure {
     );
   }
 
-  /** Отказ с новым id группы: группа стала супергруппой (D-UI-65). */
+  /** Отказ с новым id группы: группа стала супергруппой. */
   migrated(): boolean {
     return typeof this.refusal.parameters?.migrate_to_chat_id === 'number';
   }

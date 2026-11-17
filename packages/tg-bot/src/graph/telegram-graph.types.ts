@@ -6,7 +6,7 @@ export type TelegramPoint = {
   readonly key: string;
 };
 
-/** Приложение Telegram в графе: `id`, входы (имя → название) и точки входа в порядке таблицы. */
+/** Приложение Telegram в графе: `id`, входы (имя → название) и точки входа по `id`. */
 export type TelegramApp = {
   readonly id: string;
   readonly entries: ReadonlyMap<string, string>;

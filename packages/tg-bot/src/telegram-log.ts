@@ -39,9 +39,18 @@ export class TelegramLog {
     this.error(LOG_TEXTS.notDeclared, { operation, reason: 'operation' });
   }
 
-  /** Отказ с новым id группы: id в запись не идёт (DEBT-UI-27). */
-  migrated(operation: TelegramOperation): void {
-    this.warn(LOG_TEXTS.migrated, { operation, reason: 'migrated' });
+  /** Срок бана вне допустимого (часы): вызова нет, значения часов в запись не идут. */
+  badClock(operation: TelegramOperation): void {
+    this.error(LOG_TEXTS.badClock, { operation, reason: 'clock' });
+  }
+
+  /** Отказ с новым id группы: одна запись вместо `refused`, id не идёт (DEBT-UI-27). */
+  migrated(method: BotApiMethod, operation?: TelegramOperation): void {
+    this.warn(LOG_TEXTS.migrated, {
+      ...TelegramLog.operation(operation),
+      method,
+      reason: 'migrated',
+    });
   }
 
   badCallbackData(operation: TelegramOperation): void {
@@ -97,6 +106,11 @@ export class TelegramLog {
     const text =
       reason === 'schema' ? LOG_TEXTS.badUpdate : LOG_TEXTS.refusedUpdate;
     this.warn(text, update === undefined ? { reason } : { reason, update });
+  }
+
+  /** `my_chat_member` не про бота проекта: неверный `bot` в спеке или чужой токен; id в запись не идёт. */
+  wrongBot(): void {
+    this.error(LOG_TEXTS.wrongBot, { reason: 'bot' });
   }
 
   /** Узел бесед или сообщества бросил: вид сигнала и имя ошибки без её текста. */

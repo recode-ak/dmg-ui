@@ -313,7 +313,7 @@ describe('MemoryBotApi — чат глазами собеседника', () => 
 describe('MemoryBotApi — меню команд', () => {
   const PARAMS = {
     commands: [{ command: 'tasks', description: 'Мои задачи' }],
-    scope: { type: 'all_private_chats' },
+    scope: { type: 'all_private_chats' as const },
   };
 
   test('setMyCommands — ok с result true, журнал — метод и параметры как есть', async () => {
@@ -330,30 +330,6 @@ describe('MemoryBotApi — меню команд', () => {
 
     expect(await api.setMyCommands(PARAMS)).toEqual({ ok: true, result: true });
     expect(api.journal).toHaveLength(2);
-  });
-
-  test('failNext бьёт и по setMyCommands: вызов в журнале, следующий — обычный', async () => {
-    const api = new MemoryBotApi();
-    api.failNext({ error_code: 400, description: 'Bad Request: x' });
-
-    expect(await api.setMyCommands(PARAMS)).toEqual({
-      ok: false,
-      error_code: 400,
-      description: 'Bad Request: x',
-    });
-    expect(await api.setMyCommands(PARAMS)).toEqual({ ok: true, result: true });
-    expect(api.journal.map((call) => call.method)).toEqual([
-      'setMyCommands',
-      'setMyCommands',
-    ]);
-  });
-
-  test('throwNext бросает и на setMyCommands', async () => {
-    const api = new MemoryBotApi();
-    api.throwNext(new TypeError('сеть'));
-
-    await expect(api.setMyCommands(PARAMS)).rejects.toThrow(TypeError);
-    expect(api.journal).toHaveLength(1);
   });
 
   test('setMyCommands чат не создаёт: чаты и message_id нетронуты', async () => {
@@ -470,20 +446,37 @@ describe('MemoryBotApi — failOn', () => {
       parameters: { migrate_to_chat_id: -1009990001111 },
     });
   });
+});
 
-  test('failNext и throwNext — прежние: бьют по следующему вызову любого метода группы', async () => {
+describe('MemoryBotApi — reached', () => {
+  test('условие уже выполнено — разрешается сразу; иначе — при записи вызова, после которой оно стало истинным', async () => {
     const api = new MemoryBotApi();
-    api.failNext(FAILURE);
-    expect(await api.approveChatJoinRequest(APPROVE)).toEqual({
-      ok: false,
-      ...FAILURE,
-    });
-    api.throwNext(new TypeError('сеть'));
-    await expect(api.banChatMember(BAN)).rejects.toThrow(TypeError);
-    expect(api.journal.map((call) => call.method)).toEqual([
-      'approveChatJoinRequest',
-      'banChatMember',
-    ]);
+    let reached = false;
+
+    await api.reached((journal) => journal.length === 0);
+    const waiting = api
+      .reached((journal) => journal.length === 2)
+      .then(() => {
+        reached = true;
+      });
+    await api.banChatMember(BAN);
+    await Promise.resolve();
+    expect(reached).toBe(false);
+    await api.unbanChatMember(UNBAN);
+    await waiting;
+
+    expect(reached).toBe(true);
+  });
+
+  test('вызов придержан holdOn — условие уже достигнуто: вызов в журнале до release', async () => {
+    const api = new MemoryBotApi();
+    const release = api.holdOn('banChatMember');
+
+    const held = api.banChatMember(BAN);
+    await api.reached((journal) => journal.length === 1);
+    release();
+
+    expect(await held).toEqual({ ok: true, result: true });
   });
 });
 

@@ -19,11 +19,11 @@ import type { TelegramOperation } from '../telegram-log.types';
 import {
   CHOSEN_SEPARATOR,
   NO_PREVIEW,
-  POSITIVE_INTEGER,
   TELEGRAM_CAPABILITIES,
   TELEGRAM_LIMITS,
   TELEGRAM_TEXTS,
 } from './telegram.const';
+import { telegramInteger } from './telegram-integer';
 import { TelegramKeyboard } from './telegram-keyboard';
 import type {
   TelegramContent,
@@ -42,7 +42,7 @@ const UNAVAILABLE = err({ reason: 'unavailable' as const });
  */
 export class TelegramMessenger implements MessengerPort {
   readonly capabilities: MessengerCapabilities = TELEGRAM_CAPABILITIES;
-  /** Операции группы (D-UI-65): на том же порту; в `Communities` идёт мимо стража. */
+  /** Операции группы: на том же порту; в `Communities` идёт мимо стража. */
   readonly community: CommunityPort;
   private readonly api: BotApi;
   private readonly log: TelegramLog;
@@ -79,7 +79,7 @@ export class TelegramMessenger implements MessengerPort {
   ): Promise<Delivery<Updated>> {
     const chat = this.target('update', peer, message);
     if (chat === undefined) return REJECTED;
-    const messageId = TelegramMessenger.integer(handle);
+    const messageId = telegramInteger(handle, 'positive');
     if (messageId === undefined) {
       this.log.badHandle('update');
       return this.resend(chat, message);
@@ -118,7 +118,7 @@ export class TelegramMessenger implements MessengerPort {
   ): Promise<Delivery<void>> {
     const chat = this.target('retire', peer);
     if (chat === undefined) return REJECTED;
-    const messageId = TelegramMessenger.integer(handle);
+    const messageId = telegramInteger(handle, 'positive');
     if (messageId === undefined) {
       this.log.badHandle('retire');
       return REJECTED;
@@ -226,7 +226,7 @@ export class TelegramMessenger implements MessengerPort {
     peer: string,
     message?: Message,
   ): number | undefined {
-    const chat = TelegramMessenger.integer(peer);
+    const chat = telegramInteger(peer, 'positive');
     if (chat === undefined) {
       this.log.badPeer(operation);
       return undefined;
@@ -282,12 +282,5 @@ export class TelegramMessenger implements MessengerPort {
     return content.entities.length > 0
       ? { text: content.text, entities: content.entities }
       : { text: content.text };
-  }
-
-  /** Каноническое десятичное целое > 0, безопасное для JS; иначе `undefined`. */
-  private static integer(value: string): number | undefined {
-    if (!POSITIVE_INTEGER.test(value)) return undefined;
-    const number = Number(value);
-    return Number.isSafeInteger(number) ? number : undefined;
   }
 }

@@ -60,11 +60,12 @@ export type RefusedUpdate = {
   readonly press?: string;
 };
 
-/** Итог перевода апдейта: сигнал беседы, сигнал сообщества, отказ или «ничего» — апдейт вне диалога и группы, без записи. */
+/** Итог перевода апдейта: сигнал беседы, сигнал сообщества, отказ, чужой бот (`my_chat_member` не про `bot` проекта) или «ничего» — апдейт вне диалога и группы, без записи. */
 export type SignalOutcome =
   | { readonly kind: 'signal'; readonly signal: ConversationSignal }
   | { readonly kind: 'community'; readonly signal: CommunitySignal }
   | RefusedUpdate
+  | { readonly kind: 'wrongBot' }
   | { readonly kind: 'ignored' };
 
 /** Сообщение апдейта, сверенное схемой. */

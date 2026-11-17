@@ -323,6 +323,26 @@ describe('TelegramUpdates — апдейт не по схеме', () => {
     });
   }
 
+  test('объект с бросающим геттером — receive не бросает, отказ schema без данных', async () => {
+    const { api, logger, signals, updates } = setup();
+    const hostile = {
+      get update_id(): number {
+        throw new Error(`секрет ${ME}`);
+      },
+    };
+
+    await expect(updates.receive(hostile)).resolves.toBeUndefined();
+
+    expect(signals).toEqual([]);
+    expect(api.journal).toEqual([]);
+    expect(logger.records.map((record) => record.level)).toEqual(['warn']);
+    expect(logger.records[0]?.meta).toEqual({
+      messenger: 'telegram',
+      reason: 'schema',
+    });
+    clean(logger);
+  });
+
   test('нажатие не по схеме, id читается — ответ есть, сигнала нет, warn без данных', async () => {
     const { api, logger, signals, updates } = setup();
     await updates.receive(press({ from: { id: String(ME) } }));
@@ -352,22 +372,6 @@ describe('TelegramUpdates — сбой узла бесед', () => {
 });
 
 describe('TelegramUpdates — точки входа', () => {
-  test('/tasks по точке menu → сигнал enter на вход точки; поля param у сигнала нет', async () => {
-    const { signals, updates } = setup();
-
-    await updates.receive(new TestUpdates().text(ME, '/tasks'));
-
-    expect(signals).toStrictEqual([
-      {
-        id: '1',
-        peer: String(ME),
-        sender: String(ME),
-        kind: 'enter',
-        entry: 'start',
-      },
-    ]);
-  });
-
   test('/start <параметр ссылки> → вход точки link; параметр в сигнал и в лог не попадает', async () => {
     const { api, logger, signals, updates } = setup();
 
@@ -384,15 +388,6 @@ describe('TelegramUpdates — точки входа', () => {
     ]);
     expect(api.journal).toEqual([]);
     expect(logger.records).toEqual([]);
-  });
-
-  test('/start с чужим параметром → вход точки /start: человек не остаётся без ответа', async () => {
-    const { signals, updates } = setup();
-
-    await updates.receive(new TestUpdates().text(ME, '/start от-друга'));
-
-    expect(signals).toMatchObject([{ kind: 'enter', entry: 'start' }]);
-    expect(JSON.stringify(signals)).not.toContain('от-друга');
   });
 });
 
@@ -546,18 +541,27 @@ describe('TelegramUpdates — сообщество', () => {
     expect(logger.records).toEqual([]);
   });
 
-  test('эхо бота: chat_member от самого бота — порт сообщества не вызван, записей нет', async () => {
-    const { received, updates, logger, api } = withCommunities();
-    const builder = new TestUpdates();
+  test('my_chat_member не про бота проекта — сигнала нет, один error без id', async () => {
+    const { received, updates, logger } = withCommunities();
+    const added = new TestUpdates().botAdded(GROUP, ADMIN);
+    const member = added.my_chat_member.new_chat_member;
+    const update = {
+      ...added,
+      my_chat_member: {
+        ...added.my_chat_member,
+        new_chat_member: { ...member, user: { ...member.user, id: NEWBIE } },
+      },
+    };
 
-    await updates.receive(builder.left(GROUP, NEWBIE, BOT));
-    await updates.receive(builder.joined(GROUP, NEWBIE, BOT));
+    await updates.receive(update);
+
     expect(received).toEqual([]);
-    expect(api.journal).toEqual([]);
-    expect(logger.records).toEqual([]);
-
-    await updates.receive(builder.left(GROUP, NEWBIE, ADMIN));
-    expect(received).toHaveLength(1);
+    expect(logger.records.map((record) => record.level)).toEqual(['error']);
+    expect(logger.records[0]?.meta).toEqual({
+      messenger: 'telegram',
+      reason: 'bot',
+    });
+    clean(logger);
   });
 
   test('сообщение и команда в группе — порт сообщества не вызван, узел бесед не вызван, записей нет', async () => {

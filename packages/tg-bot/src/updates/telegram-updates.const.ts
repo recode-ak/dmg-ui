@@ -1,10 +1,8 @@
 import type { AttachmentKind } from 'dmg-ui/chat-ui';
+import type { RefusedUpdateKind } from './telegram-updates.types';
 
 /** Команда в начале текста: `/имя` и, в группе, `@бот`; имя — по правилам Bot API, до 32 знаков. */
 export const COMMAND = /^\/([A-Za-z0-9_]{1,32})(?:@[A-Za-z0-9_]+)?$/;
-
-/** Параметр `/start` (глубокая ссылка Bot API): до 64 знаков `[A-Za-z0-9_-]`. */
-export const START_PARAM = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Вид сущности команды. */
 export const BOT_COMMAND = 'bot_command';
@@ -32,11 +30,11 @@ export const TELEGRAM_ALLOWED_UPDATES = [
   'my_chat_member',
   'chat_member',
   'chat_join_request',
-] as const;
+] as const satisfies readonly RefusedUpdateKind[];
 
 /** Виды апдейта группы: при апдейте не по схеме вид попадает в отказ. */
 export const COMMUNITY_UPDATES = [
   'my_chat_member',
   'chat_member',
   'chat_join_request',
-] as const;
+] as const satisfies readonly RefusedUpdateKind[];

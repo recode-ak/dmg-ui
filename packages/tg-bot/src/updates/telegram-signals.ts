@@ -5,6 +5,7 @@ import type {
 } from 'dmg-ui/chat-ui';
 import * as v from 'valibot';
 import {
+  LINK_KEY,
   START_COMMAND,
   UNKNOWN_ENTRY,
 } from '../entries/telegram-entries.const';
@@ -16,7 +17,6 @@ import {
   BOT_COMMAND,
   COMMAND,
   COMMUNITY_UPDATES,
-  START_PARAM,
 } from './telegram-updates.const';
 import type {
   CallbackQuery,
@@ -39,11 +39,8 @@ export class TelegramSignals {
   private readonly table: TelegramEntryTable;
   private readonly community: TelegramCommunitySignals;
 
-  /** Сборка: `bot` — безопасное целое > 0, иначе бросок (нужен приёму сообщества для отсева эха). */
+  /** Сборка: `bot` проверяет `TelegramCommunitySignals` (бросок при неверном). */
   constructor(spec: TelegramSignalsSpec) {
-    if (!Number.isSafeInteger(spec.bot) || spec.bot <= 0) {
-      throw new Error('TelegramSignals: bot — безопасное целое больше нуля');
-    }
     this.table = new TelegramEntryTable(spec.entryPoints);
     this.community = new TelegramCommunitySignals(spec.bot);
   }
@@ -77,16 +74,16 @@ export class TelegramSignals {
         press.output.callback_query.id,
       );
     }
-    const kind_ = COMMUNITY_UPDATES.find(
+    const community = COMMUNITY_UPDATES.find(
       (kind) =>
         typeof update === 'object' &&
         update !== null &&
         Object.hasOwn(update, kind) &&
         typeof (update as Record<string, unknown>)[kind] === 'object',
     );
-    return kind_ === undefined
+    return community === undefined
       ? { kind: 'refused', reason: 'schema' }
-      : { kind: 'refused', reason: 'schema', update: kind_ };
+      : { kind: 'refused', reason: 'schema', update: community };
   }
 
   private press(id: string, query: CallbackQuery): SignalOutcome {
@@ -173,7 +170,7 @@ export class TelegramSignals {
   /** Вход по команде и параметру `/start`; нет в таблице — заглушка. */
   private entry(name: string, param: string): string {
     const linked =
-      name === START_COMMAND && START_PARAM.test(param)
+      name === START_COMMAND && LINK_KEY.test(param)
         ? this.table.link(param)
         : undefined;
     return linked ?? this.table.command(name) ?? UNKNOWN_ENTRY;
