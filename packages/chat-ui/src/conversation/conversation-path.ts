@@ -1,6 +1,6 @@
 import type { InstanceJson } from 'dmg-ui';
 import * as v from 'valibot';
-import { MAX_PATH } from './conversation.const';
+import { MAX_PATH, MAX_STEP_LENGTH } from './conversation.const';
 
 /** Адрес элемента пути — ровно то, что нужно правилу обрезки: id экрана. */
 const StepScreen = v.object({ address: v.object({ screen: v.string() }) });
@@ -22,7 +22,8 @@ export class ConversationPath {
   /**
    * Уход с живого экрана на экран `target` (id). Тот же экран — путь прежний
    * (листание не растит путь); экран из пути — путь обрезан до него, цель
-   * открывается заново; иначе уходящий экран — наверх, сверх предела давний забыт.
+   * открывается заново; иначе уходящий экран — наверх, сверх предела давний
+   * забыт. JSON уходящего длиннее `MAX_STEP_LENGTH` — путь прежний: снимок не растёт.
    */
   leave(left: InstanceJson, target: string): void {
     if (left.address.screen === target) return;
@@ -33,13 +34,19 @@ export class ConversationPath {
       this.steps = this.steps.slice(0, at);
       return;
     }
+    if (JSON.stringify(left).length > MAX_STEP_LENGTH) return;
     this.steps.push(left);
     if (this.steps.length > MAX_PATH) this.steps.shift();
   }
 
-  /** Верхний элемент пути снят; путь пуст — `undefined`. */
-  pop(): unknown {
-    return this.steps.pop();
+  /** Верхний элемент пути без снятия; путь пуст — `undefined`. */
+  top(): unknown {
+    return this.steps.at(-1);
+  }
+
+  /** Верхний элемент пути снят. */
+  pop(): void {
+    this.steps.pop();
   }
 
   /** Вход приложения, «В начало», выход сторис, экран не восстановлен, `resume`. */

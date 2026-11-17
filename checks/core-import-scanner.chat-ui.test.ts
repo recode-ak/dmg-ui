@@ -44,9 +44,12 @@ describe('CoreImportScanner — канал диалога (packages/chat-ui/src/
   it('*.test.ts канала — вне зоны', () => {
     const text = "import { test } from 'bun:test';\nimport 'node:fs';";
 
-    expect(scan(text, 'packages/chat-ui/src/dialog/dialog.test.ts')).toEqual(
-      [],
-    );
+    expect(
+      scan(
+        text,
+        'packages/chat-ui/src/conversation/conversation-outcomes.test.ts',
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -78,7 +81,7 @@ describe('CoreImportScanner — тестовый вход канала (packages
       "import { ScreenDef } from 'dmg-ui';",
       "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
       "import { TaskListScreenDef } from 'dmg-ui/testing';",
-      "import { DialogViews } from 'dmg-ui/chat-ui';",
+      "import { ChatViews } from 'dmg-ui/chat-ui';",
       "import { TaskLines } from './task-lines';",
     ].join('\n');
 
@@ -93,7 +96,7 @@ describe('CoreImportScanner — тестовый вход канала (packages
     "import { a } from 'dmg-core/gen';",
     "import { a } from 'dmg-core/app';",
     "import { UiIds } from '../../../core/src/address/ui-ids';",
-    "import { DialogViews } from '../../src/dialog/dialog-views';",
+    "import { ChatViews } from '../../src/view/chat-views';",
   ]) {
     it(`${text} в тестовом входе канала — нарушение`, () => {
       expect(scan(text, BINDING)).toHaveLength(1);

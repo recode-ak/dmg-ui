@@ -226,7 +226,7 @@ describe('CoreImportScanner — привязка примера к страни�
     "import { test } from 'bun:test';",
     "import { UiIds } from '../../../src/address/ui-ids';",
     "import { ExampleDialogAppDef } from 'dmg-ui/chat-ui/testing';",
-    "import { DialogViews } from 'dmg-ui/chat-ui';",
+    "import { ChatViews } from 'dmg-ui/chat-ui';",
   ]) {
     it(`${text} в привязке страниц — нарушение`, () => {
       expect(scan(text, BINDING)).toHaveLength(1);

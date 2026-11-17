@@ -50,6 +50,7 @@ import type {
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
+import { MAX_FRAGMENT_TEXT } from './conversation.const';
 import type { ConversationSnapshot } from './conversation.types';
 import { ConversationSnapshotSchema } from './conversation-snapshot';
 import { Conversations } from './conversations';
@@ -1112,5 +1113,71 @@ describe('Conversation — перекрытие представлений по�
     expect(ownLine.message.options.map((o) => o.label)).toEqual(
       commonLine.message.options.map((o) => o.label),
     );
+  });
+});
+
+describe('Conversations — место в снимке и размер показанного', () => {
+  test('экран с текстом больше предела схемы — снимок записан: свежие seen и экран, у места нет сообщения; после перезапуска сигнал без броска и без retire', async () => {
+    const bus = new AwaitingBus();
+    const example = new ExampleApp(
+      { mode: 'test', dataDir: tmp().path, users: [A] },
+      { bus, logger: new MemoryLogger(), clock: () => T0 },
+    );
+    const server = new UiServer({
+      set: ExampleUiSetDef,
+      dispatch: new ApiAppDispatch(example.api),
+      context: { bus, logger: new MemoryLogger() },
+    });
+    // Фрагмент длиннее предела схемы сообщения места: мессенджер его
+    // принимает, снимок — нет.
+    const huge = exampleDialogViews.over([
+      ScreenPresenter.of(TaskListScreenDef, {
+        render: (_view, kit) =>
+          kit.message(`Список ${'x'.repeat(MAX_FRAGMENT_TEXT)}`),
+      }),
+    ]);
+    const store = new MemoryConversationStore();
+    const messenger = MemoryMessenger.editing();
+    const nodeOf = () =>
+      new Conversations({
+        app: ExampleDialogAppDef,
+        codes: exampleCodes(),
+        server,
+        views: huge,
+        observer: new MemoryUiObserver(),
+        messenger,
+        store,
+        logger: new MemoryLogger(),
+        people: async () => A,
+        callers: example.callers,
+        places: {
+          place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
+        },
+      });
+    const signal = (id: string) => ({ id, peer: PEER, sender: 'sender-a' });
+    const first = nodeOf();
+    await first.receive({ ...signal('huge-1'), kind: 'enter', entry: 'start' });
+    const raw = await store.load(PEER);
+    await first.close();
+
+    const second = nodeOf();
+    const from = messenger.journal.length;
+    await second.receive({ ...signal('huge-2'), kind: 'cancel' });
+    const after = await store.load(PEER);
+    await second.close();
+
+    expect(v.safeParse(ConversationSnapshotSchema, raw).success).toBe(true);
+    const saved = v.parse(ConversationSnapshotSchema, raw);
+    expect(saved.seen).toEqual(['huge-1']);
+    expect(saved.screen?.instance).toMatchObject({
+      address: { screen: 'exampleUi/todo/taskList' },
+    });
+    expect(saved.screen?.handles).toHaveLength(1);
+    expect(saved.screen).not.toHaveProperty('message');
+    expect(v.parse(ConversationSnapshotSchema, after).seen).toEqual([
+      'huge-1',
+      'huge-2',
+    ]);
+    expect(opsOf(messenger, from)).toEqual(['show m2']);
   });
 });

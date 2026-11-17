@@ -146,16 +146,19 @@ export class ConversationScreens {
 
   /**
    * «Назад»: верхний элемент пути через `restore` — новый живой экран без
-   * записи в путь; путь пуст — живой экран снова. Не восстановился — заметка
-   * и вход home, нижние элементы не пробуются.
+   * записи в путь; путь пуст — живой экран снова. Элемент снимается, когда
+   * `restore` ответил: бросок порта путь не трогает. Не восстановился —
+   * заметка и вход home, нижние элементы не пробуются.
    */
   async back(trace: Trace): Promise<void> {
-    const step = this.parts.path.pop();
+    const { path } = this.parts;
+    const step = path.top();
     if (step === undefined) {
       await this.show();
       return;
     }
     const restored = await this.restore(step, trace);
+    path.pop();
     if (restored === undefined) {
       await this.parts.output.note(CONVERSATION_TEXTS.notRestored);
       await this.home(trace);
@@ -165,7 +168,11 @@ export class ConversationScreens {
     await this.show();
   }
 
-  /** Адрес из внешних данных (исход `moved`, ссылка): уход по пути; не декодирован — заметка и вход home. */
+  /**
+   * Адрес из внешних данных (исход `moved`, ссылка): уход по пути, когда
+   * экземпляр открыт, — до показа, чтобы «Назад» был в первом показе; бросок
+   * порта путь не трогает. Не декодирован — заметка и вход home.
+   */
   async openJson(json: AddressJson, trace: Trace): Promise<void> {
     const address = this.codec.decode(json);
     if (!address.ok) {
@@ -173,11 +180,12 @@ export class ConversationScreens {
       await this.home(trace);
       return;
     }
+    const instance = await this.start(address.value, trace);
     const live = this.live;
     if (live !== undefined) {
       this.parts.path.leave(live.instance.snapshot(), json.screen);
     }
-    await this.open(address.value, trace);
+    await this.present(instance);
   }
 
   /** Вход приложения: путь сброшен. */
@@ -205,11 +213,23 @@ export class ConversationScreens {
     trace: Trace,
     lead?: string,
   ): Promise<void> {
+    await this.present(await this.start(address, trace), lead);
+  }
+
+  /** Экземпляр ядра по адресу; живой экран и путь не трогает. */
+  private async start(address: Address, trace: Trace): Promise<ScreenInstance> {
     const { runtime, contexts } = this.parts.spec;
-    const instance = await runtime.open(address, {
+    return runtime.open(address, {
       context: await contexts.context(trace),
       trace: trace.toJSON(),
     });
+  }
+
+  /** Открытый экземпляр — живой экран, его вид в живое место; `lead` — заметка перед видом. */
+  private async present(
+    instance: ScreenInstance,
+    lead?: string,
+  ): Promise<void> {
     this.replace(instance);
     await this.show(lead);
   }

@@ -36,6 +36,9 @@ export const MAX_HANDLES = MAX_VIEW_MESSAGES;
 /** Элементов пути переходов беседы; сверх — давний забыт. */
 export const MAX_PATH = 16;
 
+/** Длина JSON элемента пути в знаках; длиннее — элемент в путь не кладётся. */
+export const MAX_STEP_LENGTH = 8192;
+
 /** Фрагментов текста последнего сообщения живого места в снимке. */
 export const MAX_FRAGMENTS = 1024;
 

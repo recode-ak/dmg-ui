@@ -120,8 +120,8 @@ const RefEntrySchema = v.variant('kind', [
   v.object({ ref: Ref, kind: v.literal('home'), label: Label }),
 ]);
 
-/** Последнее сообщение живого места: текстовое, со ссылками таблицы. */
-const PlaceMessage = v.object({
+/** Последнее сообщение живого места: текстовое, со ссылками таблицы; не проходит — место в снимке без него. */
+export const PlaceMessageSchema = v.object({
   kind: v.literal('text'),
   text: v.pipe(
     v.array(
@@ -150,7 +150,7 @@ const LiveScreen = v.object({
   page: Count,
   latest: v.optional(v.boolean()),
   history: v.optional(v.pipe(v.string(), v.regex(HASH_PATTERN))),
-  message: v.optional(PlaceMessage),
+  message: v.optional(PlaceMessageSchema),
 });
 
 const Field = v.object({

@@ -1,6 +1,7 @@
 // Вход dmg-ui/chat-ui/testing: привязка учебного примера к диалоговому
 // каналу — приложение UI, представления и граф примера; подставной
-// мессенджер в памяти.
+// мессенджер в памяти и его типы: спека, строка беседы `ChatLine`, запись
+// журнала.
 
 export { ExampleDialogAppDef } from './example/example-dialog.app';
 export { ExampleDialogArch } from './example/example-dialog.arch';

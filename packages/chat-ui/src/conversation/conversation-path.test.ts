@@ -17,6 +17,7 @@ import {
   CodeLoader,
   CodeLoaders,
   type DataOf,
+  type InstanceJson,
   type LoadContext,
   ScreenCode,
   ScreenDef,
@@ -37,10 +38,12 @@ import { PlainText } from '../message/plain-text';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
+import { MAX_STEP_LENGTH } from './conversation.const';
 import type {
   ConversationSignal,
   ConversationSnapshot,
 } from './conversation.types';
+import { ConversationPath } from './conversation-path';
 import { ConversationSnapshotSchema } from './conversation-snapshot';
 import { Conversations } from './conversations';
 import { MemoryConversationStore } from './memory-conversation-store';
@@ -467,11 +470,18 @@ const sceneOf = (options: {
   const world = worldOf();
   const { messenger } = options;
   const kit = new RuntimeKit(codesOf(world), PathSetDef);
+  /** Порт контекста рендера: `broken` — бросает (открытие и `restore` экрана). */
+  const port = { broken: false };
   const conversation = new Conversation(
     {
       app: PathAppDef,
       runtime: kit.runtime,
-      contexts: { context: async () => testRenderContext },
+      contexts: {
+        context: async () => {
+          if (port.broken) throw new Error('context-mark-q7');
+          return testRenderContext;
+        },
+      },
       traces: new DialogTraces(() => {
         requests += 1;
         return `r-${requests}`;
@@ -511,6 +521,7 @@ const sceneOf = (options: {
   return {
     kit,
     world,
+    port,
     messenger,
     conversation,
     enter: async (entry: string) => {
@@ -861,6 +872,120 @@ describe('Conversation — когда путь меняется', () => {
       address: { screen: LIST, params: { page: 0 } },
       state: { filter: MARK },
     });
+  });
+});
+
+describe('Conversation — путь меняется только после успеха', () => {
+  test('«Назад» на экран из пути, загрузка которого теперь отказывает, — вид в отказе, прежнего показа нет, экран не считается невосстановленным', async () => {
+    const s = sceneOf({ messenger: editingMessenger() });
+    await s.enter('start');
+    await s.press('Профиль');
+    await s.press('Заметки');
+    const shown = textsOf(s.messenger).length;
+    s.world.broken = true;
+
+    await s.back();
+    const fresh = textsOf(s.messenger).slice(shown);
+
+    expect(s.conversation.screen()?.address).toEqual({
+      screen: PROFILE,
+      params: { personId: PERSON },
+    });
+    expect(labelsOf(lastLine(s.messenger).message)).toEqual([
+      'Повторить',
+      'Назад',
+      'В начало',
+    ]);
+    expect(fresh.join('\n')).not.toContain(`Профиль ${PERSON}`);
+    expect(textsOf(s.messenger)).not.toContain(
+      'Прежний экран не восстановлен — начнём сначала.',
+    );
+    expect(screensOf(s.conversation)).toEqual([LIST]);
+  });
+
+  test('бросок порта при открытии перехода — путь в снимке прежний; после починки переход растит его один раз', async () => {
+    const s = sceneOf({ messenger: editingMessenger() });
+    await s.enter('start');
+    await s.press('Пометить');
+    await s.press('Профиль');
+    const before = pathOf(s.conversation);
+    s.port.broken = true;
+
+    await expect(s.press('Заметки')).rejects.toThrow();
+    const thrown = pathOf(s.conversation);
+    s.port.broken = false;
+    await s.press('Заметки');
+
+    expect(before.map((step) => step.address.screen)).toEqual([LIST]);
+    expect(thrown).toEqual(before);
+    expect(screensOf(s.conversation)).toEqual([LIST, PROFILE]);
+    expect(s.conversation.screen()?.address.screen).toBe(NOTES);
+  });
+
+  test('бросок порта при «Назад» — путь прежний, элемент не потерян: после починки «Назад» поднимает его', async () => {
+    const s = sceneOf({ messenger: editingMessenger() });
+    await s.enter('start');
+    await s.press('Пометить');
+    await s.press('Профиль');
+    const before = pathOf(s.conversation);
+    s.port.broken = true;
+
+    await expect(s.back()).rejects.toThrow();
+    const thrown = pathOf(s.conversation);
+    const live = s.conversation.screen()?.address.screen;
+    s.port.broken = false;
+    await s.back();
+
+    expect(before.map((step) => step.address.screen)).toEqual([LIST]);
+    expect(thrown).toEqual(before);
+    expect(live).toBe(PROFILE);
+    expect(s.conversation.screen()).toMatchObject({
+      address: { screen: LIST, params: { page: 0 } },
+      state: { filter: MARK },
+    });
+    expect(s.conversation.snapshot()).not.toHaveProperty('path');
+  });
+});
+
+describe('ConversationPath — предел элемента', () => {
+  /** Снимок экземпляра экрана `screen`, чей JSON ровно `length` знаков. */
+  const stepOf = (screen: string, length: number): InstanceJson => {
+    const base = { address: { screen, params: {} }, state: { filter: '' } };
+    const pad = length - JSON.stringify({ ...base, revision: 1 }).length;
+    return { ...base, state: { filter: 'x'.repeat(pad) }, revision: 1 };
+  };
+
+  test('элемент длиннее предела в путь не кладётся — путь прежний; на пределе — кладётся', () => {
+    const path = new ConversationPath();
+    const list = stepOf(LIST, 128);
+    path.leave(list, PROFILE);
+    const long = stepOf(PROFILE, MAX_STEP_LENGTH + 1);
+    const edge = stepOf(PROFILE, MAX_STEP_LENGTH);
+
+    path.leave(long, NOTES);
+    const after = path.toJSON();
+    path.leave(edge, NOTES);
+
+    expect(JSON.stringify(long)).toHaveLength(MAX_STEP_LENGTH + 1);
+    expect(JSON.stringify(edge)).toHaveLength(MAX_STEP_LENGTH);
+    expect(after).toEqual([list]);
+    expect(path.toJSON()).toEqual([list, edge]);
+  });
+
+  test('длинный элемент не мешает правилам: тот же экран — путь прежний, экран из пути — обрезка', () => {
+    const path = new ConversationPath();
+    const list = stepOf(LIST, 128);
+    path.leave(list, PROFILE);
+    path.leave(stepOf(PROFILE, 128), NOTES);
+
+    path.leave(stepOf(NOTES, MAX_STEP_LENGTH + 1), NOTES);
+    const same = path.toJSON();
+    path.leave(stepOf(NOTES, MAX_STEP_LENGTH + 1), PROFILE);
+
+    expect(
+      v.parse(v.array(Step), same).map((step) => step.address.screen),
+    ).toEqual([LIST, PROFILE]);
+    expect(path.toJSON()).toEqual([list]);
   });
 });
 

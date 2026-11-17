@@ -1,3 +1,4 @@
+import * as v from 'valibot';
 import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';
 import type {
@@ -13,6 +14,7 @@ import type {
 } from './conversation.types';
 import type { ConversationLog } from './conversation-log';
 import type { ConversationReplies } from './conversation-replies';
+import { PlaceMessageSchema } from './conversation-snapshot';
 import { Sha256 } from './sha256';
 
 /** Части беседы, через которые идёт отправка. */
@@ -121,9 +123,16 @@ export class ConversationOutput {
     this.latest = false;
   }
 
-  /** Место — для снимка (поля `LiveScreenJson`). */
+  /**
+   * Место — для снимка (поля `LiveScreenJson`). Сообщение сверх пределов
+   * схемы в снимок не идёт: снимок пишется без него, после перезапуска уход
+   * прежнего сообщения (`retire`) пропускается.
+   */
   toJSON(): PlaceJson {
-    const { message, history } = this;
+    const { history } = this;
+    const message = v.is(PlaceMessageSchema, this.message)
+      ? this.message
+      : undefined;
     return {
       handles: [...this.handles],
       ...(this.latest ? { latest: true } : {}),
