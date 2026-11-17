@@ -8,14 +8,19 @@ import {
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
-import { CARD_ID, ExampleUiSetDef, exampleCodes, LIST_ID } from '../example';
+import {
+  CARD_ID,
+  ExampleUiSetDef,
+  exampleCodes,
+  LIST_ID,
+  MemoryUiObserver,
+} from 'dmg-ui/testing';
+import { T0 } from 'dmg-ui/testing/fixtures';
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
   examplePageViews,
-} from '../example/pages';
-import { MemoryUiObserver } from '../memory-ui-observer';
-import { T0 } from '../ui-server-fixture';
+} from '../testing';
 import { PageClient } from './client/page-client';
 import { PageHost } from './server/page-host';
 import type { ServerMessage as ServerMsg } from './wire/page-messages.types';

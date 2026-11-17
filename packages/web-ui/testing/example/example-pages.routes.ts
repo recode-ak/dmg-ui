@@ -1,4 +1,4 @@
-import { PageRouteDef } from '../../page/graph/page-route-def';
+import { PageRouteDef } from 'dmg-ui/web-ui';
 
 /** Маршруты учебного примера: путь страницы — вход приложения UI. */
 export const examplePageRoutes = [

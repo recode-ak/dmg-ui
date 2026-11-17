@@ -2,13 +2,13 @@ import { describe, expect, test } from 'bun:test';
 import { AppGraph } from 'dmg-core/graph';
 import { ExampleArch } from 'dmg-core/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
-import { ExampleUiSetDef } from '../../example';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
 import {
   ExamplePagesAppDef,
   ExamplePagesArch,
   examplePageRoutes,
   examplePageViews,
-} from '../../example/pages';
+} from '../../testing';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
 import { PageGraphProvider } from './page-graph-provider';
 import { PageRouteDef } from './page-route-def';

@@ -272,10 +272,12 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
     'packages/core',
     'packages/chat-ui',
     'packages/tg-bot',
+    'packages/web-ui',
     'acceptance',
   ]) {
     it(`на реальном ${dir} — ноль нарушений`, () => {
       const files = SourceTree.read(ROOT, dir);
+      expect(files.length).toBeGreaterThan(0);
       expect(CoreImportScanner.standard().scan(files)).toEqual([]);
     });
   }

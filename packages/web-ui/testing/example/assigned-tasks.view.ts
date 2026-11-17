@@ -1,5 +1,5 @@
-import { PagePresenter } from '../../page/client/page-views';
-import { AssignedTasksScreenDef } from '../todo/assigned-tasks.screen';
+import { AssignedTasksScreenDef } from 'dmg-ui/testing';
+import { PagePresenter } from 'dmg-ui/web-ui';
 import { TaskLines } from './task-lines';
 
 /** «Назначенные мне» на странице: поручения со статусом. */

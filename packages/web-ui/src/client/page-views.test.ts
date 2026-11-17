@@ -5,8 +5,8 @@ import {
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
-} from '../../example';
-import { UiScene } from '../../ui-arch';
+} from 'dmg-ui/testing';
+import { UiScene } from 'dmg-ui/testing/fixtures';
 import { PageNotePresenter, PagePresenter, PageViews } from './page-views';
 
 // Реестр представлений страничного канала: ключ — `id` из `UiIds` (образец —

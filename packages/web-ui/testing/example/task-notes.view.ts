@@ -1,6 +1,8 @@
-import { PageNotePresenter } from '../../page/client/page-views';
-import { TaskAssignedNotificationDef } from '../todo/task-assigned.notification';
-import { TaskCompletedNotificationDef } from '../todo/task-completed.notification';
+import {
+  TaskAssignedNotificationDef,
+  TaskCompletedNotificationDef,
+} from 'dmg-ui/testing';
+import { PageNotePresenter } from 'dmg-ui/web-ui';
 
 /** «Вам назначена задача» на странице: подпись уведомления и название. */
 export const TaskAssignedView = PageNotePresenter.for(

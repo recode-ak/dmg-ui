@@ -1,5 +1,5 @@
-import { PagePresenter } from '../../page/client/page-views';
-import { TaskCardScreenDef } from '../todo/task-card.screen';
+import { TaskCardScreenDef } from 'dmg-ui/testing';
+import { PagePresenter } from 'dmg-ui/web-ui';
 
 /** Карточка задачи на странице: название и статус. */
 export const TaskCardView = PagePresenter.for(TaskCardScreenDef, ({ data }) =>

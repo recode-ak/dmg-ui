@@ -4,7 +4,7 @@ import { describe, expect, it } from 'bun:test';
 // (D-UI-32): диалог, сообщение, помощники лимита, страж и схема возможностей
 // мессенджера, поставщик графа и примеры для его правил, узел бесед,
 // хранилище бесед в памяти, схема снимка беседы и исполнитель сообщества — в `dmg-ui/chat-ui`; привязка примера и подставной мессенджер — в
-// `dmg-ui/chat-ui/testing`; шесть помощников ядра — в `dmg-ui/testing/fixtures`;
+// `dmg-ui/chat-ui/testing`; десять помощников ядра — в `dmg-ui/testing/fixtures`;
 // мессенджер Telegram — в `dmg-ui/tg-bot`, подставной порт Bot API — в
 // `dmg-ui/tg-bot/testing`.
 
@@ -65,14 +65,18 @@ describe('вход dmg-ui/chat-ui/testing', () => {
 });
 
 describe('вход dmg-ui/testing/fixtures', () => {
-  it('состав — ровно шесть помощников тестов', async () => {
+  it('состав — ровно десять помощников тестов', async () => {
     expect(Object.keys(await import('dmg-ui/testing/fixtures')).sort()).toEqual(
       [
         'ArchReport',
+        'ExampleStubAppDef',
         'RuntimeKit',
         'StubViewProvider',
         'T0',
+        'UiScene',
+        'exampleUser',
         'oplogRecords',
+        'requestTrace',
         'testRenderContext',
       ],
     );

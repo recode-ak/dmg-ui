@@ -120,7 +120,7 @@
 
 ## 9. Как тестировать
 
-- Состав и связи — `arch:check` и граф (`ExampleDialogArch` из `dmg-ui/chat-ui/testing`, `ExamplePagesArch` из `dmg-ui/testing` — образец сборки `ArchApp`); отдельные тесты манифестов не нужны (TST-09).
+- Состав и связи — `arch:check` и граф (`ExampleDialogArch` из `dmg-ui/chat-ui/testing`, `ExamplePagesArch` из `dmg-ui/web-ui/testing` — образец сборки `ArchApp`); отдельные тесты манифестов не нужны (TST-09).
 - Код экрана — тестом через `ScreenRuntime` с `MemoryUiObserver` из `dmg-ui/testing`: открыть, выполнить действие, проверить исход и записи (`kinds()`).
 - Примеры — снимками: `ExamplePreview` из `dmg-ui/testing` рендерит пример через представление канала.
 - Тесты изолированы и короткие (TST-04), проверяют код экрана, а не платформу или схемы (TST-09).

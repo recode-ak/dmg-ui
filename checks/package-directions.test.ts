@@ -138,6 +138,12 @@ describe('PackageDirections — направления между пакетам
       ['packages/tg-bot/src/f.ts', 'dmg-ui'],
       ['packages/tg-bot/src/f.ts', 'dmg-ui/server'],
       ['packages/tg-bot/src/f.ts', 'dmg-ui/chat-ui'],
+      ['packages/web-ui/src/f.ts', 'dmg-ui'],
+      ['packages/web-ui/src/f.ts', 'dmg-ui/graph'],
+      ['packages/web-ui/src/f.ts', 'dmg-ui/server'],
+      ['packages/web-ui/testing/f.ts', 'dmg-ui/testing'],
+      ['packages/web-ui/testing/f.ts', 'dmg-ui/testing/fixtures'],
+      ['packages/web-ui/testing/f.ts', 'dmg-ui/web-ui'],
     ] as const) {
       it(`${path} → «${spec}» разрешено`, () => {
         expect(scanRepo(path, `import '${spec}';`)).toEqual([]);
@@ -177,6 +183,32 @@ describe('PackageDirections — направления между пакетам
         'packages/chat-ui/src/dialog/f.ts',
         'dmg-ui/chat-ui',
         'chat-ui/src → свой вход из своего каталога',
+      ],
+      ['packages/web-ui/src/f.ts', 'dmg-ui/chat-ui', 'web-ui → chat-ui'],
+      ['packages/web-ui/src/f.ts', 'dmg-ui/tg-bot', 'web-ui → tg-bot'],
+      ['packages/chat-ui/src/dialog/f.ts', 'dmg-ui/web-ui', 'chat-ui → web-ui'],
+      ['packages/tg-bot/src/f.ts', 'dmg-ui/web-ui', 'tg-bot → web-ui'],
+      ['packages/core/src/f.ts', 'dmg-ui/web-ui', 'ядро → web-ui'],
+      ['packages/core/testing/f.ts', 'dmg-ui/web-ui', 'тесты ядра → web-ui'],
+      [
+        'packages/core/testing/f.ts',
+        'dmg-ui/web-ui/testing',
+        'тесты ядра → web-ui/testing',
+      ],
+      [
+        'packages/web-ui/src/f.ts',
+        '../../chat-ui/src/dialog/dialog',
+        'web-ui → chat-ui по относительному пути',
+      ],
+      [
+        'packages/chat-ui/src/dialog/f.ts',
+        '../../../web-ui/src/index',
+        'chat-ui → web-ui по относительному пути',
+      ],
+      [
+        'packages/web-ui/src/f.ts',
+        'dmg-ui/web-ui',
+        'web-ui/src → свой вход из своего каталога',
       ],
     ] as const) {
       it(`${why} — нарушение`, () => {

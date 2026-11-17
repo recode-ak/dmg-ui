@@ -30,17 +30,17 @@ import {
   UiServer,
 } from 'dmg-ui/server';
 import {
-  ExamplePagesAppDef,
   ExampleUiSetDef,
   exampleCodes,
-  examplePageRoutes,
-  examplePageViews,
   MemoryUiObserver,
-  PageClient,
-  PageHost,
-  PageWire,
 } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
+import { PageClient, PageHost, PageWire } from 'dmg-ui/web-ui';
+import {
+  ExamplePagesAppDef,
+  examplePageRoutes,
+  examplePageViews,
+} from 'dmg-ui/web-ui/testing';
 
 // Приёмка нейтральности ядра: один сценарий сторис
 // `finishTasks` — создать задачу, открыть карточку, выполнить — на двух
@@ -247,5 +247,5 @@ test('приложения каналов делят сторис и набор'
 
 test('в привязках каналов нет кода, экранов и сторис примера', () => {
   expect(exampleOnly('packages/chat-ui/testing/example')).toEqual([]);
-  expect(exampleOnly('packages/core/testing/example/pages')).toEqual([]);
+  expect(exampleOnly('packages/web-ui/testing/example')).toEqual([]);
 });

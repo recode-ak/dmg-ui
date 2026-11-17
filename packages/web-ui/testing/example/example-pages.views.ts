@@ -1,5 +1,5 @@
-import { PageViews } from '../../page/client/page-views';
-import { ExampleUiSetDef } from '../example-ui.set';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { PageViews } from 'dmg-ui/web-ui';
 import { AssignedTasksView } from './assigned-tasks.view';
 import { TaskCardView } from './task-card.view';
 import { TaskListView } from './task-list.view';

@@ -1,16 +1,22 @@
 // Вход dmg-ui/testing (D-UI-32): учебный пример, помощник рендера примеров и
-// наблюдатель в памяти. Заглушки портов, сцены правил графа и заглушки
+// наблюдатель в памяти. Привязка примера к страничному каналу — вход
+// dmg-ui/web-ui/testing. Заглушки портов, сцены правил графа и заглушки
 // сервера — внутренние помощники тестов ядра; общие помощники тестов каналов —
 // вход dmg-ui/testing/fixtures.
 
 export {
+  ASSIGNED_ID,
   AssignedTasksScreenDef,
+  CARD_ID,
   type ExampleCodeOverrides,
   ExampleUiSetDef,
   exampleCodes,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
+  LIST_ID,
   PlanTasksStoryDef,
+  TASK_A,
+  TASK_B,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
@@ -18,60 +24,7 @@ export {
   type TaskRow,
   TodoUiModuleDef,
 } from './example';
-export {
-  ExamplePagesAppDef,
-  ExamplePagesArch,
-  examplePageRoutes,
-  examplePageViews,
-} from './example/pages';
 export { MemoryUiObserver } from './memory-ui-observer';
-export {
-  type AnyPageNotePresenter,
-  type AnyPagePresenter,
-  type AnyPageRouteDef,
-  type CallMessage,
-  type ClientEnd,
-  ClientMessage,
-  type HelloMessage,
-  type NormalizedPageRoute,
-  type NotificationMessage,
-  PAGE_CHANNEL,
-  PageClient,
-  type PageClientSpec,
-  type PageConfirm,
-  type PageFormValues,
-  PageGraphProvider,
-  type PageGraphSpec,
-  PageHost,
-  type PageHostSpec,
-  type PageInboxEntry,
-  type PageLogger,
-  PageNotePresenter,
-  type PageNoteRender,
-  type PagePlace,
-  PagePresenter,
-  type PageRefusal,
-  type PageRegionName,
-  type PageRegionView,
-  PageRenderer,
-  type PageRoute,
-  PageRouteDef,
-  type PageRouteSpec,
-  type PageScreenRender,
-  type PageServerPort,
-  type PageSlotJson,
-  type PageSnapshot,
-  PageViews,
-  PageWire,
-  type RefusedMessage,
-  type ResultMessage,
-  type ServerLink,
-  ServerMessage,
-  type SignalMessage,
-  type UnwatchMessage,
-  type WatchMessage,
-  type WatchRefusedMessage,
-} from './page';
 export {
   ExamplePreview,
   type ExamplePreviewSpec,

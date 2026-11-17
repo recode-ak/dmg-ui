@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchChecker } from 'dmg-core/arch';
 import { AppGraph } from 'dmg-core/graph';
-import { ArchReport } from '../../ui-arch';
-import { ExamplePagesArch } from './index';
+import { ArchReport } from 'dmg-ui/testing/fixtures';
+import { ExamplePagesArch } from './example-pages.arch';
 
 // Привязка примера к страничному каналу: граф `examplePages` проходит
 // `arch:check` без нарушений.

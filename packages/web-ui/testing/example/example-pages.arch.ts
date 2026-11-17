@@ -1,8 +1,8 @@
 import type { ArchApp } from 'dmg-core/arch';
 import { ExampleArch } from 'dmg-core/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
-import { PageGraphProvider } from '../../page/graph/page-graph-provider';
-import { ExampleUiSetDef } from '../example-ui.set';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { PageGraphProvider } from 'dmg-ui/web-ui';
 import { ExamplePagesAppDef } from './example-pages.app';
 import { examplePageRoutes } from './example-pages.routes';
 import { examplePageViews } from './example-pages.views';

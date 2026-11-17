@@ -16,9 +16,9 @@
 У долга пакета почти нет кодовых маркеров, поэтому, в отличие от `dmg-core`, записи не привязаны к признакам в коде и автоматически не сверяются: проверяется только нумерация («Последний выданный ID» равен максимуму).
 
 ### DEBT-UI-1: нет правила графа «схемы входа, выхода и данных JSON-представимы»
-- **Место:** `packages/core/src/runtime/json-boundary.test.ts`, `packages/core/testing/page/wire/page-wire.ts` — JSON-представимость проверяют только тест круга исполнителя через JSON-порты и схема сообщений провода страничного канала.
+- **Место:** `packages/core/src/runtime/json-boundary.test.ts`, `packages/web-ui/src/wire/page-wire.ts` — JSON-представимость проверяют только тест круга исполнителя через JSON-порты и схема сообщений провода страничного канала.
 - **Суть:** схема, значения которой не проходят через JSON (`v.date()`, `Map`), не ловится правилом графа. `toJsonSchema` на такой схеме бросает при сборке графа исключением, а не нарушением правила.
-- **Триггер:** первый канал, строящий провод вне `testing/page`.
+- **Триггер:** первый канал, строящий провод вне `packages/web-ui`.
 
 ### DEBT-UI-2: `InputRejection.issues[].text` (`FieldIssue.text`) несёт сообщение valibot с введённым значением
 - **Место:** `packages/core/src/schema/schema-check.ts` (`text: issue.message`), `packages/core/src/screen/action-input.ts` (`checkFields`) — замечания по полям входа действия.
@@ -36,27 +36,27 @@
 - **Триггер:** ложное срабатывание проверки.
 
 ### DEBT-UI-6: поставщик страниц обслуживает одно приложение
-- **Место:** `packages/core/testing/page/graph/page-graph-provider.ts` — класс `PageGraphProvider` с фиксированным именем `PAGE_CHANNEL`.
+- **Место:** `packages/web-ui/src/graph/page-graph-provider.ts` — класс `PageGraphProvider` с фиксированным именем `PAGE_CHANNEL`.
 - **Суть:** имя поставщика уникально в графе, два экземпляра для двух приложений дают `duplicate-provider`. Учебный канал рассчитан на одно приложение.
 - **Погашает:** `web-ui` (боевой страничный канал).
 
 ### DEBT-UI-7: простой исполнителя определяется числом ходов
-- **Место:** `packages/core/testing/page/wire/page-wire.const.ts` (`QUIET_TURNS`), `packages/core/testing/page/wire/page-wire.ts` (`quiet`).
+- **Место:** `packages/web-ui/src/wire/page-wire.const.ts` (`QUIET_TURNS`), `packages/web-ui/src/wire/page-wire.ts` (`quiet`).
 - **Суть:** `settled()` считает провод тихим, если за `QUIET_TURNS` (100) ходов микрозадач ничего не началось. Реакция клиента длиннее запаса осталась бы незамеченной. Детерминированного признака простоя исполнителя нет.
 - **Погашает:** `web-ui`.
 
 ### DEBT-UI-8: нет предела кадра «сервер → клиент» и правил `close` при обрыве
-- **Место:** `packages/core/testing/page/wire/page-wire.const.ts` (`MAX_CLIENT_TEXT`), `packages/core/testing/page/wire/page-wire.ts` (`close`, обрыв).
+- **Место:** `packages/web-ui/src/wire/page-wire.const.ts` (`MAX_CLIENT_TEXT`), `packages/web-ui/src/wire/page-wire.ts` (`close`, обрыв).
 - **Суть:** предел строки (64 КиБ) действует только на строки клиента; размер кадра сервера не ограничен. Поведение `close` и обрыва — только для провода в памяти: у боевого соединения нужны предел кадра и освобождение сессии, подписок и записи доставки при обрыве.
 - **Погашает:** `web-ui`.
 
 ### DEBT-UI-9: нет правила «параметры маршрута покрывают адрес»
-- **Место:** `packages/core/testing/page/graph/` — `PageRouteDef` (`path`, `entry`), правила PG-01 и PG-02.
+- **Место:** `packages/web-ui/src/graph/` — `PageRouteDef` (`path`, `entry`), правила PG-01 и PG-02.
 - **Суть:** маршрут связан со входом приложения, но параметры адреса экрана входа в `path` не сверяются. В учебном канале адрес не лежит в URL, поэтому правило там бессмысленно; боевой страничный канал, где адрес — часть пути, правило требует.
 - **Погашает:** `web-ui`.
 
 ### DEBT-UI-10: срок жизни отсева `eventId` в страничном канале
-- **Место:** `packages/core/testing/page/client/page-inbox.ts` (множество `seen`).
+- **Место:** `packages/web-ui/src/client/page-inbox.ts` (множество `seen`).
 - **Суть:** множество отсева повторной доставки по `eventId` без предела и срока жизни: при потоке уведомлений память процесса растёт. Политику отсева ядро отдаёт каналу (D-UI-24). У беседы отсев с пределом и в снимке (D-UI-56).
 - **Погашает:** `web-ui` (страничный канал).
 
@@ -66,7 +66,7 @@
 - **Триггер:** второй набор UI в приложении.
 
 ### DEBT-UI-13: `task-lines.ts` дублируется в двух привязках примера
-- **Место:** `packages/chat-ui/testing/example/task-lines.ts`, `packages/core/testing/example/pages/task-lines.ts` — класс `TaskLines`.
+- **Место:** `packages/chat-ui/testing/example/task-lines.ts`, `packages/web-ui/testing/example/task-lines.ts` — класс `TaskLines`.
 - **Суть:** строки задач в теле реплики и в теле страницы строятся одной и той же логикой; общий помощник не вынесен, потому что привязки примера к каналам друг друга не знают: они в разных пакетах, а соседа импортируют только по имени входа (`PackageDirections`, `CoreImportScanner`).
 - **Погашает:** вынос помощника во вход, доступный обеим привязкам (с разрешением этого входа в зонах привязок в `CoreImportScanner`).
 

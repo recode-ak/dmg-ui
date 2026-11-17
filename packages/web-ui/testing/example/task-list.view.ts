@@ -1,5 +1,5 @@
-import { PagePresenter } from '../../page/client/page-views';
-import { TaskListScreenDef } from '../todo/task-list.screen';
+import { TaskListScreenDef } from 'dmg-ui/testing';
+import { PagePresenter } from 'dmg-ui/web-ui';
 import { TaskLines } from './task-lines';
 
 /** Список задач на странице: задачи с отметкой выбора. */

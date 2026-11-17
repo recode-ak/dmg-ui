@@ -22,7 +22,9 @@
     "./testing": "./packages/core/testing/index.ts",
     "./testing/fixtures": "./packages/core/testing/fixtures.ts",
     "./tg-bot": "./packages/tg-bot/src/index.ts",
-    "./tg-bot/testing": "./packages/tg-bot/testing/index.ts"
+    "./tg-bot/testing": "./packages/tg-bot/testing/index.ts",
+    "./web-ui": "./packages/web-ui/src/index.ts",
+    "./web-ui/testing": "./packages/web-ui/testing/index.ts"
   },
   "peerDependencies": {
     "dmg-core": "^0.6.2",

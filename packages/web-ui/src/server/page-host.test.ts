@@ -17,9 +17,9 @@ import {
   type RecipientCallers,
   UiServer,
 } from 'dmg-ui/server';
-import { ExampleUiSetDef } from '../../example';
-import { ExamplePagesAppDef } from '../../example/pages';
-import { exampleUser, oplogRecords, T0 } from '../../ui-server-fixture';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { exampleUser, oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
+import { ExamplePagesAppDef } from '../../testing';
 import type { ServerMessage as ServerMsg } from '../wire/page-messages.types';
 import { MAX_CLIENT_TEXT } from '../wire/page-wire.const';
 import type { ServerLink } from '../wire/page-wire.types';

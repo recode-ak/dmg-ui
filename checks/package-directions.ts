@@ -11,6 +11,7 @@ export class PackageDirections {
     core: [],
     'chat-ui': ['core'],
     'tg-bot': ['core', 'chat-ui'],
+    'web-ui': ['core'],
   };
 
   /**

@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'bun:test';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
-// Состав входа `dmg-ui/testing` (D-UI-32): учебный пример, помощник рендера
-// и наблюдатель в памяти; диалог и привязка к нему — во входах `chat-ui`. Заглушки портов и сцены
-// правил — внутренние помощники тестов ядра.
+const ROOT = resolve(import.meta.dir, '..');
+
+// Состав входа `dmg-ui/testing` (D-UI-32): учебный пример, константы его
+// данных, помощник рендера и наблюдатель в памяти; диалог и привязка к нему —
+// во входах `chat-ui`, страничный канал и его привязка — во входах `web-ui`.
+// Заглушки портов и сцены правил — внутренние помощники тестов ядра.
 
 const keys = async () => Object.keys(await import('dmg-ui/testing'));
 
@@ -31,27 +36,35 @@ describe('вход dmg-ui/testing', () => {
     );
   });
 
-  it('страничный канал и привязка примера к нему', async () => {
+  it('константы данных примера', async () => {
     expect(await keys()).toEqual(
       expect.arrayContaining([
-        'PAGE_CHANNEL',
-        'PageWire',
-        'PageClient',
-        'PageHost',
-        'PageViews',
-        'PagePresenter',
-        'PageNotePresenter',
-        'PageRenderer',
-        'PageGraphProvider',
-        'PageRouteDef',
-        'ClientMessage',
-        'ServerMessage',
-        'ExamplePagesAppDef',
-        'examplePageViews',
-        'examplePageRoutes',
-        'ExamplePagesArch',
+        'ASSIGNED_ID',
+        'CARD_ID',
+        'LIST_ID',
+        'TASK_A',
+        'TASK_B',
       ]),
     );
+  });
+
+  it('страничного канала и его привязки к примеру нет — они во входах web-ui', async () => {
+    const page = (name: string) =>
+      /^Page/.test(name) ||
+      /^Example.*Pages?/.test(name) ||
+      /^examplePage/.test(name) ||
+      ['PAGE_CHANNEL', 'ClientMessage', 'ServerMessage'].includes(name);
+
+    expect((await keys()).filter(page)).toEqual([]);
+  });
+
+  it('каталогов страницы в ядре нет', () => {
+    for (const gone of [
+      'packages/core/testing/page',
+      'packages/core/testing/example/pages',
+    ]) {
+      expect(existsSync(join(ROOT, gone))).toBe(false);
+    }
   });
 
   it('заглушки портов, сцены правил и заглушки сервера не экспортируются', async () => {
@@ -71,10 +84,8 @@ describe('вход dmg-ui/testing', () => {
       'StubCallerSource',
       'StubRecipientCallers',
       'StubDelivery',
-      'WirePorts',
-      'PageConnection',
-      'PageRegions',
-      'PageForms',
+      'requestTrace',
+      'exampleUser',
       'T0',
       'oplogRecords',
       'testRenderContext',

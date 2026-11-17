@@ -14,15 +14,15 @@ import {
   CARD_ID,
   exampleCodes,
   LIST_ID,
+  MemoryUiObserver,
   TASK_A,
   TASK_B,
-} from '../../example';
+} from 'dmg-ui/testing';
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
   examplePageViews,
-} from '../../example/pages';
-import { MemoryUiObserver } from '../../memory-ui-observer';
+} from '../../testing';
 import type {
   ClientMessage as ClientMsg,
   ServerMessage as ServerMsg,

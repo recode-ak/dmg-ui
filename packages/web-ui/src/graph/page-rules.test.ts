@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { ExampleUiSetDef } from '../../example';
-import { ExamplePagesAppDef, examplePageViews } from '../../example/pages';
-import { ArchReport, UiScene } from '../../ui-arch';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
+import { ExamplePagesAppDef, examplePageViews } from '../../testing';
 import { PageGraphProvider } from './page-graph-provider';
 import { PageRouteDef } from './page-route-def';
 

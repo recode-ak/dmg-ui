@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { examplePageViews } from '../example/pages';
 import {
   AssignedTasksScreenDef,
   ExamplePreview,
@@ -9,8 +8,9 @@ import {
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
-} from '../index';
-import { PageRenderer } from '../page/client/page-renderer';
+} from 'dmg-ui/testing';
+import { PageRenderer } from 'dmg-ui/web-ui';
+import { examplePageViews } from './example-pages.views';
 
 // Помощник рендера примеров: вид примера из Def через представление
 // канала — здесь `PageRenderer` страничного канала: ему нужны только

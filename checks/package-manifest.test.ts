@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PackageManifest } from './package-manifest';
 
@@ -9,7 +9,7 @@ const manifest = () => PackageManifest.read(ROOT);
 
 describe('PackageManifest', () => {
   describe('корневой package.json', () => {
-    it('ключи exports — вход, chat-ui (и его testing), graph, server, testing (и fixtures), tg-bot (и его testing)', () => {
+    it('ключи exports — вход, chat-ui (и его testing), graph, server, testing (и fixtures), tg-bot (и его testing), web-ui (и его testing)', () => {
       expect(Object.keys(manifest().exports()).sort()).toEqual([
         '.',
         './chat-ui',
@@ -20,12 +20,51 @@ describe('PackageManifest', () => {
         './testing/fixtures',
         './tg-bot',
         './tg-bot/testing',
+        './web-ui',
+        './web-ui/testing',
       ]);
     });
 
     it('цели exports существуют на диске', () => {
       for (const target of Object.values(manifest().exports())) {
         expect(existsSync(join(ROOT, target))).toBe(true);
+      }
+    });
+
+    it('цели входов web-ui — исходники пакета и его привязки примера', () => {
+      expect(manifest().exports()['./web-ui']).toBe(
+        './packages/web-ui/src/index.ts',
+      );
+      expect(manifest().exports()['./web-ui/testing']).toBe(
+        './packages/web-ui/testing/index.ts',
+      );
+    });
+
+    it('вход dmg-ui/web-ui резолвится по имени пакета', async () => {
+      expect(await import('dmg-ui/web-ui')).toBeDefined();
+    });
+
+    it('вход dmg-ui/web-ui/testing резолвится по имени пакета', async () => {
+      expect(await import('dmg-ui/web-ui/testing')).toBeDefined();
+    });
+
+    it('smoke-скрипт импортирует каждый вход из exports и ничего лишнего', () => {
+      const script = readFileSync(
+        join(ROOT, 'scripts/consumer-smoke.sh'),
+        'utf8',
+      );
+      const imported = [
+        ...script.matchAll(/^import \* as \w+ from '(dmg-ui[^']*)';$/gm),
+      ]
+        .map((match) => match[1])
+        .sort();
+      const declared = Object.keys(manifest().exports())
+        .map((key) => (key === '.' ? 'dmg-ui' : `dmg-ui/${key.slice(2)}`))
+        .sort();
+
+      expect(imported).toEqual(declared);
+      for (const name of declared) {
+        expect(script).toContain(`'${name}':`);
       }
     });
 

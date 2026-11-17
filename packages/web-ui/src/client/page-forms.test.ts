@@ -11,8 +11,8 @@ import {
   UiModuleDef,
   UiSetDef,
 } from 'dmg-ui';
+import { RuntimeKit, requestTrace } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import { RuntimeKit, requestTrace } from '../../ui-runtime-fixture';
 import { PageForms } from './page-forms';
 
 // Вход формой на локальном Def: в учебном примере нет действия с двумя

@@ -7,11 +7,13 @@ import {
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
-import { ExampleUiSetDef, exampleCodes } from '../example';
-import { examplePageRoutes, examplePageViews } from '../example/pages';
-import { MemoryUiObserver } from '../memory-ui-observer';
-import { ExampleStubAppDef } from '../ui-app-fixture';
-import { T0 } from '../ui-server-fixture';
+import {
+  ExampleUiSetDef,
+  exampleCodes,
+  MemoryUiObserver,
+} from 'dmg-ui/testing';
+import { ExampleStubAppDef, T0 } from 'dmg-ui/testing/fixtures';
+import { examplePageRoutes, examplePageViews } from '../testing';
 import { PageClient } from './client/page-client';
 import { PageHost } from './server/page-host';
 import type { ClientEnd } from './wire/page-wire.types';

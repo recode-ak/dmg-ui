@@ -12,7 +12,7 @@ const files = (...paths: string[]) =>
   paths.map((path) => SourceFile.of(path, ''));
 
 describe('CoreImportScanner.scanLayout — файлы пакетов каналов лежат в известных каталогах', () => {
-  it('src/ и testing/ обоих пакетов проходят', () => {
+  it('src/ и testing/ всех пакетов каналов проходят', () => {
     expect(
       CoreImportScanner.scanLayout(
         files(
@@ -20,6 +20,10 @@ describe('CoreImportScanner.scanLayout — файлы пакетов канал�
           'packages/chat-ui/testing/example/a.ts',
           'packages/tg-bot/src/index.ts',
           'packages/tg-bot/testing/index.ts',
+          'packages/web-ui/src/index.ts',
+          'packages/web-ui/src/client/page-client.ts',
+          'packages/web-ui/testing/index.ts',
+          'packages/web-ui/testing/example/example-pages.arch.ts',
           'packages/core/anything.ts',
         ),
       ),
@@ -34,6 +38,22 @@ describe('CoreImportScanner.scanLayout — файлы пакетов канал�
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ file: 'packages/chat-ui/index.ts' });
     expect(found[0]?.text).toContain('добавь зону');
+  });
+
+  it('файл в корне пакета web-ui — нарушение с призывом добавить зону', () => {
+    const found = CoreImportScanner.scanLayout(
+      files('packages/web-ui/index.ts'),
+    );
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ file: 'packages/web-ui/index.ts' });
+    expect(found[0]?.text).toContain('добавь зону');
+  });
+
+  it('файл в новом подкаталоге пакета web-ui — нарушение', () => {
+    expect(
+      CoreImportScanner.scanLayout(files('packages/web-ui/scripts/x.ts')),
+    ).toHaveLength(1);
   });
 
   it('файл в новом подкаталоге пакета — нарушение', () => {
@@ -52,8 +72,11 @@ describe('CoreImportScanner.scanLayout — файлы пакетов канал�
     const real = [
       ...SourceTree.read(ROOT, 'packages/chat-ui'),
       ...SourceTree.read(ROOT, 'packages/tg-bot'),
+      ...SourceTree.read(ROOT, 'packages/web-ui'),
     ];
-    expect(real.length).toBeGreaterThan(0);
+    expect(real.some((file) => file.path.startsWith('packages/web-ui/'))).toBe(
+      true,
+    );
     expect(CoreImportScanner.scanLayout(real)).toEqual([]);
   });
 });

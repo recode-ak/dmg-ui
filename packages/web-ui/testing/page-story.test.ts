@@ -7,30 +7,32 @@ import {
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
 import { ApiAppDispatch, UiNotifier, UiServer } from 'dmg-ui/server';
-import * as v from 'valibot';
 import {
   ASSIGNED_ID,
   CARD_ID,
   ExampleUiSetDef,
   exampleCodes,
   LIST_ID,
-} from './example';
+  MemoryUiObserver,
+} from 'dmg-ui/testing';
+import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
+import {
+  ClientMessage,
+  PageClient,
+  PageHost,
+  type PageServerPort,
+  PageWire,
+  ServerMessage,
+} from 'dmg-ui/web-ui';
+import * as v from 'valibot';
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
   examplePageViews,
-} from './example/pages';
-import { MemoryUiObserver } from './memory-ui-observer';
-import { PageClient } from './page/client/page-client';
-import { PageHost } from './page/server/page-host';
-import { ClientMessage, ServerMessage } from './page/wire/page-messages';
-import type {
-  ClientMessage as ClientMsg,
-  ServerMessage as ServerMsg,
-} from './page/wire/page-messages.types';
-import { PageWire } from './page/wire/page-wire';
-import type { PageServerPort } from './page/wire/page-wire.types';
-import { oplogRecords, T0 } from './ui-server-fixture';
+} from './index';
+
+type ClientMsg = v.InferOutput<typeof ClientMessage>;
+type ServerMsg = v.InferOutput<typeof ServerMessage>;
 
 // Сквозной тест сторис на страничном канале (TST-09 — единственный на канал):
 // пользователи A и B, учебное приложение во временном каталоге, сервер UI,
