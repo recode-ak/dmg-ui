@@ -477,7 +477,7 @@ describe('сторис на Telegram — перезапуск', () => {
   });
 });
 
-const Record = v.object({
+const OplogRecordSchema = v.object({
   caller: v.object({
     kind: v.string(),
     subjectId: v.optional(v.string()),
@@ -505,7 +505,7 @@ describe('сторис на Telegram — личность непрозрачна
     const dump = JSON.stringify([raw, w.logger.records]);
     for (const id of [CHAT_A, CHAT_B]) expect(dump).not.toContain(String(id));
 
-    const records = raw.map((record) => v.parse(Record, record));
+    const records = raw.map((record) => v.parse(OplogRecordSchema, record));
     const people = records.filter((r) => r.caller.kind !== 'system');
     expect(people.length).toBeGreaterThan(0);
     for (const record of people) {

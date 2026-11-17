@@ -46,23 +46,23 @@ export class TelegramSignals {
   private static unreadable(update: unknown): SignalOutcome {
     const press = v.safeParse(PressIdSchema, update);
     return press.success
-      ? TelegramSignals.refused('schema', press.output.callback_query.id)
-      : TelegramSignals.refused('schema');
+      ? TelegramSignals.refusedPress('schema', press.output.callback_query.id)
+      : { kind: 'refused', reason: 'schema' };
   }
 
   private press(query: CallbackQuery): SignalOutcome {
     if (query.message === undefined) {
-      return TelegramSignals.refused('inline', query.id);
+      return TelegramSignals.refusedPress('inline', query.id);
     }
     const { chat } = query.message;
     if (!TelegramSignals.dialog(chat)) {
-      return TelegramSignals.refused('chat', query.id);
+      return TelegramSignals.refusedPress('chat', query.id);
     }
     if (query.from.id !== chat.id) {
-      return TelegramSignals.refused('sender', query.id);
+      return TelegramSignals.refusedPress('sender', query.id);
     }
     if (query.data === undefined) {
-      return TelegramSignals.refused('data', query.id);
+      return TelegramSignals.refusedPress('data', query.id);
     }
     const head = this.head(chat.id);
     return TelegramSignals.signal({
@@ -76,9 +76,11 @@ export class TelegramSignals {
   private message(message: TelegramMessage): SignalOutcome {
     const { chat, from } = message;
     if (chat.type !== 'private') return IGNORED;
-    if (!TelegramSignals.dialog(chat)) return TelegramSignals.refused('chat');
+    if (!TelegramSignals.dialog(chat)) {
+      return TelegramSignals.refusedMessage('chat');
+    }
     if (from === undefined || from.id !== chat.id) {
-      return TelegramSignals.refused('sender');
+      return TelegramSignals.refusedMessage('sender');
     }
     const head = this.head(chat.id);
     if (message.text !== undefined) {
@@ -159,9 +161,14 @@ export class TelegramSignals {
     return { kind: 'signal', signal };
   }
 
-  private static refused(reason: UpdateRefusal, press?: string): SignalOutcome {
-    return press === undefined
-      ? { kind: 'refused', reason }
-      : { kind: 'refused', reason, press };
+  private static refusedPress(
+    reason: UpdateRefusal,
+    press: string,
+  ): SignalOutcome {
+    return { kind: 'refused', reason, update: 'callback_query', press };
+  }
+
+  private static refusedMessage(reason: UpdateRefusal): SignalOutcome {
+    return { kind: 'refused', reason, update: 'message' };
   }
 }

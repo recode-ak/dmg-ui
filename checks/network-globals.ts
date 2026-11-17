@@ -2,14 +2,11 @@ import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
 /**
- * Поиск глобалов сети и среды (`fetch`, `WebSocket`, `XMLHttpRequest`,
- * `EventSource`, `Bun`, `process`) в коде пакета Telegram
- * (`packages/tg-bot/src`, кроме `.test.ts`): сеть и библиотеку даёт проект
- * через порт Bot API. Импорт закрывает сканер импортов, глобал импортом не
- * ловится. Нарушение — отдельный идентификатор или доступ через
- * `globalThis`, `window`, `self`; член объекта (`this.api.fetch`) и часть
- * имени (`prefetch`, `WebSocketLike`) — нет. Текст режется построчно,
- * комментарии и строки тоже проверяются.
+ * Глобалы сети и среды (`fetch`, `WebSocket`, `XMLHttpRequest`, `EventSource`,
+ * `Bun`, `process`) в `packages/tg-bot/src` без `.test.ts` (D-UI-61). Ловит
+ * отдельное слово (в том числе в строках и комментариях), `globalThis['fetch']`,
+ * деструктуризацию; не ловит `globalThis?.fetch`, псевдоним, склейку имени,
+ * `Worker`, `sendBeacon`. Член объекта и часть имени — не нарушение.
  */
 export class NetworkGlobalScanner {
   protected static readonly ZONE = 'packages/tg-bot/src/';

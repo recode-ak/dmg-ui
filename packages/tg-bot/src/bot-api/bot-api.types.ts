@@ -70,6 +70,7 @@ export type AnswerCallbackQueryParams = {
 export type BotApiRefusal = {
   readonly ok: false;
   readonly error_code: number;
+  /** Только `description` из JSON ответа Telegram (уходит в лог); сбой транспорта — бросок, не отказ. */
   readonly description: string;
   readonly parameters?: { readonly retry_after?: number };
 };

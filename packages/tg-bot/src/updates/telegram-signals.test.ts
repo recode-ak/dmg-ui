@@ -193,6 +193,7 @@ describe('TelegramSignals — нажатие', () => {
       expect(signal(update)).toEqual({
         kind: 'refused',
         reason: 'chat',
+        update: 'callback_query',
         press: 'cq-7',
       });
     });
@@ -202,6 +203,7 @@ describe('TelegramSignals — нажатие', () => {
     expect(signal(press({ from: user(OTHER) }))).toEqual({
       kind: 'refused',
       reason: 'sender',
+      update: 'callback_query',
       press: 'cq-7',
     });
   });
@@ -211,6 +213,7 @@ describe('TelegramSignals — нажатие', () => {
     expect(signal(update)).toEqual({
       kind: 'refused',
       reason: 'inline',
+      update: 'callback_query',
       press: 'cq-7',
     });
   });
@@ -220,6 +223,7 @@ describe('TelegramSignals — нажатие', () => {
     expect(signal(update)).toEqual({
       kind: 'refused',
       reason: 'data',
+      update: 'callback_query',
       press: 'cq-7',
     });
   });
@@ -331,18 +335,30 @@ describe('TelegramSignals — только личный чат', () => {
         text: 'Хлеб',
       },
     };
-    expect(signal(update)).toEqual({ kind: 'refused', reason: 'sender' });
+    expect(signal(update)).toEqual({
+      kind: 'refused',
+      reason: 'sender',
+      update: 'message',
+    });
   });
 
   test('личное сообщение, from.id ≠ chat.id — отказ sender', () => {
     expect(
       signal(message({ text: 'Хлеб' }, privateChat(), user(OTHER))),
-    ).toEqual({ kind: 'refused', reason: 'sender' });
+    ).toEqual({
+      kind: 'refused',
+      reason: 'sender',
+      update: 'message',
+    });
   });
 
   test('личный чат с неположительным id — отказ chat', () => {
     const update = message({ text: 'Хлеб' }, privateChat(-42), user(-42));
-    expect(signal(update)).toEqual({ kind: 'refused', reason: 'chat' });
+    expect(signal(update)).toEqual({
+      kind: 'refused',
+      reason: 'chat',
+      update: 'message',
+    });
   });
 
   for (const key of ['edited_message', 'channel_post']) {
@@ -396,6 +412,7 @@ describe('TelegramSignals — апдейт не по схеме', () => {
     expect(signal(update)).toEqual({
       kind: 'refused',
       reason: 'schema',
+      update: 'callback_query',
       press: 'cq-7',
     });
   });
@@ -405,6 +422,7 @@ describe('TelegramSignals — апдейт не по схеме', () => {
     expect(signal({ callback_query })).toEqual({
       kind: 'refused',
       reason: 'schema',
+      update: 'callback_query',
       press: 'cq-7',
     });
   });

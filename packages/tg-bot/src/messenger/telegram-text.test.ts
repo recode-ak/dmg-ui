@@ -332,6 +332,10 @@ describe('TelegramText — адрес ссылки', () => {
     'ftp://example.com/file',
     'mailto:a@example.com',
     'data:text/html,x',
+    'tg://login?token=x',
+    'tg://proxy?server=example.com&port=443&secret=x',
+    'tg://join?invite=x',
+    'tg://userx?id=1',
   ])('«%s» — текст без text_link, прочие стили остаются', (url) => {
     const text: FormattedText = [{ text: 'жми', styles: ['bold'], link: url }];
 
@@ -344,7 +348,8 @@ describe('TelegramText — адрес ссылки', () => {
   test.each([
     'http://example.com',
     'https://example.com/path?q=1#a',
-    'tg://resolve?domain=example',
+    'tg://resolve?domain=x',
+    'tg://user?id=1',
   ])('«%s» — text_link с адресом как есть', (url) => {
     const text: FormattedText = [{ text: 'жми', styles: [], link: url }];
 

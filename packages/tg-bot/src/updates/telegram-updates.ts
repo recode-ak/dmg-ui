@@ -8,13 +8,11 @@ import type {
 } from './telegram-updates.types';
 
 /**
- * Приём апдейтов Telegram (D-UI-62): проект подаёт апдейт Bot API как есть,
- * сигнал беседы уходит в узел бесед — он и отвечает на нажатие. Отвергнутое
- * нажатие (чужой чат, чужой человек, инлайн-режим, без `data`, не по схеме)
- * получает ровно один ответ без текста через мессенджер, сигнала нет; отказ —
- * `warn` с причиной. Апдейт вне диалога — ничего, без записи. `receive` не
- * бросает (ERR-01): бросок узла бесед — `error` с видом сигнала и именем
- * ошибки, без данных (ERR-07).
+ * Приём апдейтов Telegram (D-UI-62). Личность держится на подлинности апдейта:
+ * проект подаёт только апдейты от Telegram (getUpdates или вебхук с секретным
+ * токеном). Отвергнутое нажатие получает ровно один ответ без текста, затем
+ * `warn` с причиной. `receive` не бросает (ERR-01): бросок узла бесед —
+ * `error` с видом сигнала и именем ошибки, без данных (ERR-07).
  */
 export class TelegramUpdates {
   private readonly conversations: TelegramUpdatesSpec['conversations'];
@@ -50,11 +48,11 @@ export class TelegramUpdates {
     }
   }
 
-  /** Отказ в лог; у нажатия — ответ без текста: тексты беседы даёт узел бесед. */
+  /** У нажатия — сначала ответ без текста (тексты беседы даёт узел бесед), затем отказ в лог. */
   private async refuse(outcome: RefusedUpdate): Promise<void> {
-    this.log.refusedUpdate(outcome.reason);
     if (outcome.press !== undefined) {
       await this.messenger.answerPress(outcome.press);
     }
+    this.log.refusedUpdate(outcome);
   }
 }

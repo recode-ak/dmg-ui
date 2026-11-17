@@ -37,8 +37,13 @@ export const TELEGRAM_LIMITS = {
 /** Разделитель между текстом ушедшего экрана и строкой выбора. */
 export const CHOSEN_SEPARATOR = '\n\n';
 
-/** Адрес ссылки — только `http`, `https`, `tg`; прочее остаётся текстом без ссылки. */
-export const LINK_SCHEMES = /^(?:https?|tg):\/\/\S+$/i;
+/**
+ * Адрес ссылки — `http`, `https` и из `tg` только `tg://resolve` и `tg://user`
+ * (профиль): `tg://login`, `tg://proxy`, `tg://join` под чужой подписью —
+ * фишинг. Прочее остаётся текстом без ссылки.
+ */
+export const LINK_SCHEMES =
+  /^(?:https?:\/\/\S+|tg:\/\/(?:resolve|user)(?:\?\S*)?)$/i;
 
 /** Каноническое десятичное целое > 0: собеседник (личный чат) и `message_id`. */
 export const POSITIVE_INTEGER = /^[1-9][0-9]*$/;

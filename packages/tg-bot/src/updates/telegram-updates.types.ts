@@ -23,10 +23,14 @@ export type TelegramUpdatesSpec = {
  */
 export type UpdateRefusal = 'schema' | 'chat' | 'sender' | 'inline' | 'data';
 
-/** Отказ апдейта с причиной; у нажатия — его id: ответ обязателен. */
+/** Вид отвергнутого апдейта; у апдейта не по схеме без читаемого нажатия его нет. */
+export type RefusedUpdateKind = 'message' | 'callback_query';
+
+/** Отказ апдейта с причиной и видом; у нажатия — его id: ответ обязателен. */
 export type RefusedUpdate = {
   readonly kind: 'refused';
   readonly reason: UpdateRefusal;
+  readonly update?: RefusedUpdateKind;
   readonly press?: string;
 };
 

@@ -8,12 +8,12 @@ import {
 } from './messenger/telegram.const';
 import { LOG_SOURCE, LOG_TEXTS } from './telegram-log.const';
 import type { TelegramOperation } from './telegram-log.types';
-import type { UpdateRefusal } from './updates/telegram-updates.types';
+import type { RefusedUpdate } from './updates/telegram-updates.types';
 
 /**
  * Записи лога пакета Telegram (D-UI-61). В `meta` — имя мессенджера,
  * операция порта, метод Bot API, код отказа, описание сервера (до 200
- * знаков: текст Telegram без данных собеседника), причина отказа апдейта,
+ * знаков: текст Telegram без данных собеседника), причина отказа и вид апдейта,
  * вид сигнала и имя ошибки: ни id чата и человека, ни `message_id`, ни id
  * нажатия, ни текста, подписей, `callback_data`, `file_id` и текста броска
  * (ERR-07). Успех, «not modified» и апдейт вне диалога не пишутся.
@@ -57,11 +57,11 @@ export class TelegramLog {
     this.error(LOG_TEXTS.badResult, { method, reason: 'result' });
   }
 
-  /** Апдейт отвергнут: не по схеме или нарушает допуск диалога. */
-  refusedUpdate(reason: UpdateRefusal): void {
+  /** Апдейт отвергнут: не по схеме или нарушает допуск диалога; вид апдейта — если известен. */
+  refusedUpdate({ reason, update }: RefusedUpdate): void {
     const text =
       reason === 'schema' ? LOG_TEXTS.badUpdate : LOG_TEXTS.refusedUpdate;
-    this.warn(text, { reason });
+    this.warn(text, update === undefined ? { reason } : { reason, update });
   }
 
   /** Узел бесед бросил: вид сигнала и имя ошибки без её текста. */

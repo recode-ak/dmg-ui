@@ -162,6 +162,23 @@ describe('TelegramUpdates — вне диалога', () => {
     expect(api.journal).toEqual([
       { method: 'answerCallbackQuery', params: { callback_query_id: PRESS } },
     ]);
+    expect(logger.records.map((record) => record.meta)).toEqual([
+      { messenger: 'telegram', reason: 'sender', update: 'callback_query' },
+    ]);
+    clean(logger);
+  });
+
+  test('личное сообщение чужого человека — сигнала нет, порт не вызван, warn с видом message', async () => {
+    const { api, logger, signals, updates } = setup();
+    await updates.receive({
+      update_id: 101,
+      message: { ...text().message, from: user(OTHER) },
+    });
+    expect(signals).toEqual([]);
+    expect(api.journal).toEqual([]);
+    expect(logger.records.map((record) => record.meta)).toEqual([
+      { messenger: 'telegram', reason: 'sender', update: 'message' },
+    ]);
     clean(logger);
   });
 
@@ -221,6 +238,11 @@ describe('TelegramUpdates — вне диалога', () => {
     expect(api.journal.map((call) => call.method)).toEqual([
       'answerCallbackQuery',
     ]);
+    // Сначала ответ (его сбой — error мессенджера), затем запись отказа.
+    expect(logger.records.map((record) => record.level)).toEqual([
+      'error',
+      'warn',
+    ]);
     clean(logger);
   });
 });
@@ -252,6 +274,10 @@ describe('TelegramUpdates — апдейт не по схеме', () => {
       expect(signals).toEqual([]);
       expect(api.journal).toEqual([]);
       expect(logger.records.map((record) => record.level)).toEqual(['warn']);
+      expect(logger.records[0]?.meta).toEqual({
+        messenger: 'telegram',
+        reason: 'schema',
+      });
       clean(logger);
     });
   }
@@ -263,7 +289,9 @@ describe('TelegramUpdates — апдейт не по схеме', () => {
     expect(api.journal).toEqual([
       { method: 'answerCallbackQuery', params: { callback_query_id: PRESS } },
     ]);
-    expect(logger.records.map((record) => record.level)).toContain('warn');
+    expect(logger.records.map((record) => record.meta)).toEqual([
+      { messenger: 'telegram', reason: 'schema', update: 'callback_query' },
+    ]);
     clean(logger);
   });
 });

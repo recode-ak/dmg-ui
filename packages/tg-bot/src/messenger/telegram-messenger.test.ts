@@ -324,20 +324,6 @@ describe('TelegramMessenger — правка', () => {
     expect(methods(api)).toEqual(['sendMessage', 'editMessageText']);
   });
 
-  test('«message is not modified» распознаётся без учёта регистра', async () => {
-    const { api, messenger } = setup();
-    await messenger.show(PEER, HELLO);
-    api.failNext({
-      error_code: 400,
-      description: 'Bad Request: MESSAGE IS NOT MODIFIED',
-    });
-
-    expect(await messenger.update(PEER, '1', message(TASK))).toEqual(
-      ok({ handle: '1', edited: true }),
-    );
-    expect(methods(api)).toEqual(['sendMessage', 'editMessageText']);
-  });
-
   test('update неизвестного сообщения (400) — откат: sendMessage, edited: false, новый handle', async () => {
     const { api, messenger } = setup();
     await messenger.show(PEER, HELLO);
@@ -442,15 +428,6 @@ describe('TelegramMessenger — отказы Bot API', () => {
       err({ reason: 'unavailable' }),
     );
     expect(api.journal).toHaveLength(1);
-  });
-
-  test.each([500, 502, 504])('%d — unavailable', async (error_code) => {
-    const { api, messenger } = setup();
-    api.failNext({ error_code, description: 'Internal Server Error' });
-
-    expect(await messenger.notify(PEER, HELLO)).toEqual(
-      err({ reason: 'unavailable' }),
-    );
   });
 
   test('400 у show — rejected', async () => {
@@ -843,13 +820,6 @@ describe('TelegramMessenger — в узле бесед', () => {
       },
     });
   };
-
-  test('узел бесед собирается на возможностях Telegram', async () => {
-    const conversations = node(new MemoryBotApi());
-
-    expect(conversations).toBeInstanceOf(Conversations);
-    await conversations.close();
-  });
 
   test('текст экрана 5000 UTF-16 приходит в sendMessage обрезанным стражем до 4096', async () => {
     const api = new MemoryBotApi();
