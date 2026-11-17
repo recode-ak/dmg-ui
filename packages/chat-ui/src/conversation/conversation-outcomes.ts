@@ -5,7 +5,8 @@ import type {
   ScreenInstance,
   UnavailableReason,
 } from 'dmg-ui';
-import { DIALOG_TEXTS } from '../dialog/dialog-replies';
+import type { ScreenComposer } from '../view/screen-composer';
+import { CONVERSATION_TEXTS } from './conversation.const';
 import type { Serial } from './conversation.types';
 import type { ConversationInput } from './conversation-input';
 import type { ConversationReplies } from './conversation-replies';
@@ -30,6 +31,8 @@ export type ActTarget = {
 type OutcomeParts = {
   readonly screens: ConversationScreens;
   readonly replies: ConversationReplies;
+  /** Текст отказа: у кода из `catches` — текст представления. */
+  readonly composer: ScreenComposer;
   /** Черновик беседы — для повтора поля по отвергнутому входу. */
   readonly input: ConversationInput;
 };
@@ -58,7 +61,7 @@ export class ConversationOutcomes {
       case 'local':
         // Ревизию локального действия ядро не проверяет — проверяет беседа.
         if (target.revision !== on.instance.view().revision) {
-          await this.parts.screens.show(DIALOG_TEXTS.stale);
+          await this.parts.screens.show(CONVERSATION_TEXTS.stale);
         } else await this.local(on.instance, target.local, input, draft);
         return;
       default: {
@@ -149,10 +152,12 @@ export class ConversationOutcomes {
         await this.rejected(outcome.issues, draft);
         return;
       case 'refused':
-        await screens.show(replies.refusal(instance.view(), outcome.refusal));
+        await screens.show(
+          this.parts.composer.refusal(instance.view(), outcome.refusal),
+        );
         return;
       case 'stale':
-        await screens.show(DIALOG_TEXTS.stale);
+        await screens.show(CONVERSATION_TEXTS.stale);
         return;
       case 'unavailable':
         await this.unavailable(outcome.reason);
@@ -169,7 +174,9 @@ export class ConversationOutcomes {
   ): Promise<void> {
     if (draft !== undefined && (await this.parts.input.repeat(draft, issues)))
       return;
-    await this.parts.screens.show(issues[0]?.text ?? DIALOG_TEXTS.unavailable);
+    await this.parts.screens.show(
+      issues[0]?.text ?? CONVERSATION_TEXTS.unavailable,
+    );
   }
 
   private async unavailable(reason: UnavailableReason): Promise<void> {
@@ -179,7 +186,9 @@ export class ConversationOutcomes {
       );
     }
     await this.parts.screens.note(
-      reason === 'closed' ? DIALOG_TEXTS.closed : DIALOG_TEXTS.unavailable,
+      reason === 'closed'
+        ? CONVERSATION_TEXTS.closed
+        : CONVERSATION_TEXTS.unavailable,
     );
   }
 

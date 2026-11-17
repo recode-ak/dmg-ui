@@ -12,7 +12,7 @@ export type { DialogGraphSpec } from './dialog-graph-provider.types';
 
 /**
  * Второй поставщик графа — диалоговый канал: ребро `presents` от приложения
- * UI к каждому экрану и уведомлению с представлением в `DialogViews`.
+ * UI к каждому экрану и уведомлению с представлением в `ChatViews`.
  * Своих видов и правил нет (ARC-13: префикс правил не нужен).
  */
 export class DialogGraphProvider implements GraphProvider {

@@ -14,18 +14,16 @@ import type {
   ServerContext,
   UiServer,
 } from 'dmg-ui/server';
-import type { DialogReplies } from '../dialog/dialog-replies';
-import type { DialogViews } from '../dialog/dialog-views';
-import type { FormattedText, Message } from '../message/message.types';
 import type {
   MessageHandle,
   MessengerPort,
 } from '../messenger/messenger.types';
+import type { ChatViews } from '../view/chat-views';
 import type { ConversationStore } from './conversation-store.types';
 
 // Данные беседы — простые объекты JSON, классы работают над ними: сигналы
-// мессенджера, записи таблицы ссылок, снимок беседы и показанный вид для
-// отпечатка; спеки беседы и узла бесед. Таблица ссылок — D-UI-44, снимок —
+// мессенджера, записи таблицы ссылок, снимок беседы; спеки беседы и узла
+// бесед. Таблица ссылок — D-UI-44, снимок —
 // D-UI-45.
 
 /** Вид вложения: только место, до действия не доводится. */
@@ -131,7 +129,8 @@ export type RefEntry =
       readonly kind: 'open';
       readonly address: AddressJson;
       readonly label: string;
-    };
+    }
+  | { readonly ref: string; readonly kind: 'home'; readonly label: string };
 
 /** Запись шага черновика: вариант поля, «Пропустить», «Ещё» вариантов поля. */
 export type StepEntry =
@@ -208,20 +207,8 @@ export type RefTarget =
       readonly kind: 'open';
       readonly address: AddressJson;
       readonly label: string;
-    };
-
-/** Вариант показанного вида без ссылки: вид и имя цели, подпись. */
-export type ShownOption = {
-  readonly kind: 'action' | 'local' | 'retry';
-  readonly name?: string;
-  readonly label: string;
-};
-
-/** Что человек видел на экране: текст тела и варианты вида, без заметки перед видом и без ссылок. */
-export type ShownScreen = {
-  readonly text: FormattedText;
-  readonly options: readonly ShownOption[];
-};
+    }
+  | { readonly kind: 'home'; readonly label: string };
 
 /** Живой экран беседы в снимке. */
 export type LiveScreenJson = {
@@ -284,12 +271,6 @@ export type Layout =
   /** Номера в тексте и «Ещё», если страниц больше одной. */
   | { readonly kind: 'numbers'; readonly size: number; readonly count: number };
 
-/** Показ вида экрана: сообщение со ссылками и показанное — для отпечатка. */
-export type ScreenReply = {
-  readonly message: Message;
-  readonly shown: ShownScreen;
-};
-
 /** След на каждый сигнал беседы. */
 export type SignalTraces = {
   next(): Trace;
@@ -306,7 +287,8 @@ export type ConversationSpec = {
   readonly runtime: ScreenRuntime;
   readonly contexts: ConversationContexts;
   readonly traces: SignalTraces;
-  readonly replies: DialogReplies;
+  /** Представления приложения мессенджера; сборщик показа строит беседа. */
+  readonly views: ChatViews;
   /** У узла бесед — `LimitedMessenger`. */
   readonly messenger: MessengerPort;
   readonly logger: ServerContext['logger'];
@@ -326,7 +308,7 @@ export type ConversationsSpec<U extends Identified> = {
   readonly app: AnyUiAppDef;
   readonly codes: CodeLoaders;
   readonly server: UiServer<U>;
-  readonly views: DialogViews;
+  readonly views: ChatViews;
   readonly observer: UiObserver;
   /** Узел сам оборачивает порт в `LimitedMessenger`. */
   readonly messenger: MessengerPort;

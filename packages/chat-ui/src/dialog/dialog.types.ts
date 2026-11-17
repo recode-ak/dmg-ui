@@ -1,6 +1,5 @@
 import type { Identified } from 'dmg-core';
 import type {
-  ActionField,
   AnyUiAppDef,
   CodeLoaders,
   Place,
@@ -9,9 +8,8 @@ import type {
 } from 'dmg-ui';
 import type { RecipientCallers, UiServer } from 'dmg-ui/server';
 import type { ConversationContexts } from '../conversation/conversation.types';
-import type { DialogReplies } from './dialog-replies';
+import type { ChatViews } from '../view/chat-views';
 import type { DialogTraces } from './dialog-traces';
-import type { DialogViews } from './dialog-views';
 
 /** Вариант реплики: короткая ссылка для `press` и подпись. */
 export type DialogOption = {
@@ -33,7 +31,7 @@ export type DialogChannelSpec<U extends Identified> = {
   readonly app: AnyUiAppDef;
   readonly codes: CodeLoaders;
   readonly server: UiServer<U>;
-  readonly views: DialogViews;
+  readonly views: ChatViews;
   readonly observer: UiObserver;
   /** Порт сборки: вызывающий личности по её `uuid`. */
   readonly identities: (uuid: string) => RecipientCallers<U>;
@@ -49,17 +47,7 @@ export type DialogSpec = {
   readonly runtime: ScreenRuntime;
   readonly identity: ConversationContexts;
   readonly traces: DialogTraces;
-  readonly replies: DialogReplies;
+  readonly views: ChatViews;
   /** uuid личности — собеседник и владелец беседы; по умолчанию — имя канала. */
   readonly person?: string;
 };
-
-/** Вариант вида без ссылки: действие, локальное действие или «Повторить». */
-export type ViewOption =
-  | {
-      readonly kind: 'action' | 'local';
-      readonly name: string;
-      readonly label: string;
-      readonly fields: readonly ActionField[];
-    }
-  | { readonly kind: 'retry'; readonly label: string };

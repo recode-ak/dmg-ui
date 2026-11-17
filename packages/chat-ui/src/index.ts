@@ -1,7 +1,8 @@
 // Вход dmg-ui/chat-ui: узел бесед мессенджера, хранилище бесед в памяти и
-// схема снимка беседы; сообщение, помощники лимита, порт мессенджера, его
-// возможности и страж лимитов; учебный диалоговый канал — фасад над беседой
-// на публичных входах ядра.
+// схема снимка беседы; представления беседы — сообщения с вариантами-
+// намерениями, их реестр с перекрытием под мессенджер; сообщение, помощники
+// лимита, порт мессенджера, его возможности и страж лимитов; учебный
+// диалоговый канал — фасад над беседой на публичных входах ядра.
 
 export type {
   Attachment,
@@ -30,9 +31,6 @@ export {
   type DialogPlace,
   DialogRenderer,
   type DialogReply,
-  DialogViews,
-  NotificationPresenter,
-  ScreenPresenter,
 } from './dialog';
 export type { LengthUnit, TextLimit } from './limit/limit.types';
 export { TextLength } from './limit/text-length';
@@ -70,3 +68,18 @@ export type {
   UndeliveredReason,
   Updated,
 } from './messenger/messenger.types';
+export { ChatViews } from './view/chat-views';
+export { NotificationPresenter } from './view/notification-presenter';
+export { ScreenPresenter } from './view/screen-presenter';
+export type {
+  CaughtTexts,
+  HistoryKey,
+  NotificationRender,
+  ScreenPresenterSpec,
+  ScreenRender,
+  ScreenText,
+  ViewMessage,
+  ViewOption,
+  ViewOutput,
+} from './view/view.types';
+export type { ViewKit } from './view/view-kit';

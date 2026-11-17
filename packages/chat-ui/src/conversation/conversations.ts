@@ -2,7 +2,6 @@ import { type Identified, Trace } from 'dmg-core';
 import { ScreenRuntime } from 'dmg-ui';
 import { RenderContexts } from 'dmg-ui/server';
 import * as v from 'valibot';
-import { DialogReplies } from '../dialog/dialog-replies';
 import type { Message } from '../message/message.types';
 import { TextBuilder } from '../message/text-builder';
 import { LimitedMessenger } from '../messenger/limited-messenger';
@@ -53,7 +52,6 @@ export class Conversations<U extends Identified> {
   private readonly spec: ConversationsSpec<U>;
   private readonly messenger: LimitedMessenger;
   private readonly log: ConversationLog;
-  private readonly replies: DialogReplies;
   private readonly contexts: RenderContexts<U>;
   private readonly traces: SignalTraces;
   private readonly home: string;
@@ -81,7 +79,6 @@ export class Conversations<U extends Identified> {
       spec.logger,
       this.messenger.capabilities.name,
     );
-    this.replies = new DialogReplies(views);
     this.contexts = new RenderContexts(spec.callers, spec.places);
     const requestIds = spec.requestIds ?? (() => crypto.randomUUID());
     this.traces = {
@@ -237,7 +234,7 @@ export class Conversations<U extends Identified> {
         runtime,
         contexts: { context: (trace) => this.contexts.of(uuid, trace) },
         traces: this.traces,
-        replies: this.replies,
+        views: this.spec.views,
         messenger: this.messenger,
         logger,
         peer,

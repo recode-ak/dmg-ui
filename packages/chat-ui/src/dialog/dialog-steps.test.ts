@@ -14,12 +14,12 @@ import {
 } from 'dmg-ui';
 import { RuntimeKit, testRenderContext } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
+import { ChatViews } from '../view/chat-views';
+import { ScreenPresenter } from '../view/screen-presenter';
 import { Dialog } from './dialog';
 import type { DialogReply } from './dialog.types';
 import { DIALOG_CHANNEL } from './dialog-channel.const';
-import { DialogReplies } from './dialog-replies';
 import { DialogTraces } from './dialog-traces';
-import { DialogViews, ScreenPresenter } from './dialog-views';
 
 // Вход по шагам на локальных Def (случаи, которых нет в примере): в учебном примере нет
 // действия с несколькими полями и основного действия без полей. Ссылки
@@ -149,12 +149,10 @@ const dialogOf = () => {
       requests += 1;
       return `r-${requests}`;
     }),
-    replies: new DialogReplies(
-      DialogViews.of(StepsSetDef, [
-        ScreenPresenter.for(FormScreenDef, () => 'Форма'),
-        ScreenPresenter.for(PingScreenDef, () => 'Пинг'),
-      ]),
-    ),
+    views: ChatViews.of(StepsSetDef, [
+      ScreenPresenter.for(FormScreenDef, () => 'Форма'),
+      ScreenPresenter.for(PingScreenDef, () => 'Пинг'),
+    ]),
   });
   return { kit, dialog };
 };

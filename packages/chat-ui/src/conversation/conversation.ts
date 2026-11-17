@@ -8,8 +8,8 @@ import type {
   LocalView,
   ScreenInstance,
 } from 'dmg-ui';
-import { DIALOG_TEXTS } from '../dialog/dialog-replies';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
+import { ScreenComposer } from '../view/screen-composer';
 import {
   CONVERSATION_TEXTS,
   MAX_REF_LENGTH,
@@ -64,13 +64,18 @@ export class Conversation {
       spec.messenger.capabilities.name,
     );
     this.replies = new ConversationReplies(
-      spec.replies,
+      spec.views,
       this.refs,
       new OptionLayout(spec.messenger.capabilities.options.max),
+    );
+    const composer = new ScreenComposer(
+      spec.views,
+      spec.messenger.capabilities,
     );
     this.screens = new ConversationScreens(
       {
         spec,
+        composer,
         replies: this.replies,
         refs: this.refs,
         log: this.log,
@@ -91,6 +96,7 @@ export class Conversation {
     this.outcomes = new ConversationOutcomes({
       screens: this.screens,
       replies: this.replies,
+      composer,
       input: this.input,
     });
   }
@@ -241,7 +247,7 @@ export class Conversation {
   private async press(ref: string, trace: Trace): Promise<void> {
     const entry = this.refs.entry(ref);
     if (entry === undefined) {
-      await this.screens.note(DIALOG_TEXTS.unknownRef);
+      await this.screens.note(CONVERSATION_TEXTS.unknownRef);
       return;
     }
     // Шаг черновика — его дело; любой другой вариант черновик сбрасывает.
@@ -278,7 +284,7 @@ export class Conversation {
         const { local, revision } = entry;
         const fields = Conversation.fieldsOf(view.locals, local);
         if (revision !== view.revision) {
-          await this.screens.show(DIALOG_TEXTS.stale);
+          await this.screens.show(CONVERSATION_TEXTS.stale);
         } else if (fields.length > 0) {
           const target = { kind: 'local', local, revision } as const;
           await this.input.start(on.serial, target, fields, trace);
@@ -304,6 +310,9 @@ export class Conversation {
         return;
       case 'open':
         await this.screens.openJson(entry.address, trace);
+        return;
+      case 'home':
+        await this.screens.home(trace);
         return;
       default: {
         const unknownKind: never = entry;

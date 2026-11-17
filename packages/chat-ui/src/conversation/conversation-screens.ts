@@ -6,11 +6,11 @@ import {
   type InstanceJson,
   type ScreenInstance,
 } from 'dmg-ui';
-import { DIALOG_TEXTS } from '../dialog/dialog-replies';
 import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';
 import type { MessageHandle, SendOptions } from '../messenger/messenger.types';
-import { MAX_HANDLES } from './conversation.const';
+import type { ScreenComposer } from '../view/screen-composer';
+import { CONVERSATION_TEXTS, MAX_HANDLES } from './conversation.const';
 import type {
   ConversationSpec,
   LiveScreenJson,
@@ -41,6 +41,8 @@ type ShownState = {
 /** Части беседы, на которых работает живой экран. */
 type ScreensParts = {
   readonly spec: ConversationSpec;
+  /** Вид → показ представления; путь беседа пока не ведёт — «Назад» нет. */
+  readonly composer: ScreenComposer;
   readonly replies: ConversationReplies;
   readonly refs: RefTable;
   readonly log: ConversationLog;
@@ -85,7 +87,7 @@ export class ConversationScreens {
   > {
     const live = this.live;
     if (live !== undefined && live.serial === serial) return live;
-    await this.note(DIALOG_TEXTS.closed);
+    await this.note(CONVERSATION_TEXTS.closed);
     return undefined;
   }
 
@@ -113,11 +115,13 @@ export class ConversationScreens {
     const restored = await this.restore(pending.instance, trace);
     this.pending = undefined;
     if (restored === undefined) {
-      await this.note(DIALOG_TEXTS.notRestored);
+      await this.note(CONVERSATION_TEXTS.notRestored);
       return false;
     }
     const view = restored.view();
-    const shown = await ScreenFingerprint.of(this.parts.replies.shown(view));
+    const shown = await ScreenFingerprint.of(
+      this.parts.composer.compose(view, false).messages,
+    );
     if (shown === pending.shown) {
       const from = view.revision - 1;
       this.parts.refs.rebase(pending.serial, from, view.revision);
@@ -132,7 +136,7 @@ export class ConversationScreens {
     const restored = await this.restore(json, trace);
     this.pending = undefined;
     if (restored === undefined) {
-      await this.note(DIALOG_TEXTS.notRestored);
+      await this.note(CONVERSATION_TEXTS.notRestored);
       await this.home(trace);
       return;
     }
@@ -144,7 +148,7 @@ export class ConversationScreens {
   async openJson(json: AddressJson, trace: Trace): Promise<void> {
     const address = this.codec.decode(json);
     if (!address.ok) {
-      await this.note(DIALOG_TEXTS.notRestored);
+      await this.note(CONVERSATION_TEXTS.notRestored);
       await this.home(trace);
       return;
     }
@@ -173,27 +177,33 @@ export class ConversationScreens {
     await this.show();
   }
 
-  /** Вид живого экрана новым сообщением; `lead` — заметка перед видом. */
+  /** Вид живого экрана новыми сообщениями по порядку; `lead` — заметка перед видом. */
   async show(lead?: string, send?: SendOptions): Promise<void> {
     const live = this.live;
     if (live === undefined) return;
-    const reply = this.parts.replies.screen(
-      live.instance.view(),
+    const view = live.instance.view();
+    const composed = this.parts.composer.compose(view, false);
+    const messages = this.parts.replies.screen(
+      composed,
+      view,
       live.serial,
       lead,
       live.page,
     );
-    live.shown = await ScreenFingerprint.of(reply.shown);
-    const handle = await this.send(reply.message, send);
-    if (handle === undefined) return;
-    live.handles = [...live.handles, handle].slice(-MAX_HANDLES);
+    live.shown = await ScreenFingerprint.of(composed.messages);
+    for (const message of messages) {
+      const handle = await this.send(message, send);
+      if (handle !== undefined) {
+        live.handles = [...live.handles, handle].slice(-MAX_HANDLES);
+      }
+    }
   }
 
   /** Страница вариантов живого экрана `serial` («Ещё»); чужой экран — «Экран уже закрыт.». */
   async turn(serial: Serial, page: number): Promise<void> {
     const live = this.live;
     if (live === undefined || live.serial !== serial) {
-      await this.note(DIALOG_TEXTS.closed);
+      await this.note(CONVERSATION_TEXTS.closed);
       return;
     }
     live.page = page;

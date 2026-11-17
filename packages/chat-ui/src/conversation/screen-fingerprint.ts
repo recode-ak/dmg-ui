@@ -1,17 +1,18 @@
-import type { ShownScreen } from './conversation.types';
+import type { ViewMessage, ViewOption } from '../view/view.types';
 
 /**
- * Отпечаток показанного вида (D-UI-46): SHA-256 (hex) канонического JSON — фрагменты
- * текста (строка, стили, ссылка) и варианты (вид, имя цели, подпись) по
- * порядку, массивами без ключей. Лишние поля (ссылки вариантов, заметка
- * перед видом) в отпечаток не входят. Хэш — глобальный `crypto.subtle`.
+ * Отпечаток показанного вида (D-UI-46): SHA-256 (hex) канонического JSON
+ * сообщений показа по порядку — фрагменты текста (строка, стили, ссылка) и
+ * варианты (вид, имя цели, подпись), массивами без ключей. Лишние поля
+ * (ссылки вариантов, заметка перед видом, ключ истории) не входят. Хэш —
+ * глобальный `crypto.subtle`.
  */
 export class ScreenFingerprint {
-  private constructor(private readonly shown: ShownScreen) {}
+  private constructor(private readonly messages: readonly ViewMessage[]) {}
 
   /** 64 знака hex. */
-  static async of(shown: ShownScreen): Promise<string> {
-    return new ScreenFingerprint(shown).digest();
+  static async of(messages: readonly ViewMessage[]): Promise<string> {
+    return new ScreenFingerprint(messages).digest();
   }
 
   private async digest(): Promise<string> {
@@ -23,16 +24,38 @@ export class ScreenFingerprint {
   }
 
   private canonical(): string {
-    const text = this.shown.text.map((fragment) => [
-      fragment.text,
-      fragment.styles,
-      fragment.link ?? null,
-    ]);
-    const options = this.shown.options.map((option) => [
-      option.kind,
-      option.name ?? null,
-      option.label,
-    ]);
-    return JSON.stringify([text, options]);
+    return JSON.stringify(
+      this.messages.map((message) => [
+        message.text.map((fragment) => [
+          fragment.text,
+          fragment.styles,
+          fragment.link ?? null,
+        ]),
+        message.options.map((option) => [
+          option.kind,
+          ScreenFingerprint.target(option),
+          option.label,
+        ]),
+      ]),
+    );
+  }
+
+  /** Имя цели варианта; у «Назад», «Повторить», «В начало» имени нет. */
+  private static target(option: ViewOption): string | null {
+    switch (option.kind) {
+      case 'action':
+      case 'local':
+        return option.name;
+      case 'back':
+      case 'retry':
+      case 'home':
+        return null;
+      default: {
+        const unknownKind: never = option;
+        throw new Error(
+          `ScreenFingerprint: неизвестный вид варианта ${(unknownKind as ViewOption).kind}`,
+        );
+      }
+    }
   }
 }

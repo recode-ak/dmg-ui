@@ -31,9 +31,7 @@ import { RuntimeKit, testRenderContext } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import { MemoryMessenger, type MessengerEntry } from '../../testing';
 import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
-import { DialogReplies } from '../dialog/dialog-replies';
 import { DialogTraces } from '../dialog/dialog-traces';
-import { DialogViews, ScreenPresenter } from '../dialog/dialog-views';
 import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';
 import type {
@@ -42,6 +40,8 @@ import type {
   OptionLimits,
   SendOptions,
 } from '../messenger/messenger.types';
+import { ChatViews } from '../view/chat-views';
+import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
 import type {
   ConversationSignal,
@@ -194,7 +194,7 @@ const ConvAppDef = UiAppDef.define({
   },
 });
 
-const views = DialogViews.of(ConvSetDef, [
+const views = ChatViews.of(ConvSetDef, [
   ScreenPresenter.for(
     HomeScreenDef,
     ({ data, state }) =>
@@ -285,7 +285,7 @@ const sceneOf = (
         requests += 1;
         return `r-${requests}`;
       }),
-      replies: new DialogReplies(views),
+      views,
       messenger,
       logger,
       peer: PEER,

@@ -108,6 +108,7 @@ const RefEntrySchema = v.variant('kind', [
     address: Address,
     label: Label,
   }),
+  v.object({ ref: Ref, kind: v.literal('home'), label: Label }),
 ]);
 
 const LiveScreen = v.object({

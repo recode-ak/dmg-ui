@@ -10,7 +10,6 @@ import {
 import { DialogDelivery } from './dialog-delivery';
 import { DialogIdentity } from './dialog-identity';
 import { DialogRenderer } from './dialog-renderer';
-import { DialogReplies } from './dialog-replies';
 import { DialogTraces } from './dialog-traces';
 
 /**
@@ -29,7 +28,6 @@ import { DialogTraces } from './dialog-traces';
 export class DialogChannel<U extends Identified> {
   readonly delivery: DialogDelivery;
   private readonly spec: DialogChannelSpec<U>;
-  private readonly replies: DialogReplies;
   private readonly traces: DialogTraces;
   private readonly dialogs = new Map<string, Dialog>();
 
@@ -52,7 +50,6 @@ export class DialogChannel<U extends Identified> {
       );
     }
     this.spec = spec;
-    this.replies = new DialogReplies(views);
     this.traces = new DialogTraces(
       spec.requestIds ?? (() => crypto.randomUUID()),
     );
@@ -81,7 +78,7 @@ export class DialogChannel<U extends Identified> {
       }),
       identity,
       traces: this.traces,
-      replies: this.replies,
+      views: this.spec.views,
       person: uuid,
     });
     this.dialogs.set(uuid, dialog);

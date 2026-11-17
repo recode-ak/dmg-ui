@@ -79,6 +79,7 @@ export class RefTable {
       case 'skip':
       case 'page':
       case 'open':
+      case 'home':
         return entry;
       default: {
         const unknownKind: never = entry;

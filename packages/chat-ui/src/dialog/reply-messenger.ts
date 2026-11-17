@@ -17,7 +17,7 @@ const ROOMY_TEXT = { max: 1_000_000, unit: 'utf16' } as const;
  * Возможности мессенджера реплик: не правит, вариантов с запасом (раскладка
  * всегда целиком), ссылки беседы помещаются, писать первым можно всегда.
  */
-const REPLY_CAPABILITIES: MessengerCapabilities = {
+export const REPLY_CAPABILITIES: MessengerCapabilities = {
   name: 'dialog-replies',
   kinds: ['text'],
   edit: false,

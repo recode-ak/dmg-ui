@@ -12,7 +12,8 @@ import {
   TaskAssignedView,
   TaskCompletedView,
 } from '../../testing/example/task-notes.view';
-import { DialogGraphProvider, DialogViews } from './index';
+import { ChatViews } from '../view/chat-views';
+import { DialogGraphProvider } from './index';
 
 // Второй поставщик графа — диалоговый канал: рёбра `presents` от приложения
 // UI к экранам и уведомлениям с представлением; своих видов и правил нет.
@@ -55,7 +56,7 @@ describe('DialogGraphProvider на графе примера', () => {
 
 describe('DialogGraphProvider — экран без представления', () => {
   test('нет представления карточки — нет ребра presents, UI-06 в отчёте arch:check', () => {
-    const views = DialogViews.of(ExampleUiSetDef, [
+    const views = ChatViews.of(ExampleUiSetDef, [
       TaskListView,
       AssignedTasksView,
       TaskAssignedView,

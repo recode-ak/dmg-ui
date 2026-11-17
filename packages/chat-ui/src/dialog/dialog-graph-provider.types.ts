@@ -1,8 +1,8 @@
 import type { AnyUiAppDef } from 'dmg-ui';
-import type { DialogViews } from './dialog-views';
+import type { ChatViews } from '../view/chat-views';
 
 /** Сборка поставщика графа диалогового канала. */
 export type DialogGraphSpec = {
   readonly app: AnyUiAppDef;
-  readonly views: DialogViews;
+  readonly views: ChatViews;
 };

@@ -1,4 +1,4 @@
-import type { InstanceJson } from 'dmg-ui';
+import { type InstanceJson, UiIds } from 'dmg-ui';
 import type { DeliveredNotification, ServerContext } from 'dmg-ui/server';
 import { Conversation } from '../conversation/conversation';
 import type {
@@ -6,6 +6,7 @@ import type {
   SignalHead,
 } from '../conversation/conversation.types';
 import { RefEpochs } from '../conversation/ref-epochs';
+import { VIEW_TEXTS } from '../view/view.const';
 import type { DialogOption, DialogReply, DialogSpec } from './dialog.types';
 import { DIALOG_CHANNEL, DIALOG_HOME } from './dialog-channel.const';
 import { ReplyMessenger } from './reply-messenger';
@@ -31,17 +32,19 @@ export class Dialog {
   private readonly spec: DialogSpec;
   private readonly person: string;
   private readonly conversation: Conversation;
+  private readonly ids: UiIds;
   private signals = 0;
 
   constructor(spec: DialogSpec) {
     this.spec = spec;
     this.person = spec.person ?? DIALOG_CHANNEL;
+    this.ids = new UiIds(spec.views.set);
     this.conversation = new Conversation({
       app: spec.app,
       runtime: spec.runtime,
       contexts: spec.identity,
       traces: spec.traces,
-      replies: spec.replies,
+      views: spec.views,
       messenger: new ReplyMessenger(this.replies, this.inbox),
       logger: SILENT_LOGGER,
       peer: this.person,
@@ -86,16 +89,15 @@ export class Dialog {
     return this.conversation.resume(json);
   }
 
-  /** Уведомление во входящие; ссылки — в таблице беседы; живой экран не трогает. */
+  /** Уведомление во входящие; ссылки — в таблице беседы, подпись — экрана цели; живой экран не трогает. */
   async notify(notification: DeliveredNotification): Promise<void> {
-    const { replies } = this.spec;
-    const text = replies.notification(
-      notification.notification,
-      notification.data,
-    );
+    const text = this.spec.views
+      .notification(notification.notification)
+      .text(notification.data);
     const options: DialogOption[] = [];
     for (const address of notification.links) {
-      const label = replies.link(address);
+      const label =
+        this.ids.findScreen(address.screen)?.label ?? VIEW_TEXTS.open;
       options.push({
         ref: await this.conversation.link(address, label),
         label,

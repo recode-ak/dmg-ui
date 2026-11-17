@@ -1,6 +1,6 @@
 import type { Trace } from 'dmg-core';
 import type { ActionField, FieldIssue } from 'dmg-ui';
-import { DIALOG_TEXTS } from '../dialog/dialog-replies';
+import { CONVERSATION_TEXTS } from './conversation.const';
 import type {
   DraftJson,
   RefEntry,
@@ -74,13 +74,13 @@ export class ConversationInput {
     const active = this.active();
     if (active !== undefined) {
       if (active.answer(text)) await this.advance(active, trace);
-      else await this.ask(active, DIALOG_TEXTS.choose);
+      else await this.ask(active, CONVERSATION_TEXTS.choose);
       return;
     }
     const draft = this.primary();
     // Действие без полей случайный текст не запускает.
     if (draft === undefined || !draft.answer(text)) {
-      await this.parts.screens.note(DIALOG_TEXTS.choose);
+      await this.parts.screens.note(CONVERSATION_TEXTS.choose);
       return;
     }
     this.draft = draft;
@@ -101,8 +101,8 @@ export class ConversationInput {
     const draft = this.active();
     if (draft === undefined || !ConversationInput.fits(draft, entry)) {
       if (draft === undefined) {
-        await this.parts.screens.note(DIALOG_TEXTS.unavailable);
-      } else await this.ask(draft, DIALOG_TEXTS.unavailable);
+        await this.parts.screens.note(CONVERSATION_TEXTS.unavailable);
+      } else await this.ask(draft, CONVERSATION_TEXTS.unavailable);
       return;
     }
     switch (entry.kind) {

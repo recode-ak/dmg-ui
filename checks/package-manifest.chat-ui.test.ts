@@ -7,13 +7,13 @@ import { describe, expect, it } from 'bun:test';
 // `dmg-ui/chat-ui/testing`; шесть помощников ядра — в `dmg-ui/testing/fixtures`.
 
 const CHAT_UI = [
+  'ChatViews',
   'ConversationSnapshotSchema',
   'Conversations',
   'DIALOG_CHANNEL',
   'DialogChannel',
   'DialogGraphProvider',
   'DialogRenderer',
-  'DialogViews',
   'LimitedMessenger',
   'MemoryConversationStore',
   'MessageFit',
@@ -28,7 +28,7 @@ const CHAT_UI = [
 ];
 
 describe('вход dmg-ui/chat-ui', () => {
-  it('состав — канал, представления, наблюдатели, граф, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед в памяти и схема снимка', async () => {
+  it('состав — канал, представления и их реестр с перекрытием, наблюдатели, граф, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед в памяти и схема снимка', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui')).sort()).toEqual(CHAT_UI);
   });
 

@@ -1,17 +1,20 @@
-import type { ActionField, InstanceView, Refusal } from 'dmg-ui';
-import type { ViewOption } from '../dialog/dialog.types';
-import { DIALOG_TEXTS, type DialogReplies } from '../dialog/dialog-replies';
-import type { Message, MessageOption } from '../message/message.types';
-import { TextBuilder } from '../message/text-builder';
-import { CONVERSATION_TEXTS } from './conversation.const';
+import {
+  type ActionField,
+  type AnyScreenDef,
+  type InstanceView,
+  UiIds,
+} from 'dmg-ui';
 import type {
-  Layout,
-  RefTarget,
-  ScreenReply,
-  Serial,
-  ShownOption,
-  ShownScreen,
-} from './conversation.types';
+  FormattedText,
+  Message,
+  MessageOption,
+} from '../message/message.types';
+import { TextBuilder } from '../message/text-builder';
+import type { ChatViews } from '../view/chat-views';
+import { type ComposedScreen, ScreenComposer } from '../view/screen-composer';
+import { VIEW_TEXTS } from '../view/view.const';
+import type { ViewOption } from '../view/view.types';
+import type { Layout, RefTarget, Serial } from './conversation.types';
 import type { InputDraft } from './input-draft';
 import type { OptionLayout } from './option-layout';
 import type { RefTable } from './ref-table';
@@ -32,45 +35,38 @@ type ConfirmTarget = {
 };
 
 /**
- * Показ беседы: вид, вопрос поля, заметка и подтверждение → `Message` со
- * ссылками таблицы. Тексты — строки `DialogReplies` без стилей; варианты
- * вида — действия, локальные действия, «Повторить»; у вопроса — варианты
- * поля и «Пропустить». Сверх лимита — страницы с «Ещё» или номера в тексте
- * (`OptionLayout`). Позже показ заменит реестр представлений.
+ * Показ беседы: показ вида (`ComposedScreen`), вопрос поля, заметка и
+ * подтверждение → `Message` со ссылками таблицы. Варианты-намерения вида
+ * становятся ссылками; у вопроса — варианты поля и «Пропустить». Сверх
+ * лимита — страницы с «Ещё» у вариантов последнего сообщения или номера в
+ * тексте вопроса (`OptionLayout`).
  */
 export class ConversationReplies {
+  private readonly ids: UiIds;
+
   constructor(
-    private readonly replies: DialogReplies,
+    views: ChatViews,
     private readonly refs: RefTable,
     private readonly layout: OptionLayout,
-  ) {}
+  ) {
+    this.ids = new UiIds(views.set);
+  }
 
-  /** Вид экрана `serial` на странице `page`; `lead` — заметка перед видом, в показанное не входит. */
+  /** Показ вида экрана `serial` на странице `page`; `lead` — заметка перед видом в первом сообщении, в показанное не входит. */
   screen(
+    composed: ComposedScreen,
     view: InstanceView,
     serial: Serial,
     lead?: string,
     page = 0,
-  ): ScreenReply {
-    const all = this.replies.options(view);
-    const slice = ConversationReplies.slice(
-      this.layout.of(all.length, 0, false),
-      all.length,
-      page,
+  ): readonly Message[] {
+    const last = composed.messages.length - 1;
+    return composed.messages.map((message, i) =>
+      this.message(
+        i === 0 ? ScreenComposer.lead(lead, message.text) : message.text,
+        i === last ? this.options(message.options, view, serial, page) : [],
+      ),
     );
-    const options = all
-      .slice(slice.start, slice.end)
-      .map((option) =>
-        this.option(option.label, this.target(view, serial, option)),
-      );
-    const text = this.replies.join([lead, this.replies.screen(view)]);
-    return {
-      message: this.message(text, [
-        ...options,
-        ...this.more(slice, 'screen', serial),
-      ]),
-      shown: this.shown(view),
-    };
   }
 
   /** Вопрос текущего поля черновика: варианты страницы или номера, «Пропустить», «Ещё»; `note` — замечание перед вопросом. */
@@ -86,12 +82,12 @@ export class ConversationReplies {
       draft.shownPage(),
     );
     const page = choices.slice(slice.start, slice.end);
-    const ask = this.replies.field(field, note);
+    const ask = ConversationReplies.field(field, note);
     if (layout.kind === 'numbers') {
       const lines = page.map(
         (choice, i) => `${slice.start + i + 1}. ${choice.label}`,
       );
-      return this.message(this.replies.join([ask, lines.join('\n')]), [
+      return this.text(ConversationReplies.join([ask, lines.join('\n')]), [
         ...skip,
         ...this.more(slice, 'field', draft.serial()),
       ]);
@@ -105,41 +101,32 @@ export class ConversationReplies {
         label: choice.label,
       }),
     );
-    return this.message(ask, [
+    return this.text(ask, [
       ...buttons,
       ...skip,
       ...this.more(slice, 'field', draft.serial()),
     ]);
   }
 
-  /** Показанное без ссылок и без заметки — для отпечатка. */
-  shown(view: InstanceView): ShownScreen {
-    return {
-      text: TextBuilder.of(this.replies.screen(view)),
-      options: this.replies
-        .options(view)
-        .map(
-          (option): ShownOption =>
-            option.kind === 'retry'
-              ? { kind: 'retry', label: option.label }
-              : { kind: option.kind, name: option.name, label: option.label },
-        ),
-    };
-  }
-
   /** Заметка без вариантов. */
   note(text: string): Message {
-    return this.message(text, []);
+    return this.text(text, []);
   }
 
-  /** Текст выхода из Def экрана. */
+  /** Текст выхода из Def экрана: подпись и описание. */
   exit(view: InstanceView, exit: string): Message {
-    return this.note(this.replies.exit(view.screen, exit));
-  }
-
-  /** Текст отказа перед видом. */
-  refusal(view: InstanceView, refusal: Refusal): string {
-    return this.replies.refusal(view, refusal);
+    const def = this.def(view.screen);
+    const found = Object.entries(def.exits).find(
+      ([name]) => name === exit,
+    )?.[1];
+    if (found === undefined) {
+      throw new Error(
+        `ConversationReplies: у экрана ${view.screen} нет выхода ${exit}`,
+      );
+    }
+    return this.note(
+      ConversationReplies.join([found.label, found.description]),
+    );
   }
 
   /** Подтверждение действия: «Да» исполняет с собранным входом, «Нет» — вид снова. */
@@ -155,10 +142,32 @@ export class ConversationReplies {
         ...input,
         label: text,
       });
-    return this.message(this.replies.confirm(label, description), [
-      entry(true, DIALOG_TEXTS.yes),
-      entry(false, DIALOG_TEXTS.no),
+    return this.text(ConversationReplies.join([label, description]), [
+      entry(true, VIEW_TEXTS.yes),
+      entry(false, VIEW_TEXTS.no),
     ]);
+  }
+
+  /** Варианты последнего сообщения вида: страница раскладки и «Ещё». */
+  private options(
+    options: readonly ViewOption[],
+    view: InstanceView,
+    serial: Serial,
+    page: number,
+  ): MessageOption[] {
+    const slice = ConversationReplies.slice(
+      this.layout.of(options.length, 0, false),
+      options.length,
+      page,
+    );
+    return [
+      ...options
+        .slice(slice.start, slice.end)
+        .map((option) =>
+          this.option(option.label, this.target(view, serial, option)),
+        ),
+      ...this.more(slice, 'screen', serial),
+    ];
   }
 
   private target(
@@ -186,6 +195,11 @@ export class ConversationReplies {
         };
       case 'retry':
         return { kind: 'open', address: view.address, label: option.label };
+      case 'home':
+        return { kind: 'home', label: option.label };
+      case 'back':
+        // Путь беседа пока не ведёт: сборщик показа «Назад» не предлагает.
+        throw new Error('ConversationReplies: «Назад» без пути переходов');
       default: {
         const unknownKind: never = option;
         throw new Error(
@@ -196,11 +210,11 @@ export class ConversationReplies {
   }
 
   private skip(draft: InputDraft, field: ActionField): MessageOption {
-    return this.option(DIALOG_TEXTS.skip, {
+    return this.option(VIEW_TEXTS.skip, {
       kind: 'skip',
       draft: draft.serial(),
       field: field.name,
-      label: DIALOG_TEXTS.skip,
+      label: VIEW_TEXTS.skip,
     });
   }
 
@@ -211,7 +225,7 @@ export class ConversationReplies {
     owner: Serial,
   ): MessageOption[] {
     if (slice.next === undefined) return [];
-    const label = CONVERSATION_TEXTS.more;
+    const label = VIEW_TEXTS.more;
     return [
       this.option(label, { kind: 'page', of, owner, page: slice.next, label }),
     ];
@@ -236,7 +250,37 @@ export class ConversationReplies {
     return { ref: this.refs.add(target), label };
   }
 
-  private message(text: string, options: readonly MessageOption[]): Message {
-    return { kind: 'text', text: TextBuilder.of(text), options };
+  /** Строка без стилей — в сообщение. */
+  private text(text: string, options: readonly MessageOption[]): Message {
+    return this.message(TextBuilder.of(text), options);
+  }
+
+  /** Единственное место, где беседа строит `Message`: текст и варианты со ссылками. */
+  private message(
+    text: FormattedText,
+    options: readonly MessageOption[],
+  ): Message {
+    return { kind: 'text', text, options };
+  }
+
+  /** Вопрос поля входа; `note` — замечание перед ним (отвергнутый вход). */
+  private static field(field: ActionField, note?: string): string {
+    const ask = field.choices === undefined ? 'Введите' : 'Выберите';
+    return ConversationReplies.join([note, `${ask}: ${field.label}`]);
+  }
+
+  /** Части текста через пустую строку; пустые части опускаются. */
+  private static join(parts: readonly (string | undefined)[]): string {
+    return parts
+      .filter((part) => part !== undefined && part !== '')
+      .join('\n\n');
+  }
+
+  private def(screen: string): AnyScreenDef {
+    const def = this.ids.findScreen(screen);
+    if (def === undefined) {
+      throw new Error(`ConversationReplies: экран ${screen} вне набора`);
+    }
+    return def;
   }
 }
