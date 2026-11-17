@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Проверка установки dmg-ui глазами потребителя: пустой проект, установка по
-# спецификатору, импорт восьми входов, запуск и tsc. Сеть и ssh нужны, поэтому
+# спецификатору, импорт девяти входов, запуск и tsc. Сеть и ssh нужны, поэтому
 # в `bun run check` скрипт не входит.
 #
 #   bun run smoke git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.1.0
@@ -61,21 +61,22 @@ import * as fixtures from 'dmg-ui/testing/fixtures';
 import * as chatUi from 'dmg-ui/chat-ui';
 import * as chatUiTesting from 'dmg-ui/chat-ui/testing';
 import * as tgBot from 'dmg-ui/tg-bot';
+import * as tgBotTesting from 'dmg-ui/tg-bot/testing';
 
-// Второй член — вход вправе быть пустым (пустой каркас пакета).
-const entries: Record<string, [object, boolean]> = {
-  'dmg-ui': [core, false],
-  'dmg-ui/graph': [graph, false],
-  'dmg-ui/server': [server, false],
-  'dmg-ui/testing': [testing, false],
-  'dmg-ui/testing/fixtures': [fixtures, false],
-  'dmg-ui/chat-ui': [chatUi, false],
-  'dmg-ui/chat-ui/testing': [chatUiTesting, false],
-  'dmg-ui/tg-bot': [tgBot, true],
+const entries: Record<string, object> = {
+  'dmg-ui': core,
+  'dmg-ui/graph': graph,
+  'dmg-ui/server': server,
+  'dmg-ui/testing': testing,
+  'dmg-ui/testing/fixtures': fixtures,
+  'dmg-ui/chat-ui': chatUi,
+  'dmg-ui/chat-ui/testing': chatUiTesting,
+  'dmg-ui/tg-bot': tgBot,
+  'dmg-ui/tg-bot/testing': tgBotTesting,
 };
-for (const [name, [module, mayBeEmpty]] of Object.entries(entries)) {
+for (const [name, module] of Object.entries(entries)) {
   const count = Object.keys(module).length;
-  if (count === 0 && !mayBeEmpty) {
+  if (count === 0) {
     console.error(`smoke: вход ${name} пуст`);
     process.exit(1);
   }

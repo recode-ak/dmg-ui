@@ -18,7 +18,7 @@
 | Слой | Что это | Знает |
 |---|---|---|
 | ядро `dmg-ui` | способ описать приложение UI и его правила: манифесты, исполнитель, граф, проверки | `dmg-core`; о каналах не знает |
-| пакет канала | мессенджер, веб-страница, консоль; в репо — `chat-ui` (общая часть мессенджеров: беседа и её представления) и `tg-bot` (канал Telegram, пока пустой каркас) | ядро; `tg-bot` — ещё и `chat-ui` |
+| пакет канала | мессенджер, веб-страница, консоль; в репо — `chat-ui` (общая часть мессенджеров: беседа и её представления) и `tg-bot` (канал Telegram: мессенджер поверх узкого порта Bot API) | ядро; `tg-bot` — ещё и `chat-ui` |
 | проект | манифесты и код сторис, экранов, представлений; библиотека транспорта | ядро, пакеты каналов, домен |
 
 Шесть видов Def: набор UI (`UiSetDef`), приложение UI (`UiAppDef`), UI-модуль (`UiModuleDef`), сторис (`StoryDef`), экран (`ScreenDef`), уведомление (`NotificationDef`). Манифест статичен, код экрана лежит отдельно и грузится лениво. Экран читает query UC, действие вызывает command UC и возвращает переход; адрес экрана от канала не зависит. Подробно — [гайд по сторис, экрану и уведомлению](docs/guides/story-screen-notification.md); причины решений — [decisions.md](docs/decisions.md).
@@ -48,9 +48,10 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui/testing/fixtures` | ровно шесть помощников тестов ядра для тестов пакетов каналов: `T0`, `oplogRecords`, `RuntimeKit`, `testRenderContext`, `StubViewProvider`, `ArchReport` | — |
 | `dmg-ui/chat-ui` | узел бесед мессенджера `Conversations` (сигналы, таблица ссылок, сбор входа, политики исходов, живое место, путь и «Назад»), хранилище бесед в памяти `MemoryConversationStore`, схема снимка беседы `ConversationSnapshotSchema`; представления беседы — `ScreenPresenter` (`for`, `of`), `NotificationPresenter`, реестр с перекрытием `ChatViews`, типы вывода (`ViewMessage`, `ViewOption`, `ViewOutput`, набор показа `ViewKit`); поставщик графа общей части мессенджеров `ChatGraphProvider` (один на все приложения, имя `CHAT_PROVIDER`, точки входа приложения `ChatEntryPointSpec`, манифесты сообщества `ChatCommunitySpec` — сигналы `ChatSignalSpec` и реакции `ChatReactionSpec`, правила CH-01…CH-03) и примеры для его правил `ChatExamples`, исполнитель сообщества `Communities` (сигнал мессенджера → command UC, событие → query UC → операция порта сообщества `CommunityPort`), рендерер примеров `DialogRenderer`, `DIALOG_CHANNEL`; узел бесед доставляет и уведомления (порт `peers`); сообщение (`Message`, построитель `TextBuilder`, `PlainText`), помощники лимита (`TextLength`, `TextTrimmer`, `TextSplitter`), порт мессенджера `MessengerPort`, возможности и их схема `MessengerCapabilitiesSchema`, страж лимитов (`MessageFit`, `LimitedMessenger`) | слова конкретного мессенджера, `node:`, тестовые входы, код ядра по относительному пути; из `dmg-core/app` — только подписка `EventSubscriber` и тип конверта `EventEnvelope` |
 | `dmg-ui/chat-ui/testing` | привязка учебного примера к диалоговому каналу: два приложения `ExampleDialogAppDef` и `ExampleWindowedAppDef`, граф с ними `ExampleDialogArch`, `exampleDialogViews`; подставной мессенджер в памяти `MemoryMessenger` (беседа глазами собеседника — `chat(peer)`, тип `ChatLine`; порт сообщества с журналом — у набора `editing`) | — |
-| `dmg-ui/tg-bot` | пустой каркас пакета канала Telegram; имя `dmg-ui/tg-bot/testing` зарезервировано | — |
+| `dmg-ui/tg-bot` | мессенджер Telegram `TelegramMessenger` поверх узкого порта Bot API `BotApi` (реализацию порта и подачу апдейтов даёт проект), возможности `TELEGRAM_CAPABILITIES`, типы порта и подмножества JSON Bot API | библиотеку Telegram и сеть |
+| `dmg-ui/tg-bot/testing` | подставной порт Bot API в памяти `MemoryBotApi` (журнал вызовов, чат глазами собеседника — `chat(chatId)`, `failNext`, `throwNext`) | — |
 
-Полный список имён — в файлах входов; причины деления на входы — [D-UI-4](docs/decisions.md) и [D-UI-34](docs/decisions.md).
+Полный список имён — в файлах входов; причины деления на входы — [D-UI-4](docs/decisions.md), [D-UI-34](docs/decisions.md) и [D-UI-63](docs/decisions.md).
 
 ## Образец
 
@@ -82,7 +83,7 @@ bun install
 bun run check
 ```
 
-`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.1.0`), импортирует восемь входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
+`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.1.0`), импортирует девять входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
 ## Статус
 

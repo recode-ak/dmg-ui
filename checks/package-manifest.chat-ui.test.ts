@@ -4,7 +4,9 @@ import { describe, expect, it } from 'bun:test';
 // (D-UI-32): диалог, сообщение, помощники лимита, страж и схема возможностей
 // мессенджера, поставщик графа и примеры для его правил, узел бесед,
 // хранилище бесед в памяти, схема снимка беседы и исполнитель сообщества — в `dmg-ui/chat-ui`; привязка примера и подставной мессенджер — в
-// `dmg-ui/chat-ui/testing`; шесть помощников ядра — в `dmg-ui/testing/fixtures`.
+// `dmg-ui/chat-ui/testing`; шесть помощников ядра — в `dmg-ui/testing/fixtures`;
+// мессенджер Telegram — в `dmg-ui/tg-bot`, подставной порт Bot API — в
+// `dmg-ui/tg-bot/testing`.
 
 const CHAT_UI = [
   'CHAT_PROVIDER',
@@ -75,7 +77,18 @@ describe('вход dmg-ui/testing/fixtures', () => {
 });
 
 describe('вход dmg-ui/tg-bot', () => {
-  it('пустой каркас — экспортов нет', async () => {
-    expect(Object.keys(await import('dmg-ui/tg-bot'))).toEqual([]);
+  it('состав — возможности Telegram и мессенджер на порту Bot API', async () => {
+    expect(Object.keys(await import('dmg-ui/tg-bot')).sort()).toEqual([
+      'TELEGRAM_CAPABILITIES',
+      'TelegramMessenger',
+    ]);
+  });
+});
+
+describe('вход dmg-ui/tg-bot/testing', () => {
+  it('состав — подставной порт Bot API', async () => {
+    expect(Object.keys(await import('dmg-ui/tg-bot/testing')).sort()).toEqual([
+      'MemoryBotApi',
+    ]);
   });
 });

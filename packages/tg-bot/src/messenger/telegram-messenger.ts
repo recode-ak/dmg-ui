@@ -1,0 +1,315 @@
+import { err, ok } from 'dmg-core';
+import type {
+  Delivery,
+  Message,
+  MessageHandle,
+  MessengerCapabilities,
+  MessengerPort,
+  SendOptions,
+  Updated,
+} from 'dmg-ui/chat-ui';
+import * as v from 'valibot';
+import {
+  BotApiAnswerSchema,
+  SentMessageSchema,
+} from '../bot-api/bot-api.schema';
+import type {
+  BotApi,
+  BotApiMethod,
+  BotApiResult,
+} from '../bot-api/bot-api.types';
+import { BotApiFailure } from '../bot-api/bot-api-failure';
+import { TelegramLog } from '../telegram-log';
+import type { TelegramOperation } from '../telegram-log.types';
+import {
+  CHOSEN_SEPARATOR,
+  NO_PREVIEW,
+  POSITIVE_INTEGER,
+  TELEGRAM_CAPABILITIES,
+  TELEGRAM_LIMITS,
+  TELEGRAM_TEXTS,
+} from './telegram.const';
+import { TelegramKeyboard } from './telegram-keyboard';
+import type {
+  BotApiOutcome,
+  TelegramContent,
+  TelegramMessengerSpec,
+} from './telegram-messenger.types';
+import { TelegramText } from './telegram-text';
+
+const REJECTED = err({ reason: 'rejected' as const });
+const UNAVAILABLE = err({ reason: 'unavailable' as const });
+
+/**
+ * Мессенджер Telegram поверх порта Bot API (D-UI-61). Показ и уведомление —
+ * `sendMessage`; правка на месте, «not modified» — тоже правка, иной 400 —
+ * откат новым сообщением (прежнее уводит беседа); уход экрана — снятие
+ * клавиатуры или строка выбора; ответ на нажатие — без `show_alert`.
+ * Собеседник — только целое положительное число (личный чат): неверный
+ * ответ `peers` не отправит экран в группу или публичный канал.
+ * Методы не бросают (ERR-01): недоставка — значение, бросок порта —
+ * `unavailable` и `error` с именем ошибки.
+ */
+export class TelegramMessenger implements MessengerPort {
+  readonly capabilities: MessengerCapabilities = TELEGRAM_CAPABILITIES;
+  private readonly api: BotApi;
+  private readonly log: TelegramLog;
+
+  constructor(spec: TelegramMessengerSpec) {
+    this.api = spec.api;
+    this.log = new TelegramLog(spec.logger);
+  }
+
+  /** Инициатива не меняет способ: Telegram пишет первым после первого входящего, это сверяет беседа. */
+  async show(
+    peer: string,
+    message: Message,
+    _send?: SendOptions,
+  ): Promise<Delivery<MessageHandle>> {
+    return this.deliver('show', peer, message);
+  }
+
+  async notify(
+    peer: string,
+    message: Message,
+  ): Promise<Delivery<MessageHandle>> {
+    return this.deliver('notify', peer, message);
+  }
+
+  async update(
+    peer: string,
+    handle: MessageHandle,
+    message: Message,
+  ): Promise<Delivery<Updated>> {
+    const chat = this.target('update', peer, message);
+    if (chat === undefined) return REJECTED;
+    const messageId = TelegramMessenger.integer(handle);
+    if (messageId === undefined) {
+      this.log.badHandle('update');
+      return this.resend(chat, message);
+    }
+    const outcome = await this.call('editMessageText', () =>
+      this.api.editMessageText({
+        chat_id: chat,
+        message_id: messageId,
+        ...TelegramMessenger.content(TelegramText.of(message.text)),
+        reply_markup: TelegramKeyboard.of(message.options),
+        link_preview_options: NO_PREVIEW,
+      }),
+    );
+    switch (outcome.kind) {
+      case 'done':
+        return ok({ handle, edited: true });
+      case 'refused': {
+        if (outcome.failure.notModified()) return ok({ handle, edited: true });
+        const reason = outcome.failure.reason();
+        if (reason === 'rejected') return this.resend(chat, message);
+        return err({ reason });
+      }
+      case 'failed':
+        return UNAVAILABLE;
+      default:
+        outcome satisfies never;
+        return UNAVAILABLE;
+    }
+  }
+
+  async retire(
+    peer: string,
+    handle: MessageHandle,
+    message: Message,
+    chosen?: string,
+  ): Promise<Delivery<void>> {
+    const chat = this.target('retire', peer);
+    if (chat === undefined) return REJECTED;
+    const messageId = TelegramMessenger.integer(handle);
+    if (messageId === undefined) {
+      this.log.badHandle('retire');
+      return REJECTED;
+    }
+    const content =
+      chosen === undefined
+        ? undefined
+        : TelegramMessenger.withChoice(message, chosen);
+    const outcome =
+      content === undefined
+        ? await this.call('editMessageReplyMarkup', () =>
+            this.api.editMessageReplyMarkup({
+              chat_id: chat,
+              message_id: messageId,
+            }),
+          )
+        : await this.call('editMessageText', () =>
+            this.api.editMessageText({
+              chat_id: chat,
+              message_id: messageId,
+              ...TelegramMessenger.content(content),
+              link_preview_options: NO_PREVIEW,
+            }),
+          );
+    return TelegramMessenger.settled(outcome);
+  }
+
+  /** `peer` не нужен: нажатие отвечается по своему id. */
+  async answer(
+    _peer: string,
+    press: string,
+    text?: string,
+  ): Promise<Delivery<void>> {
+    const outcome = await this.call('answerCallbackQuery', () =>
+      this.api.answerCallbackQuery(
+        text === undefined
+          ? { callback_query_id: press }
+          : { callback_query_id: press, text: text.toWellFormed() },
+      ),
+    );
+    return TelegramMessenger.settled(outcome);
+  }
+
+  private async deliver(
+    operation: 'show' | 'notify',
+    peer: string,
+    message: Message,
+  ): Promise<Delivery<MessageHandle>> {
+    const chat = this.target(operation, peer, message);
+    if (chat === undefined) return REJECTED;
+    return this.send(chat, message);
+  }
+
+  /** Откат правки: новое сообщение вместо прежнего. */
+  private async resend(
+    chat: number,
+    message: Message,
+  ): Promise<Delivery<Updated>> {
+    const sent = await this.send(chat, message);
+    return sent.ok ? ok({ handle: sent.value, edited: false }) : sent;
+  }
+
+  private async send(
+    chat: number,
+    message: Message,
+  ): Promise<Delivery<MessageHandle>> {
+    const outcome = await this.call('sendMessage', () =>
+      this.api.sendMessage({
+        chat_id: chat,
+        ...TelegramMessenger.content(TelegramText.of(message.text)),
+        ...(message.options.length > 0
+          ? { reply_markup: TelegramKeyboard.of(message.options) }
+          : {}),
+        link_preview_options: NO_PREVIEW,
+      }),
+    );
+    switch (outcome.kind) {
+      case 'done': {
+        const sent = v.safeParse(SentMessageSchema, outcome.result);
+        if (sent.success) return ok(String(sent.output.message_id));
+        this.log.badResult('sendMessage');
+        return UNAVAILABLE;
+      }
+      case 'refused':
+        return err({ reason: outcome.failure.reason() });
+      case 'failed':
+        return UNAVAILABLE;
+      default:
+        outcome satisfies never;
+        return UNAVAILABLE;
+    }
+  }
+
+  /**
+   * Чат собеседника или `undefined` с записью `error`: собеседник не целое
+   * положительное или `callback_data` варианта вне 1–64 байт — без вызова API.
+   */
+  private target(
+    operation: TelegramOperation,
+    peer: string,
+    message?: Message,
+  ): number | undefined {
+    const chat = TelegramMessenger.integer(peer);
+    if (chat === undefined) {
+      this.log.badPeer(operation);
+      return undefined;
+    }
+    if (message !== undefined && !TelegramKeyboard.fits(message.options)) {
+      this.log.badCallbackData(operation);
+      return undefined;
+    }
+    return chat;
+  }
+
+  /** Вызов порта: ответ сверен схемой; отказ (кроме «not modified») — `warn`, бросок и ответ не по схеме — `error`. */
+  private async call(
+    method: BotApiMethod,
+    invoke: () => Promise<BotApiResult<unknown>>,
+  ): Promise<BotApiOutcome> {
+    let answer: unknown;
+    try {
+      answer = await invoke();
+    } catch (error) {
+      this.log.failed(method, error);
+      return { kind: 'failed' };
+    }
+    const parsed = v.safeParse(BotApiAnswerSchema, answer);
+    if (!parsed.success) {
+      this.log.badResult(method);
+      return { kind: 'failed' };
+    }
+    if (parsed.output.ok) return { kind: 'done', result: parsed.output.result };
+    const failure = new BotApiFailure(parsed.output);
+    if (!failure.notModified()) this.log.refused(method, failure);
+    return { kind: 'refused', failure };
+  }
+
+  /** Итог правки без нового handle: «not modified» — тоже `ok`. */
+  private static settled(outcome: BotApiOutcome): Delivery<void> {
+    switch (outcome.kind) {
+      case 'done':
+        return ok();
+      case 'refused':
+        return outcome.failure.notModified()
+          ? ok()
+          : err({ reason: outcome.failure.reason() });
+      case 'failed':
+        return UNAVAILABLE;
+      default:
+        outcome satisfies never;
+        return UNAVAILABLE;
+    }
+  }
+
+  /**
+   * Прежний текст и строка выбора с подписью нажатого. Нажатого нет среди
+   * вариантов или строка не влезает в предел текста — `undefined`: только
+   * снятие клавиатуры.
+   */
+  private static withChoice(
+    message: Message,
+    chosen: string,
+  ): TelegramContent | undefined {
+    const option = message.options.find(
+      (candidate) => candidate.ref === chosen,
+    );
+    if (option === undefined) return undefined;
+    const shown = TelegramText.of(message.text);
+    const text = `${shown.text}${CHOSEN_SEPARATOR}${TELEGRAM_TEXTS.chosen}${option.label.toWellFormed()}`;
+    if (text.length > TELEGRAM_LIMITS.text) return undefined;
+    return { text, entities: shown.entities };
+  }
+
+  /** Поля текста запроса; сущностей нет — поля нет. */
+  private static content(content: TelegramContent): {
+    readonly text: string;
+    readonly entities?: TelegramContent['entities'];
+  } {
+    return content.entities.length > 0
+      ? { text: content.text, entities: content.entities }
+      : { text: content.text };
+  }
+
+  /** Каноническое десятичное целое > 0, безопасное для JS; иначе `undefined`. */
+  private static integer(value: string): number | undefined {
+    if (!POSITIVE_INTEGER.test(value)) return undefined;
+    const number = Number(value);
+    return Number.isSafeInteger(number) ? number : undefined;
+  }
+}
