@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { BotTokenScanner } from './bot-token-scanner';
 import { SourceFile } from './source-tree';
@@ -9,8 +10,8 @@ import { TextTree } from './text-tree';
 // на реальном репо его здесь не находит.
 
 const ROOT = resolve(import.meta.dir, '..');
-const fakeToken = (): string =>
-  [['1234', '567890'].join(''), 'A'.repeat(35)].join(':');
+const fakeToken = (digits = ['1234', '567890'].join('')): string =>
+  [digits, 'A'.repeat(35)].join(':');
 
 const scan = (path: string, text: string) =>
   new BotTokenScanner().scan([SourceFile.of(path, text)]);
@@ -21,6 +22,9 @@ describe('BotTokenScanner — токен в текстовых файлах', ()
     'docs/a.md',
     'examples/tg-bot/a.json',
     'examples/tg-bot/.env.example',
+    'package.json',
+    'trace.jsonl',
+    'notes.txt',
     'packages/x/__snapshots__/a.test.ts.snap',
   ]) {
     test(`токен по форме в ${path} — нарушение без самого токена в тексте`, () => {
@@ -38,6 +42,18 @@ describe('BotTokenScanner — токен в текстовых файлах', ()
     expect(scan('a.ts', `const t = "${fakeToken()}";`)).toHaveLength(1);
   });
 
+  test('токен в адресе Bot API после «bot» — нарушение', () => {
+    const url = `https://api.telegram.org/bot${fakeToken()}/getUpdates`;
+    const found = scan('a.md', `path: ${url}`);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.text).not.toContain(fakeToken());
+  });
+
+  test('id бота из 11 цифр — нарушение', () => {
+    const token = fakeToken(['1234', '5678901'].join(''));
+    expect(scan('a.md', `EXAMPLE_TG_TOKEN=${token}`)).toHaveLength(1);
+  });
+
   test('два токена — два нарушения', () => {
     expect(scan('a.md', `${fakeToken()}\n${fakeToken()}\n`)).toHaveLength(2);
   });
@@ -47,6 +63,7 @@ describe('BotTokenScanner — токен в текстовых файлах', ()
     ['тестовый токен адаптера', "new Api('test-token');"],
     ['цифры без хвоста', 'id 1234567890:abc'],
     ['слишком короткий хвост', `1234567890:${'A'.repeat(34)} x`],
+    ['слишком длинный числовой префикс', `${'1'.repeat(12)}:${'A'.repeat(35)}`],
     ['слишком короткий числовой префикс', `1234567:${'A'.repeat(35)}`],
   ] as const) {
     test(`${name} — чисто`, () => {
@@ -74,13 +91,34 @@ describe('BotTokenScanner — .gitignore', () => {
     expect(new BotTokenScanner().scanGitignore(file)).toHaveLength(1);
   });
 
+  test('.trace/ в любом каталоге и *.jsonl исключены в .gitignore реального репо', () => {
+    const lines = TextTree.file(ROOT, '.gitignore')?.lines() ?? [];
+    expect(lines).toContain('.trace/');
+    expect(lines).toContain('*.jsonl');
+  });
+
   test('нет .gitignore — нарушение', () => {
     expect(new BotTokenScanner().scanGitignore(undefined)).toHaveLength(1);
   });
 });
 
+// Корневые текстовые файлы: документы, манифесты и конфигурация.
+const ROOT_FILES = readdirSync(ROOT, { withFileTypes: true })
+  .filter((entry) => entry.isFile())
+  .map((entry) => entry.name)
+  .filter((name) => /\.(?:md|txt|json|jsonl)$/.test(name));
+
 describe('BotTokenScanner — реальный репо', () => {
-  const exts = ['.ts', '.md', '.json', '.sh', '.example', '.snap'];
+  const exts = [
+    '.ts',
+    '.md',
+    '.json',
+    '.jsonl',
+    '.txt',
+    '.sh',
+    '.example',
+    '.snap',
+  ];
   const dirs = [
     'packages',
     'checks',
@@ -93,12 +131,15 @@ describe('BotTokenScanner — реальный репо', () => {
   test('на реальном репо — ноль нарушений', () => {
     const files = [
       ...dirs.flatMap((dir) => TextTree.read(ROOT, dir, exts)),
-      ...['README.md', 'llms.txt', 'debt.md'].flatMap((path) => {
+      ...ROOT_FILES.flatMap((path) => {
         const file = TextTree.file(ROOT, path);
         return file ? [file] : [];
       }),
     ];
     expect(files.length).toBeGreaterThan(0);
+    expect(ROOT_FILES).toEqual(
+      expect.arrayContaining(['package.json', 'biome.json', 'tsconfig.json']),
+    );
     expect(new BotTokenScanner().scan(files)).toEqual([]);
   });
 

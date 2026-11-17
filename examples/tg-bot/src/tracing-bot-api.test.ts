@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname } from 'node:path';
 import { MemoryLogger, useTempDir } from 'dmg-core/testing';
 import type { BotApi, SendMessageParams } from 'dmg-ui/tg-bot';
 import { MemoryBotApi } from 'dmg-ui/tg-bot/testing';
@@ -62,15 +69,27 @@ describe('TracingBotApi — без пути', () => {
     await api.unbanChatMember({ chat_id: -1001, user_id: 42 });
     await api.approveChatJoinRequest({ chat_id: -1001, user_id: 42 });
 
-    expect(inner.journal.map((call) => call.method)).toEqual([
-      'sendMessage',
-      'editMessageText',
-      'editMessageReplyMarkup',
-      'answerCallbackQuery',
-      'setMyCommands',
-      'banChatMember',
-      'unbanChatMember',
-      'approveChatJoinRequest',
+    expect(inner.journal).toEqual([
+      { method: 'sendMessage', params: SEND },
+      {
+        method: 'editMessageText',
+        params: { chat_id: CHAT, message_id: 1, text: 'Правка' },
+      },
+      {
+        method: 'editMessageReplyMarkup',
+        params: { chat_id: CHAT, message_id: 1 },
+      },
+      {
+        method: 'answerCallbackQuery',
+        params: { callback_query_id: 'cq1' },
+      },
+      { method: 'setMyCommands', params: { commands: [] } },
+      { method: 'banChatMember', params: { chat_id: -1001, user_id: 42 } },
+      { method: 'unbanChatMember', params: { chat_id: -1001, user_id: 42 } },
+      {
+        method: 'approveChatJoinRequest',
+        params: { chat_id: -1001, user_id: 42 },
+      },
     ]);
   });
 });
@@ -120,6 +139,17 @@ describe('TracingBotApi — с путём', () => {
     await api.sendMessage(SEND);
 
     expect(lines(path)).toHaveLength(1);
+  });
+
+  test('трасса доступна только владельцу: файл 0600, созданные каталоги 0700', async () => {
+    const path = tmp().file('нет', 'такого', 'trace.jsonl');
+    const { api } = build(path);
+
+    await api.sendMessage(SEND);
+
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    expect(statSync(dirname(path)).mode & 0o777).toBe(0o700);
+    expect(statSync(dirname(dirname(path))).mode & 0o777).toBe(0o700);
   });
 
   test('запись дописывается к существующему файлу, а не затирает его', async () => {

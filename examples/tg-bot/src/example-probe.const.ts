@@ -1,5 +1,8 @@
 import type { ProbeCase } from './example-probe.types';
 
+/** Id пробы «ушедший экран»: её сообщение убирает `ExampleProbe.retire` по Enter. */
+export const RETIRING_PROBE = 'Е7';
+
 /**
  * Таблица проб Bot API (D-UI-68): id, что смотреть и ожидание. Единственный
  * источник группы «Е» чек-листа README; порядок — порядок проб в `ExampleProbe`.

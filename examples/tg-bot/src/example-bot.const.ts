@@ -8,7 +8,7 @@ export const EXAMPLE_USER_A = '00000000-0000-4000-8000-000000000001';
 export const EXAMPLE_USER_B = '00000000-0000-4000-8000-000000000002';
 
 /**
- * Точки входа примера (D-UI-64): `start` и `assigned` — пункты меню (они же
+ * Точки входа примера: `start` и `assigned` — пункты меню (они же
  * команды: `command` и `menu` делят ключи), `link` ведёт на вход `start`.
  */
 export const ENTRY_POINTS = [

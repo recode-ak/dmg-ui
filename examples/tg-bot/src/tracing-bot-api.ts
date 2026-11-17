@@ -109,8 +109,10 @@ export class TracingBotApi implements BotApi {
   private async write(line: object): Promise<void> {
     if (this.path === undefined) return;
     try {
-      await mkdir(dirname(this.path), { recursive: true });
-      await appendFile(this.path, `${JSON.stringify(line)}\n`);
+      await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
+      await appendFile(this.path, `${JSON.stringify(line)}\n`, {
+        mode: 0o600,
+      });
     } catch {
       this.logger.warn('TracingBotApi', 'трасса не записана');
     }

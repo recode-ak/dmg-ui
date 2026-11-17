@@ -2,7 +2,7 @@ import { createInterface } from 'node:readline/promises';
 import { ConsoleLogger } from 'dmg-core/app';
 import { ExampleEnv } from './example-env';
 import { ExampleProbe } from './example-probe';
-import { PROBE_CASES } from './example-probe.const';
+import { RETIRING_PROBE } from './example-probe.const';
 import { GrammyBotApi } from './grammy-bot-api';
 
 // Вход пробы Bot API (D-UI-68): `bun run example:tg:probe <chat_id>`. Тот же
@@ -34,11 +34,10 @@ try {
       `${result.id}: отправлено ${result.sent}, не доставлено ${result.failed}`,
     );
   }
-  const retiring = PROBE_CASES[6]?.id ?? '';
   const input = createInterface({ input: process.stdin });
-  await input.question(`Enter — убрать кнопки пробы ${retiring}... `);
+  await input.question(`Enter — убрать кнопки пробы ${RETIRING_PROBE}... `);
   input.close();
-  await probe.retire(retiring);
+  await probe.retire(RETIRING_PROBE);
   console.log('Готово.');
 } catch {
   console.error('Проба прервана: сбой Bot API или сети.');

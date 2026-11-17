@@ -4,17 +4,14 @@ import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
 /**
- * Зона примера `examples/tg-bot` (D-UI-68): библиотека Telegram (имя `grammy` и
- * её подпути, `@grammyjs/*`) видна только двум файлам адаптера примера и их
- * тестам; из файлов примера нельзя выйти относительным импортом за каталог
- * `examples/tg-bot` (соседей берут по именам входов пакета). Нарушение — на
- * каждый спецификатор. Спецификаторы ищет `ModuleSpecifiers`, поэтому динамический
- * `import(переменная)` и склейка имени не ловятся (DEBT-UI-5). Остальные места
- * репо (`packages`, `checks`, `acceptance`, `scripts`) сканер не ограничивает,
- * кроме запрета библиотеки.
+ * Зона примеров `examples/*` (D-UI-68): библиотека Telegram (`grammy`, подпути,
+ * `@grammyjs/*`) видна только файлам адаптера `examples/tg-bot`; адаптеры по
+ * относительному пути берут лишь `main.ts`, `probe.ts`, тесты и они сами.
+ * Из примера нельзя выйти за свой каталог ни относительным, ни абсолютным путём.
+ * Динамический `import(переменная)` не ловится (DEBT-UI-5).
  */
 export class ExampleZoneScanner {
-  protected static readonly ZONE = 'examples/tg-bot';
+  protected static readonly ZONES = 'examples';
 
   protected static readonly ADAPTER_DIR = 'examples/tg-bot/src/';
 
@@ -23,7 +20,16 @@ export class ExampleZoneScanner {
     'grammy-bot-api.test.ts',
     'grammy-polling.ts',
     'grammy-polling.test.ts',
+    'grammy-bot-api.types.ts',
+    'grammy-polling.types.ts',
   ];
+
+  protected static readonly ADAPTER_MODULES = [
+    'grammy-bot-api',
+    'grammy-polling',
+  ];
+
+  protected static readonly ADAPTER_CLIENTS = ['main.ts', 'probe.ts'];
 
   protected static readonly LIBRARY = /^(?:grammy(?:\/.*)?|@grammyjs\/.*)$/;
 
@@ -45,12 +51,11 @@ export class ExampleZoneScanner {
     ) {
       return `${specifier}: библиотека Telegram разрешена только в адаптере и опросе примера`;
     }
-    if (
-      ExampleZoneScanner.inZone(path) &&
-      specifier.startsWith('.') &&
-      !ExampleZoneScanner.staysInZone(path, specifier)
-    ) {
-      return `${specifier}: пример не выходит за каталог ${ExampleZoneScanner.ZONE}`;
+    if (ExampleZoneScanner.reachesAdapter(path, specifier)) {
+      return `${specifier}: адаптер библиотеки берут только main.ts, probe.ts и тесты`;
+    }
+    if (ExampleZoneScanner.inZone(path) && !this.staysInZone(path, specifier)) {
+      return `${specifier}: пример не выходит за свой каталог ${ExampleZoneScanner.ZONES}/<пример>`;
     }
     return undefined;
   }
@@ -64,12 +69,30 @@ export class ExampleZoneScanner {
     );
   }
 
-  protected static inZone(path: string): boolean {
-    return path.startsWith(`${ExampleZoneScanner.ZONE}/`);
+  protected static reachesAdapter(path: string, specifier: string): boolean {
+    const name = specifier.replace(/^\.\//, '').replace(/\.ts$/, '');
+    if (!ExampleZoneScanner.ADAPTER_MODULES.includes(name)) return false;
+    if (!ExampleZoneScanner.inZone(path) || !specifier.startsWith('./')) {
+      return false;
+    }
+    const file = path.slice(path.lastIndexOf('/') + 1);
+    return !(
+      ExampleZoneScanner.ADAPTER_FILES.includes(file) ||
+      ExampleZoneScanner.ADAPTER_CLIENTS.includes(file) ||
+      file.endsWith('.test.ts')
+    );
   }
 
-  protected static staysInZone(path: string, specifier: string): boolean {
+  protected static inZone(path: string): boolean {
+    return path.startsWith(`${ExampleZoneScanner.ZONES}/`);
+  }
+
+  /** Каталог примера — второй сегмент пути; абсолютный и выходящий за него путь не остаётся в зоне. */
+  protected staysInZone(path: string, specifier: string): boolean {
+    if (specifier.startsWith('/')) return false;
+    if (!specifier.startsWith('.')) return true;
+    const home = path.split('/').slice(0, 2).join('/');
     const target = normalize(join(dirname(path), specifier));
-    return target.startsWith(`${ExampleZoneScanner.ZONE}/`);
+    return target.startsWith(`${home}/`);
   }
 }

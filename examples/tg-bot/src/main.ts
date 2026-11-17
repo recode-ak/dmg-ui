@@ -45,7 +45,6 @@ const shutdown = async (): Promise<void> => {
   if (stopping) return;
   stopping = true;
   await polling.stop();
-  await example.close();
 };
 process.on('SIGINT', () => void shutdown());
 process.on('SIGTERM', () => void shutdown());

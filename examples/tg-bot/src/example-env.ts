@@ -1,4 +1,5 @@
 import { err, ok, type Result } from 'dmg-core';
+import { EXAMPLE_ENV } from './example-env.const';
 import type {
   ExampleEnvError,
   ExampleEnvValue,
@@ -31,9 +32,8 @@ export class ExampleEnv {
   }
 
   protected parse(): Result<ExampleEnvValue, ExampleEnvError> {
-    const token = this.optional('EXAMPLE_TG_TOKEN');
-    if (token === undefined)
-      return this.refuse('EXAMPLE_TG_TOKEN', 'не задана');
+    const token = this.optional(EXAMPLE_ENV.token);
+    if (token === undefined) return this.refuse(EXAMPLE_ENV.token, 'не задана');
 
     const users = this.users();
     if (!users.ok) return users;
@@ -41,8 +41,8 @@ export class ExampleEnv {
     const logLevel = this.logLevel();
     if (!logLevel.ok) return logLevel;
 
-    const tracePath = this.optional('EXAMPLE_TG_TRACE');
-    const dataDir = this.optional('EXAMPLE_TG_DATA');
+    const tracePath = this.optional(EXAMPLE_ENV.trace);
+    const dataDir = this.optional(EXAMPLE_ENV.data);
     return ok({
       token,
       users: users.value,
@@ -59,7 +59,7 @@ export class ExampleEnv {
   }
 
   protected users(): Result<number[], ExampleEnvError> {
-    const name = 'EXAMPLE_TG_USERS';
+    const name = EXAMPLE_ENV.users;
     const raw = this.optional(name);
     if (raw === undefined) return this.refuse(name, 'не задана');
 
@@ -84,13 +84,13 @@ export class ExampleEnv {
   }
 
   protected logLevel(): Result<ExampleLogLevel, ExampleEnvError> {
-    const raw = this.optional('EXAMPLE_TG_LOG');
+    const raw = this.optional(EXAMPLE_ENV.log);
     if (raw === undefined) return ok('info');
     const level = ExampleEnv.LEVELS.find((candidate) => candidate === raw);
     return level
       ? ok(level)
       : this.refuse(
-          'EXAMPLE_TG_LOG',
+          EXAMPLE_ENV.log,
           `допустимые значения: ${ExampleEnv.LEVELS.join(', ')}`,
         );
   }

@@ -1,10 +1,11 @@
 import type { ServerContext } from 'dmg-ui/server';
 import type { BotApi } from 'dmg-ui/tg-bot';
+import type { Bot } from 'grammy';
 import type { GrammyPolling } from './grammy-polling';
 
-/** Сборка опроса: бот библиотеки (тип задаёт `GrammyPolling`, файл типов библиотеку не видит) и логгер. */
-export type GrammyPollingSpec<B> = {
-  readonly bot: B;
+/** Сборка опроса: бот библиотеки и логгер. */
+export type GrammyPollingSpec = {
+  readonly bot: Bot;
   readonly logger: ServerContext['logger'];
 };
 

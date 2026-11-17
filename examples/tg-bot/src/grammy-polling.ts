@@ -16,9 +16,9 @@ import type {
  */
 export class GrammyPolling {
   private readonly bot: Bot;
-  private readonly logger: GrammyPollingSpec<Bot>['logger'];
+  private readonly logger: GrammyPollingSpec['logger'];
 
-  constructor(spec: GrammyPollingSpec<Bot>) {
+  constructor(spec: GrammyPollingSpec) {
     this.bot = spec.bot;
     this.logger = spec.logger;
   }
@@ -26,7 +26,7 @@ export class GrammyPolling {
   /** Бот по токену: опрос и порт Bot API на одном клиенте библиотеки; вход библиотеку не импортирует. */
   static connect(
     token: string,
-    logger: GrammyPollingSpec<Bot>['logger'],
+    logger: GrammyPollingSpec['logger'],
   ): PollingConnection {
     const bot = new Bot(token);
     return {

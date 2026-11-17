@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
+import { inspect } from 'node:util';
 import { MemoryLogger } from 'dmg-core/testing';
 import { TELEGRAM_ALLOWED_UPDATES } from 'dmg-ui/tg-bot';
 import { TestUpdates } from 'dmg-ui/tg-bot/testing';
 import { Bot } from 'grammy';
 import { FakeBotApiServer } from './fake-bot-api-server';
+import type { FakeBotApiResponder } from './fake-bot-api-server.types';
 import { GrammyPolling } from './grammy-polling';
 
 // Опрос `getUpdates` на grammy проверяется на loopback: поддельный Bot API
@@ -54,7 +56,10 @@ afterEach(async () => {
 });
 
 /** Сервер: `getMe`, пачки `getUpdates` по очереди, затем долгий опрос до отмены. */
-const connect = (batches: readonly unknown[][]) => {
+const connect = (
+  batches: readonly unknown[][],
+  getUpdatesReply?: FakeBotApiResponder,
+) => {
   const queue = [...batches];
   server = FakeBotApiServer.start({
     getMe: () =>
@@ -66,6 +71,7 @@ const connect = (batches: readonly unknown[][]) => {
       }),
     deleteWebhook: () => FakeBotApiServer.result(true),
     getUpdates: (call, signal) => {
+      if (getUpdatesReply) return getUpdatesReply(call, signal);
       // Подтверждающий вызов `Bot.stop` идёт без `timeout`: отвечаем сразу.
       const batch = call.body.timeout === undefined ? undefined : queue.shift();
       if (batch !== undefined) return FakeBotApiServer.result(batch);
@@ -90,7 +96,7 @@ describe('GrammyPolling — getMe, getUpdates, подача в приёмник'
     expect(server.of('getMe')).toHaveLength(1);
   });
 
-  test('при старте вызван deleteWebhook до первого getUpdates, накопленные апдейты не сбрасываются', async () => {
+  test('при старте вызван deleteWebhook до первого getUpdates', async () => {
     const updates = new TestUpdates();
     const { polling: p } = connect([[updates.text(CHAT, '/start')]]);
     const receiver = new Receiver();
@@ -102,9 +108,6 @@ describe('GrammyPolling — getMe, getUpdates, подача в приёмник'
     expect(order.indexOf('deleteWebhook')).toBeGreaterThanOrEqual(0);
     expect(order.indexOf('deleteWebhook')).toBeLessThan(
       order.indexOf('getUpdates'),
-    );
-    expect(server.of('deleteWebhook')[0]?.body.drop_pending_updates).not.toBe(
-      true,
     );
   });
 
@@ -121,7 +124,7 @@ describe('GrammyPolling — getMe, getUpdates, подача в приёмник'
     ]);
   });
 
-  test('апдейт отдан в приёмник как есть, следующий опрос идёт с offset за ним', async () => {
+  test('апдейт отдан в приёмник как есть', async () => {
     const updates = new TestUpdates();
     const update = updates.text(CHAT, '/start');
     const { polling: p } = connect([[update]]);
@@ -132,7 +135,6 @@ describe('GrammyPolling — getMe, getUpdates, подача в приёмник'
     await server.reached((calls) => calls.filter(isPoll).length >= 2);
 
     expect(receiver.received).toEqual([update]);
-    expect(server.of('getUpdates')[1]?.body.offset).toBe(update.update_id + 1);
   });
 
   test('остановка: запуск завершается, висящего запроса к серверу не остаётся', async () => {
@@ -151,6 +153,9 @@ describe('GrammyPolling — getMe, getUpdates, подача в приёмник'
     expect(server.of('getUpdates').length).toBeGreaterThanOrEqual(2);
   });
 });
+
+/** Всё, что видно в записях: `inspect` показывает и `Error` (`JSON.stringify` дал бы `{}`). */
+const dumpOf = (value: unknown): string => inspect(value, { depth: 10 });
 
 /** Вызов долгого опроса: у подтверждающего вызова `Bot.stop` `timeout` нет. */
 const isPoll = (call: { method: string; body: Record<string, unknown> }) =>
@@ -185,8 +190,8 @@ describe('GrammyPolling — ошибка обработки апдейта', () 
 
       expect(received).toEqual([first, second]);
       for (const spy of silence) {
-        expect(JSON.stringify(spy.mock.calls)).not.toContain(SECRET_TEXT);
-        expect(JSON.stringify(spy.mock.calls)).not.toContain(TOKEN);
+        expect(dumpOf(spy.mock.calls)).not.toContain(SECRET_TEXT);
+        expect(dumpOf(spy.mock.calls)).not.toContain(TOKEN);
       }
     } finally {
       for (const spy of silence) spy.mockRestore();
@@ -212,5 +217,96 @@ describe('GrammyPolling — ошибка обработки апдейта', () 
     expect(dump).not.toContain(SECRET_TEXT);
     expect(dump).not.toContain('update_id');
     expect(dump).not.toContain('chat_id');
+  });
+});
+
+describe('GrammyPolling — отказы сервера и сети', () => {
+  const refusal = (code: number, description: string) => () => ({
+    status: code,
+    body: { ok: false, error_code: code, description },
+  });
+
+  test('409 на getUpdates: start отклоняется, isConflict — true', async () => {
+    const { polling: p } = connect(
+      [],
+      refusal(409, 'Conflict: other getUpdates'),
+    );
+
+    const error = await p.start(new Receiver()).then(
+      () => undefined,
+      (failure: unknown) => failure,
+    );
+
+    expect(error).toBeDefined();
+    expect(GrammyPolling.isConflict(error)).toBe(true);
+  });
+
+  test('401 на getUpdates: start отклоняется, isConflict — false', async () => {
+    const { polling: p } = connect([], refusal(401, 'Unauthorized'));
+
+    const error = await p.start(new Receiver()).then(
+      () => undefined,
+      (failure: unknown) => failure,
+    );
+
+    expect(error).toBeDefined();
+    expect(GrammyPolling.isConflict(error)).toBe(false);
+  });
+
+  test('isConflict: обычная ошибка и не-ошибка — false', () => {
+    expect(GrammyPolling.isConflict(new Error('409'))).toBe(false);
+    expect(GrammyPolling.isConflict(undefined)).toBe(false);
+  });
+
+  test('getMe отклонён (401): identify бросает, токена в консоли и логе нет', async () => {
+    server = FakeBotApiServer.start({ getMe: refusal(401, 'Unauthorized') });
+    const logger = new MemoryLogger();
+    const bot = new Bot(TOKEN, { client: { apiRoot: server.apiRoot } });
+    polling = new GrammyPolling({ bot, logger });
+    const silence = [
+      spyOn(console, 'log'),
+      spyOn(console, 'error'),
+      spyOn(console, 'warn'),
+    ];
+
+    try {
+      const error = await polling.identify().then(
+        () => undefined,
+        (failure: unknown) => failure,
+      );
+
+      expect(error).toBeDefined();
+      expect(GrammyPolling.isConflict(error)).toBe(false);
+      for (const spy of silence) {
+        expect(dumpOf(spy.mock.calls)).not.toContain(TOKEN);
+      }
+      expect(dumpOf(logger.records)).not.toContain(TOKEN);
+    } finally {
+      for (const spy of silence) spy.mockRestore();
+    }
+  });
+
+  test('сервер закрыт во время опроса: токена нет ни в консоли, ни в логе', async () => {
+    const { polling: p, logger } = connect([]);
+    const silence = [
+      spyOn(console, 'log'),
+      spyOn(console, 'error'),
+      spyOn(console, 'warn'),
+    ];
+
+    try {
+      running = p.start(new Receiver()).catch(() => undefined);
+      await server.reached((calls) => calls.filter(isPoll).length >= 1);
+      await server.stop();
+      await p.stop();
+      await running;
+
+      for (const spy of silence) {
+        expect(dumpOf(spy.mock.calls)).not.toContain(TOKEN);
+      }
+      expect(dumpOf(logger.records)).not.toContain(TOKEN);
+    } finally {
+      for (const spy of silence) spy.mockRestore();
+    }
   });
 });

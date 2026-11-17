@@ -88,7 +88,68 @@ describe('ExampleZoneScanner — внутри examples/tg-bot/src/', () => {
   }
 });
 
+describe('ExampleZoneScanner — адаптеры библиотеки видны не всем', () => {
+  const adapters = ['./grammy-bot-api', './grammy-polling'];
+
+  for (const name of [
+    'example-bot.ts',
+    'example-env.ts',
+    'example-probe.ts',
+    'tracing-bot-api.ts',
+  ]) {
+    for (const specifier of [...adapters, './grammy-polling.ts']) {
+      test(`«${specifier}» из ${name} — нарушение`, () => {
+        const found = scan(`${EXAMPLE}/${name}`, importFrom(specifier));
+        expect(found).toHaveLength(1);
+        expect(found[0]?.text).toContain(specifier);
+      });
+    }
+  }
+
+  for (const name of [
+    'main.ts',
+    'probe.ts',
+    'example-bot.test.ts',
+    'grammy-polling.ts',
+    'grammy-polling.types.ts',
+    'grammy-bot-api.types.ts',
+  ]) {
+    test(`«${adapters.join('», «')}» из ${name} — чисто`, () => {
+      for (const specifier of adapters) {
+        expect(scan(`${EXAMPLE}/${name}`, importFrom(specifier))).toEqual([]);
+      }
+    });
+  }
+
+  for (const name of ['grammy-bot-api.types.ts', 'grammy-polling.types.ts']) {
+    test(`${name} — библиотека разрешена`, () => {
+      expect(scan(`${EXAMPLE}/${name}`, importFrom(LIB))).toEqual([]);
+    });
+  }
+});
+
 describe('ExampleZoneScanner — пример не выходит из своего каталога', () => {
+  test('абсолютный путь в файле примера — нарушение', () => {
+    const found = scan(
+      `${EXAMPLE}/main.ts`,
+      importFrom('/home/x/dmg-ui/packages/tg-bot/src/index'),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ file: `${EXAMPLE}/main.ts`, line: 2 });
+  });
+
+  test('другой пример: выход за свой каталог — нарушение', () => {
+    const path = 'examples/other/src/main.ts';
+    expect(scan(path, importFrom('../../tg-bot/src/x'))).toHaveLength(1);
+    expect(scan(path, importFrom('../../../packages/x'))).toHaveLength(1);
+    expect(scan(path, importFrom('./x'))).toEqual([]);
+  });
+
+  test('библиотека в другом примере — нарушение', () => {
+    const found = scan('examples/other/src/grammy-polling.ts', importFrom(LIB));
+    expect(found).toHaveLength(1);
+  });
+
   const escapes = [
     '../../../packages/tg-bot/src/index',
     '../../..',
