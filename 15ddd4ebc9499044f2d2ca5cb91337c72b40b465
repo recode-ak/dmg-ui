@@ -1,0 +1,1 @@
+Задача: правки по проверке безопасности беседы. Проверка: bun run check — 1524 pass, 0 fail, 117 файлов, 14 снимков (два прогона). Файлы: conversation-output.ts, conversation-snapshot.ts, conversation-path.ts, conversation-screens.ts, conversation.const.ts; тесты: conversation-path.test.ts, conversation-show.test.ts; документы: decisions.md, channel-package.md.
