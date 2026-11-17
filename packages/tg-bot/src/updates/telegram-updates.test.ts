@@ -1,7 +1,28 @@
 import { describe, expect, test } from 'bun:test';
-import { MemoryLogger } from 'dmg-core/testing';
-import type { ConversationSignal } from 'dmg-ui/chat-ui';
-import { MemoryBotApi } from '../../testing';
+import {
+  AwaitingBus,
+  MemoryLogger,
+  testUuid,
+  useTempDir,
+} from 'dmg-core/testing';
+import { ExampleApp } from 'dmg-core/testing/example';
+import {
+  type ConversationSignal,
+  Conversations,
+  MemoryConversationStore,
+} from 'dmg-ui/chat-ui';
+import {
+  ExampleDialogAppDef,
+  exampleDialogViews,
+} from 'dmg-ui/chat-ui/testing';
+import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
+import {
+  ExampleUiSetDef,
+  exampleCodes,
+  MemoryUiObserver,
+} from 'dmg-ui/testing';
+import { T0 } from 'dmg-ui/testing/fixtures';
+import { MemoryBotApi, TestUpdates } from '../../testing';
 import { TelegramMessenger } from '../messenger/telegram-messenger';
 import { TelegramUpdates } from './telegram-updates';
 
@@ -12,6 +33,16 @@ import { TelegramUpdates } from './telegram-updates';
 // `telegram-signals.test.ts`; здесь — что уходит в узел бесед, в порт и в лог.
 
 const ME = 7350001234;
+/** id самого бота (`getMe`): нужен приёму для отсева эха, в сценах личного чата не участвует. */
+const BOT = 7350007777;
+const A = testUuid(1);
+const tmp = useTempDir('dmg-ui-telegram-updates-');
+/** Точки входа проекта: `/start`, `/tasks` и меню — на вход `start`, ссылка `abc` — на `assigned`. */
+const ENTRY_POINTS = [
+  { entry: 'start', via: 'command', key: 'start' },
+  { entry: 'start', via: 'menu', key: 'tasks' },
+  { entry: 'assigned', via: 'link', key: 'abc' },
+];
 const OTHER = 7350009999;
 const GROUP = -1004001234567;
 const PRESS = 'cq-secret-7';
@@ -57,7 +88,10 @@ const pressWithout = (key: string, fields: Record<string, unknown>) => ({
 type Receiver = (signal: ConversationSignal) => Promise<void>;
 
 /** Приём апдейтов на подставном порту; узел бесед записывает сигналы. */
-const setup = (receive?: Receiver) => {
+const setup = (
+  receive?: Receiver,
+  entryPoints: readonly (typeof ENTRY_POINTS)[number][] = ENTRY_POINTS,
+) => {
   const api = new MemoryBotApi();
   const logger = new MemoryLogger();
   const messenger = new TelegramMessenger({ api, logger });
@@ -69,7 +103,13 @@ const setup = (receive?: Receiver) => {
         signals.push(signal);
       }),
   };
-  const updates = new TelegramUpdates({ conversations, messenger, logger });
+  const updates = new TelegramUpdates({
+    conversations,
+    messenger,
+    logger,
+    entryPoints,
+    bot: BOT,
+  });
   return { api, logger, signals, updates };
 };
 
@@ -307,5 +347,132 @@ describe('TelegramUpdates — сбой узла бесед', () => {
     expect(errors[0]?.source).toBe('tg-bot');
     expect(errors[0]?.meta).toMatchObject({ name: 'RangeError' });
     clean(logger);
+  });
+});
+
+describe('TelegramUpdates — точки входа', () => {
+  test('/tasks по точке menu → сигнал enter на вход точки; поля param у сигнала нет', async () => {
+    const { signals, updates } = setup();
+
+    await updates.receive(new TestUpdates().text(ME, '/tasks'));
+
+    expect(signals).toStrictEqual([
+      {
+        id: '1',
+        peer: String(ME),
+        sender: String(ME),
+        kind: 'enter',
+        entry: 'start',
+      },
+    ]);
+  });
+
+  test('/start <параметр ссылки> → вход точки link; параметр в сигнал и в лог не попадает', async () => {
+    const { api, logger, signals, updates } = setup();
+
+    await updates.receive(new TestUpdates().text(ME, '/start abc'));
+
+    expect(signals).toStrictEqual([
+      {
+        id: '1',
+        peer: String(ME),
+        sender: String(ME),
+        kind: 'enter',
+        entry: 'assigned',
+      },
+    ]);
+    expect(api.journal).toEqual([]);
+    expect(logger.records).toEqual([]);
+  });
+
+  test('/start с чужим параметром → вход точки /start: человек не остаётся без ответа', async () => {
+    const { signals, updates } = setup();
+
+    await updates.receive(new TestUpdates().text(ME, '/start от-друга'));
+
+    expect(signals).toMatchObject([{ kind: 'enter', entry: 'start' }]);
+    expect(JSON.stringify(signals)).not.toContain('от-друга');
+  });
+});
+
+describe('TelegramUpdates — вход, которого нет в таблице, в узле бесед', () => {
+  /** Узел бесед учебного приложения и приём апдейтов на одном подставном порту. */
+  const node = (
+    entryPoints: readonly (typeof ENTRY_POINTS)[number][] = ENTRY_POINTS,
+  ) => {
+    const api = new MemoryBotApi();
+    const bus = new AwaitingBus();
+    const logger = new MemoryLogger();
+    const example = new ExampleApp(
+      { mode: 'test', dataDir: tmp().path, users: [A] },
+      { bus, logger, clock: () => T0 },
+    );
+    const messenger = new TelegramMessenger({ api, logger });
+    const conversations = new Conversations({
+      app: ExampleDialogAppDef,
+      codes: exampleCodes(),
+      server: new UiServer({
+        set: ExampleUiSetDef,
+        dispatch: new ApiAppDispatch(example.api),
+        context: { bus, logger },
+      }),
+      views: exampleDialogViews,
+      observer: new MemoryUiObserver(),
+      messenger,
+      store: new MemoryConversationStore(),
+      logger,
+      people: async (sender) => (sender === String(ME) ? A : undefined),
+      peers: async (uuid) => (uuid === A ? String(ME) : undefined),
+      callers: example.callers,
+      places: {
+        place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
+      },
+    });
+    const updates = new TelegramUpdates({
+      conversations,
+      messenger,
+      logger,
+      entryPoints,
+      bot: BOT,
+    });
+    /** Апдейт `/команда` в узел бесед; ждёт, пока беседа ответит. */
+    const say = async (command: string) => {
+      await updates.receive(new TestUpdates().text(ME, command));
+      await conversations.settled();
+    };
+    return { api, conversations, say };
+  };
+
+  const NO_ENTRY = 'Такого входа нет.';
+
+  test('/nope — имени нет в таблице: беседа отвечает «Такого входа нет.» одним сообщением', async () => {
+    const { api, conversations, say } = node();
+
+    await say('/nope');
+    await conversations.close();
+
+    expect(api.chat(ME).map((line) => line.text)).toEqual([NO_ENTRY]);
+  });
+
+  test('/start без точки start в таблице — «Такого входа нет.», а не вход start', async () => {
+    const { api, conversations, say } = node([
+      { entry: 'assigned', via: 'command', key: 'assigned' },
+    ]);
+
+    await say('/start');
+    await conversations.close();
+
+    expect(api.chat(ME).map((line) => line.text)).toEqual([NO_ENTRY]);
+  });
+
+  test('/tasks по таблице открывает вход start: ответ — не «Такого входа нет.»', async () => {
+    const { api, conversations, say } = node();
+
+    await say('/tasks');
+    await conversations.close();
+
+    const lines = api.chat(ME);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.map((line) => line.text)).not.toContain(NO_ENTRY);
   });
 });

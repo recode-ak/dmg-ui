@@ -53,6 +53,13 @@ const B = testUuid(2);
 /** id Telegram — длинные, чтобы не совпасть случайно с uuid и временем. */
 const CHAT_A = 7350001234;
 const CHAT_B = 7350005678;
+/** id самого бота (`getMe`); не совпадает с id людей мира. */
+const BOT = 7350009000;
+/** Точки входа проекта: команды `/start` и `/assigned` на входы приложения. */
+const ENTRY_POINTS = [
+  { entry: 'start', via: 'command', key: 'start' },
+  { entry: 'assigned', via: 'command', key: 'assigned' },
+];
 const TITLE = 'Сыр *острый* _[1](x)_ <b>&';
 const CHOSEN = 'Вы выбрали: ';
 const CLOSED = 'Экран уже закрыт.';
@@ -150,7 +157,13 @@ const world = () => {
         return `e${String(epoch).padStart(4, '0')}`;
       },
     });
-    const telegram = new TelegramUpdates({ conversations, messenger, logger });
+    const telegram = new TelegramUpdates({
+      conversations,
+      messenger,
+      logger,
+      entryPoints: ENTRY_POINTS,
+      bot: BOT,
+    });
     return { conversations, telegram };
   };
 
@@ -219,6 +232,7 @@ const world = () => {
         api.journal.filter(
           (call) =>
             call.method !== 'answerCallbackQuery' &&
+            call.method !== 'setMyCommands' &&
             call.params.chat_id === chat,
         ),
     };

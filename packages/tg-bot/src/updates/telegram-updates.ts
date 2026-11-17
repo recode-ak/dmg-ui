@@ -8,7 +8,7 @@ import type {
 } from './telegram-updates.types';
 
 /**
- * Приём апдейтов Telegram (D-UI-62). Личность держится на подлинности апдейта:
+ * Приём апдейтов Telegram (D-UI-62, D-UI-64). Личность держится на подлинности апдейта:
  * проект подаёт только апдейты от Telegram (getUpdates или вебхук с секретным
  * токеном). Отвергнутое нажатие получает ровно один ответ без текста, затем
  * `warn` с причиной. `receive` не бросает (ERR-01): бросок узла бесед —
@@ -18,15 +18,17 @@ export class TelegramUpdates {
   private readonly conversations: TelegramUpdatesSpec['conversations'];
   private readonly messenger: TelegramMessenger;
   private readonly log: TelegramLog;
+  private readonly signals: TelegramSignals;
 
   constructor(spec: TelegramUpdatesSpec) {
     this.conversations = spec.conversations;
     this.messenger = spec.messenger;
     this.log = new TelegramLog(spec.logger);
+    this.signals = new TelegramSignals(spec);
   }
 
   async receive(update: unknown): Promise<void> {
-    const outcome = TelegramSignals.of(update);
+    const outcome = this.signals.of(update);
     switch (outcome.kind) {
       case 'signal':
         return this.deliver(outcome.signal);

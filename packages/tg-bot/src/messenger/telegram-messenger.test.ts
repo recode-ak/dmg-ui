@@ -112,6 +112,7 @@ const brokenResult = (result: unknown): BotApi => {
     editMessageText: (params) => api.editMessageText(params),
     editMessageReplyMarkup: (params) => api.editMessageReplyMarkup(params),
     answerCallbackQuery: (params) => api.answerCallbackQuery(params),
+    setMyCommands: (params) => api.setMyCommands(params),
   };
 };
 
@@ -681,7 +682,10 @@ describe('TelegramMessenger — возможности', () => {
       pressAnswer: { max: 200, unit: 'utf16' },
       form: false,
       initiative: { kind: 'afterContact' },
-      community: { signals: [], operations: [] },
+      community: {
+        signals: ['joined', 'left', 'added', 'removed', 'requested'],
+        operations: ['exclude', 'approve'],
+      },
     });
   });
 

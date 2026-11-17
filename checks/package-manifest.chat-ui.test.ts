@@ -9,6 +9,8 @@ import { describe, expect, it } from 'bun:test';
 // `dmg-ui/tg-bot/testing`.
 
 const CHAT_UI = [
+  'CHAT_EDGE_KINDS',
+  'CHAT_NODE_KINDS',
   'CHAT_PROVIDER',
   'ChatExamples',
   'ChatGraphProvider',
@@ -77,9 +79,13 @@ describe('вход dmg-ui/testing/fixtures', () => {
 });
 
 describe('вход dmg-ui/tg-bot', () => {
-  it('состав — возможности Telegram, мессенджер на порту Bot API и приём апдейтов', async () => {
+  it('состав — виды апдейтов и способы точек входа, возможности Telegram, поставщик графа, меню команд, мессенджер на порту Bot API и приём апдейтов', async () => {
     expect(Object.keys(await import('dmg-ui/tg-bot')).sort()).toEqual([
+      'TELEGRAM_ALLOWED_UPDATES',
       'TELEGRAM_CAPABILITIES',
+      'TELEGRAM_VIA',
+      'TelegramGraphProvider',
+      'TelegramMenu',
       'TelegramMessenger',
       'TelegramUpdates',
     ]);

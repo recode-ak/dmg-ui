@@ -1,4 +1,4 @@
-import type { ConversationSignal } from 'dmg-ui/chat-ui';
+import type { ChatEntryPointSpec, ConversationSignal } from 'dmg-ui/chat-ui';
 import type { ServerContext } from 'dmg-ui/server';
 import type * as v from 'valibot';
 import type { TelegramMessenger } from '../messenger/telegram-messenger';
@@ -7,8 +7,17 @@ import type {
   TelegramMessageSchema,
 } from './telegram-update.schema';
 
-/** Сборка приёма апдейтов: узел бесед, мессенджер (ответ на отвергнутое нажатие) и логгер. */
-export type TelegramUpdatesSpec = {
+/** Сборка перевода апдейтов: таблица точек входа проекта и id бота (`getMe`). */
+export type TelegramSignalsSpec = {
+  readonly entryPoints: readonly ChatEntryPointSpec[];
+  readonly bot: number;
+};
+
+/**
+ * Сборка приёма апдейтов: узел бесед, мессенджер (ответ на отвергнутое
+ * нажатие), логгер, таблица точек входа (та же, что у `ChatAppSpec`) и id бота.
+ */
+export type TelegramUpdatesSpec = TelegramSignalsSpec & {
   readonly conversations: {
     receive(signal: ConversationSignal): Promise<void>;
   };

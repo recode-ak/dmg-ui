@@ -5,6 +5,7 @@ import type {
   InlineKeyboardButton,
   MessageEntity,
   SendMessageParams,
+  SetMyCommandsParams,
 } from 'dmg-ui/tg-bot';
 
 /** Запись журнала подставного порта: метод и параметры как есть. */
@@ -21,6 +22,10 @@ export type BotApiCall =
   | {
       readonly method: 'answerCallbackQuery';
       readonly params: AnswerCallbackQueryParams;
+    }
+  | {
+      readonly method: 'setMyCommands';
+      readonly params: SetMyCommandsParams;
     };
 
 /** Отказ, который получит следующий вызов. */

@@ -21,3 +21,15 @@ export const ATTACHMENT_FIELDS = [
   ['audio', 'audio'],
   ['voice', 'audio'],
 ] as const satisfies readonly (readonly [string, AttachmentKind])[];
+
+/**
+ * Виды апдейта, которые читает пакет: проект подаёт их в `getUpdates` или
+ * вебхук (без `chat_member` апдейты участников группы не придут).
+ */
+export const TELEGRAM_ALLOWED_UPDATES = [
+  'message',
+  'callback_query',
+  'my_chat_member',
+  'chat_member',
+  'chat_join_request',
+] as const;

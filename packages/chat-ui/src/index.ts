@@ -47,7 +47,11 @@ export {
   ChatGraphProvider,
   type ChatGraphSpec,
 } from './graph/chat-graph-provider';
-export { CHAT_PROVIDER } from './graph/chat-kinds';
+export {
+  CHAT_EDGE_KINDS,
+  CHAT_NODE_KINDS,
+  CHAT_PROVIDER,
+} from './graph/chat-kinds';
 export type { LengthUnit, TextLimit } from './limit/limit.types';
 export { TextLength } from './limit/text-length';
 export { TextSplitter } from './limit/text-splitter';

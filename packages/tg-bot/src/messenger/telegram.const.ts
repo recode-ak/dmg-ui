@@ -3,7 +3,8 @@ import type { MessengerCapabilities } from 'dmg-ui/chat-ui';
 /**
  * Возможности Telegram (D-UI-61). Единица текста не названа в Bot API —
  * `utf16`, самая строгая из мер для не-BMP; число кнопок и длина подписи не
- * подтверждены — 100 и 64. Сообщества пока нет: сигналы и операции пусты.
+ * подтверждены — 100 и 64. Сообщество: пять сигналов, операции `exclude` и
+ * `approve`; `invite` не объявлена (CH-03 запретит такую реакцию).
  */
 export const TELEGRAM_CAPABILITIES: MessengerCapabilities = {
   name: 'telegram',
@@ -15,7 +16,10 @@ export const TELEGRAM_CAPABILITIES: MessengerCapabilities = {
   pressAnswer: { max: 200, unit: 'utf16' },
   form: false,
   initiative: { kind: 'afterContact' },
-  community: { signals: [], operations: [] },
+  community: {
+    signals: ['joined', 'left', 'added', 'removed', 'requested'],
+    operations: ['exclude', 'approve'],
+  },
 };
 
 /** Тексты Telegram: заглушка пустого текста (Bot API требует 1–4096) и метка строки выбора ушедшего экрана. */

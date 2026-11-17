@@ -40,8 +40,13 @@ export class TelegramLog {
     else this.error(LOG_TEXTS.badHandle, meta);
   }
 
-  refused(method: BotApiMethod, failure: BotApiFailure): void {
+  refused(
+    method: BotApiMethod,
+    failure: BotApiFailure,
+    operation?: TelegramOperation,
+  ): void {
     this.warn(LOG_TEXTS.refused, {
+      ...TelegramLog.operation(operation),
       method,
       error_code: failure.code(),
       description: failure.description(TELEGRAM_LIMITS.description),
@@ -49,12 +54,24 @@ export class TelegramLog {
   }
 
   /** Бросок порта: имя ошибки без её текста. */
-  failed(method: BotApiMethod, error: unknown): void {
-    this.error(LOG_TEXTS.failed, { method, name: TelegramLog.nameOf(error) });
+  failed(
+    method: BotApiMethod,
+    error: unknown,
+    operation?: TelegramOperation,
+  ): void {
+    this.error(LOG_TEXTS.failed, {
+      ...TelegramLog.operation(operation),
+      method,
+      name: TelegramLog.nameOf(error),
+    });
   }
 
-  badResult(method: BotApiMethod): void {
-    this.error(LOG_TEXTS.badResult, { method, reason: 'result' });
+  badResult(method: BotApiMethod, operation?: TelegramOperation): void {
+    this.error(LOG_TEXTS.badResult, {
+      ...TelegramLog.operation(operation),
+      method,
+      reason: 'result',
+    });
   }
 
   /** Апдейт отвергнут: не по схеме или нарушает допуск диалога; вид апдейта — если известен. */
@@ -82,6 +99,12 @@ export class TelegramLog {
 
   private meta(meta: Record<string, unknown>): Record<string, unknown> {
     return { messenger: TELEGRAM_CAPABILITIES.name, ...meta };
+  }
+
+  private static operation(
+    operation: TelegramOperation | undefined,
+  ): Record<string, unknown> {
+    return operation === undefined ? {} : { operation };
   }
 
   private static nameOf(error: unknown): string {

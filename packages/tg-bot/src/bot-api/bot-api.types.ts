@@ -66,6 +66,21 @@ export type AnswerCallbackQueryParams = {
   readonly text?: string;
 };
 
+/** Команда бота: имя `[a-z0-9_]{1,32}` и описание 1–256 знаков. */
+export type BotCommand = {
+  readonly command: string;
+  readonly description: string;
+};
+
+/** Область меню команд, JSON Bot API как есть; пакет задаёт `all_private_chats` (в группах бот на команды молчит). */
+export type BotCommandScope = { readonly type: string };
+
+/** Список команд меню; `language_code` пакет не задаёт. */
+export type SetMyCommandsParams = {
+  readonly commands: readonly BotCommand[];
+  readonly scope?: BotCommandScope;
+};
+
 /** Отказ Bot API: код и описание сервера. */
 export type BotApiRefusal = {
   readonly ok: false;
@@ -92,6 +107,7 @@ export type BotApi = {
   answerCallbackQuery(
     params: AnswerCallbackQueryParams,
   ): Promise<BotApiResult<unknown>>;
+  setMyCommands(params: SetMyCommandsParams): Promise<BotApiResult<unknown>>;
 };
 
 /** Имя метода порта — для лога и журнала. */

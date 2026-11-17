@@ -5,6 +5,7 @@ import type {
   EditMessageReplyMarkupParams,
   EditMessageTextParams,
   SendMessageParams,
+  SetMyCommandsParams,
 } from 'dmg-ui/tg-bot';
 import { MEMORY_BOT_API_TEXTS } from './memory-bot-api.const';
 import type {
@@ -85,6 +86,15 @@ export class MemoryBotApi implements BotApi {
     params: AnswerCallbackQueryParams,
   ): Promise<BotApiResult<unknown>> {
     return this.handle({ method: 'answerCallbackQuery', params }, () => ({
+      ok: true,
+      result: true,
+    }));
+  }
+
+  async setMyCommands(
+    params: SetMyCommandsParams,
+  ): Promise<BotApiResult<unknown>> {
+    return this.handle({ method: 'setMyCommands', params }, () => ({
       ok: true,
       result: true,
     }));

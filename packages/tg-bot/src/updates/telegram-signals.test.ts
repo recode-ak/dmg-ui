@@ -69,70 +69,18 @@ const pressWithout = (key: string, fields: Record<string, unknown>) => ({
 
 const file = (id: string) => ({ file_id: id, file_unique_id: `u-${id}` });
 
-const signal = (update: unknown) => TelegramSignals.of(update);
+/** Перевод с таблицей `/start` — для сценариев, где точки входа не важны. */
+const signals = new TelegramSignals({
+  entryPoints: [{ entry: 'start', via: 'command', key: 'start' }],
+  bot: 7350007777,
+});
+const signal = (update: unknown) => signals.of(update);
 
 describe('TelegramSignals — текст и команды', () => {
   test('личный текст → text: id — update_id, peer — chat.id, sender — from.id', () => {
     expect(signal(message({ text: 'Хлеб' }))).toEqual({
       kind: 'signal',
       signal: { ...HEAD, kind: 'text', text: 'Хлеб' },
-    });
-  });
-
-  test('/start → вход start без параметра', () => {
-    expect(signal(command('/start'))).toEqual({
-      kind: 'signal',
-      signal: { ...HEAD, kind: 'enter', entry: 'start' },
-    });
-  });
-
-  test('/start abc_1 → вход start с параметром', () => {
-    expect(signal(command('/start abc_1'))).toEqual({
-      kind: 'signal',
-      signal: { ...HEAD, kind: 'enter', entry: 'start', param: 'abc_1' },
-    });
-  });
-
-  test('параметр из [A-Za-z0-9_-] длиной 64 — с параметром', () => {
-    const param = `${'a'.repeat(60)}Z9_-`;
-    expect(signal(command(`/start ${param}`))).toEqual({
-      kind: 'signal',
-      signal: { ...HEAD, kind: 'enter', entry: 'start', param },
-    });
-  });
-
-  for (const [name, param] of [
-    ['длиннее 64', 'a'.repeat(65)],
-    ['с чужим знаком', 'ab$c'],
-    ['кириллица', 'хлеб'],
-    ['два слова', 'ab cd'],
-  ] as const) {
-    test(`параметр ${name} — вход без параметра`, () => {
-      expect(signal(command(`/start ${param}`))).toEqual({
-        kind: 'signal',
-        signal: { ...HEAD, kind: 'enter', entry: 'start' },
-      });
-    });
-  }
-
-  test('/assigned → вход по имени assigned', () => {
-    expect(signal(command('/assigned'))).toEqual({
-      kind: 'signal',
-      signal: { ...HEAD, kind: 'enter', entry: 'assigned' },
-    });
-  });
-
-  test('/x@bot → вход x: имя бота после @ отбрасывается', () => {
-    expect(signal(command('/x@u7_bot'))).toEqual({
-      kind: 'signal',
-      signal: { ...HEAD, kind: 'enter', entry: 'x' },
-    });
-  });
-
-  test('/start@bot abc → вход start с параметром', () => {
-    expect(signal(command('/start@u7_bot abc'))).toEqual({
-      kind: 'signal',
-      signal: { ...HEAD, kind: 'enter', entry: 'start', param: 'abc' },
     });
   });
 
@@ -144,13 +92,6 @@ describe('TelegramSignals — текст и команды', () => {
     expect(signal(command('/back@u7_bot'))).toEqual({
       kind: 'signal',
       signal: { ...HEAD, kind: 'back' },
-    });
-  });
-
-  test('незнакомая команда /nope → вход nope: его встретит беседа', () => {
-    expect(signal(command('/nope'))).toEqual({
-      kind: 'signal',
-      signal: { ...HEAD, kind: 'enter', entry: 'nope' },
     });
   });
 
@@ -171,6 +112,272 @@ describe('TelegramSignals — текст и команды', () => {
       kind: 'signal',
       signal: { ...HEAD, kind: 'text', text },
     });
+  });
+});
+
+// Точки входа: `/команда` ищется в таблице точек входа — вход берут
+// из точки, не по имени входа. Имя команды приводится к нижнему регистру,
+// `cancel` и `back` — раньше таблицы. `/start <параметр>`: параметр выбирает
+// вход точки `link`, иначе — как `/start`; сам параметр в сигнал не идёт.
+// Имени нет в таблице — вход-заглушка `UNKNOWN_ENTRY`: «Такого входа нет.»
+// скажет беседа.
+
+const BOT = 7350007777;
+
+const point = (entry: string, via: string, key: string) => ({
+  entry,
+  via,
+  key,
+});
+const START = point('start', 'command', 'start');
+
+/** Перевод с таблицей `entryPoints`: экземпляр со спекой `{ entryPoints, bot }`. */
+const withTable = (entryPoints: readonly ReturnType<typeof point>[]) => {
+  const signals = new TelegramSignals({ entryPoints, bot: BOT });
+  return (update: unknown) => signals.of(update);
+};
+
+/** Сигнал `enter` на вход `entry`: без поля `param`. */
+const entered = (entry: string) => ({
+  kind: 'signal' as const,
+  signal: { ...HEAD, kind: 'enter' as const, entry },
+});
+
+/** Заглушка «входа нет»: модуль точек входа ещё не написан — читаем в самой сцене. */
+const unknownEntry = async () =>
+  (await import('../entries/telegram-entries.const')).UNKNOWN_ENTRY;
+
+describe('TelegramSignals — точки входа: команда по таблице', () => {
+  test('/tasks при точке { start, command, tasks } → enter start', () => {
+    const of = withTable([point('start', 'command', 'tasks')]);
+
+    expect(of(command('/tasks'))).toStrictEqual(entered('start'));
+  });
+
+  test('/start при точке { assigned, command, start } → enter assigned: по таблице, не по имени входа', () => {
+    const of = withTable([point('assigned', 'command', 'start')]);
+
+    expect(of(command('/start'))).toStrictEqual(entered('assigned'));
+  });
+
+  test('точка menu — та же команда: /tasks при { start, menu, tasks } → enter start', () => {
+    const of = withTable([START, point('start', 'menu', 'tasks')]);
+
+    expect(of(command('/tasks'))).toStrictEqual(entered('start'));
+  });
+
+  test('/x@bot — суффикс бота отброшен', () => {
+    const of = withTable([point('start', 'command', 'x')]);
+
+    expect(of(command('/x@u7_bot'))).toStrictEqual(entered('start'));
+  });
+
+  test('имя не в таблице → enter с заглушкой UNKNOWN_ENTRY', async () => {
+    const of = withTable([START]);
+    const unknown = await unknownEntry();
+
+    expect(unknown).not.toBe('start');
+    expect(of(command('/nope'))).toStrictEqual(entered(unknown));
+    expect(of(command('/nope@u7_bot'))).toStrictEqual(entered(unknown));
+  });
+
+  test('вход приложения без точки командой не открывается: /assigned без точки → заглушка', async () => {
+    const of = withTable([START]);
+
+    expect(of(command('/assigned'))).toStrictEqual(
+      entered(await unknownEntry()),
+    );
+  });
+
+  test('/start без точки start в таблице → заглушка, не вход start', async () => {
+    const of = withTable([point('assigned', 'command', 'assigned')]);
+
+    expect(of(command('/start'))).toStrictEqual(entered(await unknownEntry()));
+  });
+});
+
+describe('TelegramSignals — точки входа: параметр ссылки', () => {
+  const of = withTable([START, point('assigned', 'link', 'abc')]);
+
+  test('/start abc при точке link abc → вход точки; поля param у сигнала нет', () => {
+    const outcome = of(command('/start abc'));
+
+    expect(outcome).toStrictEqual(entered('assigned'));
+    expect(JSON.stringify(outcome)).not.toContain('param');
+  });
+
+  test('/start@bot abc — то же', () => {
+    expect(of(command('/start@u7_bot abc'))).toStrictEqual(entered('assigned'));
+  });
+
+  test('параметр в формате, но не в таблице → вход точки /start', () => {
+    expect(of(command('/start xyz'))).toStrictEqual(entered('start'));
+  });
+
+  test('/start без параметра → вход точки /start', () => {
+    expect(of(command('/start'))).toStrictEqual(entered('start'));
+  });
+
+  for (const [name, param] of [
+    ['длиннее 64', 'a'.repeat(65)],
+    ['с чужим знаком', 'ab$c'],
+    ['кириллица', 'хлеб'],
+    ['два слова', 'ab cd'],
+    ['с точкой', 'a.b'],
+  ] as const) {
+    test(`параметр ${name} → вход точки /start, параметр нигде не виден`, () => {
+      const outcome = of(command(`/start ${param}`));
+
+      expect(outcome).toStrictEqual(entered('start'));
+      expect(JSON.stringify(outcome)).not.toContain(param);
+    });
+  }
+
+  test('параметр из [A-Za-z0-9_-] длиной 64, объявленный в таблице → вход точки', () => {
+    const param = `${'a'.repeat(60)}Z9_-`;
+    const long = withTable([START, point('assigned', 'link', param)]);
+
+    expect(param).toHaveLength(64);
+    expect(long(command(`/start ${param}`))).toStrictEqual(entered('assigned'));
+  });
+
+  test('без точки /start: параметр из таблицы входит, прочие — заглушка', async () => {
+    const onlyLink = withTable([point('assigned', 'link', 'abc')]);
+
+    expect(onlyLink(command('/start abc'))).toStrictEqual(entered('assigned'));
+    expect(onlyLink(command('/start xyz'))).toStrictEqual(
+      entered(await unknownEntry()),
+    );
+    expect(onlyLink(command('/start'))).toStrictEqual(
+      entered(await unknownEntry()),
+    );
+  });
+
+  test('ключ link командой не работает: /abc при точке link abc → заглушка', async () => {
+    expect(of(command('/abc'))).toStrictEqual(entered(await unknownEntry()));
+  });
+
+  test('ключ command параметром не работает: /start tasks при command tasks → вход /start', () => {
+    const table = withTable([START, point('assigned', 'command', 'tasks')]);
+
+    expect(table(command('/start tasks'))).toStrictEqual(entered('start'));
+  });
+
+  test('отправитель и собеседник — from и chat, не параметр', () => {
+    const outcome = of(command('/start abc')) as {
+      signal: { peer: string; sender: string };
+    };
+
+    expect(outcome.signal.peer).toBe(String(ME));
+    expect(outcome.signal.sender).toBe(String(ME));
+  });
+});
+
+describe('TelegramSignals — точки входа: регистр', () => {
+  test('/Tasks → как /tasks', () => {
+    const of = withTable([point('start', 'command', 'tasks')]);
+
+    expect(of(command('/Tasks'))).toStrictEqual(entered('start'));
+    expect(of(command('/TASKS@u7_bot'))).toStrictEqual(entered('start'));
+  });
+
+  test('/Start → как /start', () => {
+    const of = withTable([point('assigned', 'command', 'start')]);
+
+    expect(of(command('/Start'))).toStrictEqual(entered('assigned'));
+  });
+
+  test('/CANCEL → cancel, /Back → back', () => {
+    const of = withTable([START]);
+
+    expect(of(command('/CANCEL'))).toStrictEqual({
+      kind: 'signal',
+      signal: { ...HEAD, kind: 'cancel' },
+    });
+    expect(of(command('/Back'))).toStrictEqual({
+      kind: 'signal',
+      signal: { ...HEAD, kind: 'back' },
+    });
+  });
+
+  test('параметр ссылки — как есть: Abc ≠ abc', () => {
+    const lower = withTable([START, point('assigned', 'link', 'abc')]);
+    const upper = withTable([START, point('assigned', 'link', 'Abc')]);
+
+    expect(lower(command('/start Abc'))).toStrictEqual(entered('start'));
+    expect(lower(command('/start abc'))).toStrictEqual(entered('assigned'));
+    expect(upper(command('/start Abc'))).toStrictEqual(entered('assigned'));
+    expect(upper(command('/start abc'))).toStrictEqual(entered('start'));
+  });
+});
+
+describe('TelegramSignals — точки входа: cancel и back раньше таблицы', () => {
+  const of = withTable([
+    START,
+    point('start', 'command', 'cancel'),
+    point('assigned', 'menu', 'back'),
+    point('assigned', 'link', 'cancel'),
+  ]);
+
+  test('/cancel и /back — сигналы беседы, даже если таблица объявила их командами', () => {
+    expect(of(command('/cancel'))).toStrictEqual({
+      kind: 'signal',
+      signal: { ...HEAD, kind: 'cancel' },
+    });
+    expect(of(command('/back'))).toStrictEqual({
+      kind: 'signal',
+      signal: { ...HEAD, kind: 'back' },
+    });
+  });
+
+  test('/start cancel — параметр ссылки, не отмена', () => {
+    expect(of(command('/start cancel'))).toStrictEqual(entered('assigned'));
+  });
+});
+
+describe('TelegramSignals — точки входа: повтор и чужие способы', () => {
+  test('повтор ключа — первая точка: command против menu и command против command', () => {
+    const of = withTable([
+      point('start', 'menu', 'x'),
+      point('assigned', 'command', 'x'),
+      point('assigned', 'command', 'y'),
+      point('start', 'command', 'y'),
+    ]);
+
+    expect(of(command('/x'))).toStrictEqual(entered('start'));
+    expect(of(command('/y'))).toStrictEqual(entered('assigned'));
+  });
+
+  test('повтор параметра ссылки — первая точка', () => {
+    const of = withTable([
+      START,
+      point('assigned', 'link', 'abc'),
+      point('start', 'link', 'abc'),
+    ]);
+
+    expect(of(command('/start abc'))).toStrictEqual(entered('assigned'));
+  });
+
+  test('точка с неизвестным способом пропускается: /x при { message, x } → заглушка, при следующей command x → её вход', async () => {
+    const only = withTable([point('start', 'message', 'x')]);
+    const next = withTable([
+      point('start', 'message', 'x'),
+      point('assigned', 'command', 'x'),
+    ]);
+
+    expect(only(command('/x'))).toStrictEqual(entered(await unknownEntry()));
+    expect(next(command('/x'))).toStrictEqual(entered('assigned'));
+  });
+
+  test('ключи объектного прототипа не входы: /constructor, /__proto__ → заглушка', async () => {
+    const of = withTable([START]);
+
+    expect(of(command('/constructor'))).toStrictEqual(
+      entered(await unknownEntry()),
+    );
+    expect(of(command('/__proto__'))).toStrictEqual(
+      entered(await unknownEntry()),
+    );
   });
 });
 

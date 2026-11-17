@@ -3,12 +3,12 @@ import type { Violation } from './violation.types';
 
 /**
  * Префиксы правил репо: `UI` — ядро, `PG` — страничный канал примера, `CH` —
- * общая часть мессенджеров. Общий шаблон `[A-Z]+-NN` нельзя: заголовки
+ * общая часть мессенджеров, `TG` — Telegram. Общий шаблон `[A-Z]+-NN` нельзя: заголовки
  * `rules.md` упоминают ID платформы (`ARC-13`).
  */
-export const RULE_PREFIXES = ['UI', 'PG', 'CH'] as const;
+export const RULE_PREFIXES = ['UI', 'PG', 'CH', 'TG'] as const;
 
-/** Номер правила с префиксом репо: `(UI|PG|CH)-NN`. */
+/** Номер правила с префиксом репо: `(UI|PG|CH|TG)-NN`. */
 const RULE_ID = `(?:${RULE_PREFIXES.join('|')})-\\d{2}`;
 
 /** Сверка текстов: правила в коде и в `rules.md` (префиксы `RULE_PREFIXES`), ссылки `D-UI-<n>` и `decisions.md`, нумерация `debt.md`. Код пакета не импортирует. */

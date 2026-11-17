@@ -51,8 +51,8 @@ describe('RuleCatalog.checkRules — правила кода и rules.md', () =>
 describe('RuleCatalog.checkRules — префиксы правил', () => {
   const chat = [file('r/c.rule.ts', "  readonly id = 'CH-01';")];
 
-  it('префиксы правил репо — UI, PG, CH', () => {
-    expect([...RULE_PREFIXES]).toEqual(['UI', 'PG', 'CH']);
+  it('префиксы правил репо — UI, PG, CH, TG', () => {
+    expect([...RULE_PREFIXES]).toEqual(['UI', 'PG', 'CH', 'TG']);
   });
 
   it('CH-01 в коде и строка таблицы каталога совпадают — нарушений нет', () => {
@@ -162,7 +162,7 @@ describe('каталог правил и решения репо', () => {
   const notSelf = (files: SourceFile[]) =>
     files.filter((f) => !SELF.includes(f.path));
 
-  it('правила UI-NN, PG-NN и CH-NN в коде и в docs/reference/rules.md совпадают', () => {
+  it('правила UI-NN, PG-NN, CH-NN и TG-NN в коде и в docs/reference/rules.md совпадают', () => {
     const code = TextTree.read(ROOT, 'packages', ['.ts']).filter(
       (f) => !f.path.endsWith('.test.ts'),
     );
@@ -200,6 +200,23 @@ describe('каталог правил и решения репо', () => {
 
     expect(inCode).toContain('CH-03: правила нет в empty.md');
     expect(inCatalog).toContain('CH-03: правила нет в коде');
+  });
+
+  it('каталог видит TG-01…TG-06 и в коде пакета, и в docs/reference/rules.md', () => {
+    const code = TextTree.read(ROOT, 'packages', ['.ts']).filter(
+      (f) => !f.path.endsWith('.test.ts'),
+    );
+    const inCode = catalog
+      .checkRules(code, file('empty.md', ''))
+      .map((v) => v.text);
+    const inCatalog = catalog
+      .checkRules([], read('docs/reference/rules.md'))
+      .map((v) => v.text);
+
+    for (const id of ['01', '02', '03', '04', '05', '06']) {
+      expect(inCode).toContain(`TG-${id}: правила нет в empty.md`);
+      expect(inCatalog).toContain(`TG-${id}: правила нет в коде`);
+    }
   });
 
   it('каждое D-UI-<n> из кода и документов определено в docs/decisions.md', () => {

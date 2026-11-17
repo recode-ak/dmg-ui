@@ -309,3 +309,60 @@ describe('MemoryBotApi — чат глазами собеседника', () => 
     expect(new MemoryBotApi().chat(CHAT)).toEqual([]);
   });
 });
+
+describe('MemoryBotApi — меню команд', () => {
+  const PARAMS = {
+    commands: [{ command: 'tasks', description: 'Мои задачи' }],
+    scope: { type: 'all_private_chats' },
+  };
+
+  test('setMyCommands — ok с result true, журнал — метод и параметры как есть', async () => {
+    const api = new MemoryBotApi();
+
+    expect(await api.setMyCommands(PARAMS)).toEqual({ ok: true, result: true });
+    expect(api.journal).toEqual([{ method: 'setMyCommands', params: PARAMS }]);
+  });
+
+  test('повторный setMyCommands тем же списком — снова ok: модели меню у подставного порта нет', async () => {
+    const api = new MemoryBotApi();
+
+    await api.setMyCommands(PARAMS);
+
+    expect(await api.setMyCommands(PARAMS)).toEqual({ ok: true, result: true });
+    expect(api.journal).toHaveLength(2);
+  });
+
+  test('failNext бьёт и по setMyCommands: вызов в журнале, следующий — обычный', async () => {
+    const api = new MemoryBotApi();
+    api.failNext({ error_code: 400, description: 'Bad Request: x' });
+
+    expect(await api.setMyCommands(PARAMS)).toEqual({
+      ok: false,
+      error_code: 400,
+      description: 'Bad Request: x',
+    });
+    expect(await api.setMyCommands(PARAMS)).toEqual({ ok: true, result: true });
+    expect(api.journal.map((call) => call.method)).toEqual([
+      'setMyCommands',
+      'setMyCommands',
+    ]);
+  });
+
+  test('throwNext бросает и на setMyCommands', async () => {
+    const api = new MemoryBotApi();
+    api.throwNext(new TypeError('сеть'));
+
+    await expect(api.setMyCommands(PARAMS)).rejects.toThrow(TypeError);
+    expect(api.journal).toHaveLength(1);
+  });
+
+  test('setMyCommands чат не создаёт: чаты и message_id нетронуты', async () => {
+    const api = new MemoryBotApi();
+
+    await api.setMyCommands(PARAMS);
+    const sent = await api.sendMessage({ chat_id: CHAT, text: 'один' });
+
+    expect(sent).toMatchObject({ ok: true, result: { message_id: 1 } });
+    expect(api.chat(CHAT)).toHaveLength(1);
+  });
+});

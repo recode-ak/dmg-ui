@@ -8,16 +8,10 @@ import type {
   Updated,
 } from 'dmg-ui/chat-ui';
 import * as v from 'valibot';
-import {
-  BotApiAnswerSchema,
-  SentMessageSchema,
-} from '../bot-api/bot-api.schema';
-import type {
-  BotApi,
-  BotApiMethod,
-  BotApiResult,
-} from '../bot-api/bot-api.types';
-import { BotApiFailure } from '../bot-api/bot-api-failure';
+import { SentMessageSchema } from '../bot-api/bot-api.schema';
+import type { BotApi } from '../bot-api/bot-api.types';
+import { BotApiCaller } from '../bot-api/bot-api-caller';
+import type { BotApiOutcome } from '../bot-api/bot-api-caller.types';
 import { TelegramLog } from '../telegram-log';
 import type { TelegramOperation } from '../telegram-log.types';
 import {
@@ -30,7 +24,6 @@ import {
 } from './telegram.const';
 import { TelegramKeyboard } from './telegram-keyboard';
 import type {
-  BotApiOutcome,
   TelegramContent,
   TelegramMessengerSpec,
 } from './telegram-messenger.types';
@@ -49,10 +42,12 @@ export class TelegramMessenger implements MessengerPort {
   readonly capabilities: MessengerCapabilities = TELEGRAM_CAPABILITIES;
   private readonly api: BotApi;
   private readonly log: TelegramLog;
+  private readonly caller: BotApiCaller;
 
   constructor(spec: TelegramMessengerSpec) {
     this.api = spec.api;
     this.log = new TelegramLog(spec.logger);
+    this.caller = new BotApiCaller(this.log);
   }
 
   /** Инициатива не меняет способ: Telegram пишет первым после первого входящего, это сверяет беседа. */
@@ -79,7 +74,7 @@ export class TelegramMessenger implements MessengerPort {
       this.log.badHandle('update');
       return this.resend(chat, message);
     }
-    const outcome = await this.call('editMessageText', () =>
+    const outcome = await this.caller.call('editMessageText', () =>
       this.api.editMessageText({
         chat_id: chat,
         message_id: messageId,
@@ -124,13 +119,13 @@ export class TelegramMessenger implements MessengerPort {
         : TelegramMessenger.withChoice(message, chosen);
     const outcome =
       content === undefined
-        ? await this.call('editMessageReplyMarkup', () =>
+        ? await this.caller.call('editMessageReplyMarkup', () =>
             this.api.editMessageReplyMarkup({
               chat_id: chat,
               message_id: messageId,
             }),
           )
-        : await this.call('editMessageText', () =>
+        : await this.caller.call('editMessageText', () =>
             this.api.editMessageText({
               chat_id: chat,
               message_id: messageId,
@@ -152,7 +147,7 @@ export class TelegramMessenger implements MessengerPort {
 
   /** Ответ на нажатие по его id: у беседы и у нажатия, отвергнутого приёмом апдейтов (собеседника у такого нет). */
   async answerPress(press: string, text?: string): Promise<Delivery<void>> {
-    const outcome = await this.call('answerCallbackQuery', () =>
+    const outcome = await this.caller.call('answerCallbackQuery', () =>
       this.api.answerCallbackQuery(
         text === undefined
           ? { callback_query_id: press }
@@ -185,7 +180,7 @@ export class TelegramMessenger implements MessengerPort {
     chat: number,
     message: Message,
   ): Promise<Delivery<MessageHandle>> {
-    const outcome = await this.call('sendMessage', () =>
+    const outcome = await this.caller.call('sendMessage', () =>
       this.api.sendMessage({
         chat_id: chat,
         ...TelegramMessenger.content(TelegramText.of(message.text)),
@@ -231,29 +226,6 @@ export class TelegramMessenger implements MessengerPort {
       return undefined;
     }
     return chat;
-  }
-
-  /** Вызов порта: ответ сверен схемой; отказ (кроме «not modified») — `warn`, бросок и ответ не по схеме — `error`. */
-  private async call(
-    method: BotApiMethod,
-    invoke: () => Promise<BotApiResult<unknown>>,
-  ): Promise<BotApiOutcome> {
-    let answer: unknown;
-    try {
-      answer = await invoke();
-    } catch (error) {
-      this.log.failed(method, error);
-      return { kind: 'failed' };
-    }
-    const parsed = v.safeParse(BotApiAnswerSchema, answer);
-    if (!parsed.success) {
-      this.log.badResult(method);
-      return { kind: 'failed' };
-    }
-    if (parsed.output.ok) return { kind: 'done', result: parsed.output.result };
-    const failure = new BotApiFailure(parsed.output);
-    if (!failure.notModified()) this.log.refused(method, failure);
-    return { kind: 'refused', failure };
   }
 
   /** Итог правки без нового handle: «not modified» — тоже `ok`. */
