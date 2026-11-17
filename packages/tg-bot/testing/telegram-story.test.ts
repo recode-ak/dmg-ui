@@ -61,7 +61,6 @@ const ENTRY_POINTS = [
   { entry: 'assigned', via: 'command', key: 'assigned' },
 ];
 const TITLE = 'Сыр *острый* _[1](x)_ <b>&';
-const CHOSEN = 'Вы выбрали: ';
 const CLOSED = 'Экран уже закрыт.';
 const tmp = useTempDir('dmg-ui-telegram-story-');
 
@@ -90,7 +89,9 @@ const texts = (journal: readonly BotApiCall[]): SentOrEdited[] =>
 /** Все `callback_data` разметки вызова. */
 const dataOf = (markup: InlineKeyboardMarkup | undefined): string[] =>
   (markup?.inline_keyboard ?? []).flatMap((row) =>
-    row.map((button) => button.callback_data),
+    row.flatMap((button) =>
+      'callback_data' in button ? [button.callback_data] : [],
+    ),
   );
 
 const labelsOf = (line: BotChatLine): string[] =>
@@ -194,9 +195,11 @@ const world = () => {
 
   const person = (chat: number) => {
     const lines = () => api.chat(chat);
-    /** Живое место — последнее сообщение чата с клавиатурой. */
+    /** Живое место — последнее сообщение чата с нажимаемой кнопкой: отключённая кнопка ушедшего экрана — не место. */
     const place = (): BotChatLine => {
-      const line = lines().findLast((l) => l.keyboard.length > 0);
+      const line = lines().findLast((l) =>
+        l.keyboard.flat().some((button) => 'callback_data' in button),
+      );
       if (line === undefined) throw new Error('живого места нет');
       return line;
     };
@@ -204,8 +207,11 @@ const world = () => {
       const line = place();
       const button = line.keyboard
         .flat()
-        .find((candidate) => candidate.text === label);
-      if (button === undefined)
+        .find(
+          (candidate) =>
+            candidate.text === label && 'callback_data' in candidate,
+        );
+      if (button === undefined || !('callback_data' in button))
         throw new Error(`нет кнопки «${label}» в живом месте`);
       return { line, data: button.callback_data };
     };
@@ -417,15 +423,15 @@ describe('сторис на Telegram', () => {
     expect(a.place().text).toContain(TITLE);
   });
 
-  test('ушедший экран после нажатия: клавиатура снята, строка выбора с подписью нажатого', async () => {
+  test('ушедший экран после нажатия: текст прежний, одна отключённая кнопка с подписью нажатого; новый экран — клавиатура без disabled', async () => {
     const w = world();
     const { a } = w;
     await firstSteps(w);
     await a.press('Дальше');
     const page = a.place();
 
-    // Сообщение нельзя править — показ новым сообщением, прежнее уходит со
-    // строкой выбора нажатого.
+    // Сообщение нельзя править — показ новым сообщением, прежнее уходит
+    // с отключённой кнопкой нажатого.
     w.api.failNext({
       error_code: 400,
       description: "Bad Request: message can't be edited",
@@ -435,10 +441,42 @@ describe('сторис на Telegram', () => {
     const retired = a
       .lines()
       .find((line) => line.message_id === page.message_id);
-    expect(retired?.keyboard).toEqual([]);
-    expect(retired?.text).toBe(`${page.text}\n\n${CHOSEN}Назад`);
+    expect(retired?.text).toBe(page.text);
+    expect(retired?.entities).toEqual(page.entities);
+    expect(retired?.keyboard).toEqual([[{ text: 'Назад', disabled: {} }]]);
     expect(a.place().message_id).toBeGreaterThan(page.message_id);
     expect(a.place().text).toContain('Хлеб');
+    for (const button of a.place().keyboard.flat()) {
+      expect(button).not.toHaveProperty('disabled');
+      expect(button).toHaveProperty('callback_data');
+    }
+  });
+
+  test('отключённую кнопку ушедшего экрана нажать нельзя: апдейта нет, повторное нажатие по старой ссылке — прежнее поведение', async () => {
+    const w = world();
+    const { a } = w;
+    await firstSteps(w);
+    await a.press('Дальше');
+    const page = a.place();
+    const back = a.find('Назад');
+    w.api.failNext({
+      error_code: 400,
+      description: "Bad Request: message can't be edited",
+    });
+    await a.press('Назад');
+    const pressed = w.presses.length;
+
+    // У ушедшей кнопки данных нет: подставный мир нажатия по ней не строит.
+    const old = a.lines().find((line) => line.message_id === page.message_id);
+    expect(old?.keyboard.flat()).toEqual([{ text: 'Назад', disabled: {} }]);
+    expect(w.presses).toHaveLength(pressed);
+
+    // Старая ссылка нажатого экрана — устаревшая (прежнее поведение).
+    await a.pressData(back.data, page.message_id);
+    await w.settle();
+    expect(w.answers().some((answer) => answer.text?.includes(CLOSED))).toBe(
+      true,
+    );
   });
 });
 

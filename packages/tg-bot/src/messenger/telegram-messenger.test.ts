@@ -39,7 +39,7 @@ import { TelegramMessenger } from './telegram-messenger';
 
 // Мессенджер Telegram поверх порта Bot API: показ и уведомление —
 // `sendMessage`, правка на месте с откатом новым сообщением, уход экрана —
-// снятие клавиатуры или строка выбора, ответ на нажатие. Собеседник — только
+// снятие клавиатуры или отключённая кнопка нажатого, ответ на нажатие. Собеседник — только
 // целое положительное число (личный чат), `callback_data` — не длиннее 64
 // байт: иначе отказ без вызова API. Отказ Bot API — значение, бросок порта —
 // недоставка и `error` с именем ошибки; методы не бросают, лог без данных.
@@ -520,31 +520,47 @@ describe('TelegramMessenger — уход экрана', () => {
     });
   });
 
-  test('retire с chosen — editMessageText: прежний текст с сущностями и строка выбора с подписью нажатого, без клавиатуры', async () => {
+  test('retire с chosen — один editMessageReplyMarkup с одной отключённой кнопкой (подпись нажатого); текст не правится, callback_data нет', async () => {
     const { api, messenger } = setup();
     const shown = message(TASK, OPTIONS);
     await messenger.show(PEER, shown);
 
     expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(ok());
-    expect(methods(api)).toEqual(['sendMessage', 'editMessageText']);
+    expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
+    expect(markupEdits(api)).toEqual([
+      {
+        chat_id: CHAT,
+        message_id: 1,
+        reply_markup: {
+          inline_keyboard: [[{ text: 'Сделано', disabled: {} }]],
+        },
+      },
+    ]);
     const line = api.chat(CHAT)[0];
-    const before = 'Задача Хлеб';
-    const added = line?.text.slice(before.length) ?? '';
-    expect(line?.text.startsWith(before)).toBe(true);
-    expect(added.startsWith('\n')).toBe(true);
-    expect(added).toContain(TELEGRAM_TEXTS.chosen);
-    expect(added.endsWith('Сделано')).toBe(true);
-    expect(added).not.toContain('Отмена');
-    expect(line?.entities).toContainEqual({
-      type: 'bold',
-      offset: 7,
-      length: 4,
-    });
-    expect(line?.keyboard).toEqual([]);
+    expect(line?.text).toBe('Задача Хлеб');
+    expect(line?.entities).toEqual([{ type: 'bold', offset: 7, length: 4 }]);
+    expect(line?.keyboard).toEqual([[{ text: 'Сделано', disabled: {} }]]);
+    expect(line?.keyboard.flat()[0]).not.toHaveProperty('callback_data');
     expect(line?.edits).toBe(1);
+    expect(JSON.stringify(api.journal)).not.toContain('Вы выбрали');
   });
 
-  test('retire с chosen, строка выбора не влезает в 4096 — только снятие клавиатуры', async () => {
+  test('retire с chosen: акцент нажатого варианта на отключённую кнопку не идёт — поля style нет', async () => {
+    const { api, messenger } = setup();
+    const shown = message(TASK, [
+      { ref: 'r1', label: 'Удалить', accent: 'danger' },
+      { ref: 'r2', label: 'Отмена' },
+    ]);
+    await messenger.show(PEER, shown);
+
+    await messenger.retire(PEER, '1', shown, 'r1');
+
+    expect(api.chat(CHAT)[0]?.keyboard).toEqual([
+      [{ text: 'Удалить', disabled: {} }],
+    ]);
+  });
+
+  test('retire с chosen, текст ровно 4096 — кнопка ставится, отката на снятие клавиатуры нет', async () => {
     const { api, messenger } = setup();
     const full = message('x'.repeat(4096), OPTIONS);
     await messenger.show(PEER, full);
@@ -553,7 +569,84 @@ describe('TelegramMessenger — уход экрана', () => {
     expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
     expect(api.chat(CHAT)[0]).toMatchObject({
       text: 'x'.repeat(4096),
-      keyboard: [],
+      keyboard: [[{ text: 'Сделано', disabled: {} }]],
+    });
+  });
+
+  test.each([
+    ['без chosen', undefined],
+    ['chosen вне вариантов', 'нет-такой'],
+  ])(
+    'retire %s — прежнее снятие клавиатуры: без reply_markup, кнопки нет',
+    async (_name, chosen) => {
+      const { api, messenger } = setup();
+      const shown = message(TASK, OPTIONS);
+      await messenger.show(PEER, shown);
+
+      expect(await messenger.retire(PEER, '1', shown, chosen)).toEqual(ok());
+      expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
+      expect(markupEdits(api)[0]).toEqual({ chat_id: CHAT, message_id: 1 });
+      expect(api.chat(CHAT)[0]).toMatchObject({
+        text: 'Задача Хлеб',
+        keyboard: [],
+      });
+    },
+  );
+
+  test('retire с chosen: отказ 400 — rejected и warn; отката на строку выбора нет', async () => {
+    const { api, logger, messenger } = setup();
+    const shown = message(TASK, OPTIONS);
+    await messenger.show(PEER, shown);
+    api.failNext({
+      error_code: 400,
+      description: "Bad Request: message can't be edited",
+    });
+
+    expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(
+      err({ reason: 'rejected' }),
+    );
+    expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
+    expect(logger.records).toHaveLength(1);
+    expect(logger.records[0]).toMatchObject({
+      level: 'warn',
+      meta: { method: 'editMessageReplyMarkup', error_code: 400 },
+    });
+  });
+
+  test('retire с chosen: 403 — blocked; «not modified» (повторный уход) — ok; бросок порта — unavailable и error', async () => {
+    const { api, logger, messenger } = setup();
+    const shown = message(TASK, OPTIONS);
+    await messenger.show(PEER, shown);
+    api.failNext({
+      error_code: 403,
+      description: 'Forbidden: bot was blocked by the user',
+    });
+    expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(
+      err({ reason: 'blocked' }),
+    );
+
+    expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(ok());
+    expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(ok());
+
+    api.throwNext(new TypeError('сеть недоступна'));
+    expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(
+      err({ reason: 'unavailable' }),
+    );
+    expect(errors(logger)).toHaveLength(1);
+    expect(errors(logger)[0]).toMatchObject({
+      meta: { method: 'editMessageReplyMarkup', name: 'TypeError' },
+    });
+  });
+
+  test('подпись отключённой кнопки: одиночный суррогат — U+FFFD, как у обычной кнопки', async () => {
+    const { api, messenger } = setup();
+    const shown = message(TASK, [{ ref: 'r1', label: 'а\uD800б' }]);
+    await messenger.show(PEER, shown);
+
+    await messenger.retire(PEER, '1', shown, 'r1');
+
+    expect(markupEdits(api)[0]?.reply_markup).toEqual({
+      inline_keyboard: [[{ text: 'а\uFFFDб', disabled: {} }]],
     });
   });
 
@@ -640,7 +733,7 @@ describe('TelegramMessenger — строки как есть, пустой те�
       'editMessageText',
       'sendMessage',
       'editMessageReplyMarkup',
-      'editMessageText',
+      'editMessageReplyMarkup',
       'answerCallbackQuery',
     ]);
     for (const call of api.journal) {
@@ -713,6 +806,144 @@ describe('TelegramMessenger — возможности', () => {
       'exclude',
       'approve',
     ]);
+  });
+});
+
+describe('TelegramMessenger — operation в записях лога', () => {
+  const SECRET_LABEL = 'подпись-op17';
+  const SECRET_AT = 1_777_123_456;
+  const SECRET_REF = 'refop17x';
+  const RICH = message(
+    [
+      { text: 'Срок ', styles: [] },
+      {
+        text: 'секрет-op17',
+        styles: [],
+        moment: { at: SECRET_AT, show: 'dateTime' },
+      },
+    ],
+    [{ ref: SECRET_REF, label: SECRET_LABEL, accent: 'danger' }],
+  );
+
+  /** Операции порта мессенджера и вызов Bot API, в котором их отказ или бросок виден. */
+  const OPERATIONS: readonly [
+    'show' | 'update' | 'retire' | 'notify',
+    (m: TelegramMessenger) => Promise<unknown>,
+    'sendMessage' | 'editMessageText' | 'editMessageReplyMarkup',
+  ][] = [
+    ['show', (m) => m.show(PEER, RICH), 'sendMessage'],
+    ['notify', (m) => m.notify(PEER, RICH), 'sendMessage'],
+    ['update', (m) => m.update(PEER, '1', RICH), 'editMessageText'],
+    [
+      'retire',
+      (m) => m.retire(PEER, '1', RICH, SECRET_REF),
+      'editMessageReplyMarkup',
+    ],
+  ];
+
+  /** Сообщение 1 уже в чате: правка и уход есть что править. */
+  const prepared = async () => {
+    const world = setup();
+    await world.messenger.show(PEER, message('прежнее', OPTIONS));
+    world.logger.records.length = 0;
+    return world;
+  };
+
+  test.each(OPERATIONS)(
+    '%s: отказ Bot API — warn с operation',
+    async (operation, call, method) => {
+      const { api, logger, messenger } = await prepared();
+      api.failNext({
+        error_code: 403,
+        description: 'Forbidden: bot was blocked',
+      });
+
+      await call(messenger);
+
+      expect(logger.records).toHaveLength(1);
+      expect(logger.records[0]).toMatchObject({
+        level: 'warn',
+        meta: { operation, method, error_code: 403 },
+      });
+    },
+  );
+
+  test.each(OPERATIONS)(
+    '%s: бросок порта — error с operation и именем ошибки',
+    async (operation, call, method) => {
+      const { api, logger, messenger } = await prepared();
+      api.throwNext(new TypeError('сеть недоступна'));
+
+      await call(messenger);
+
+      expect(errors(logger)).toHaveLength(1);
+      expect(errors(logger)[0]).toMatchObject({
+        meta: { operation, method, name: 'TypeError' },
+      });
+    },
+  );
+
+  test.each([
+    ['show', (m: TelegramMessenger) => m.show(PEER, HELLO)],
+    ['notify', (m: TelegramMessenger) => m.notify(PEER, HELLO)],
+  ] as const)(
+    '%s: ответ не по схеме — error с operation',
+    async (operation, call) => {
+      const logger = new MemoryLogger();
+      const messenger = new TelegramMessenger({
+        api: brokenResult({ chat: { id: CHAT } }),
+        logger,
+      });
+
+      await call(messenger);
+
+      expect(errors(logger)).toHaveLength(1);
+      expect(errors(logger)[0]).toMatchObject({
+        meta: { operation, method: 'sendMessage', reason: 'result' },
+      });
+    },
+  );
+
+  test('update с откатом новым сообщением: обе записи — с operation update', async () => {
+    const { api, logger, messenger } = await prepared();
+    api.failNext({ error_code: 400, description: 'Bad Request: x' });
+    api.failOn('sendMessage', { error_code: 403, description: 'Forbidden: y' });
+
+    await messenger.update(PEER, '1', RICH);
+
+    expect(logger.records).toHaveLength(2);
+    for (const record of logger.records) {
+      expect(record.meta).toMatchObject({ operation: 'update' });
+    }
+  });
+
+  test('в записях нет подписей, ссылок, unix_time, id чата и message_id', async () => {
+    const records: unknown[] = [];
+    for (const [, call] of OPERATIONS) {
+      for (const fail of ['refuse', 'throw'] as const) {
+        const { api, logger, messenger } = await prepared();
+        if (fail === 'refuse') {
+          api.failNext({ error_code: 400, description: 'Bad Request: z' });
+        } else {
+          api.throwNext(new Error('сбой-op17'));
+        }
+        await call(messenger);
+        records.push(...logger.records);
+      }
+    }
+
+    const json = JSON.stringify(records);
+    expect(records.length).toBeGreaterThan(0);
+    for (const secret of [
+      SECRET_LABEL,
+      SECRET_REF,
+      'секрет-op17',
+      String(SECRET_AT),
+      'сбой-op17',
+      PEER,
+    ]) {
+      expect(json).not.toContain(secret);
+    }
   });
 });
 

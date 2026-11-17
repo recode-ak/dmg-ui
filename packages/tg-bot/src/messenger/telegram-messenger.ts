@@ -16,13 +16,7 @@ import type { BotApiOutcome } from '../bot-api/bot-api-caller.types';
 import { TelegramCommunity } from '../community/telegram-community';
 import { TelegramLog } from '../telegram-log';
 import type { TelegramOperation } from '../telegram-log.types';
-import {
-  CHOSEN_SEPARATOR,
-  NO_PREVIEW,
-  TELEGRAM_CAPABILITIES,
-  TELEGRAM_LIMITS,
-  TELEGRAM_TEXTS,
-} from './telegram.const';
+import { NO_PREVIEW, TELEGRAM_CAPABILITIES } from './telegram.const';
 import { telegramInteger } from './telegram-integer';
 import { TelegramKeyboard } from './telegram-keyboard';
 import type {
@@ -37,7 +31,8 @@ const UNAVAILABLE = err({ reason: 'unavailable' as const });
 /**
  * Мессенджер Telegram поверх порта Bot API (D-UI-61). Собеседник — только
  * целое положительное число (личный чат): неверный ответ `peers` не отправит
- * экран в группу или публичный канал. Методы не бросают (ERR-01): недоставка —
+ * экран в группу или публичный канал. Уход экрана с `chosen` — отключённая кнопка с подписью нажатого, текст не
+ * правится. Методы не бросают (ERR-01): недоставка —
  * значение, бросок порта — `unavailable` и `error` с именем ошибки.
  */
 export class TelegramMessenger implements MessengerPort {
@@ -84,14 +79,17 @@ export class TelegramMessenger implements MessengerPort {
       this.log.badHandle('update');
       return this.resend(chat, message);
     }
-    const outcome = await this.caller.call('editMessageText', () =>
-      this.api.editMessageText({
-        chat_id: chat,
-        message_id: messageId,
-        ...TelegramMessenger.content(TelegramText.of(message.text)),
-        reply_markup: TelegramKeyboard.of(message.options),
-        link_preview_options: NO_PREVIEW,
-      }),
+    const outcome = await this.caller.call(
+      'editMessageText',
+      () =>
+        this.api.editMessageText({
+          chat_id: chat,
+          message_id: messageId,
+          ...TelegramMessenger.content(TelegramText.of(message.text)),
+          reply_markup: TelegramKeyboard.of(message.options),
+          link_preview_options: NO_PREVIEW,
+        }),
+      'update',
     );
     switch (outcome.kind) {
       case 'done':
@@ -123,26 +121,21 @@ export class TelegramMessenger implements MessengerPort {
       this.log.badHandle('retire');
       return REJECTED;
     }
-    const content =
-      chosen === undefined
-        ? undefined
-        : TelegramMessenger.withChoice(message, chosen);
-    const outcome =
-      content === undefined
-        ? await this.caller.call('editMessageReplyMarkup', () =>
-            this.api.editMessageReplyMarkup({
-              chat_id: chat,
-              message_id: messageId,
-            }),
-          )
-        : await this.caller.call('editMessageText', () =>
-            this.api.editMessageText({
-              chat_id: chat,
-              message_id: messageId,
-              ...TelegramMessenger.content(content),
-              link_preview_options: NO_PREVIEW,
-            }),
-          );
+    const label = message.options.find(
+      (option) => option.ref === chosen,
+    )?.label;
+    const outcome = await this.caller.call(
+      'editMessageReplyMarkup',
+      () =>
+        this.api.editMessageReplyMarkup({
+          chat_id: chat,
+          message_id: messageId,
+          ...(label === undefined
+            ? {}
+            : { reply_markup: TelegramKeyboard.retired(label) }),
+        }),
+      'retire',
+    );
     return TelegramMessenger.settled(outcome);
   }
 
@@ -174,7 +167,7 @@ export class TelegramMessenger implements MessengerPort {
   ): Promise<Delivery<MessageHandle>> {
     const chat = this.target(operation, peer, message);
     if (chat === undefined) return REJECTED;
-    return this.send(chat, message);
+    return this.send(operation, chat, message);
   }
 
   /** Откат правки: новое сообщение вместо прежнего. */
@@ -182,29 +175,33 @@ export class TelegramMessenger implements MessengerPort {
     chat: number,
     message: Message,
   ): Promise<Delivery<Updated>> {
-    const sent = await this.send(chat, message);
+    const sent = await this.send('update', chat, message);
     return sent.ok ? ok({ handle: sent.value, edited: false }) : sent;
   }
 
   private async send(
+    operation: 'show' | 'notify' | 'update',
     chat: number,
     message: Message,
   ): Promise<Delivery<MessageHandle>> {
-    const outcome = await this.caller.call('sendMessage', () =>
-      this.api.sendMessage({
-        chat_id: chat,
-        ...TelegramMessenger.content(TelegramText.of(message.text)),
-        ...(message.options.length > 0
-          ? { reply_markup: TelegramKeyboard.of(message.options) }
-          : {}),
-        link_preview_options: NO_PREVIEW,
-      }),
+    const outcome = await this.caller.call(
+      'sendMessage',
+      () =>
+        this.api.sendMessage({
+          chat_id: chat,
+          ...TelegramMessenger.content(TelegramText.of(message.text)),
+          ...(message.options.length > 0
+            ? { reply_markup: TelegramKeyboard.of(message.options) }
+            : {}),
+          link_preview_options: NO_PREVIEW,
+        }),
+      operation,
     );
     switch (outcome.kind) {
       case 'done': {
         const sent = v.safeParse(SentMessageSchema, outcome.result);
         if (sent.success) return ok(String(sent.output.message_id));
-        this.log.badResult('sendMessage');
+        this.log.badResult('sendMessage', operation);
         return UNAVAILABLE;
       }
       case 'refused':
@@ -253,25 +250,6 @@ export class TelegramMessenger implements MessengerPort {
         outcome satisfies never;
         return UNAVAILABLE;
     }
-  }
-
-  /**
-   * Прежний текст и строка выбора с подписью нажатого. Нажатого нет среди
-   * вариантов или строка не влезает в предел текста — `undefined`: только
-   * снятие клавиатуры.
-   */
-  private static withChoice(
-    message: Message,
-    chosen: string,
-  ): TelegramContent | undefined {
-    const option = message.options.find(
-      (candidate) => candidate.ref === chosen,
-    );
-    if (option === undefined) return undefined;
-    const shown = TelegramText.of(message.text);
-    const text = `${shown.text}${CHOSEN_SEPARATOR}${TELEGRAM_TEXTS.chosen}${option.label.toWellFormed()}`;
-    if (text.length > TELEGRAM_LIMITS.text) return undefined;
-    return { text, entities: shown.entities };
   }
 
   /** Поля текста запроса; сущностей нет — поля нет. */

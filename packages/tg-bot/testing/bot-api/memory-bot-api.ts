@@ -252,9 +252,16 @@ export class MemoryBotApi implements BotApi {
         entity.offset,
         entity.length,
         entity.url ?? null,
+        entity.unix_time ?? null,
+        entity.date_time_format ?? null,
       ]),
       stored.keyboard.map((row) =>
-        row.map((button) => [button.text, button.callback_data]),
+        row.map((button) => [
+          button.text,
+          'callback_data' in button ? button.callback_data : null,
+          'disabled' in button,
+          'style' in button ? (button.style ?? null) : null,
+        ]),
       ),
     ]);
   }

@@ -10,21 +10,45 @@ export type MessageEntityType =
   | 'code'
   | 'pre'
   | 'blockquote'
-  | 'text_link';
+  | 'text_link'
+  | 'date_time';
 
-/** Сущность текста: смещение и длина — единицы UTF-16; `url` — только у `text_link`. */
+/**
+ * Сущность текста: смещение и длина — единицы UTF-16; `url` — только у
+ * `text_link`; `unix_time` (секунды Unix) и `date_time_format` — только у
+ * `date_time` (Bot API 9.5; формат `r|w?[dD]?[tT]?`).
+ */
 export type MessageEntity = {
   readonly type: MessageEntityType;
   readonly offset: number;
   readonly length: number;
   readonly url?: string;
+  readonly unix_time?: number;
+  readonly date_time_format?: string;
 };
 
-/** Кнопка инлайн-клавиатуры: подпись и данные нажатия (1–64 байта UTF-8). */
-export type InlineKeyboardButton = {
+/** Цвет кнопки (Bot API 9.4). */
+export type ButtonStyle = 'primary' | 'success' | 'danger';
+
+/** Кнопка с данными нажатия (1–64 байта UTF-8) и необязательным цветом. */
+export type CallbackButton = {
   readonly text: string;
   readonly callback_data: string;
+  readonly style?: ButtonStyle;
 };
+
+/**
+ * Отключённая кнопка (Bot API 10.3): `disabled` — пустой объект. Допущение:
+ * без `callback_data` и `style`, на странице Bot API не подтверждено —
+ * допущения D-UI-67 (проверка на тестовом боте).
+ */
+export type DisabledButton = {
+  readonly text: string;
+  readonly disabled: Record<string, never>;
+};
+
+/** Кнопка инлайн-клавиатуры: нажимаемая или отключённая. */
+export type InlineKeyboardButton = CallbackButton | DisabledButton;
 
 /** Инлайн-клавиатура: строки кнопок; пустая — клавиатуры нет. */
 export type InlineKeyboardMarkup = {

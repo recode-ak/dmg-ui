@@ -8,14 +8,15 @@ import type {
   MessageEntity,
   MessageEntityType,
 } from '../bot-api/bot-api.types';
-import { LINK_SCHEMES, TELEGRAM_TEXTS } from './telegram.const';
+import { LINK_SCHEMES, MOMENT_FORMATS, TELEGRAM_TEXTS } from './telegram.const';
 import type { TelegramContent } from './telegram-messenger.types';
 
 /**
- * Форматированный текст → `text` и `entities` Bot API (D-UI-61). Одиночный
+ * Форматированный текст → `text` и `entities` Bot API (D-UI-67). Одиночный
  * суррогат — U+FFFD (длина в UTF-16 та же, смещения не сдвигаются). Стили и
  * ссылка — на каждый фрагмент, цитата — одна на серию фрагментов: сущности не
  * пересекаются частично. Строчный код в цитате отбрасывается: доставка важнее стиля.
+ * Момент — `date_time` на весь фрагмент; со ссылкой или кодом момент снимается.
  */
 export class TelegramText {
   private readonly entities: MessageEntity[] = [];
@@ -48,7 +49,9 @@ export class TelegramText {
       const type = TelegramText.entityType(style, quoted);
       if (type !== undefined) this.push(type, this.offset, length);
     }
-    if (fragment.link !== undefined && LINK_SCHEMES.test(fragment.link)) {
+    const linked =
+      fragment.link !== undefined && LINK_SCHEMES.test(fragment.link);
+    if (linked) {
       this.entities.push({
         type: 'text_link',
         offset: this.offset,
@@ -56,7 +59,27 @@ export class TelegramText {
         url: fragment.link,
       });
     }
+    if (
+      fragment.moment !== undefined &&
+      !linked &&
+      !TelegramText.isCode(fragment)
+    ) {
+      this.entities.push({
+        type: 'date_time',
+        offset: this.offset,
+        length,
+        unix_time: fragment.moment.at,
+        date_time_format: MOMENT_FORMATS[fragment.moment.show],
+      });
+    }
     this.offset += length;
+  }
+
+  /** Код и блок кода: про вложенность `date_time` в них Bot API молчит — момент снимаем. */
+  private static isCode(fragment: TextFragment): boolean {
+    return (
+      fragment.styles.includes('code') || fragment.styles.includes('codeBlock')
+    );
   }
 
   private closeQuote(): void {

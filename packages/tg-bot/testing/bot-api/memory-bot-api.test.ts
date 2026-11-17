@@ -195,6 +195,157 @@ describe('MemoryBotApi — правка', () => {
   });
 });
 
+describe('MemoryBotApi — style, disabled и date_time', () => {
+  const NOT_MODIFIED = {
+    ok: false,
+    error_code: 400,
+    description: expect.stringContaining('not modified'),
+  };
+
+  /** Сообщение 1 с кнопкой и датой; правку шлём editMessageText с теми же полями, кроме одного. */
+  const shown = async (
+    button: { text: string; callback_data: string; style?: 'primary' },
+    format: 'd' | 'dt' = 'd',
+    unix: number = 1_800_000_000,
+  ) => {
+    const api = new MemoryBotApi();
+    await api.sendMessage({
+      chat_id: CHAT,
+      text: 'Срок: завтра',
+      entities: [
+        {
+          type: 'date_time',
+          offset: 6,
+          length: 6,
+          unix_time: unix,
+          date_time_format: format,
+        },
+      ],
+      reply_markup: { inline_keyboard: [[button]] },
+    });
+    return api;
+  };
+
+  const edit = (
+    api: MemoryBotApi,
+    button: {
+      text: string;
+      callback_data: string;
+      style?: 'danger' | 'primary';
+    },
+    format: 'd' | 'dt' = 'd',
+    unix: number = 1_800_000_000,
+  ) =>
+    api.editMessageText({
+      chat_id: CHAT,
+      message_id: 1,
+      text: 'Срок: завтра',
+      entities: [
+        {
+          type: 'date_time',
+          offset: 6,
+          length: 6,
+          unix_time: unix,
+          date_time_format: format,
+        },
+      ],
+      reply_markup: { inline_keyboard: [[button]] },
+    });
+
+  const BUTTON = {
+    text: 'Готово',
+    callback_data: 'r1',
+    style: 'primary',
+  } as const;
+
+  test('те же кнопка со style и дата — «message is not modified»', async () => {
+    const api = await shown(BUTTON);
+
+    expect(await edit(api, BUTTON)).toMatchObject(NOT_MODIFIED);
+    expect(api.chat(CHAT)[0]?.edits).toBe(0);
+  });
+
+  test('правка только style — принята, не «not modified»', async () => {
+    const api = await shown(BUTTON);
+
+    expect(await edit(api, { ...BUTTON, style: 'danger' })).toMatchObject({
+      ok: true,
+    });
+    expect(api.chat(CHAT)[0]?.edits).toBe(1);
+  });
+
+  test('снятие style (поле убрано) — принято', async () => {
+    const api = await shown(BUTTON);
+
+    expect(
+      await edit(api, { text: 'Готово', callback_data: 'r1' }),
+    ).toMatchObject({ ok: true });
+  });
+
+  test('правка только unix_time или только формата сущности — принята', async () => {
+    const api = await shown(BUTTON);
+
+    expect(await edit(api, BUTTON, 'd', 1_800_000_060)).toMatchObject({
+      ok: true,
+    });
+    expect(await edit(api, BUTTON, 'dt', 1_800_000_060)).toMatchObject({
+      ok: true,
+    });
+    expect(await edit(api, BUTTON, 'dt', 1_800_000_060)).toMatchObject(
+      NOT_MODIFIED,
+    );
+    expect(api.chat(CHAT)[0]?.edits).toBe(2);
+  });
+
+  test('правка только disabled: кнопка с той же подписью становится отключённой — принята; повтор — «not modified»', async () => {
+    const api = await shown({ text: 'Готово', callback_data: 'r1' });
+    const disable = () =>
+      api.editMessageReplyMarkup({
+        chat_id: CHAT,
+        message_id: 1,
+        reply_markup: { inline_keyboard: [[{ text: 'Готово', disabled: {} }]] },
+      });
+
+    expect(await disable()).toMatchObject({ ok: true });
+    expect(await disable()).toMatchObject(NOT_MODIFIED);
+    expect(api.chat(CHAT)[0]?.edits).toBe(1);
+  });
+
+  test('журнал и чат хранят style, disabled и date_time как отправлены', async () => {
+    const api = new MemoryBotApi();
+    const send = {
+      chat_id: CHAT,
+      text: 'Срок: завтра',
+      entities: [
+        {
+          type: 'date_time' as const,
+          offset: 6,
+          length: 6,
+          unix_time: 1_800_000_000,
+          date_time_format: 'r',
+        },
+      ],
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Готово', callback_data: 'r1', style: 'success' as const }],
+          [{ text: 'Было', disabled: {} }],
+        ],
+      },
+    };
+
+    await api.sendMessage(send);
+
+    expect(api.journal).toEqual([{ method: 'sendMessage', params: send }]);
+    expect(api.chat(CHAT)[0]).toMatchObject({
+      entities: send.entities,
+      keyboard: send.reply_markup.inline_keyboard,
+    });
+    expect(api.chat(CHAT)[0]?.keyboard[1]?.[0]).not.toHaveProperty(
+      'callback_data',
+    );
+  });
+});
+
 describe('MemoryBotApi — заданные сбои', () => {
   test('failNext — следующий вызов получает этот отказ, вызов после него — обычный', async () => {
     const api = new MemoryBotApi();

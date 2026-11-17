@@ -1,4 +1,5 @@
-import type { MessengerCapabilities } from 'dmg-ui/chat-ui';
+import type { Accent, MessengerCapabilities, MomentShow } from 'dmg-ui/chat-ui';
+import type { ButtonStyle } from '../bot-api/bot-api.types';
 
 /**
  * Возможности Telegram (D-UI-61). Единица текста не названа в Bot API —
@@ -22,11 +23,25 @@ export const TELEGRAM_CAPABILITIES: MessengerCapabilities = {
   },
 };
 
-/** Тексты Telegram: заглушка пустого текста (Bot API требует 1–4096) и метка строки выбора ушедшего экрана. */
+/** Тексты Telegram: заглушка пустого текста (Bot API требует 1–4096). */
 export const TELEGRAM_TEXTS = {
   empty: '…',
-  chosen: 'Вы выбрали: ',
 } as const;
+
+/** Акцент варианта → цвет кнопки (D-UI-67): `positive` — `success`. */
+export const ACCENT_STYLES: Readonly<Record<Accent, ButtonStyle>> = {
+  primary: 'primary',
+  positive: 'success',
+  danger: 'danger',
+};
+
+/** Вид показа момента → `date_time_format` (D-UI-67). */
+export const MOMENT_FORMATS: Readonly<Record<MomentShow, string>> = {
+  date: 'd',
+  time: 't',
+  dateTime: 'dt',
+  relative: 'r',
+};
 
 /** Пределы Bot API и лога. */
 export const TELEGRAM_LIMITS = {
@@ -37,9 +52,6 @@ export const TELEGRAM_LIMITS = {
   /** Описание отказа в логе, знаков. */
   description: 200,
 } as const;
-
-/** Разделитель между текстом ушедшего экрана и строкой выбора. */
-export const CHOSEN_SEPARATOR = '\n\n';
 
 /**
  * Адрес ссылки — `http`, `https` и из `tg` только `tg://resolve` и `tg://user`

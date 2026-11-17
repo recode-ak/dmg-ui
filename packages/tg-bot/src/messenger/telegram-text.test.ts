@@ -359,3 +359,142 @@ describe('TelegramText — адрес ссылки', () => {
     });
   });
 });
+
+// Момент времени: `date_time` на весь фрагмент, `unix_time` — `at`,
+// формат по виду показа; запасной текст — `text`. Смещения — UTF-16.
+
+const AT = 1_800_000_000;
+
+describe('TelegramText — момент времени', () => {
+  test.each([
+    ['date', 'd'],
+    ['time', 't'],
+    ['dateTime', 'dt'],
+    ['relative', 'r'],
+  ] as const)(
+    'вид %s → date_time с форматом %s на весь фрагмент',
+    (show, format) => {
+      const out = TelegramText.of([
+        { text: 'Срок: ', styles: [] },
+        { text: 'завтра, 18:00', styles: [], moment: { at: AT, show } },
+        { text: '.', styles: [] },
+      ]);
+
+      expect(out.text).toBe('Срок: завтра, 18:00.');
+      expect(out.entities).toEqual([
+        {
+          type: 'date_time',
+          offset: 6,
+          length: 13,
+          unix_time: AT,
+          date_time_format: format,
+        },
+      ]);
+    },
+  );
+
+  test('фрагмент без момента сущности date_time не даёт', () => {
+    expect(
+      TelegramText.of([{ text: 'без даты', styles: [] }]).entities,
+    ).toEqual([]);
+  });
+
+  test('эмодзи (не-BMP) до фрагмента и внутри запасного текста сдвигают offset и length по code units', () => {
+    const out = TelegramText.of([
+      { text: `${FAMILY}${ASTRAL} `, styles: [] },
+      {
+        text: `${THUMB} в 18:00 ${ASTRAL}`,
+        styles: [],
+        moment: { at: AT, show: 'dateTime' },
+      },
+      { text: ' конец', styles: [] },
+    ]);
+
+    const before = `${FAMILY}${ASTRAL} `.length;
+    const inside = `${THUMB} в 18:00 ${ASTRAL}`;
+    expect(out.entities).toEqual([
+      {
+        type: 'date_time',
+        offset: before,
+        length: inside.length,
+        unix_time: AT,
+        date_time_format: 'dt',
+      },
+    ]);
+    expect(out.text.slice(before, before + inside.length)).toBe(inside);
+  });
+
+  test('момент + bold, italic, strike — обе сущности на тот же диапазон', () => {
+    const out = TelegramText.of([
+      {
+        text: '18:00',
+        styles: ['bold', 'italic', 'strike'],
+        moment: { at: AT, show: 'time' },
+      },
+    ]);
+
+    expect(sorted(out.entities).map((e) => e.type)).toEqual([
+      'bold',
+      'date_time',
+      'italic',
+      'strikethrough',
+    ]);
+    for (const entity of out.entities) {
+      expect([entity.offset, entity.length]).toEqual([0, 5]);
+    }
+  });
+
+  test('момент + ссылка — остаётся text_link, date_time снят', () => {
+    const out = TelegramText.of([
+      {
+        text: 'срок',
+        styles: [],
+        link: 'https://example.com/task',
+        moment: { at: AT, show: 'date' },
+      },
+    ]);
+
+    expect(out.entities).toEqual([
+      {
+        type: 'text_link',
+        offset: 0,
+        length: 4,
+        url: 'https://example.com/task',
+      },
+    ]);
+  });
+
+  test('момент + code и момент + codeBlock — момент снят, стиль кода остаётся', () => {
+    const moment = { at: AT, show: 'date' } as const;
+
+    expect(
+      TelegramText.of([{ text: '2026', styles: ['code'], moment }]).entities,
+    ).toEqual([{ type: 'code', offset: 0, length: 4 }]);
+    expect(
+      TelegramText.of([{ text: '2026', styles: ['codeBlock'], moment }])
+        .entities,
+    ).toEqual([{ type: 'pre', offset: 0, length: 4 }]);
+  });
+
+  test('момент в цитате — blockquote и date_time, момент вложен в цитату', () => {
+    const out = TelegramText.of([
+      { text: 'Срок ', styles: ['quote'] },
+      {
+        text: '18:00',
+        styles: ['quote'],
+        moment: { at: AT, show: 'time' },
+      },
+    ]);
+
+    expect(out.entities).toEqual([
+      { type: 'blockquote', offset: 0, length: 10 },
+      {
+        type: 'date_time',
+        offset: 5,
+        length: 5,
+        unix_time: AT,
+        date_time_format: 't',
+      },
+    ]);
+  });
+});

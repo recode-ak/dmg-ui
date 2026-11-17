@@ -1,10 +1,15 @@
 import { type MessageOption, TextLength } from 'dmg-ui/chat-ui';
-import type { InlineKeyboardMarkup } from '../bot-api/bot-api.types';
-import { TELEGRAM_LIMITS } from './telegram.const';
+import type {
+  CallbackButton,
+  InlineKeyboardMarkup,
+} from '../bot-api/bot-api.types';
+import { ACCENT_STYLES, TELEGRAM_LIMITS } from './telegram.const';
 
 /**
- * Инлайн-клавиатура из вариантов сообщения (D-UI-61): по кнопке в строке,
- * `text` — подпись как есть, `callback_data` — ссылка беседы как есть.
+ * Инлайн-клавиатура из вариантов сообщения (D-UI-67): по кнопке в строке,
+ * `text` — подпись как есть, `callback_data` — ссылка беседы как есть,
+ * `style` — из акцента (нет акцента — нет поля). Ушедший экран — одна
+ * отключённая кнопка с подписью нажатого.
  */
 export class TelegramKeyboard {
   private static readonly bytes = new TextLength('utf8');
@@ -13,6 +18,13 @@ export class TelegramKeyboard {
 
   static of(options: readonly MessageOption[]): InlineKeyboardMarkup {
     return new TelegramKeyboard(options).markup();
+  }
+
+  /** Клавиатура ушедшего экрана: одна отключённая кнопка; `style` не ставим (допущение D-UI-67). */
+  static retired(label: string): InlineKeyboardMarkup {
+    return {
+      inline_keyboard: [[{ text: label.toWellFormed(), disabled: {} }]],
+    };
   }
 
   /**
@@ -26,10 +38,18 @@ export class TelegramKeyboard {
 
   private markup(): InlineKeyboardMarkup {
     return {
-      inline_keyboard: this.options.map((option) => [
-        { text: option.label.toWellFormed(), callback_data: option.ref },
-      ]),
+      inline_keyboard: this.options.map((option) => [this.button(option)]),
     };
+  }
+
+  private button(option: MessageOption): CallbackButton {
+    const button = {
+      text: option.label.toWellFormed(),
+      callback_data: option.ref,
+    };
+    return option.accent === undefined
+      ? button
+      : { ...button, style: ACCENT_STYLES[option.accent] };
   }
 
   private refsFit(): boolean {
