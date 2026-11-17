@@ -33,6 +33,9 @@ export const NUMBERED_PAGE = 10;
 /** Сообщений живого места в снимке — как предел вывода представления на один показ. */
 export const MAX_HANDLES = MAX_VIEW_MESSAGES;
 
+/** Элементов пути переходов беседы; сверх — давний забыт. */
+export const MAX_PATH = 16;
+
 /** Фрагментов текста последнего сообщения живого места в снимке. */
 export const MAX_FRAGMENTS = 1024;
 

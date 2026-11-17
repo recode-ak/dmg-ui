@@ -734,7 +734,52 @@ describe('Conversations — независимость, лог и settled', () =
       ...w.signals.press('refmarkq7', 'press-mark-q7-2', who),
       id: 'id-mark-q7-4',
     });
+    // Путь: задача списка отмечена (её uuid — в состоянии списка), переход в
+    // карточку кладёт список в путь; нажатие на закрытом списке — реакция,
+    // ответ с её текстом не доставлен; сигнал «Назад» поднимает список.
+    await w.bus.delivered();
+    await node.conversations.settled();
+    const refFor = (label: string): string => {
+      for (const entry of [...visible(node.messenger, who.peer)].reverse()) {
+        const option = entry.message.options.find((o) => o.label === label);
+        if (option !== undefined) return option.ref;
+      }
+      throw new Error(`нет варианта «${label}»`);
+    };
+    let presses = 0;
+    const pressFor = async (label: string) => {
+      presses += 1;
+      await node.conversations.receive({
+        ...w.signals.press(refFor(label), `press-mark-q7-p${presses}`, who),
+        id: `id-mark-q7-p${presses}`,
+      });
+    };
+    await pressFor('Отметить задачу');
+    await pressFor('text-mark-q7');
+    const closedRef = refFor('Отметить задачу');
+    await pressFor('Открыть задачу');
+    await pressFor('text-mark-q7');
+    const stored = await snapshotOf(w.store, who.peer);
+    const card = v.parse(
+      v.object({ params: v.object({ taskId: v.string() }) }),
+      v.parse(v.object({ address: v.unknown() }), stored.screen?.instance)
+        .address,
+    );
+    node.messenger.failNext('unavailable');
+    await node.conversations.receive({
+      ...w.signals.press(closedRef, 'press-mark-q7-closed', who),
+      id: 'id-mark-q7-closed',
+    });
+    await node.conversations.receive({
+      id: 'id-mark-q7-back',
+      peer: who.peer,
+      sender: who.sender,
+      kind: 'back',
+    });
 
+    expect(v.parse(v.array(Instance), stored.path)).toMatchObject([
+      { state: { selected: [card.params.taskId] } },
+    ]);
     const metas = node.logger.records.map((record) => record.meta);
     expect(metas).toEqual(
       expect.arrayContaining([
@@ -746,6 +791,12 @@ describe('Conversations — независимость, лог и settled', () =
           reason: 'unavailable',
         },
         { messenger: 'memory-editing', kind: 'press', reason: 'signalId' },
+        // Ответ на нажатие с текстом реакции не доставлен.
+        {
+          messenger: 'memory-editing',
+          operation: 'answer',
+          reason: 'unavailable',
+        },
       ]),
     );
     const log = JSON.stringify(node.logger.records);
@@ -753,7 +804,14 @@ describe('Conversations — независимость, лог и settled', () =
       entry.message.options.flatMap((o) => [o.ref, o.label]),
     );
     expect(shown.length).toBeGreaterThan(0);
-    for (const mark of ['mark-q7', 'refmarkq7', A, ...shown]) {
+    for (const mark of [
+      'mark-q7',
+      'refmarkq7',
+      A,
+      card.params.taskId,
+      'Экран уже закрыт',
+      ...shown,
+    ]) {
       expect(log).not.toContain(mark);
     }
   });

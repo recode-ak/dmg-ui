@@ -65,7 +65,9 @@ export type ConversationSignal =
       readonly kind: 'attachment';
       readonly attachment: Attachment;
     })
-  | (SignalHead & { readonly kind: 'cancel' });
+  | (SignalHead & { readonly kind: 'cancel' })
+  /** «Назад» собеседника: у мессенджеров — команда или жест, не нажатие варианта. */
+  | (SignalHead & { readonly kind: 'back' });
 
 /** Номер экрана или черновика беседы: растёт с каждым открытым экраном и начатым черновиком, хранится в снимке. */
 export type Serial = number;
@@ -129,6 +131,13 @@ export type RefEntry =
       readonly ref: string;
       readonly kind: 'open';
       readonly address: AddressJson;
+      readonly label: string;
+    }
+  /** «Назад» живого экрана `screen`: с другого экрана — «Экран уже закрыт.». */
+  | {
+      readonly ref: string;
+      readonly kind: 'back';
+      readonly screen: Serial;
       readonly label: string;
     }
   | { readonly ref: string; readonly kind: 'home'; readonly label: string };
@@ -209,6 +218,7 @@ export type RefTarget =
       readonly address: AddressJson;
       readonly label: string;
     }
+  | { readonly kind: 'back'; readonly screen: Serial; readonly label: string }
   | { readonly kind: 'home'; readonly label: string };
 
 /** Живое место беседы в снимке: сообщения последнего показа, положение, след и последнее сообщение. */
@@ -279,6 +289,11 @@ export type ConversationSnapshot = {
   readonly seen: readonly string[];
   readonly screen?: LiveScreenJson;
   readonly draft?: DraftJson;
+  /**
+   * Путь переходов: снимки экземпляров ядра, старые первыми, не больше
+   * `MAX_PATH`; состояние экранов — данные собеседника. Пустой путь — поля нет.
+   */
+  readonly path?: readonly unknown[];
 };
 
 /** Раскладка вариантов под лимит мессенджера (`OptionLayout`). */

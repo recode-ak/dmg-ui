@@ -15,7 +15,8 @@ import { ConversationSnapshotSchema } from './conversation-snapshot';
 // до 16 знаков, номера — целые не меньше 0. Снимок экземпляра ядра внутри
 // схема не проверяет — это делает ядро при восстановлении. Живое место —
 // положение, хэш ключа следа (64 знака hex) и последнее сообщение по схеме
-// сообщения с пределами. Внешние данные: мусор — не по схеме, без броска.
+// сообщения с пределами. Путь — до 16 снимков экземпляров, их проверяет
+// ядро. Внешние данные: мусор — не по схеме, без броска.
 
 const LIST = { screen: 'exampleUi/todo/taskList', params: { page: 0 } };
 
@@ -139,6 +140,17 @@ const openRef = (ref: string) => ({
   label: 'К списку',
 });
 
+/** Запись «Назад» живого экрана. */
+const BACK = { ref: 'abcde9', kind: 'back', screen: 2, label: 'Назад' };
+
+/** Путь из `count` снимков экземпляров разных экранов, старые первыми. */
+const steps = (count: number) =>
+  Array.from({ length: count }, (_, i) => ({
+    address: { screen: `exampleUi/todo/step${i}`, params: { page: i } },
+    state: { selected: [`задача-${i}`] },
+    revision: i,
+  }));
+
 /** `count` записей с разными ссылками. */
 const manyRefs = (count: number) =>
   Array.from({ length: count }, (_, i) =>
@@ -208,6 +220,16 @@ describe('ConversationSnapshotSchema', () => {
     expect(v.parse(ConversationSnapshotSchema, round)).toStrictEqual(SNAPSHOT);
   });
 
+  test('снимок с путём и записью back проходит схему и круг JSON без изменений', () => {
+    const value = { ...SNAPSHOT, refs: [...REFS, BACK], path: steps(16) };
+    const round = JSON.parse(JSON.stringify(value));
+
+    expect(round).toStrictEqual(value);
+    expect<unknown>(v.parse(ConversationSnapshotSchema, round)).toStrictEqual(
+      value,
+    );
+  });
+
   test('снимок без экрана и черновика — по схеме', () => {
     expect(v.parse(ConversationSnapshotSchema, BARE)).toStrictEqual(BARE);
   });
@@ -239,6 +261,9 @@ describe('ConversationSnapshotSchema', () => {
       }),
     ],
     [`вариантов сообщения места ${MAX_REFS}`, withMessage(options(MAX_REFS))],
+    ['путь из 16 элементов', { ...BARE, path: steps(16) }],
+    ['пустой путь', { ...BARE, path: [] }],
+    ['запись back', { ...BARE, refs: [BACK] }],
     [
       'место без положения, хэша и сообщения (снимок прежней формы)',
       {
@@ -265,10 +290,28 @@ describe('ConversationSnapshotSchema', () => {
     ['ссылка длиннее 16', { ...BARE, refs: [openRef('a'.repeat(17))] }],
     ['пустая ссылка', { ...BARE, refs: [openRef('')] }],
     [
-      'запись неизвестного вида',
+      'запись back без номера экрана',
       { ...BARE, refs: [{ ref: 'abcde1', kind: 'back', label: 'Назад' }] },
     ],
+    [
+      'запись неизвестного вида',
+      { ...BARE, refs: [{ ref: 'abcde1', kind: 'jump', label: 'Прыжок' }] },
+    ],
     ['ссылок 257', { ...BARE, refs: manyRefs(257) }],
+    ['путь из 17 элементов', { ...BARE, path: steps(17) }],
+    ['путь не массив', { ...BARE, path: { 0: steps(1)[0] } }],
+    [
+      'запись back с номером экрана строкой',
+      { ...BARE, refs: [{ ...BACK, screen: '2' }] },
+    ],
+    [
+      'запись back с отрицательным номером экрана',
+      { ...BARE, refs: [{ ...BACK, screen: -1 }] },
+    ],
+    [
+      'запись back с подписью длиннее 1024',
+      { ...BARE, refs: [{ ...BACK, label: 'л'.repeat(MAX_LABEL_LENGTH + 1) }] },
+    ],
     ['seen 129', { ...BARE, seen: manySeen(129) }],
     ['id в seen длиннее 256', { ...BARE, seen: ['x'.repeat(257)] }],
     ['отрицательный номер снимка', { ...SNAPSHOT, serial: -1 }],
@@ -394,6 +437,17 @@ describe('ConversationSnapshotSchema', () => {
     };
 
     expect(valid(big)).toBe(true);
+  });
+
+  test('элементы пути схемой не проверяются: мусор в них проходит схему — его отвергает ядро при «Назад»', () => {
+    const value = {
+      ...BARE,
+      path: ['мусор', null, { revision: -1 }, [1, 2]],
+    };
+
+    expect<unknown>(v.parse(ConversationSnapshotSchema, value)).toStrictEqual(
+      value,
+    );
   });
 
   test('instance схемой не проверяется: мусор в нём проходит схему — его отвергает ядро', () => {

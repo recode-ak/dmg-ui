@@ -196,8 +196,7 @@ export class ConversationReplies {
       case 'home':
         return { kind: 'home', label: option.label };
       case 'back':
-        // Путь беседа пока не ведёт: сборщик показа «Назад» не предлагает.
-        throw new Error('ConversationReplies: «Назад» без пути переходов');
+        return { kind: 'back', screen, label: option.label };
       default: {
         const unknownKind: never = option;
         throw new Error(

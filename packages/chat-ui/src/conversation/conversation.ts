@@ -27,6 +27,7 @@ import { ConversationInput } from './conversation-input';
 import { ConversationLog } from './conversation-log';
 import { ConversationOutcomes } from './conversation-outcomes';
 import { ConversationOutput } from './conversation-output';
+import { ConversationPath } from './conversation-path';
 import { ConversationQueue } from './conversation-queue';
 import { ConversationReplies } from './conversation-replies';
 import { ConversationScreens } from './conversation-screens';
@@ -38,7 +39,8 @@ import { SeenSignals } from './seen-signals';
  * Беседа одного собеседника (D-UI-43): сигналы мессенджера и проактивные
  * показы идут по одному через очередь, повтор id отсеивается, нажатие
  * разбирается по записи таблицы ссылок, вход действия с полями собирает
- * черновик, исходы ядра — по таблице политик (гайд `channel-package.md`).
+ * черновик, исходы ядра — по таблице политик (гайд `channel-package.md`),
+ * «Назад» — по пути переходов беседы.
  *
  * @see conversation.test.ts
  */
@@ -50,6 +52,7 @@ export class Conversation {
   private readonly replies: ConversationReplies;
   private readonly log: ConversationLog;
   private readonly output: ConversationOutput;
+  private readonly path: ConversationPath;
   private readonly screens: ConversationScreens;
   private readonly input: ConversationInput;
   private readonly outcomes: ConversationOutcomes;
@@ -61,6 +64,7 @@ export class Conversation {
     this.spec = spec;
     this.refs = new RefTable(spec.epochs(), snapshot?.refs);
     this.seen = new SeenSignals(snapshot?.seen);
+    this.path = new ConversationPath(snapshot?.path);
     this.log = new ConversationLog(
       spec.logger,
       spec.messenger.capabilities.name,
@@ -87,6 +91,7 @@ export class Conversation {
       {
         spec,
         composer,
+        path: this.path,
         replies: this.replies,
         output: this.output,
         refs: this.refs,
@@ -179,6 +184,7 @@ export class Conversation {
       seen: this.seen.toJSON(),
       ...(screen === undefined ? {} : { screen }),
       ...(draft === undefined ? {} : { draft }),
+      ...(this.path.empty() ? {} : { path: this.path.toJSON() }),
     };
   }
 
@@ -244,6 +250,11 @@ export class Conversation {
           this.input.cancel() ? CONVERSATION_TEXTS.cancelled : undefined,
         );
         return;
+      case 'back':
+        // «Назад» — уход с экрана: черновик сброшен без заметки.
+        this.input.drop();
+        await this.screens.back(trace);
+        return;
       default: {
         const unknownKind: never = signal;
         throw new Error(
@@ -261,7 +272,7 @@ export class Conversation {
       await this.output.note(CONVERSATION_TEXTS.noEntry);
       return;
     }
-    await this.screens.open(entry.address, trace);
+    await this.screens.enter(entry.address, trace);
   }
 
   /** Нажатие по записи таблицы ссылок. */
@@ -332,6 +343,13 @@ export class Conversation {
       case 'open':
         await this.screens.openJson(entry.address, trace);
         return;
+      case 'back': {
+        // «Назад» чужого экрана не снимает путь живого.
+        const on = await this.screens.onScreen(entry.screen);
+        if (on === undefined) return;
+        await this.screens.back(trace);
+        return;
+      }
       case 'home':
         await this.screens.home(trace);
         return;

@@ -4,10 +4,11 @@ import {
   AddressCodec,
   type AddressJson,
   type InstanceJson,
+  type InstanceView,
   type ScreenInstance,
 } from 'dmg-ui';
 import type { SendOptions } from '../messenger/messenger.types';
-import type { ScreenComposer } from '../view/screen-composer';
+import type { ComposedScreen, ScreenComposer } from '../view/screen-composer';
 import { CONVERSATION_TEXTS } from './conversation.const';
 import type {
   ConversationSpec,
@@ -15,6 +16,7 @@ import type {
   Serial,
 } from './conversation.types';
 import type { ConversationOutput } from './conversation-output';
+import type { ConversationPath } from './conversation-path';
 import type { ConversationReplies } from './conversation-replies';
 import type { RefTable } from './ref-table';
 import { ScreenFingerprint } from './screen-fingerprint';
@@ -37,8 +39,10 @@ type ShownState = {
 /** Части беседы, на которых работает живой экран. */
 type ScreensParts = {
   readonly spec: ConversationSpec;
-  /** Вид → показ представления; путь беседа пока не ведёт — «Назад» нет. */
+  /** Вид → показ представления; «Назад» в вариантах — когда путь не пуст. */
   readonly composer: ScreenComposer;
+  /** Путь переходов беседы: экраны решают, когда он растёт, снимается и сбрасывается. */
+  readonly path: ConversationPath;
   readonly replies: ConversationReplies;
   /** Живое место: показ вида, заметки, реакции на нажатие. */
   readonly output: ConversationOutput;
@@ -51,9 +55,9 @@ type ScreensParts = {
 
 /**
  * Живой экран беседы (D-UI-46): открытие и восстановление экземпляра ядра,
- * сборка показа вида в живое место, номера экранов. Экран снимка
- * поднимается лениво, на первом сигнале: отпечаток вида совпал с показанным —
- * ссылки экрана переходят на ревизию восстановленного экземпляра.
+ * путь переходов и «Назад», сборка показа вида в живое место, номера
+ * экранов. Экран снимка поднимается лениво, на первом сигнале: отпечаток вида
+ * совпал с показанным — ссылки экрана переходят на ревизию восстановленного.
  */
 export class ConversationScreens {
   private readonly parts: ScreensParts;
@@ -116,9 +120,7 @@ export class ConversationScreens {
       return false;
     }
     const view = restored.view();
-    const shown = await ScreenFingerprint.of(
-      this.parts.composer.compose(view, false).messages,
-    );
+    const shown = await ScreenFingerprint.of(this.compose(view).messages);
     if (shown === pending.shown) {
       const from = view.revision - 1;
       this.parts.refs.rebase(pending.serial, from, view.revision);
@@ -137,11 +139,33 @@ export class ConversationScreens {
       await this.home(trace);
       return;
     }
+    this.parts.path.reset();
     this.replace(restored);
     await this.show();
   }
 
-  /** Адрес из внешних данных (исход `moved`, ссылка): не декодирован — заметка и вход home. */
+  /**
+   * «Назад»: верхний элемент пути через `restore` — новый живой экран без
+   * записи в путь; путь пуст — живой экран снова. Не восстановился — заметка
+   * и вход home, нижние элементы не пробуются.
+   */
+  async back(trace: Trace): Promise<void> {
+    const step = this.parts.path.pop();
+    if (step === undefined) {
+      await this.show();
+      return;
+    }
+    const restored = await this.restore(step, trace);
+    if (restored === undefined) {
+      await this.parts.output.note(CONVERSATION_TEXTS.notRestored);
+      await this.home(trace);
+      return;
+    }
+    this.replace(restored);
+    await this.show();
+  }
+
+  /** Адрес из внешних данных (исход `moved`, ссылка): уход по пути; не декодирован — заметка и вход home. */
   async openJson(json: AddressJson, trace: Trace): Promise<void> {
     const address = this.codec.decode(json);
     if (!address.ok) {
@@ -149,10 +173,20 @@ export class ConversationScreens {
       await this.home(trace);
       return;
     }
+    const live = this.live;
+    if (live !== undefined) {
+      this.parts.path.leave(live.instance.snapshot(), json.screen);
+    }
     await this.open(address.value, trace);
   }
 
-  /** Вход «в начало»; `lead` — текст перед видом входа (выход сторис). */
+  /** Вход приложения: путь сброшен. */
+  async enter(address: Address, trace: Trace): Promise<void> {
+    this.parts.path.reset();
+    await this.open(address, trace);
+  }
+
+  /** Вход «в начало», путь сброшен; `lead` — текст перед видом входа (выход сторис). */
   async home(trace: Trace, lead?: string): Promise<void> {
     const { app, home } = this.parts.spec;
     const entry = app.entries[home];
@@ -161,10 +195,16 @@ export class ConversationScreens {
         `Conversation: у приложения ${app.name} нет входа ${home}`,
       );
     }
+    this.parts.path.reset();
     await this.open(entry.address, trace, lead);
   }
 
-  async open(address: Address, trace: Trace, lead?: string): Promise<void> {
+  /** Новый живой экран по адресу; путь не трогает — это дело вызывающего. */
+  private async open(
+    address: Address,
+    trace: Trace,
+    lead?: string,
+  ): Promise<void> {
     const { runtime, contexts } = this.parts.spec;
     const instance = await runtime.open(address, {
       context: await contexts.context(trace),
@@ -179,7 +219,7 @@ export class ConversationScreens {
     const live = this.live;
     if (live === undefined) return;
     const view = live.instance.view();
-    const composed = this.parts.composer.compose(view, false);
+    const composed = this.compose(view);
     const messages = this.parts.replies.screen(
       composed,
       view,
@@ -235,6 +275,11 @@ export class ConversationScreens {
   /** Подписка снята, экземпляр закрыт. */
   close(): void {
     this.detach();
+  }
+
+  /** Показ вида сборщиком; «Назад» — когда путь не пуст (отпечаток — с ним). */
+  private compose(view: InstanceView): ComposedScreen {
+    return this.parts.composer.compose(view, !this.parts.path.empty());
   }
 
   private async restore(

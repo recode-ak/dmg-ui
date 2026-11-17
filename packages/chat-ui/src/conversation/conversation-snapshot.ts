@@ -10,6 +10,7 @@ import {
   MAX_LABEL_LENGTH,
   MAX_LINK_LENGTH,
   MAX_NAME_LENGTH,
+  MAX_PATH,
   MAX_PERSON_LENGTH,
   MAX_REF_LENGTH,
   MAX_REFS,
@@ -26,9 +27,9 @@ import type { ConversationSnapshot } from './conversation.types';
 // знаков, номера — целые не меньше 0.
 // Последнее сообщение живого места — по схеме текстового сообщения с
 // пределами, хэш ключа следа — 64 знака hex.
-// Снимок экземпляра ядра (`screen.instance`), параметры адреса, вход
-// подтверждения и начальное значение поля схема не проверяет — их проверяет
-// ядро. Аннотация
+// Снимок экземпляра ядра (`screen.instance`), элементы пути переходов (до
+// `MAX_PATH`), параметры адреса, вход подтверждения и начальное значение поля
+// схема не проверяет — их проверяет ядро. Аннотация
 // `GenericSchema<unknown, …>` сверяет выход схемы с типом снимка.
 
 /** Номер, ревизия, страница: целое не меньше 0. */
@@ -115,6 +116,7 @@ const RefEntrySchema = v.variant('kind', [
     address: Address,
     label: Label,
   }),
+  v.object({ ref: Ref, kind: v.literal('back'), screen: Count, label: Label }),
   v.object({ ref: Ref, kind: v.literal('home'), label: Label }),
 ]);
 
@@ -196,4 +198,5 @@ export const ConversationSnapshotSchema: v.GenericSchema<
   ),
   screen: v.optional(LiveScreen),
   draft: v.optional(Draft),
+  path: v.optional(v.pipe(v.array(v.unknown()), v.maxLength(MAX_PATH))),
 });
