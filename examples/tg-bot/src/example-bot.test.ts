@@ -176,7 +176,7 @@ describe('ExampleBot — меню и уведомления', () => {
     const expected = ENTRY_POINTS.filter((point) => point.via === 'menu').map(
       (point) => ({
         command: point.key,
-        description: ExampleDialogAppDef.entries[point.entry]?.label,
+        description: ExampleDialogAppDef.entries[point.entry]?.label ?? '',
       }),
     );
     expect(expected.length).toBeGreaterThan(0);
