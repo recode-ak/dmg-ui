@@ -1,0 +1,5 @@
+Задача: доставка уведомлений беседы.
+Изменения: узел бесед реализует доставку уведомлений ядра (Conversations.deliver): проверка принадлежности набору, собеседник получателя через обязательный порт peers, очередь собеседника, беседа из хранилища; ConversationNotices — отсев по событию-причине (SHA-256, предел 128, в снимке), сообщение со ссылками-вариантами open, сбой положения живого места после дошедшего; недошедшее — warn без данных, без отсева, ссылки снимаются (RefTable.drop); SeenSignals обобщён в SeenIds с пределом; причины лога noNotification, noPeer, noticeForeign.
+Файлы: packages/chat-ui/src/conversation/{conversation-notices,conversation,conversations,conversation-replies,conversation-log,conversation-snapshot,ref-table,seen-ids}.ts, conversation.const.ts, conversation.types.ts и их тесты; testing/conversation-story.test.ts; acceptance/channels-story.test.ts (порт peers); docs/decisions.md (D-UI-56).
+Причина: уведомления идут через беседу и порт мессенджера, беседу не трогают; отсев переживает перезапуск.
+Проверка: bun run check — biome и tsc чистые, 1575 pass, 0 fail, 14 снимков.
