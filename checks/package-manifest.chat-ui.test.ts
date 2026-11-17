@@ -7,11 +7,12 @@ import { describe, expect, it } from 'bun:test';
 // `dmg-ui/chat-ui/testing`; шесть помощников ядра — в `dmg-ui/testing/fixtures`.
 
 const CHAT_UI = [
+  'CHAT_PROVIDER',
+  'ChatGraphProvider',
   'ChatViews',
   'ConversationSnapshotSchema',
   'Conversations',
   'DIALOG_CHANNEL',
-  'DialogGraphProvider',
   'DialogRenderer',
   'LimitedMessenger',
   'MemoryConversationStore',
@@ -27,7 +28,7 @@ const CHAT_UI = [
 ];
 
 describe('вход dmg-ui/chat-ui', () => {
-  it('состав — канал, представления и их реестр с перекрытием, наблюдатели, граф, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед в памяти и схема снимка', async () => {
+  it('состав — канал, представления и их реестр с перекрытием, наблюдатели, поставщик графа и его имя, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед в памяти и схема снимка', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui')).sort()).toEqual(CHAT_UI);
   });
 
@@ -36,13 +37,20 @@ describe('вход dmg-ui/chat-ui', () => {
 
     expect(DIALOG_CHANNEL).toBe('dmg-ui-dialog');
   });
+
+  it('имя поставщика графа — dmg-ui-chat, отдельно от имени канала', async () => {
+    const { CHAT_PROVIDER } = await import('dmg-ui/chat-ui');
+
+    expect(CHAT_PROVIDER).toBe('dmg-ui-chat');
+  });
 });
 
 describe('вход dmg-ui/chat-ui/testing', () => {
-  it('состав — привязка учебного примера к диалогу и подставной мессенджер', async () => {
+  it('состав — привязка учебного примера к диалогу (два приложения) и подставной мессенджер', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui/testing')).sort()).toEqual([
       'ExampleDialogAppDef',
       'ExampleDialogArch',
+      'ExampleWindowedAppDef',
       'MemoryMessenger',
       'exampleDialogViews',
     ]);

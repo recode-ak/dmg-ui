@@ -2,7 +2,8 @@
 // схема снимка беседы; представления беседы — сообщения с вариантами-
 // намерениями, их реестр с перекрытием под мессенджер; сообщение, помощники
 // лимита, порт мессенджера, его возможности и страж лимитов; поставщик графа
-// и рендерер примеров; узел бесед доставляет и уведомления.
+// общей части мессенджеров и его имя, рендерер примеров; узел бесед
+// доставляет и уведомления.
 
 export type {
   Attachment,
@@ -20,12 +21,13 @@ export type { ConversationStore } from './conversation/conversation-store.types'
 export { Conversations } from './conversation/conversations';
 export { MemoryConversationStore } from './conversation/memory-conversation-store';
 
+export { DIALOG_CHANNEL, DialogRenderer } from './dialog';
 export {
-  DIALOG_CHANNEL,
-  DialogGraphProvider,
-  type DialogGraphSpec,
-  DialogRenderer,
-} from './dialog';
+  type ChatAppSpec,
+  ChatGraphProvider,
+  type ChatGraphSpec,
+} from './graph/chat-graph-provider';
+export { CHAT_PROVIDER } from './graph/chat-kinds';
 export type { LengthUnit, TextLimit } from './limit/limit.types';
 export { TextLength } from './limit/text-length';
 export { TextSplitter } from './limit/text-splitter';
