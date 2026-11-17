@@ -1,0 +1,1 @@
+Задача: переезд сверки на беседу и документы. Проверка: bun run check — 1518 pass, 0 fail, 117 файлов, 14 снимков (два прогона). Переезды: testing/dialog-story.test.ts → conversation-story.test.ts; src/dialog/dialog-steps.test.ts → src/conversation/conversation-steps.test.ts. Документы: channel-package.md, story-screen-notification.md, decisions.md, debt.md, README.md, llms.txt.
