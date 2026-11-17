@@ -14,8 +14,8 @@ import type { TelegramContent } from './telegram-messenger.types';
 /**
  * Форматированный текст → `text` и `entities` Bot API (D-UI-61). Одиночный
  * суррогат — U+FFFD. Стили и ссылка — на каждый фрагмент, цитата — одна на
- * серию; строчный код в цитате отбрасывается. Момент — `date_time` на весь
- * фрагмент; со ссылкой или кодом снимается (D-UI-67).
+ * серию; строчный код в цитате и код под ссылкой отбрасываются. Момент —
+ * `date_time` на весь фрагмент; со ссылкой или кодом снимается (D-UI-67).
  */
 export class TelegramText {
   private readonly entities: MessageEntity[] = [];
@@ -44,12 +44,14 @@ export class TelegramText {
     const quoted = fragment.styles.includes('quote');
     if (quoted && this.quoteStart === undefined) this.quoteStart = this.offset;
     if (!quoted) this.closeQuote();
+    const linked =
+      fragment.link !== undefined && LINK_SCHEMES.test(fragment.link);
     for (const style of fragment.styles) {
+      // Ссылка сильнее кода: `code`/`pre` с `text_link` на одном диапазоне Telegram показывает кодом без ссылки.
+      if (linked && (style === 'code' || style === 'codeBlock')) continue;
       const type = TelegramText.entityType(style, quoted);
       if (type !== undefined) this.push(type, this.offset, length);
     }
-    const linked =
-      fragment.link !== undefined && LINK_SCHEMES.test(fragment.link);
     if (linked) {
       this.entities.push({
         type: 'text_link',

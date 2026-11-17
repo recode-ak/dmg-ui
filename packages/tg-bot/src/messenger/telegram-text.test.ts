@@ -464,6 +464,27 @@ describe('TelegramText — момент времени', () => {
     ]);
   });
 
+  test('ссылка + code и ссылка + codeBlock — остаётся text_link, стиль кода снят', () => {
+    // Проверено на живом клиенте: `code` и `text_link` на одном диапазоне — Telegram показывает код, ссылку теряет.
+    const url = 'https://example.com/doc';
+    const link = [{ type: 'text_link', offset: 0, length: 4, url }] as const;
+
+    expect(
+      TelegramText.of([{ text: 'урок', styles: ['code'], link: url }]).entities,
+    ).toEqual(link);
+    expect(
+      TelegramText.of([{ text: 'урок', styles: ['codeBlock'], link: url }])
+        .entities,
+    ).toEqual(link);
+  });
+
+  test('отвергнутая ссылка на коде — ссылки нет, стиль кода остаётся', () => {
+    expect(
+      TelegramText.of([{ text: 'урок', styles: ['code'], link: 'tg://login' }])
+        .entities,
+    ).toEqual([{ type: 'code', offset: 0, length: 4 }]);
+  });
+
   test('момент + отвергнутая ссылка — ссылки нет, date_time остаётся', () => {
     const out = TelegramText.of([
       {
