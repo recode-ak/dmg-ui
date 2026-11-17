@@ -87,6 +87,8 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 - Вид в отказе и шапку (заместитель, «только чтение» — первым абзацем первого сообщения) собирает беседа, представление их не видит.
 - `NotificationPresenter.for(def, render)` — текст уведомления по его данным.
 
+**Акцент, момент и перекрытие.** Вариант может нести нейтральный `accent` (`primary`, `positive`, `danger`), фрагмент текста — `moment` (секунды Unix и вид показа; `text` фрагмента — запасной, его показывают мессенджеры без даты): представление выставляет их, мессенджер переводит в свои поля или опускает (Telegram: `style` кнопки и сущность `date_time`). Представление под один мессенджер перекрывает общее по `id` через `ChatViews.over`; на учебном примере — `exampleTelegramViews` (`dmg-ui/tg-bot/testing`, D-UI-67), остальные экраны остаются общими.
+
 ```ts
 import { ChatViews, ScreenPresenter } from 'dmg-ui/chat-ui';
 import { ExampleUiSetDef, TaskCardScreenDef } from 'dmg-ui/testing';

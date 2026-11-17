@@ -1,0 +1,201 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`снимки запросов Telegram taskList empty 1`] = `
+{
+  "chat_id": 1,
+  "link_preview_options": {
+    "is_disabled": true,
+  },
+  "reply_markup": {
+    "inline_keyboard": [
+      [
+        {
+          "callback_data": "1",
+          "text": "Создать задачу",
+        },
+      ],
+      [
+        {
+          "callback_data": "2",
+          "text": "Закрыть",
+        },
+      ],
+    ],
+  },
+  "text": 
+"Мои задачи
+Задач пока нет. Напишите название — создам задачу."
+,
+}
+`;
+
+exports[`снимки запросов Telegram taskList full 1`] = `
+{
+  "chat_id": 1,
+  "link_preview_options": {
+    "is_disabled": true,
+  },
+  "reply_markup": {
+    "inline_keyboard": [
+      [
+        {
+          "callback_data": "1",
+          "text": "Открыть задачу",
+        },
+      ],
+      [
+        {
+          "callback_data": "2",
+          "text": "Создать задачу",
+        },
+      ],
+      [
+        {
+          "callback_data": "3",
+          "style": "success",
+          "text": "Выполнить выбранные",
+        },
+      ],
+      [
+        {
+          "callback_data": "4",
+          "text": "Дальше",
+        },
+      ],
+      [
+        {
+          "callback_data": "5",
+          "text": "Закрыть",
+        },
+      ],
+      [
+        {
+          "callback_data": "6",
+          "text": "Отметить задачу",
+        },
+      ],
+    ],
+  },
+  "text": 
+"Мои задачи
+[x] Хлеб
+[ ] Молоко — выполнена"
+,
+}
+`;
+
+exports[`снимки запросов Telegram taskCard done 1`] = `
+{
+  "chat_id": 1,
+  "link_preview_options": {
+    "is_disabled": true,
+  },
+  "reply_markup": {
+    "inline_keyboard": [
+      [
+        {
+          "callback_data": "1",
+          "text": "К списку",
+        },
+      ],
+      [
+        {
+          "callback_data": "2",
+          "text": "Назначить",
+        },
+      ],
+    ],
+  },
+  "text": 
+"Задача: Молоко
+Статус: выполнена"
+,
+}
+`;
+
+exports[`снимки запросов Telegram taskCard open — с датой 1`] = `
+{
+  "chat_id": 1,
+  "entities": [
+    {
+      "date_time_format": "dt",
+      "length": 21,
+      "offset": 51,
+      "type": "date_time",
+      "unix_time": 1795158000,
+    },
+  ],
+  "link_preview_options": {
+    "is_disabled": true,
+  },
+  "reply_markup": {
+    "inline_keyboard": [
+      [
+        {
+          "callback_data": "1",
+          "text": "К списку",
+        },
+      ],
+      [
+        {
+          "callback_data": "2",
+          "style": "success",
+          "text": "Выполнить",
+        },
+      ],
+      [
+        {
+          "callback_data": "3",
+          "text": "Назначить",
+        },
+      ],
+    ],
+  },
+  "text": 
+"Задача: Хлеб
+Статус: открыта
+Напоминание (пример): 20 ноября 2026, 12:00"
+,
+}
+`;
+
+exports[`снимки запросов Telegram assignedTasks two — общее представление, не перекрыто 1`] = `
+{
+  "chat_id": 1,
+  "link_preview_options": {
+    "is_disabled": true,
+  },
+  "reply_markup": {
+    "inline_keyboard": [
+      [
+        {
+          "callback_data": "1",
+          "text": "Закрыть",
+        },
+      ],
+    ],
+  },
+  "text": 
+"Назначенные мне
+• Хлеб
+• Молоко — выполнена"
+,
+}
+`;
+
+exports[`снимки запросов Telegram запрос retire ушедшего экрана 1`] = `
+{
+  "chat_id": 1,
+  "message_id": 1,
+  "reply_markup": {
+    "inline_keyboard": [
+      [
+        {
+          "disabled": {},
+          "text": "Выполнить выбранные",
+        },
+      ],
+    ],
+  },
+}
+`;

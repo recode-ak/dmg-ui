@@ -93,10 +93,13 @@ describe('вход dmg-ui/tg-bot', () => {
 });
 
 describe('вход dmg-ui/tg-bot/testing', () => {
-  it('состав — подставной порт Bot API и построитель апдейтов', async () => {
+  it('состав — подставной порт Bot API, построитель апдейтов и перекрытие примера под Telegram', async () => {
     expect(Object.keys(await import('dmg-ui/tg-bot/testing')).sort()).toEqual([
+      'EXAMPLE_MOMENT',
+      'ExampleTelegramPreview',
       'MemoryBotApi',
       'TestUpdates',
+      'exampleTelegramViews',
     ]);
   });
 });

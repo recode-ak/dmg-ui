@@ -7,6 +7,7 @@ import {
   type ChatEntryPointSpec,
   ChatExamples,
   ChatGraphProvider,
+  type ChatViews,
   DIALOG_CHANNEL,
   type MessengerCapabilities,
 } from 'dmg-ui/chat-ui';
@@ -46,6 +47,8 @@ export type TelegramSceneSpec = {
   readonly app?: AnyUiAppDef;
   /** Возможности мессенджера приложения; по умолчанию — `TELEGRAM_CAPABILITIES`. */
   readonly capabilities?: MessengerCapabilities;
+  /** Представления приложения; по умолчанию — `exampleDialogViews`. */
+  readonly views?: ChatViews;
   readonly community?: ChatAppSpec['community'];
   /** Приложения общей части без приложения Telegram: сцена без узла `chatMessenger`. */
   readonly bare?: boolean;
@@ -61,7 +64,7 @@ export const telegramScene = (spec: TelegramSceneSpec): ArchApp => {
     : [
         {
           app,
-          views: exampleDialogViews,
+          views: spec.views ?? exampleDialogViews,
           capabilities: spec.capabilities ?? TELEGRAM_CAPABILITIES,
           entryPoints: spec.entryPoints,
           ...(spec.community ? { community: spec.community } : {}),
