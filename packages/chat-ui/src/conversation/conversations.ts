@@ -45,8 +45,8 @@ const LATER: Message = {
 /**
  * Узел бесед одного приложения мессенджера (D-UI-43): личность отправителя —
  * только порт `people`, беседа — в памяти или из хранилища по схеме снимка;
- * хранилище не прочиталось — сигнал не исполняется. Снимок пишется после
- * сигнала и проактивного показа; давняя нетронутая беседа сверх предела
+ * хранилище не прочиталось — сигнал не исполняется. Снимок перед записью
+ * проходит ту же схему и пишется после сигнала и проактивного показа; давняя нетронутая беседа сверх предела
  * выгружается. Внешний вход не бросает (ERR-01), лог без данных (ERR-07).
  */
 export class Conversations<U extends Identified> {
@@ -293,9 +293,15 @@ export class Conversations<U extends Identified> {
       });
   }
 
+  /** Единственное место записи: снимок сверх схемы не пишется — в хранилище прежний. */
   private async save(peer: string, conversation: Conversation): Promise<void> {
     try {
-      await this.spec.store.save(peer, conversation.snapshot());
+      const snapshot = conversation.snapshot();
+      if (!v.safeParse(ConversationSnapshotSchema, snapshot).success) {
+        this.log.badSave();
+        return;
+      }
+      await this.spec.store.save(peer, snapshot);
     } catch (error) {
       this.log.storeFailed('save', error);
     }

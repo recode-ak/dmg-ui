@@ -41,6 +41,15 @@ export class ConversationLog {
     this.warn(CONVERSATION_TEXTS.badSnapshot, {});
   }
 
+  /** Снимок перед записью не по схеме: не записан; ни значений, ни путей. */
+  badSave(): void {
+    this.logger.error(LOG_SOURCE, CONVERSATION_TEXTS.badSave, {
+      messenger: this.messenger,
+      operation: 'save',
+      reason: 'schema',
+    });
+  }
+
   undelivered(operation: MessengerOperation, reason: UndeliveredReason): void {
     this.warn(CONVERSATION_TEXTS.undelivered, { operation, reason });
   }

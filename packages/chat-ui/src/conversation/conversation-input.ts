@@ -118,13 +118,14 @@ export class ConversationInput {
         draft.turn(entry.page);
         await this.ask(draft);
         return;
-      default: {
-        const unknownKind: never = entry;
-        throw new Error(
-          `ConversationInput: запись ${(unknownKind as StepEntry).kind} — не шаг`,
-        );
-      }
+      default:
+        return ConversationInput.notStep(entry);
     }
+  }
+
+  /** Запись другого вида (ERR-06): в тексте ничего из записи. */
+  private static notStep(entry: never): never {
+    throw new Error(`ConversationInput: запись ${String(entry)} — не шаг`);
   }
 
   /** Отмена: черновик сброшен; был — true. */

@@ -37,9 +37,11 @@ import {
 } from '../../testing';
 import { PlainText } from '../message/plain-text';
 import type { OptionLimits } from '../messenger/messenger.types';
+import { MAX_PERSON_LENGTH } from './conversation.const';
 import type {
   ConversationSignal,
   ConversationSnapshot,
+  ConversationsSpec,
 } from './conversation.types';
 import { ConversationSnapshotSchema } from './conversation-snapshot';
 import type { ConversationStore } from './conversation-store.types';
@@ -122,6 +124,7 @@ type NodeOptions = {
   readonly home?: string;
   readonly people?: (sender: string) => Promise<string | undefined>;
   readonly places?: PersonPlaces;
+  readonly callers?: ConversationsSpec<ExampleUser>['callers'];
   readonly epochs?: () => string;
 };
 
@@ -164,7 +167,7 @@ const world = () => {
       store: options.store ?? store,
       logger,
       people: options.people ?? (async (sender: string) => people.get(sender)),
-      callers: example.callers,
+      callers: options.callers ?? example.callers,
       places: options.places ?? places,
       ...(options.home === undefined ? {} : { home: options.home }),
       ...(options.limit === undefined ? {} : { limit: options.limit }),
@@ -234,7 +237,7 @@ const world = () => {
     }),
   };
 
-  return { bus, gate, store, people, node, create, complete, signals };
+  return { bus, gate, store, example, people, node, create, complete, signals };
 };
 
 type Sent = Extract<MessengerEntry, { op: 'sent' }>;
@@ -797,6 +800,45 @@ describe('Conversations — хранилище и сборка', () => {
     const log = JSON.stringify(node.logger.records);
     expect(log).not.toContain('mark-q7');
     expect(log).not.toContain(WHO_A.peer);
+  });
+
+  test('снимок сверх предела схемы не пишется — error без данных, прежний снимок в хранилище цел, беседа работает в памяти', async () => {
+    const w = world();
+    // Личность длиннее предела схемы (64): беседа её не режет, снимок выходит
+    // за схему; вызывающего для неё подставляет тест. В хранилище — прежняя запись.
+    const long = `mark-q7-${'x'.repeat(MAX_PERSON_LENGTH)}`;
+    const before = { version: 1, person: long, serial: 0, refs: [], seen: [] };
+    w.store.put(WHO_A.peer, before);
+    const node = w.node({
+      people: async () => long,
+      callers: {
+        resolve: (_uuid, trace) => w.example.callers.resolve(A, trace),
+      },
+    });
+
+    await node.conversations.receive(w.signals.enter('start'));
+    await node.conversations.receive(w.signals.cancel());
+    await node.conversations.close();
+
+    const errors = node.logger.records.filter((r) => r.level === 'error');
+    expect(errors.length).toBeGreaterThan(0);
+    for (const record of errors) {
+      expect(record).toMatchObject({
+        source: 'chat-ui',
+        meta: {
+          messenger: 'memory-editing',
+          operation: 'save',
+          reason: 'schema',
+        },
+      });
+    }
+    expect(await w.store.load(WHO_A.peer)).toEqual(before);
+    expect(sent(node.messenger).length).toBeGreaterThan(1);
+    const log = JSON.stringify(node.logger.records);
+    expect(log).not.toContain('mark-q7');
+    expect(log).not.toContain('xxxxxxxx');
+    expect(log).not.toContain(WHO_A.peer);
+    expect(log).not.toContain(A);
   });
 
   test('сбой чтения хранилища — сигнал не исполнен, прежний снимок не перезаписан, следующий сигнал после починки поднимает прежнюю беседу', async () => {

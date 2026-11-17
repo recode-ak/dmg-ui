@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import * as v from 'valibot';
+import {
+  MAX_FIELD_CHOICES,
+  MAX_FIELDS,
+  MAX_HANDLES,
+  MAX_LABEL_LENGTH,
+} from './conversation.const';
 import type { ConversationSnapshot, RefEntry } from './conversation.types';
 import { ConversationSnapshotSchema } from './conversation-snapshot';
 
@@ -244,6 +250,34 @@ describe('ConversationSnapshotSchema', () => {
   ])('мусор — не по схеме, без броска: %s', (_, value) => {
     expect(() => v.safeParse(ConversationSnapshotSchema, value)).not.toThrow();
     expect(valid(value)).toBe(false);
+  });
+
+  test('снимок крупного экрана на пределах проходит схему', () => {
+    const label = 'л'.repeat(MAX_LABEL_LENGTH);
+    const names = Array.from({ length: MAX_FIELDS }, (_, i) => `f${i}`);
+    const choices = Array.from({ length: MAX_FIELD_CHOICES }, (_, i) => ({
+      value: i,
+      label,
+    }));
+    const big = {
+      ...SNAPSHOT,
+      screen: {
+        ...SNAPSHOT.screen,
+        handles: Array.from({ length: MAX_HANDLES }, (_, i) => `h${i}`),
+      },
+      draft: {
+        ...SNAPSHOT.draft,
+        fields: names.map((name) => ({
+          name,
+          label,
+          optional: true,
+          choices,
+        })),
+        answered: names,
+      },
+    };
+
+    expect(valid(big)).toBe(true);
   });
 
   test('instance схемой не проверяется: мусор в нём проходит схему — его отвергает ядро', () => {

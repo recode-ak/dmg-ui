@@ -135,8 +135,29 @@ export type RefEntry =
 
 /** Запись шага черновика: вариант поля, «Пропустить», «Ещё» вариантов поля. */
 export type StepEntry =
-  | Extract<RefEntry, { readonly kind: 'choice' | 'skip' }>
-  | (Extract<RefEntry, { readonly kind: 'page' }> & { readonly of: 'field' });
+  | {
+      readonly ref: string;
+      readonly kind: 'choice';
+      readonly draft: Serial;
+      readonly field: string;
+      readonly value: ChoiceValue;
+      readonly label: string;
+    }
+  | {
+      readonly ref: string;
+      readonly kind: 'skip';
+      readonly draft: Serial;
+      readonly field: string;
+      readonly label: string;
+    }
+  | {
+      readonly ref: string;
+      readonly kind: 'page';
+      readonly of: 'field';
+      readonly owner: Serial;
+      readonly page: number;
+      readonly label: string;
+    };
 
 /** Цель без ссылки — то, что передаётся в `RefTable.add`; варианты те же, что у `RefEntry`. */
 export type RefTarget =
