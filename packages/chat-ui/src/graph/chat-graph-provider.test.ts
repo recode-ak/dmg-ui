@@ -42,9 +42,11 @@ import { ChatExamples } from './chat-examples';
 import { ChatGraphProvider } from './chat-graph-provider';
 
 // Поставщик графа общей части мессенджеров `dmg-ui-chat` (D-UI-57): один на
-// все приложения; под каждым приложением — узел возможностей `chatMessenger`
-// и узлы входов беседы `chatEntry` с ребром `chatEnters` к экрану входа;
-// рёбра `presents` — от приложения к целям его реестра представлений.
+// все приложения; под каждым приложением — узел возможностей `chatMessenger`,
+// узлы входов беседы `chatEntry` с ребром `chatEnters` к экрану входа и точки
+// входа `chatEntryPoint` с ребром `chatOpens` на вход; рёбра `presents` — от
+// приложения к целям его реестра представлений. Сцены ставят точку на каждый
+// вход приложения, если точки не заданы: иначе CH-02 даёт код 1.
 
 const EDITING = MemoryMessenger.editing().capabilities;
 const WINDOWED = MemoryMessenger.windowed(() => 0).capabilities;
@@ -62,11 +64,29 @@ const PRESENTED = [
   'exampleUi/todo/taskList',
 ];
 
+type EntryPoint = {
+  readonly entry: string;
+  readonly via: string;
+  readonly key: string;
+};
+
 type AppSpec = {
   readonly app: AnyUiAppDef;
   readonly views: ChatViews;
   readonly capabilities: MessengerCapabilities;
+  readonly entryPoints?: readonly EntryPoint[];
 };
+
+/** Точка входа на вход `entry`; `via` и `key` — нейтральные слова сцены. */
+const point = (entry: string, key = entry): EntryPoint => ({
+  entry,
+  via: 'message',
+  key,
+});
+
+/** По точке на каждый вход приложения. */
+const pointsOf = (app: AnyUiAppDef): readonly EntryPoint[] =>
+  Object.keys(app.entries).map((entry) => point(entry));
 
 const dialogSpec = (capabilities = EDITING): AppSpec => ({
   app: ExampleDialogAppDef,
@@ -99,7 +119,7 @@ const targets = (built: Graph, from: string, kind: string) =>
     .map((edge) => edge.to)
     .sort();
 
-/** Сцена: домен примера, поставщик `dmg-ui` и `ChatGraphProvider` на `apps`. */
+/** Сцена: домен примера, поставщик `dmg-ui` и `ChatGraphProvider` на `apps`; без точек — по точке на вход. */
 const sceneOf = (apps: readonly AppSpec[]): ArchApp => ({
   ...ExampleArch,
   providers: [
@@ -107,7 +127,10 @@ const sceneOf = (apps: readonly AppSpec[]): ArchApp => ({
       set: ExampleUiSetDef,
       apps: apps.map((spec) => spec.app),
     }),
-    new ChatGraphProvider({ apps, examples: EXAMPLES }),
+    new ChatGraphProvider({
+      apps: apps.map((spec) => ({ entryPoints: pointsOf(spec.app), ...spec })),
+      examples: EXAMPLES,
+    }),
   ],
 });
 
@@ -201,7 +224,7 @@ describe('ChatGraphProvider на графе примера', () => {
     );
   });
 
-  test('поставщик примера — один ChatGraphProvider dmg-ui-chat с видами chatMessenger, chatEntry и chatEnters; заглушки представления нет', () => {
+  test('поставщик примера — один ChatGraphProvider dmg-ui-chat с видами chatMessenger, chatEntry, chatEntryPoint, chatEnters и chatOpens; заглушки представления нет', () => {
     const providers = ExampleDialogArch.providers ?? [];
     const chat = providers.filter(
       (provider) => provider instanceof ChatGraphProvider,
@@ -210,23 +233,23 @@ describe('ChatGraphProvider на графе примера', () => {
 
     expect(chat.map((provider) => provider.name)).toEqual(['dmg-ui-chat']);
     expect(kinds?.nodes.map((kind) => kind.kind)).toEqual(
-      expect.arrayContaining(['chatMessenger', 'chatEntry']),
+      expect.arrayContaining(['chatMessenger', 'chatEntry', 'chatEntryPoint']),
     );
     expect(kinds?.edges.map((kind) => kind.kind)).toEqual(
-      expect.arrayContaining(['chatEnters']),
+      expect.arrayContaining(['chatEnters', 'chatOpens']),
     );
     expect(
       providers.some((provider) => provider instanceof StubViewProvider),
     ).toBe(false);
   });
 
-  test('правила поставщика примера — среди них CH-01', () => {
+  test('правила поставщика примера — среди них CH-01 и CH-02', () => {
     const chat = (ExampleDialogArch.providers ?? []).find(
       (provider) => provider instanceof ChatGraphProvider,
     );
 
     expect(chat?.rules?.().map((rule) => rule.id)).toEqual(
-      expect.arrayContaining(['CH-01']),
+      expect.arrayContaining(['CH-01', 'CH-02']),
     );
   });
 
@@ -291,6 +314,93 @@ describe('ChatGraphProvider — экран без представления', (
     expect(report.rule('UI-06')).toEqual([
       'UI-06: приложение exampleDialog: у экрана exampleUi/todo/taskCard нет представления в канале',
     ]);
+  });
+});
+
+describe('ChatGraphProvider — точки входа', () => {
+  /** Граф сцены: у `exampleDialog` две точки на `start` и одна на `assigned`, у `exampleWindowed` — по точке на вход. */
+  const pointsScene = () =>
+    new AppGraph(
+      sceneOf([
+        {
+          ...dialogSpec(),
+          entryPoints: [
+            point('start'),
+            point('assigned'),
+            point('start', 'again'),
+          ],
+        },
+        windowedSpec(),
+      ]),
+    ).build();
+
+  test('узел chatEntryPoint под приложением на каждую точку: id <app>/point-<вход>-<n> с n от 1 внутри входа, свойства — { entry, via, key }', () => {
+    const points = childrenOf(pointsScene(), DIALOG, 'chatEntryPoint')
+      .map((node) => ({
+        id: node.id,
+        provider: node.provider,
+        props: node.props,
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    expect(points).toEqual([
+      {
+        id: 'exampleDialog/point-assigned-1',
+        provider: 'dmg-ui-chat',
+        props: { entry: 'assigned', via: 'message', key: 'assigned' },
+      },
+      {
+        id: 'exampleDialog/point-start-1',
+        provider: 'dmg-ui-chat',
+        props: { entry: 'start', via: 'message', key: 'start' },
+      },
+      {
+        id: 'exampleDialog/point-start-2',
+        provider: 'dmg-ui-chat',
+        props: { entry: 'start', via: 'message', key: 'again' },
+      },
+    ]);
+  });
+
+  test('ребро chatOpens ведёт от точки входа на узел chatEntry своего входа', () => {
+    const graph = pointsScene();
+    const opens = (app: string) =>
+      childrenOf(graph, app, 'chatEntryPoint')
+        .map((node) => ({
+          from: node.id,
+          to: targets(graph, node.id, 'chatOpens'),
+        }))
+        .sort((a, b) => a.from.localeCompare(b.from));
+
+    expect(opens(DIALOG)).toEqual([
+      {
+        from: 'exampleDialog/point-assigned-1',
+        to: ['exampleDialog/enter-assigned'],
+      },
+      {
+        from: 'exampleDialog/point-start-1',
+        to: ['exampleDialog/enter-start'],
+      },
+      {
+        from: 'exampleDialog/point-start-2',
+        to: ['exampleDialog/enter-start'],
+      },
+    ]);
+    expect(opens(WINDOWED_APP)).toEqual([
+      {
+        from: 'exampleWindowed/point-start-1',
+        to: ['exampleWindowed/enter-start'],
+      },
+    ]);
+    expect(graph.node('exampleDialog/enter-start')?.kind).toBe('chatEntry');
+    expect(
+      new Set(
+        graph
+          .edges()
+          .filter((edge) => edge.kind === 'chatOpens')
+          .map((edge) => edge.provider),
+      ),
+    ).toEqual(new Set(['dmg-ui-chat']));
   });
 });
 
@@ -376,6 +486,28 @@ describe('ChatGraphProvider — ошибки сборки', () => {
     expect(message).toMatch(/возможност/);
     expect(message).not.toContain(JSON.stringify(broken));
     expect(message).not.toContain(JSON.stringify(broken.options));
+  });
+
+  test('точка входа ссылается на вход, которого нет у приложения, — бросок конструктора с именем приложения и входа', () => {
+    const message = thrown(
+      () =>
+        new ChatGraphProvider({
+          apps: [
+            {
+              ...dialogSpec(),
+              entryPoints: [
+                point('start'),
+                { entry: 'nowhere', via: 'message', key: 'ghostKey' },
+              ],
+            },
+          ],
+          examples: EXAMPLES,
+        }),
+    );
+
+    expect(message).toMatch(/exampleDialog/);
+    expect(message).toMatch(/nowhere/);
+    expect(message).not.toContain('ghostKey');
   });
 
   test('набор примеров другой, чем набор приложения, — бросок конструктора с именем приложения', async () => {

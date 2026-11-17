@@ -17,3 +17,10 @@ export const CHAT_MESSENGER_PROPS = v.custom<MessengerCapabilities>(
 
 /** Свойства узла `chatEntry` — имя входа приложения UI. */
 export const CHAT_ENTRY_PROPS = v.strictObject({ entry: v.string() });
+
+/** Свойства узла `chatEntryPoint` — вход приложения UI и слова пакета мессенджера. */
+export const CHAT_ENTRY_POINT_PROPS = v.strictObject({
+  entry: v.string(),
+  via: v.string(),
+  key: v.string(),
+});

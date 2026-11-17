@@ -30,6 +30,7 @@ export {
 } from './graph/chat-examples';
 export {
   type ChatAppSpec,
+  type ChatEntryPointSpec,
   ChatGraphProvider,
   type ChatGraphSpec,
 } from './graph/chat-graph-provider';

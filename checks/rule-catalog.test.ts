@@ -170,7 +170,7 @@ describe('каталог правил и решения репо', () => {
     expect(format(catalog.checkRules(code, rules))).toEqual([]);
   });
 
-  it('каталог видит CH-01 и в коде пакета, и в docs/reference/rules.md', () => {
+  it('каталог видит CH-01 и CH-02 и в коде пакета, и в docs/reference/rules.md', () => {
     const code = TextTree.read(ROOT, 'packages', ['.ts']).filter(
       (f) => !f.path.endsWith('.test.ts'),
     );
@@ -183,6 +183,8 @@ describe('каталог правил и решения репо', () => {
 
     expect(inCode).toContain('CH-01: правила нет в empty.md');
     expect(inCatalog).toContain('CH-01: правила нет в коде');
+    expect(inCode).toContain('CH-02: правила нет в empty.md');
+    expect(inCatalog).toContain('CH-02: правила нет в коде');
   });
 
   it('каждое D-UI-<n> из кода и документов определено в docs/decisions.md', () => {

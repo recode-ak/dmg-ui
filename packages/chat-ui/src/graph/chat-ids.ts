@@ -7,6 +7,7 @@ import { type AnyUiAppDef, type AnyUiSetDef, UiIds } from 'dmg-ui';
  * сегмента — бросок.
  */
 export class ChatIds {
+  private static readonly ENTRY = 'enter-';
   private readonly ids: UiIds;
 
   constructor(set: AnyUiSetDef) {
@@ -20,7 +21,20 @@ export class ChatIds {
 
   /** Вход беседы: `<app>/enter-<имя входа>`. */
   entry(app: AnyUiAppDef, name: string): string {
-    return this.under(app, `enter-${name}`);
+    return this.under(app, `${ChatIds.ENTRY}${name}`);
+  }
+
+  /** Точка входа: `<app>/point-<вход>-<n>`, `n` — с 1 внутри входа. */
+  point(app: AnyUiAppDef, entry: string, n: number): string {
+    return this.under(app, `point-${entry}-${n}`);
+  }
+
+  /** Имя входа из `id` узла `chatEntry`; `id` не этой формы — он сам. */
+  static entryName(id: string): string {
+    const segment = id.slice(id.lastIndexOf('/') + 1);
+    return segment.startsWith(ChatIds.ENTRY)
+      ? segment.slice(ChatIds.ENTRY.length)
+      : id;
   }
 
   private under(app: AnyUiAppDef, segment: string): string {

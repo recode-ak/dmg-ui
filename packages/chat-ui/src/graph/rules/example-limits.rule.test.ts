@@ -55,8 +55,8 @@ import { ChatGraphProvider } from '../chat-graph-provider';
 // последнее сообщение — по `textWithOptions`, остальные — по `text`,
 // подписи вариантов — по `options.label`; число вариантов не нарушение.
 // Уведомление: без ссылок — `text`, со ссылками — `textWithOptions`,
-// подпись ссылки — `label` экрана-цели. Сцены проверяют строки CH-01, а не
-// весь отчёт: у подставных приложений есть и нарушения других правил.
+// подпись ссылки — `label` экрана-цели. Сцены ставят точку входа на каждый
+// вход приложения (без неё CH-02 даёт код 1) и проверяют строки CH-01.
 
 const EDITING = MemoryMessenger.editing().capabilities;
 
@@ -102,7 +102,15 @@ const EXAMPLES = await ChatExamples.collect({
   codes: exampleCodes(),
 });
 
-/** Сцена: домен примера, поставщик `dmg-ui` и `ChatGraphProvider` на `apps`. */
+/** По точке входа на каждый вход приложения; `via` и `key` — нейтральные слова сцены. */
+const pointsOf = (app: AnyUiAppDef) =>
+  Object.keys(app.entries).map((entry) => ({
+    entry,
+    via: 'message',
+    key: entry,
+  }));
+
+/** Сцена: домен примера, поставщик `dmg-ui` и `ChatGraphProvider` на `apps` с точкой на каждый вход. */
 const sceneOf = (
   set: AnyUiSetDef,
   apps: readonly AppSpec[],
@@ -111,7 +119,10 @@ const sceneOf = (
   ...ExampleArch,
   providers: [
     new UiGraphProvider({ set, apps: apps.map((spec) => spec.app) }),
-    new ChatGraphProvider({ apps, examples }),
+    new ChatGraphProvider({
+      apps: apps.map((spec) => ({ ...spec, entryPoints: pointsOf(spec.app) })),
+      examples,
+    }),
   ],
 });
 

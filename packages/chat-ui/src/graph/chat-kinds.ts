@@ -1,5 +1,9 @@
 import type { GraphKinds } from 'dmg-core/graph';
-import { CHAT_ENTRY_PROPS, CHAT_MESSENGER_PROPS } from './chat-props';
+import {
+  CHAT_ENTRY_POINT_PROPS,
+  CHAT_ENTRY_PROPS,
+  CHAT_MESSENGER_PROPS,
+} from './chat-props';
 
 /** Имя поставщика графа общей части мессенджеров; не имя канала приложения. */
 export const CHAT_PROVIDER = 'dmg-ui-chat';
@@ -11,10 +15,14 @@ export const CHAT_VERSION = '0.1.0';
 export const CHAT_NODE_KINDS = {
   messenger: 'chatMessenger',
   entry: 'chatEntry',
+  point: 'chatEntryPoint',
 } as const;
 
-/** Имена видов рёбер поставщика `dmg-ui-chat`. */
-export const CHAT_EDGE_KINDS = { enters: 'chatEnters' } as const;
+/** Имена видов рёбер поставщика `dmg-ui-chat`; `opens` занято страничным каналом. */
+export const CHAT_EDGE_KINDS = {
+  enters: 'chatEnters',
+  opens: 'chatOpens',
+} as const;
 
 /** Виды узлов и рёбер поставщика `dmg-ui-chat`; данные, как `DOMAIN_KINDS`. */
 export const CHAT_KINDS: GraphKinds = {
@@ -33,12 +41,24 @@ export const CHAT_KINDS: GraphKinds = {
         'Вход приложения UI, с которого начинается беседа мессенджера.',
       props: CHAT_ENTRY_PROPS,
     },
+    {
+      kind: CHAT_NODE_KINDS.point,
+      label: 'Точка входа',
+      description:
+        'Способ попасть на вход беседы; способ и ключ — слова пакета мессенджера.',
+      props: CHAT_ENTRY_POINT_PROPS,
+    },
   ],
   edges: [
     {
       kind: CHAT_EDGE_KINDS.enters,
       label: 'Открывает экран',
       description: 'Вход беседы открывает экран входа приложения UI.',
+    },
+    {
+      kind: CHAT_EDGE_KINDS.opens,
+      label: 'Открывает вход',
+      description: 'Точка входа открывает вход беседы приложения UI.',
     },
   ],
 };

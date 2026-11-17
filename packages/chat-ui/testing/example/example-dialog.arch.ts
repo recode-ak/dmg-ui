@@ -17,7 +17,8 @@ const examples = await ChatExamples.collect({
 /**
  * Граф учебного примера: домен `ExampleArch`, поставщик `dmg-ui` с двумя
  * приложениями и один поставщик общей части мессенджеров — `exampleDialog`
- * на мессенджере с правкой, `exampleWindowed` — без правки, с окном.
+ * на мессенджере с правкой, `exampleWindowed` — без правки, с окном; у
+ * каждого входа — точка входа (CH-02).
  */
 export const ExampleDialogArch: ArchApp = {
   ...ExampleArch,
@@ -32,11 +33,16 @@ export const ExampleDialogArch: ArchApp = {
           app: ExampleDialogAppDef,
           views: exampleDialogViews,
           capabilities: MemoryMessenger.editing().capabilities,
+          entryPoints: [
+            { entry: 'start', via: 'message', key: 'start' },
+            { entry: 'assigned', via: 'message', key: 'assigned' },
+          ],
         },
         {
           app: ExampleWindowedAppDef,
           views: exampleDialogViews,
           capabilities: MemoryMessenger.windowed(() => 0).capabilities,
+          entryPoints: [{ entry: 'start', via: 'message', key: 'start' }],
         },
       ],
       examples,
