@@ -4,7 +4,7 @@ import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
 /**
- * Зона примера `examples/tg-bot`: библиотека Telegram (имя `grammy` и
+ * Зона примера `examples/tg-bot` (D-UI-68): библиотека Telegram (имя `grammy` и
  * её подпути, `@grammyjs/*`) видна только двум файлам адаптера примера и их
  * тестам; из файлов примера нельзя выйти относительным импортом за каталог
  * `examples/tg-bot` (соседей берут по именам входов пакета). Нарушение — на
