@@ -12,6 +12,8 @@ const tmp = useTempDir('docs-links-');
 const REQUIRED = [
   'docs/guides/story-screen-notification.md',
   'docs/guides/channel-package.md',
+  'docs/guides/messenger-package.md',
+  'docs/guides/telegram.md',
   'docs/reference/rules.md',
   'docs/decisions.md',
   'examples/tg-bot/README.md',

@@ -2,7 +2,7 @@
 
 Ядро UI на манифестах поверх `dmg-core` для TypeScript и Bun. Интерфейс описывается манифестами: сторис (кто и зачем), экран (что человек видит и делает), уведомление (что система сообщает сама). Из них ядро выводит адреса, исполнитель экранов, серверную часть, граф и проверки. Ядро о каналах не знает: мессенджер, веб-страница и консоль — отдельные пакеты каналов, а экраны и их код остаются общими.
 
-Документация на русском. Образец всех артефактов — учебный набор UI [`packages/core/testing/example`](packages/core/testing/example/example-ui.set.ts) и два учебных канала: диалоговый (пакет `chat-ui`) и страничный.
+Документация на русском. Образец всех артефактов — учебный набор UI [`packages/core/testing/example`](packages/core/testing/example/example-ui.set.ts) и два учебных канала: диалоговый (пакет `chat-ui`) и страничный; для мессенджеров — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md).
 
 ## Кому что даёт
 
@@ -39,17 +39,17 @@ bun add valibot @valibot/to-json-schema \
 
 ## Входы
 
-| Импорт | Что отдаёт | Чего не тянет |
+| Импорт | Что даёт | Гайд |
 |---|---|---|
-| `dmg-ui` | манифесты (`UiSetDef`, `UiAppDef`, `UiModuleDef`, `StoryDef`, `ScreenDef`, `NotificationDef`), адрес (`Address`, `AddressCodec`, `UiIds`), код экрана и уведомления (`ScreenCode`, `NotificationCode`, `CodeLoaders`), исполнитель (`ScreenRuntime`, `ScreenPreview`), порты и типы вида, место личности `Place` | `dmg-core/app` и `dmg-core/graph`: работает и в браузере |
-| `dmg-ui/graph` | поставщик графа `UiGraphProvider`, виды узлов и рёбер (`UI_KINDS`, `UI_NODE_KINDS`, `UI_EDGE_KINDS`), префикс правил `UI_RULE_PREFIX`, типы свойств узлов | исполнитель и код экрана |
-| `dmg-ui/server` | `UiServer` и `UiSession`, уведомитель `UiNotifier`, привязки к `ApiApp` и `ModuleApi` (`ApiAppDispatch`, `ModuleApiDispatch`), `RenderFlags`, сборка контекста рендера `RenderContexts`, типы портов канала (`CallerSource`, `RecipientCallers`, `PersonPlaces`, `NotificationDelivery`) | граф ядра |
-| `dmg-ui/testing` | учебный набор UI и его код (`ExampleUiSetDef`, `exampleCodes`), страничный канал (`PageClient`, `PageHost`, `PageWire`), помощник примеров `ExamplePreview`, наблюдатель `MemoryUiObserver` | — (берёт `dmg-core/testing` и `dmg-core/testing/example`, ставится вместе с `dmg-core`) |
-| `dmg-ui/testing/fixtures` | ровно шесть помощников тестов ядра для тестов пакетов каналов: `T0`, `oplogRecords`, `RuntimeKit`, `testRenderContext`, `StubViewProvider`, `ArchReport` | — |
-| `dmg-ui/chat-ui` | узел бесед мессенджера `Conversations` (сигналы, таблица ссылок, сбор входа, политики исходов, живое место, путь и «Назад»), хранилище бесед в памяти `MemoryConversationStore`, схема снимка беседы `ConversationSnapshotSchema`; представления беседы — `ScreenPresenter` (`for`, `of`), `NotificationPresenter`, реестр с перекрытием `ChatViews`, типы вывода (`ViewMessage`, `ViewOption`, `ViewOutput`, набор показа `ViewKit`); нейтральные акцент варианта `accent` и момент времени `TextBuilder.moment` с запасным текстом ([D-UI-66](docs/decisions.md)); поставщик графа общей части мессенджеров `ChatGraphProvider` (один на все приложения, имя `CHAT_PROVIDER`, точки входа приложения `ChatEntryPointSpec`, манифесты сообщества `ChatCommunitySpec` — сигналы `ChatSignalSpec` и реакции `ChatReactionSpec`, правила CH-01…CH-03) и примеры для его правил `ChatExamples`, исполнитель сообщества `Communities` (сигнал мессенджера → command UC, событие → query UC → операция порта сообщества `CommunityPort`), рендерер примеров `DialogRenderer`, `DIALOG_CHANNEL`; узел бесед доставляет и уведомления (порт `peers`); сообщение (`Message`, построитель `TextBuilder`, `PlainText`), помощники лимита (`TextLength`, `TextTrimmer`, `TextSplitter`), порт мессенджера `MessengerPort`, возможности и их схема `MessengerCapabilitiesSchema`, страж лимитов (`MessageFit`, `LimitedMessenger`) | слова конкретного мессенджера, `node:`, тестовые входы, код ядра по относительному пути; из `dmg-core/app` — только подписка `EventSubscriber` и тип конверта `EventEnvelope` |
-| `dmg-ui/chat-ui/testing` | привязка учебного примера к диалоговому каналу: два приложения `ExampleDialogAppDef` и `ExampleWindowedAppDef`, граф с ними `ExampleDialogArch`, `exampleDialogViews`; подставной мессенджер в памяти `MemoryMessenger` (беседа глазами собеседника — `chat(peer)`, тип `ChatLine`; порт сообщества с журналом — у набора `editing`) | — |
-| `dmg-ui/tg-bot` | мессенджер Telegram `TelegramMessenger` поверх узкого порта Bot API `BotApi` (реализацию порта и подачу апдейтов даёт проект), приём апдейтов `TelegramUpdates` (апдейт личного чата → сигнал беседы, ответ на каждое нажатие; апдейты группы — сигналы сообщества, эхо бота отсекается; вход — по таблице точек `command`/`menu`/`link`, слова — `TELEGRAM_VIA`; виды апдейта для `getUpdates` и вебхука — `TELEGRAM_ALLOWED_UPDATES`, без `chat_member` вступления не придут, бот — администратор группы), меню команд бота `TelegramMenu` (`publish()` — один `setMyCommands`), поставщик графа `TelegramGraphProvider` (правила TG-01…TG-06), цвет кнопки из акцента, `date_time` из момента, уход экрана — отключённая кнопка нажатого (D-UI-67), возможности `TELEGRAM_CAPABILITIES` (сообщество: пять сигналов, `exclude` и `approve` через `TelegramMessenger.community`), типы порта и подмножества JSON Bot API | библиотеку Telegram и сеть |
-| `dmg-ui/tg-bot/testing` | подставной порт Bot API в памяти `MemoryBotApi` (журнал вызовов, чат глазами собеседника — `chat(chatId)`, `failNext`, `throwNext`, `failOn`, `holdOn`), построитель апдейтов личного чата и группы `TestUpdates`, перекрытие учебного примера под Telegram `exampleTelegramViews` (акцент и момент), `EXAMPLE_MOMENT` и показ экранов запросами Bot API `ExampleTelegramPreview` | — |
+| `dmg-ui` | манифесты, адрес, код экрана и уведомления, исполнитель `ScreenRuntime`, место личности; работает и в браузере | [Сторис, экран, уведомление](docs/guides/story-screen-notification.md) |
+| `dmg-ui/graph` | поставщик графа `UiGraphProvider`, виды узлов и рёбер, префикс правил | [Каталог правил](docs/reference/rules.md) |
+| `dmg-ui/server` | `UiServer`, `UiSession`, уведомитель `UiNotifier`, привязки к `ApiApp` и `ModuleApi`, контекст рендера | [Пакет канала](docs/guides/channel-package.md) |
+| `dmg-ui/testing` | учебный набор UI, страничный канал, помощники примеров | [Пакет канала](docs/guides/channel-package.md) |
+| `dmg-ui/testing/fixtures` | шесть помощников тестов ядра для пакетов каналов | [Пакет канала](docs/guides/channel-package.md) |
+| `dmg-ui/chat-ui` | общая часть мессенджеров: беседы, представления, сообщество, граф и правила `CH-NN`, порт мессенджера | [Пакет мессенджера](docs/guides/messenger-package.md) |
+| `dmg-ui/chat-ui/testing` | подставной мессенджер `MemoryMessenger`, привязка примера к диалогу | [Пакет мессенджера](docs/guides/messenger-package.md#9-как-тестировать) |
+| `dmg-ui/tg-bot` | мессенджер Telegram поверх порта Bot API, приём апдейтов, меню, правила `TG-NN` | [Telegram](docs/guides/telegram.md) |
+| `dmg-ui/tg-bot/testing` | подставной порт Bot API `MemoryBotApi`, построитель апдейтов, пример под Telegram | [Telegram](docs/guides/telegram.md#10-тестирование-и-пример) |
 
 Полный список имён — в файлах входов; причины деления на входы — [D-UI-4](docs/decisions.md), [D-UI-34](docs/decisions.md) и [D-UI-63](docs/decisions.md).
 
@@ -57,6 +57,7 @@ bun add valibot @valibot/to-json-schema \
 
 - [`packages/core/testing/example/`](packages/core/testing/example/example-ui.set.ts) — набор UI поверх учебного приложения `dmg-core`: экраны, сторис, уведомления, код, привязки к каналам.
 - [`packages/chat-ui/src/conversation/`](packages/chat-ui/src/conversation/conversation.ts) — беседа мессенджера (вход `dmg-ui/chat-ui`): один живой экран, сигналы по одному, таблица ссылок, сбор входа, показ на месте или новым, путь и «Назад», снимок; представления — [`packages/chat-ui/src/view/`](packages/chat-ui/src/view/screen-presenter.ts); сторис на двух подставных мессенджерах — [`conversation-story.test.ts`](packages/chat-ui/testing/conversation-story.test.ts); [`packages/chat-ui/src/graph/`](packages/chat-ui/src/graph/chat-graph-provider.ts) — поставщик графа общей части мессенджеров; [`packages/chat-ui/src/dialog/`](packages/chat-ui/src/dialog/dialog-renderer.ts) — рендерер примеров учебного диалога; [`packages/chat-ui/src/community/`](packages/chat-ui/src/community/communities.ts) — манифесты сообщества и их исполнитель; привязка примера — `packages/chat-ui/testing/`.
+- [`packages/tg-bot/`](packages/tg-bot/testing/telegram-story.test.ts) — канал Telegram: сторис на подставном порте Bot API; подробно — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md).
 - [`packages/core/testing/page/`](packages/core/testing/page/server/page-host.ts) — страничный канал: несколько областей, между клиентом и сервером только JSON.
 
 Оба канала проводят одну и ту же сторис при общем коде экранов; так проверяется нейтральность ядра ([D-UI-31](docs/decisions.md)). Сквозная проверка «одна сторис — два канала» лежит на уровне монорепо, в [`acceptance/`](acceptance/channels-story.test.ts).
@@ -67,12 +68,14 @@ bun add valibot @valibot/to-json-schema \
 |---|---|
 | [Сторис, экран, уведомление](docs/guides/story-screen-notification.md) | как объявить манифесты, написать код экрана, как всё исполняется, чеклист правил, ловушки, тесты |
 | [Пакет канала](docs/guides/channel-package.md) | что должен дать канал, сборка, политики по исходам, граф, граница JSON, безопасность, доставка уведомлений |
+| [Пакет мессенджера](docs/guides/messenger-package.md) | общая часть мессенджеров `chat-ui` и что обязан дать пакет конкретного мессенджера: беседа, лимиты, сообщество, граф, тесты, чеклист |
+| [Telegram](docs/guides/telegram.md) | подключение `dmg-ui/tg-bot`: сборка, апдейты, тексты и кнопки, меню, сообщество, возможности, отказы, что не проверено на живом Telegram |
 | [Каталог правил](docs/reference/rules.md) | правила графа `UI-NN` и `PG-NN`, ограничения правил, проверки репозитория |
 | [Решения](docs/decisions.md) | реестр `D-UI-N`: что решено и почему |
 | [Технический долг](debt.md) | открытое в пакете, `DEBT-UI-N` |
 | [`llms.txt`](llms.txt) | вход для агентов |
 
-Что куда писать. Как объявить экран, сторис, уведомление — первый гайд. Как сделать канал — второй. Новое правило графа — строка в каталоге правил. Почему выбрано так, а не иначе, — запись в решениях. Отступление, которое не исправлено, — запись в долге. Знание из `dmg-core` не повторяется: на него ссылаются путём `node_modules/dmg-core/docs/…`.
+Что куда писать. Как объявить экран, сторис, уведомление — первый гайд. Как сделать канал — второй. Как сделать мессенджер — третий, как подключить Telegram — четвёртый. Новое правило графа — строка в каталоге правил. Почему выбрано так, а не иначе, — запись в решениях. Отступление, которое не исправлено, — запись в долге. Знание из `dmg-core` не повторяется: на него ссылаются путём `node_modules/dmg-core/docs/…`.
 
 ## Разработка пакета
 
@@ -89,7 +92,7 @@ bun run check
 
 ## Статус
 
-Версия `0.1.0` не замораживает контракт между ядром и каналами: пока его определяют два учебных канала. Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
+Версия `0.1.0` не замораживает контракт между ядром и каналами: пока его определяют учебные каналы и мессенджеры. Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
 
 ## Лицензия
 

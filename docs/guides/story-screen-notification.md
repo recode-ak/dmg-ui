@@ -124,4 +124,4 @@
 - Код экрана — тестом через `ScreenRuntime` с `MemoryUiObserver` из `dmg-ui/testing`: открыть, выполнить действие, проверить исход и записи (`kinds()`).
 - Примеры — снимками: `ExamplePreview` из `dmg-ui/testing` рендерит пример через представление канала.
 - Тесты изолированы и короткие (TST-04), проверяют код экрана, а не платформу или схемы (TST-09).
-- Образец сквозного сценария — [conversation-story.test.ts](../../packages/chat-ui/testing/conversation-story.test.ts): приложение `ExampleApp` из `dmg-core/testing/example`, сервер, беседа мессенджера на двух подставных мессенджерах, два пользователя.
+- Образец сквозного сценария (TST-09: по одному на канал и мессенджер, поверх каналов — [channels-story.test.ts](../../acceptance/channels-story.test.ts)) — [conversation-story.test.ts](../../packages/chat-ui/testing/conversation-story.test.ts): приложение `ExampleApp` из `dmg-core/testing/example`, сервер, беседа мессенджера на двух подставных мессенджерах, два пользователя.
