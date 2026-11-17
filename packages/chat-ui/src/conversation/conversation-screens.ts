@@ -109,8 +109,9 @@ export class ConversationScreens {
   async wake(trace: Trace): Promise<boolean> {
     const pending = this.pending;
     if (pending === undefined) return true;
-    this.pending = undefined;
+    // Бросок порта до ответа ядра экран снимка не снимает: следующий сигнал пробует снова.
     const restored = await this.restore(pending.instance, trace);
+    this.pending = undefined;
     if (restored === undefined) {
       await this.note(DIALOG_TEXTS.notRestored);
       return false;
@@ -126,9 +127,10 @@ export class ConversationScreens {
     return true;
   }
 
-  /** Экран из снимка экземпляра (внешние данные); отказ — заметка и вход home. */
+  /** Экран из снимка экземпляра (внешние данные) вместо экрана снимка беседы; отказ — заметка и вход home. */
   async resume(json: unknown, trace: Trace): Promise<void> {
     const restored = await this.restore(json, trace);
+    this.pending = undefined;
     if (restored === undefined) {
       await this.note(DIALOG_TEXTS.notRestored);
       await this.home(trace);

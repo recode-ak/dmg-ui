@@ -53,7 +53,7 @@ export class Dialog {
 
   /** Вход приложения UI по имени; неизвестный вход — ошибка канала, бросок. */
   async start(entry: string): Promise<void> {
-    if (this.spec.app.entries[entry] === undefined) {
+    if (!Object.hasOwn(this.spec.app.entries, entry)) {
       throw new Error(
         `Dialog: у приложения ${this.spec.app.name} нет входа ${entry}`,
       );

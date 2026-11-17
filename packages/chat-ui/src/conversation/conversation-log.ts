@@ -45,9 +45,13 @@ export class ConversationLog {
     this.warn(CONVERSATION_TEXTS.undelivered, { operation, reason });
   }
 
-  /** Сбой хранилища: имя ошибки без её текста. */
+  /** Сбой хранилища: чтение — сигнал не исполнен, запись — беседа в памяти; имя ошибки без её текста. */
   storeFailed(operation: 'load' | 'save', error: unknown): void {
-    this.logger.error(LOG_SOURCE, CONVERSATION_TEXTS.storeFailed, {
+    const text =
+      operation === 'load'
+        ? CONVERSATION_TEXTS.loadFailed
+        : CONVERSATION_TEXTS.saveFailed;
+    this.logger.error(LOG_SOURCE, text, {
       messenger: this.messenger,
       operation,
       name: ConversationLog.nameOf(error),

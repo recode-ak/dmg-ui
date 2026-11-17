@@ -3,6 +3,8 @@ import { ScreenRuntime } from 'dmg-ui';
 import { RenderContexts } from 'dmg-ui/server';
 import * as v from 'valibot';
 import { DialogReplies } from '../dialog/dialog-replies';
+import type { Message } from '../message/message.types';
+import { TextBuilder } from '../message/text-builder';
 import { LimitedMessenger } from '../messenger/limited-messenger';
 import { Conversation } from './conversation';
 import {
@@ -28,13 +30,24 @@ type Hosted = {
   readonly close: () => void;
 };
 
+/** Снимок из хранилища: прочитан (его может не быть) или чтение сорвалось. */
+type Loaded =
+  | { readonly ok: true; readonly snapshot: ConversationSnapshot | undefined }
+  | { readonly ok: false };
+
+/** Заметка собеседнику, когда хранилище не прочиталось. */
+const LATER: Message = {
+  kind: 'text',
+  text: TextBuilder.of(CONVERSATION_TEXTS.later),
+  options: [],
+};
+
 /**
  * Узел бесед одного приложения мессенджера (D-UI-43): личность отправителя —
- * только порт `people`, беседа собеседника — в памяти или из хранилища по
- * схеме снимка, снимок пишется после каждого сигнала. Бесед в памяти не
- * больше предела: давняя всех нетронутая выгружается. Внешний вход не
- * бросает (ERR-01); в лог — только мессенджер, вид, причина, операция и имя
- * ошибки (ERR-07).
+ * только порт `people`, беседа — в памяти или из хранилища по схеме снимка;
+ * хранилище не прочиталось — сигнал не исполняется. Снимок пишется после
+ * сигнала и проактивного показа; давняя нетронутая беседа сверх предела
+ * выгружается. Внешний вход не бросает (ERR-01), лог без данных (ERR-07).
  */
 export class Conversations<U extends Identified> {
   private readonly spec: ConversationsSpec<U>;
@@ -98,12 +111,14 @@ export class Conversations<U extends Identified> {
     }
   }
 
-  /** Все беседы в памяти отработали очередь. */
+  /** Все беседы в памяти отработали очередь, снимки после проактивных показов записаны. */
   async settled(): Promise<void> {
     await this.lines.idle();
     await Promise.all(
       [...this.hosted.values()].map((hosted) => hosted.conversation.settled()),
     );
+    // Проактивный показ ставит запись снимка в очередь собеседника.
+    await this.lines.idle();
   }
 
   /** Снимки сохранены, подписки сняты, беседы выгружены. */
@@ -116,55 +131,85 @@ export class Conversations<U extends Identified> {
 
   /** Личность, беседа, исполнение и снимок — в очереди собеседника. */
   private async deliver(signal: ConversationSignal): Promise<void> {
+    let hosted: Hosted | undefined;
+    try {
+      hosted = await this.admit(signal);
+    } catch (error) {
+      // Бросок порта `people` или сборки беседы — дефект; нажатию всё равно ответ.
+      this.log.defect({ kind: signal.kind }, error);
+      await this.answer(signal);
+      return;
+    }
+    if (hosted === undefined) return;
+    let accepted = true;
+    try {
+      accepted = await hosted.conversation.receive(signal);
+    } catch (error) {
+      // Дефект беседы: отсев и состояние в памяти всё равно идут в снимок.
+      this.log.defect({ kind: signal.kind }, error);
+    }
+    if (accepted) await this.save(signal.peer, hosted.conversation);
+  }
+
+  /** Беседа сигнала; сигнал не исполняется — отказ записан и отвечен, `undefined`. */
+  private async admit(signal: ConversationSignal): Promise<Hosted | undefined> {
     const uuid = await this.spec.people(signal.sender);
     if (uuid === undefined) {
       this.log.refused(signal.kind, CONVERSATION_TEXTS.noPerson);
       await this.answer(signal);
-      return;
+      return undefined;
     }
     const hosted = await this.host(signal.peer, uuid);
-    if (hosted === undefined) {
+    if (hosted === 'foreign') {
       // Чужая личность беседу не трогает: снимок прежний.
       this.log.refused(signal.kind, CONVERSATION_TEXTS.foreign);
       await this.answer(signal);
-      return;
+      return undefined;
     }
-    if (await hosted.conversation.receive(signal)) {
-      await this.save(signal.peer, hosted);
+    if (hosted === 'unread') {
+      // Беседы нет и снимок не пишется: следующий сигнал читает хранилище заново.
+      await this.later(signal);
+      return undefined;
     }
+    return hosted;
   }
 
-  /** Беседа собеседника из памяти или из хранилища; владелец не `uuid` — `undefined`. */
-  private async host(peer: string, uuid: string): Promise<Hosted | undefined> {
+  /** Беседа собеседника из памяти или из хранилища; владелец не `uuid` — `foreign`, хранилище не прочиталось — `unread`. */
+  private async host(
+    peer: string,
+    uuid: string,
+  ): Promise<Hosted | 'foreign' | 'unread'> {
     const known = this.hosted.get(peer);
     if (known !== undefined) {
-      if (known.person !== uuid) return undefined;
+      if (known.person !== uuid) return 'foreign';
       // Порядок карты — давность: тронутая встаёт в конец.
       this.hosted.delete(peer);
       this.hosted.set(peer, known);
       return known;
     }
-    const snapshot = await this.load(peer);
-    if (snapshot !== undefined && snapshot.person !== uuid) return undefined;
+    const loaded = await this.load(peer);
+    if (!loaded.ok) return 'unread';
+    const { snapshot } = loaded;
+    if (snapshot !== undefined && snapshot.person !== uuid) return 'foreign';
     const hosted = this.build(peer, uuid, snapshot);
     this.hosted.set(peer, hosted);
     return hosted;
   }
 
-  /** Снимок по схеме; нет, сбой или мусор — `undefined` (беседа заново). */
-  private async load(peer: string): Promise<ConversationSnapshot | undefined> {
+  /** Снимок по схеме; нет или мусор — без снимка (беседа заново); сбой чтения — `ok: false`. */
+  private async load(peer: string): Promise<Loaded> {
     let raw: unknown;
     try {
       raw = await this.spec.store.load(peer);
     } catch (error) {
       this.log.storeFailed('load', error);
-      return undefined;
+      return { ok: false };
     }
-    if (raw === undefined) return undefined;
+    if (raw === undefined) return { ok: true, snapshot: undefined };
     const parsed = v.safeParse(ConversationSnapshotSchema, raw);
-    if (parsed.success) return parsed.output;
+    if (parsed.success) return { ok: true, snapshot: parsed.output };
     this.log.badSnapshot();
-    return undefined;
+    return { ok: true, snapshot: undefined };
   }
 
   /** Сессия сервера и исполнитель личности — как у диалогового канала. */
@@ -199,6 +244,7 @@ export class Conversations<U extends Identified> {
         person: uuid,
         home: this.home,
         epochs: this.epochs,
+        shown: () => this.shown(peer, conversation),
       },
       snapshot,
     );
@@ -230,17 +276,36 @@ export class Conversations<U extends Identified> {
       if (this.hosted.get(peer) !== hosted) return;
       this.hosted.delete(peer);
       await hosted.conversation.settled();
-      await this.save(peer, hosted);
+      await this.save(peer, hosted.conversation);
       hosted.close();
     });
   }
 
-  private async save(peer: string, hosted: Hosted): Promise<void> {
+  /** Проактивный показ отработал: снимок — в очереди собеседника; выгруженная беседа не пишется. */
+  private shown(peer: string, conversation: Conversation): void {
+    this.lines
+      .run(peer, async () => {
+        if (this.hosted.get(peer)?.conversation !== conversation) return;
+        await this.save(peer, conversation);
+      })
+      .catch((error: unknown) => {
+        this.log.defect({ operation: 'refresh' }, error);
+      });
+  }
+
+  private async save(peer: string, conversation: Conversation): Promise<void> {
     try {
-      await this.spec.store.save(peer, hosted.conversation.snapshot());
+      await this.spec.store.save(peer, conversation.snapshot());
     } catch (error) {
       this.log.storeFailed('save', error);
     }
+  }
+
+  /** Хранилище не прочиталось: заметка обычным показом и ответ на нажатие. */
+  private async later(signal: ConversationSignal): Promise<void> {
+    const delivery = await this.messenger.show(signal.peer, LATER);
+    if (!delivery.ok) this.log.undelivered('show', delivery.error.reason);
+    await this.answer(signal);
   }
 
   /** Ответ на нажатие, которое беседа не исполнила. */

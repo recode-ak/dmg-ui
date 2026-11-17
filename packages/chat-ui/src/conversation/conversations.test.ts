@@ -120,6 +120,9 @@ type NodeOptions = {
   readonly store?: ConversationStore;
   readonly limit?: number;
   readonly home?: string;
+  readonly people?: (sender: string) => Promise<string | undefined>;
+  readonly places?: PersonPlaces;
+  readonly epochs?: () => string;
 };
 
 const world = () => {
@@ -160,12 +163,12 @@ const world = () => {
       messenger,
       store: options.store ?? store,
       logger,
-      people: async (sender: string) => people.get(sender),
+      people: options.people ?? (async (sender: string) => people.get(sender)),
       callers: example.callers,
-      places,
+      places: options.places ?? places,
       ...(options.home === undefined ? {} : { home: options.home }),
       ...(options.limit === undefined ? {} : { limit: options.limit }),
-      epochs,
+      epochs: options.epochs ?? epochs,
     });
     return { conversations, messenger, logger };
   };
@@ -510,6 +513,59 @@ describe('Conversations — личность отправителя', () => {
       },
     ]);
   });
+
+  test('после перезапуска сигнал чужой личности — не исполнен, снимок прежний', async () => {
+    const w = world();
+    const first = w.node();
+    await first.conversations.receive(w.signals.enter('start'));
+    const close = refOf(first.messenger, 'Закрыть');
+    await first.conversations.close();
+    const before = JSON.stringify(await w.store.load(WHO_A.peer));
+
+    const second = w.node();
+    await second.conversations.receive(
+      w.signals.press(close, 'p-b', {
+        peer: WHO_A.peer,
+        sender: WHO_B.sender,
+      }),
+    );
+
+    expect(second.messenger.journal).toEqual([
+      { op: 'answered', peer: WHO_A.peer, press: 'p-b' },
+    ]);
+    expect(JSON.stringify(await w.store.load(WHO_A.peer))).toBe(before);
+    expect(second.logger.records).toMatchObject([
+      {
+        level: 'warn',
+        source: 'chat-ui',
+        meta: { messenger: 'memory-editing', kind: 'press' },
+      },
+    ]);
+  });
+
+  test('бросок порта people — error без данных, на нажатие ответ, беседы нет', async () => {
+    const w = world();
+    const node = w.node({
+      people: async () => {
+        throw new Error('people-mark-q7');
+      },
+    });
+
+    await node.conversations.receive(w.signals.press('e00011', 'p-x'));
+
+    expect(node.messenger.journal).toEqual([
+      { op: 'answered', peer: WHO_A.peer, press: 'p-x' },
+    ]);
+    expect(node.logger.records).toEqual([
+      {
+        level: 'error',
+        source: 'chat-ui',
+        message: expect.any(String),
+        meta: { messenger: 'memory-editing', kind: 'press', name: 'Error' },
+      },
+    ]);
+    expect(await w.store.load(WHO_A.peer)).toBeUndefined();
+  });
 });
 
 describe('Conversations — пределы', () => {
@@ -691,15 +747,34 @@ describe('Conversations — независимость, лог и settled', () =
     expect(sent(node.messenger)).toHaveLength(2);
     expect(lastText(node.messenger)).toContain('Молоко');
   });
+
+  test('перечитывание по событию, перезапуск без close — нажатие на перечитанном виде исполняется', async () => {
+    const w = world();
+    const first = w.node();
+    await first.conversations.receive(w.signals.enter('start'));
+    await w.create('Молоко');
+    await w.bus.delivered();
+    await first.conversations.settled();
+    const refreshed = lastText(first.messenger);
+    const create = refOf(first.messenger, 'Создать задачу');
+
+    const second = w.node();
+    await second.conversations.receive(w.signals.press(create, 'p-create'));
+
+    expect(sent(first.messenger)).toHaveLength(2);
+    expect(refreshed).toContain('Молоко');
+    const texts = sent(second.messenger).map(text);
+    expect(texts).toHaveLength(1);
+    expect(texts[0]).toContain('Название задачи');
+    expect(answered(second.messenger)).toEqual(['p-create']);
+  });
 });
 
 describe('Conversations — хранилище и сборка', () => {
-  test('сбой хранилища — error без данных, беседа работает дальше в памяти', async () => {
+  test('сбой записи хранилища — error без данных, беседа работает дальше в памяти', async () => {
     const w = world();
     const failing: ConversationStore = {
-      load: async () => {
-        throw new Error('load-mark-q7');
-      },
+      load: async () => undefined,
       save: async () => {
         throw new Error('save-mark-q7');
       },
@@ -716,12 +791,157 @@ describe('Conversations — хранилище и сборка', () => {
     for (const record of errors) {
       expect(record).toMatchObject({
         source: 'chat-ui',
-        meta: { messenger: 'memory-editing' },
+        meta: { messenger: 'memory-editing', operation: 'save' },
       });
     }
     const log = JSON.stringify(node.logger.records);
     expect(log).not.toContain('mark-q7');
     expect(log).not.toContain(WHO_A.peer);
+  });
+
+  test('сбой чтения хранилища — сигнал не исполнен, прежний снимок не перезаписан, следующий сигнал после починки поднимает прежнюю беседу', async () => {
+    const w = await breadWorld();
+    const first = w.node({ app: w.app });
+    await first.conversations.receive(w.signals.enter('card'));
+    const done = refOf(first.messenger, 'Выполнить');
+    await first.conversations.close();
+    const before = JSON.stringify(await w.store.load(WHO_A.peer));
+    let broken = true;
+    const flaky: ConversationStore = {
+      load: async (peer) => {
+        if (broken) throw new Error('load-mark-q7');
+        return w.store.load(peer);
+      },
+      save: (peer, snapshot) => w.store.save(peer, snapshot),
+    };
+    const second = w.node({ app: w.app, store: flaky });
+
+    await second.conversations.receive(w.signals.press(done, 'p-1'));
+    const failed = sent(second.messenger);
+    const after = JSON.stringify(await w.store.load(WHO_A.peer));
+    const errors = [...second.logger.records];
+    broken = false;
+    await second.conversations.receive(w.signals.press(done, 'p-2'));
+    await w.bus.delivered();
+    await second.conversations.settled();
+
+    expect(failed.map((entry) => `${entry.via}: ${text(entry)}`)).toEqual([
+      'show: Сейчас не получилось. Попробуйте позже.',
+    ]);
+    expect(failed[0]?.message.options).toEqual([]);
+    expect(after).toBe(before);
+    expect(errors).toEqual([
+      {
+        level: 'error',
+        source: 'chat-ui',
+        message: expect.any(String),
+        meta: expect.objectContaining({
+          messenger: 'memory-editing',
+          operation: 'load',
+        }),
+      },
+    ]);
+    expect(records('completeTask')).toMatchObject([{ result: { ok: true } }]);
+    expect(lastText(second.messenger)).toContain('Статус: выполнена');
+    expect(answered(second.messenger)).toEqual(['p-1', 'p-2']);
+    const log = JSON.stringify(second.logger.records);
+    expect(log).not.toContain('mark-q7');
+    expect(log).not.toContain(WHO_A.peer);
+  });
+
+  test('бросок сборки беседы — error без данных, на нажатие ответ; следующий сигнал собирает беседу', async () => {
+    const w = world();
+    let broken = true;
+    const node = w.node({
+      epochs: () => {
+        if (!broken) return 'e9999';
+        broken = false;
+        throw new Error('build-mark-q7');
+      },
+    });
+
+    await node.conversations.receive(w.signals.press('e00011', 'p-x'));
+    const failed = [...node.messenger.journal];
+    await node.conversations.receive(w.signals.enter('start'));
+
+    expect(failed).toEqual([
+      { op: 'answered', peer: WHO_A.peer, press: 'p-x' },
+    ]);
+    expect(node.logger.records).toEqual([
+      {
+        level: 'error',
+        source: 'chat-ui',
+        message: expect.any(String),
+        meta: { messenger: 'memory-editing', kind: 'press', name: 'Error' },
+      },
+    ]);
+    expect(lastText(node.messenger)).toContain('Мои задачи');
+  });
+
+  test('бросок порта мест при пробуждении — экран и черновик снимка не потеряны, следующий сигнал пробует снова', async () => {
+    const w = world();
+    const first = w.node();
+    await first.conversations.receive(w.signals.enter('start'));
+    await first.conversations.receive(
+      w.signals.press(refOf(first.messenger, 'Создать задачу'), 'p-create'),
+    );
+    await first.conversations.close();
+    const saved = await snapshotOf(w.store);
+    let broken = true;
+    const second = w.node({
+      places: {
+        place: async (uuid, trace) => {
+          if (broken) throw new Error('place-mark-q7');
+          return places.place(uuid, trace);
+        },
+      },
+    });
+
+    await second.conversations.receive(w.signals.text('Молоко'));
+    const kept = await snapshotOf(w.store);
+    broken = false;
+    await second.conversations.receive(w.signals.text('Молоко'));
+    await w.bus.delivered();
+    await second.conversations.settled();
+
+    expect(saved.screen).toBeDefined();
+    expect(saved.draft).toBeDefined();
+    expect(kept.screen).toEqual(saved.screen);
+    expect(kept.draft).toEqual(saved.draft);
+    expect(second.logger.records).toEqual([
+      {
+        level: 'error',
+        source: 'chat-ui',
+        message: expect.any(String),
+        meta: { messenger: 'memory-editing', kind: 'text', name: 'Error' },
+      },
+    ]);
+    expect(records('createTask')).toMatchObject([{ result: { ok: true } }]);
+  });
+
+  test('дефект беседы — снимок всё равно записан: повтор сигнала после перезапуска без close отсеян', async () => {
+    const w = world();
+    const first = w.node({
+      places: {
+        place: async () => {
+          throw new Error('place-mark-q7');
+        },
+      },
+    });
+    const enter = w.signals.enter('start');
+    await first.conversations.receive(enter);
+
+    const second = w.node();
+    await second.conversations.receive(enter);
+
+    expect(first.logger.records).toMatchObject([
+      {
+        level: 'error',
+        meta: { messenger: 'memory-editing', kind: 'enter', name: 'Error' },
+      },
+    ]);
+    expect((await snapshotOf(w.store)).seen).toEqual([enter.id]);
+    expect(second.messenger.journal).toEqual([]);
   });
 
   test('сборка: нет входа home или возможности не годятся — бросок', () => {

@@ -121,6 +121,28 @@ const manyRefs = (count: number) =>
 const manySeen = (count: number) =>
   Array.from({ length: count }, (_, i) => `u${i}`);
 
+/** Снимок с живым экраном, у которого `handles` — `count` сообщений. */
+const withHandles = (count: number) => ({
+  ...SNAPSHOT,
+  screen: {
+    ...SNAPSHOT.screen,
+    handles: Array.from({ length: count }, (_, i) => `h${i}`),
+  },
+});
+
+/** Снимок с черновиком: `count` полей, все отвечены. */
+const withFields = (count: number) => {
+  const names = Array.from({ length: count }, (_, i) => `f${i}`);
+  return {
+    ...SNAPSHOT,
+    draft: {
+      ...SNAPSHOT.draft,
+      fields: names.map((name) => ({ name, label: name, optional: true })),
+      answered: names,
+    },
+  };
+};
+
 describe('ConversationSnapshotSchema', () => {
   test('снимок со всеми частями проходит схему и круг JSON без изменений', () => {
     const round = JSON.parse(JSON.stringify(SNAPSHOT));
@@ -182,6 +204,42 @@ describe('ConversationSnapshotSchema', () => {
     [
       'отрицательный номер экрана в записи',
       { ...BARE, refs: [{ ...REFS[0], screen: -1 }] },
+    ],
+    ['handles 33', withHandles(33)],
+    ['полей черновика 65', withFields(65)],
+    [
+      'answered 65',
+      {
+        ...SNAPSHOT,
+        draft: { ...SNAPSHOT.draft, answered: manySeen(65) },
+      },
+    ],
+    ['person длиннее 64', { ...BARE, person: 'p'.repeat(65) }],
+    [
+      'отпечаток длиннее 64',
+      { ...SNAPSHOT, screen: { ...SNAPSHOT.screen, shown: 'a'.repeat(65) } },
+    ],
+    [
+      'подпись длиннее 1024',
+      { ...BARE, refs: [{ ...REFS[0], label: 'л'.repeat(1025) }] },
+    ],
+    [
+      'имя действия длиннее 256',
+      { ...BARE, refs: [{ ...REFS[0], action: 'a'.repeat(257) }] },
+    ],
+    [
+      'поле шага длиннее 256',
+      { ...BARE, refs: [{ ...REFS[3], field: 'f'.repeat(257) }] },
+    ],
+    [
+      'имя поля черновика длиннее 256',
+      {
+        ...SNAPSHOT,
+        draft: {
+          ...SNAPSHOT.draft,
+          fields: [{ name: 'f'.repeat(257), label: 'Поле', optional: true }],
+        },
+      },
     ],
   ])('мусор — не по схеме, без броска: %s', (_, value) => {
     expect(() => v.safeParse(ConversationSnapshotSchema, value)).not.toThrow();

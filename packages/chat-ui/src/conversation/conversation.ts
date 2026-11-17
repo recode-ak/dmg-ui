@@ -21,6 +21,7 @@ import type {
   ConversationSignal,
   ConversationSnapshot,
   ConversationSpec,
+  RefEntry,
 } from './conversation.types';
 import { ConversationInput } from './conversation-input';
 import { ConversationLog } from './conversation-log';
@@ -111,7 +112,7 @@ export class Conversation {
         `Conversation: ссылка до ${ref} знаков, нужно ${MAX_REF_LENGTH}`,
       );
     }
-    if (app.entries[home] === undefined) {
+    if (!Object.hasOwn(app.entries, home)) {
       throw new Error(
         `Conversation: у приложения ${app.name} нет входа ${home}`,
       );
@@ -137,14 +138,6 @@ export class Conversation {
         if (signal.kind === 'press') await this.answer(signal.press);
       }
       return true;
-    });
-  }
-
-  /** Экран снимка — через `ScreenRuntime.restore`, отпечаток, перенос ссылок; не восстановлен — вход home. В очереди. */
-  restore(): Promise<void> {
-    return this.queue.run(async () => {
-      const trace = this.spec.traces.next();
-      if (!(await this.screens.wake(trace))) await this.screens.home(trace);
     });
   }
 
@@ -227,14 +220,16 @@ export class Conversation {
       default: {
         const unknownKind: never = signal;
         throw new Error(
-          `Conversation: неизвестный сигнал ${JSON.stringify(unknownKind)}`,
+          `Conversation: неизвестный сигнал ${(unknownKind as ConversationSignal).kind}`,
         );
       }
     }
   }
 
   private async enter(name: string, trace: Trace): Promise<void> {
-    const entry = this.spec.app.entries[name];
+    const { entries } = this.spec.app;
+    // Имя входа — внешние данные: `constructor` и прочие имена прототипа — не вход.
+    const entry = Object.hasOwn(entries, name) ? entries[name] : undefined;
     if (entry === undefined) {
       await this.screens.note(CONVERSATION_TEXTS.noEntry);
       return;
@@ -250,11 +245,7 @@ export class Conversation {
       return;
     }
     // Шаг черновика — его дело; любой другой вариант черновик сбрасывает.
-    const step =
-      entry.kind === 'choice' ||
-      entry.kind === 'skip' ||
-      (entry.kind === 'page' && entry.of === 'field');
-    if (step) {
+    if (ConversationInput.steps(entry)) {
       await this.input.step(entry, trace);
       return;
     }
@@ -317,7 +308,7 @@ export class Conversation {
       default: {
         const unknownKind: never = entry;
         throw new Error(
-          `Conversation: неизвестная запись ${JSON.stringify(unknownKind)}`,
+          `Conversation: неизвестная запись ${(unknownKind as RefEntry).kind}`,
         );
       }
     }
@@ -331,11 +322,12 @@ export class Conversation {
     return items.find((item) => item.name === name)?.fields ?? [];
   }
 
-  /** Перечитанный экземпляр — показ в очередь беседы; дефект показа — в лог. */
+  /** Перечитанный экземпляр — показ в очередь беседы, затем узлу — записать снимок; дефект показа — в лог. */
   private refreshed(instance: ScreenInstance): void {
     if (this.closed) return;
     this.queue
       .run(() => this.screens.refreshed(instance))
+      .then(() => this.spec.shown?.())
       .catch((error: unknown) => {
         this.log.defect({ operation: 'refresh' }, error);
       });

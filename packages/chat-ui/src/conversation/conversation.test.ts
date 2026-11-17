@@ -34,10 +34,19 @@ import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogReplies } from '../dialog/dialog-replies';
 import { DialogTraces } from '../dialog/dialog-traces';
 import { DialogViews, ScreenPresenter } from '../dialog/dialog-views';
+import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';
-import type { OptionLimits } from '../messenger/messenger.types';
+import type {
+  Delivery,
+  MessageHandle,
+  OptionLimits,
+  SendOptions,
+} from '../messenger/messenger.types';
 import { Conversation } from './conversation';
-import type { ConversationSignal } from './conversation.types';
+import type {
+  ConversationSignal,
+  ConversationSnapshot,
+} from './conversation.types';
 
 // Одна беседа на исполнителе с заглушками портов: сигналы мессенджера,
 // нажатие по записи таблицы ссылок, очередь, отсев повтора, проактивный
@@ -210,11 +219,47 @@ const refreshSignal = (eventId: string): RefreshSignal => ({
   trace: Trace.fromEvent({ eventId, correlationId: eventId }).toJSON(),
 });
 
-/** Беседа на исполнителе с заглушками; эпохи ссылок — от теста. */
+/**
+ * Подставной мессенджер с отказами порта: ответ на нажатие не доставляется,
+ * показ по инициативе бросает (дефект порта).
+ */
+class FaultyMessenger extends MemoryMessenger {
+  constructor(
+    private readonly faults: {
+      readonly answer?: boolean;
+      readonly initiative?: boolean;
+    },
+  ) {
+    super({ capabilities: MemoryMessenger.editing().capabilities });
+  }
+
+  override async answer(
+    peer: string,
+    press: string,
+    text?: string,
+  ): Promise<Delivery<void>> {
+    if (this.faults.answer === true) this.failNext('unavailable');
+    return super.answer(peer, press, text);
+  }
+
+  override async show(
+    peer: string,
+    message: Message,
+    send?: SendOptions,
+  ): Promise<Delivery<MessageHandle>> {
+    if (this.faults.initiative === true && send?.initiative === true) {
+      throw new Error('show-mark-q7');
+    }
+    return super.show(peer, message, send);
+  }
+}
+
+/** Беседа на исполнителе с заглушками; эпохи ссылок — от теста; `snapshot` — беседа после перезапуска. */
 const sceneOf = (
   options: {
     readonly messenger?: MemoryMessenger;
     readonly home?: string;
+    readonly snapshot?: ConversationSnapshot;
   } = {},
 ) => {
   const kit = new RuntimeKit(
@@ -231,25 +276,28 @@ const sceneOf = (
   const logger = new MemoryLogger();
   let requests = 0;
   let epochs = 0;
-  const conversation = new Conversation({
-    app: ConvAppDef,
-    runtime: kit.runtime,
-    contexts: { context: async () => testRenderContext },
-    traces: new DialogTraces(() => {
-      requests += 1;
-      return `r-${requests}`;
-    }),
-    replies: new DialogReplies(views),
-    messenger,
-    logger,
-    peer: PEER,
-    person: A,
-    home: options.home ?? 'start',
-    epochs: () => {
-      epochs += 1;
-      return `ep${String(epochs).padStart(3, '0')}`;
+  const conversation = new Conversation(
+    {
+      app: ConvAppDef,
+      runtime: kit.runtime,
+      contexts: { context: async () => testRenderContext },
+      traces: new DialogTraces(() => {
+        requests += 1;
+        return `r-${requests}`;
+      }),
+      replies: new DialogReplies(views),
+      messenger,
+      logger,
+      peer: PEER,
+      person: A,
+      home: options.home ?? 'start',
+      epochs: () => {
+        epochs += 1;
+        return `ep${String(epochs).padStart(3, '0')}`;
+      },
     },
-  });
+    options.snapshot,
+  );
   let ids = 0;
   const head = () => {
     ids += 1;
@@ -353,6 +401,22 @@ describe('Conversation — вход и нажатие по записи', () => 
 
     expect(sent(s.messenger).map(text)).toEqual(['Такого входа нет.']);
     expect(labels(lastSent(s.messenger))).toEqual([]);
+    expect(s.conversation.screen()).toBeUndefined();
+  });
+
+  test('вход constructor — «Такого входа нет.»: имя из прототипа — не вход', async () => {
+    const s = sceneOf();
+
+    for (const name of ['constructor', 'toString', '__proto__']) {
+      await s.conversation.receive(s.signals.enter(name));
+    }
+
+    expect(sent(s.messenger).map(text)).toEqual([
+      'Такого входа нет.',
+      'Такого входа нет.',
+      'Такого входа нет.',
+    ]);
+    expect(s.logger.records).toEqual([]);
     expect(s.conversation.screen()).toBeUndefined();
   });
 
@@ -490,6 +554,84 @@ describe('Conversation — очередь и отсев повтора', () => {
     expect(s.messenger.journal).toHaveLength(journal);
     expect(completed(s.kit)).toBe(1);
     expect(answered(s.messenger)).toEqual(['p-save']);
+  });
+});
+
+describe('Conversation — отказы порта мессенджера', () => {
+  test('недоставка ответа на нажатие — warn без данных, беседа идёт дальше', async () => {
+    const s = sceneOf({ messenger: new FaultyMessenger({ answer: true }) });
+    await s.conversation.receive(s.signals.enter('start'));
+
+    await s.conversation.receive(
+      s.signals.press(refOf(s.messenger, 'Отметить'), 'p-tick-1'),
+    );
+    await s.conversation.receive(
+      s.signals.press(refOf(s.messenger, 'Отметить'), 'p-tick-2'),
+    );
+
+    expect(text(lastSent(s.messenger))).toBe('Главная: задач 2, отметок 2');
+    const undelivered = {
+      level: 'warn' as const,
+      source: 'chat-ui',
+      message: expect.any(String),
+      meta: {
+        messenger: 'memory-editing',
+        operation: 'answer',
+        reason: 'unavailable',
+      },
+    };
+    expect(s.logger.records).toEqual([undelivered, undelivered]);
+    expect(JSON.stringify(s.logger.records)).not.toContain('p-tick');
+  });
+
+  test('дефект проактивного показа — error без данных, процесс не падает, беседа идёт дальше', async () => {
+    const s = sceneOf({ messenger: new FaultyMessenger({ initiative: true }) });
+    await s.conversation.receive(s.signals.enter('start'));
+
+    s.kit.refresh.emit(refreshSignal('e-1'));
+    await s.conversation.settled();
+    await s.conversation.receive(s.signals.cancel());
+
+    expect(s.logger.records).toEqual([
+      {
+        level: 'error',
+        source: 'chat-ui',
+        message: expect.any(String),
+        meta: {
+          messenger: 'memory-editing',
+          operation: 'refresh',
+          name: 'Error',
+        },
+      },
+    ]);
+    expect(JSON.stringify(s.logger.records)).not.toContain('mark-q7');
+    expect(sent(s.messenger).map(text)).toEqual([
+      'Главная: задач 2, отметок 0',
+      'Главная: задач 2, отметок 0',
+    ]);
+  });
+});
+
+describe('Conversation — экран снимка', () => {
+  test('resume поверх экрана снимка — открыт экран resume, экран снимка следующим сигналом не поднимается', async () => {
+    const first = sceneOf();
+    await first.conversation.receive(first.signals.enter('other'));
+    const other = first.conversation.screen();
+    await first.conversation.receive(first.signals.enter('start'));
+    const saved = first.conversation.snapshot();
+    first.conversation.close();
+    const s = sceneOf({ snapshot: saved });
+
+    await s.conversation.resume(other);
+    // id сигналов сцены начинаются заново: свой id, чтобы отсев не съел сигнал.
+    await s.conversation.receive({ ...s.signals.cancel(), id: 's-after' });
+
+    expect(saved.screen).toBeDefined();
+    expect(sent(s.messenger).map(text)).toEqual([
+      'Другой экран',
+      'Другой экран',
+    ]);
+    expect(s.conversation.screen()?.address.screen).toBe('convUi/conv/other');
   });
 });
 

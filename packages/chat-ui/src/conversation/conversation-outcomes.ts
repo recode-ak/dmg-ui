@@ -64,7 +64,7 @@ export class ConversationOutcomes {
       default: {
         const unknownKind: never = target;
         throw new Error(
-          `Conversation: неизвестная цель ${JSON.stringify(unknownKind)}`,
+          `Conversation: неизвестная цель ${(unknownKind as { readonly kind: string }).kind}`,
         );
       }
     }
@@ -183,10 +183,10 @@ export class ConversationOutcomes {
     );
   }
 
-  /** Исход, которого беседа не знает (новый в ядре), — дефект беседы, бросок (ERR-06). */
+  /** Исход, которого беседа не знает (новый в ядре), — дефект беседы, бросок (ERR-06); в тексте — только вид. */
   private static unknown(outcome: never): never {
     throw new Error(
-      `Conversation: неизвестный исход ${JSON.stringify(outcome)}`,
+      `Conversation: неизвестный исход ${(outcome as { readonly kind: string }).kind}`,
     );
   }
 }

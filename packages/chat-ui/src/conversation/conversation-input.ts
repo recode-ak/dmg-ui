@@ -1,7 +1,12 @@
 import type { Trace } from 'dmg-core';
 import type { ActionField, FieldIssue } from 'dmg-ui';
 import { DIALOG_TEXTS } from '../dialog/dialog-replies';
-import type { DraftJson, RefEntry, Serial } from './conversation.types';
+import type {
+  DraftJson,
+  RefEntry,
+  Serial,
+  StepEntry,
+} from './conversation.types';
 import type { ConversationReplies } from './conversation-replies';
 import type { ConversationScreens } from './conversation-screens';
 import { InputDraft } from './input-draft';
@@ -82,8 +87,17 @@ export class ConversationInput {
     await this.advance(draft, trace);
   }
 
+  /** Запись — шаг черновика: вариант поля, «Пропустить» или «Ещё» вариантов поля. */
+  static steps(entry: RefEntry): entry is StepEntry {
+    return (
+      entry.kind === 'choice' ||
+      entry.kind === 'skip' ||
+      (entry.kind === 'page' && entry.of === 'field')
+    );
+  }
+
   /** Шаг по записи `choice`, `skip` или `page` поля; чужой черновик или поле — тот же вопрос с «Действие сейчас недоступно.». */
-  async step(entry: RefEntry, trace: Trace): Promise<void> {
+  async step(entry: StepEntry, trace: Trace): Promise<void> {
     const draft = this.active();
     if (draft === undefined || !ConversationInput.fits(draft, entry)) {
       if (draft === undefined) {
@@ -104,8 +118,12 @@ export class ConversationInput {
         draft.turn(entry.page);
         await this.ask(draft);
         return;
-      default:
-        throw new Error(`ConversationInput: запись ${entry.kind} — не шаг`);
+      default: {
+        const unknownKind: never = entry;
+        throw new Error(
+          `ConversationInput: запись ${(unknownKind as StepEntry).kind} — не шаг`,
+        );
+      }
     }
   }
 
@@ -182,7 +200,7 @@ export class ConversationInput {
   }
 
   /** Запись — шаг этого черновика и его текущего поля; «Пропустить» — только у необязательного. */
-  private static fits(draft: InputDraft, entry: RefEntry): boolean {
+  private static fits(draft: InputDraft, entry: StepEntry): boolean {
     const field = draft.current();
     switch (entry.kind) {
       case 'choice':
@@ -194,9 +212,11 @@ export class ConversationInput {
           field.optional
         );
       case 'page':
-        return entry.of === 'field' && entry.owner === draft.serial();
-      default:
-        return false;
+        return entry.owner === draft.serial();
+      default: {
+        const unknownKind: never = entry;
+        return unknownKind;
+      }
     }
   }
 }

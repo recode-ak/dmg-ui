@@ -23,9 +23,10 @@ import type {
 } from '../messenger/messenger.types';
 import type { ConversationStore } from './conversation-store.types';
 
-// Данные беседы: сигналы мессенджера, записи таблицы ссылок (D-UI-44),
-// снимок беседы (D-UI-45) и показанный вид для отпечатка — простые объекты
-// JSON, классы работают над ними; спеки беседы и узла бесед.
+// Данные беседы — простые объекты JSON, классы работают над ними: сигналы
+// мессенджера, записи таблицы ссылок, снимок беседы и показанный вид для
+// отпечатка; спеки беседы и узла бесед. Таблица ссылок — D-UI-44, снимок —
+// D-UI-45.
 
 /** Вид вложения: только место, до действия не доводится. */
 export type AttachmentKind = 'file' | 'audio' | 'image' | 'video';
@@ -131,6 +132,11 @@ export type RefEntry =
       readonly address: AddressJson;
       readonly label: string;
     };
+
+/** Запись шага черновика: вариант поля, «Пропустить», «Ещё» вариантов поля. */
+export type StepEntry =
+  | Extract<RefEntry, { readonly kind: 'choice' | 'skip' }>
+  | (Extract<RefEntry, { readonly kind: 'page' }> & { readonly of: 'field' });
 
 /** Цель без ссылки — то, что передаётся в `RefTable.add`; варианты те же, что у `RefEntry`. */
 export type RefTarget =
@@ -290,6 +296,8 @@ export type ConversationSpec = {
   readonly home: string;
   /** Эпоха ссылок на каждое воплощение беседы. */
   readonly epochs: () => string;
+  /** Проактивный показ отработал: узел бесед пишет снимок; у фасада диалога нет. */
+  readonly shown?: () => void;
 };
 
 /** Узел бесед одного приложения мессенджера. */

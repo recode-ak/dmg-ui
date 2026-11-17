@@ -1,15 +1,24 @@
 import * as v from 'valibot';
 import {
+  MAX_FIELD_CHOICES,
+  MAX_FIELDS,
+  MAX_HANDLES,
+  MAX_LABEL_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_PERSON_LENGTH,
   MAX_REF_LENGTH,
   MAX_REFS,
   MAX_SEEN,
+  MAX_SHOWN_LENGTH,
   MAX_SIGNAL_ID,
+  MAX_SIGNAL_TEXT,
   REF_PATTERN,
 } from './conversation.const';
 import type { ConversationSnapshot } from './conversation.types';
 
 // Схема снимка беседы (D-UI-45). Строгая в пределах: массивы и строки
-// ограничены, ссылка — `[a-z0-9]` до 16 знаков, номера — целые не меньше 0.
+// ограничены (`MAX_*` в `conversation.const.ts`), ссылка — `[a-z0-9]` до 16
+// знаков, номера — целые не меньше 0.
 // Снимок экземпляра ядра (`screen.instance`), параметры адреса, вход
 // подтверждения и начальное значение поля схема не проверяет — их проверяет
 // ядро. Аннотация
@@ -18,6 +27,12 @@ import type { ConversationSnapshot } from './conversation.types';
 /** Номер, ревизия, страница: целое не меньше 0. */
 const Count = v.pipe(v.number(), v.integer(), v.minValue(0));
 
+/** Имя действия, локального действия, поля, адреса экрана. */
+const Name = v.pipe(v.string(), v.maxLength(MAX_NAME_LENGTH));
+
+/** Подпись варианта или поля. */
+const Label = v.pipe(v.string(), v.maxLength(MAX_LABEL_LENGTH));
+
 const Ref = v.pipe(
   v.string(),
   v.minLength(1),
@@ -25,10 +40,15 @@ const Ref = v.pipe(
   v.regex(REF_PATTERN),
 );
 
-const ChoiceValue = v.union([v.string(), v.number(), v.boolean()]);
+// Строка значения — и свободный текст собеседника: предел — как у сигнала.
+const ChoiceValue = v.union([
+  v.pipe(v.string(), v.maxLength(MAX_SIGNAL_TEXT)),
+  v.number(),
+  v.boolean(),
+]);
 
 const Address = v.object({
-  screen: v.string(),
+  screen: Name,
   params: v.unknown(),
 });
 
@@ -38,41 +58,41 @@ const RefEntrySchema = v.variant('kind', [
     kind: v.literal('action'),
     screen: Count,
     revision: Count,
-    action: v.string(),
-    label: v.string(),
+    action: Name,
+    label: Label,
   }),
   v.object({
     ref: Ref,
     kind: v.literal('local'),
     screen: Count,
     revision: Count,
-    local: v.string(),
-    label: v.string(),
+    local: Name,
+    label: Label,
   }),
   v.object({
     ref: Ref,
     kind: v.literal('confirm'),
     screen: Count,
     revision: Count,
-    action: v.string(),
+    action: Name,
     yes: v.boolean(),
     input: v.optional(v.unknown()),
-    label: v.string(),
+    label: Label,
   }),
   v.object({
     ref: Ref,
     kind: v.literal('choice'),
     draft: Count,
-    field: v.string(),
+    field: Name,
     value: ChoiceValue,
-    label: v.string(),
+    label: Label,
   }),
   v.object({
     ref: Ref,
     kind: v.literal('skip'),
     draft: Count,
-    field: v.string(),
-    label: v.string(),
+    field: Name,
+    label: Label,
   }),
   v.object({
     ref: Ref,
@@ -80,30 +100,33 @@ const RefEntrySchema = v.variant('kind', [
     of: v.picklist(['screen', 'field']),
     owner: Count,
     page: Count,
-    label: v.string(),
+    label: Label,
   }),
   v.object({
     ref: Ref,
     kind: v.literal('open'),
     address: Address,
-    label: v.string(),
+    label: Label,
   }),
 ]);
 
 const LiveScreen = v.object({
   serial: Count,
   instance: v.unknown(),
-  shown: v.string(),
-  handles: v.array(v.string()),
+  shown: v.pipe(v.string(), v.maxLength(MAX_SHOWN_LENGTH)),
+  handles: v.pipe(v.array(v.string()), v.maxLength(MAX_HANDLES)),
   page: Count,
 });
 
 const Field = v.object({
-  name: v.string(),
-  label: v.string(),
+  name: Name,
+  label: Label,
   optional: v.boolean(),
   choices: v.optional(
-    v.array(v.object({ value: ChoiceValue, label: v.string() })),
+    v.pipe(
+      v.array(v.object({ value: ChoiceValue, label: Label })),
+      v.maxLength(MAX_FIELD_CHOICES),
+    ),
   ),
   initial: v.optional(v.unknown()),
 });
@@ -114,14 +137,14 @@ const Draft = v.object({
   target: v.variant('kind', [
     v.object({
       kind: v.literal('action'),
-      action: v.string(),
+      action: Name,
       revision: Count,
     }),
-    v.object({ kind: v.literal('local'), local: v.string(), revision: Count }),
+    v.object({ kind: v.literal('local'), local: Name, revision: Count }),
   ]),
-  fields: v.array(Field),
-  values: v.record(v.string(), ChoiceValue),
-  answered: v.array(v.string()),
+  fields: v.pipe(v.array(Field), v.maxLength(MAX_FIELDS)),
+  values: v.pipe(v.record(Name, ChoiceValue), v.maxEntries(MAX_FIELDS)),
+  answered: v.pipe(v.array(Name), v.maxLength(MAX_FIELDS)),
   page: Count,
 });
 
@@ -131,7 +154,7 @@ export const ConversationSnapshotSchema: v.GenericSchema<
   ConversationSnapshot
 > = v.object({
   version: v.literal(1),
-  person: v.string(),
+  person: v.pipe(v.string(), v.maxLength(MAX_PERSON_LENGTH)),
   serial: Count,
   refs: v.pipe(v.array(RefEntrySchema), v.maxLength(MAX_REFS)),
   seen: v.pipe(
