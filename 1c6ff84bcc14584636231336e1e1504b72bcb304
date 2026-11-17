@@ -1,0 +1,5 @@
+Задача: ревью каркаса web-ui и правки.
+Изменения: BrowserGlobalScanner закрывает формы, найденные ревью (корни globalThis/self, обращение по ключу, деструктуризация из self, globalThis.Bun|process); +33 теста.
+Файлы: checks/browser-globals.ts, checks/browser-globals.test.ts, docs/reference/rules.md.
+Причина: сканер — граница зоны глобалов браузера; пропуски дешевле закрыть до появления клиентского кода с сокетом и историей.
+Проверка: bun run check — 2729 pass, 20 снимков.
