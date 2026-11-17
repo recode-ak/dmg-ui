@@ -1,3 +1,4 @@
+import type { ConversationSignal } from 'dmg-ui/chat-ui';
 import type { ServerContext } from 'dmg-ui/server';
 import type { BotApiMethod } from './bot-api/bot-api.types';
 import type { BotApiFailure } from './bot-api/bot-api-failure';
@@ -7,13 +8,15 @@ import {
 } from './messenger/telegram.const';
 import { LOG_SOURCE, LOG_TEXTS } from './telegram-log.const';
 import type { TelegramOperation } from './telegram-log.types';
+import type { UpdateRefusal } from './updates/telegram-updates.types';
 
 /**
  * Записи лога пакета Telegram (D-UI-61). В `meta` — имя мессенджера,
  * операция порта, метод Bot API, код отказа, описание сервера (до 200
- * знаков: текст Telegram без данных собеседника) и имя ошибки: ни id чата,
- * ни `message_id`, ни id нажатия, ни текста, подписей, `callback_data` и
- * текста броска (ERR-07). Успех и «not modified» не пишутся.
+ * знаков: текст Telegram без данных собеседника), причина отказа апдейта,
+ * вид сигнала и имя ошибки: ни id чата и человека, ни `message_id`, ни id
+ * нажатия, ни текста, подписей, `callback_data`, `file_id` и текста броска
+ * (ERR-07). Успех, «not modified» и апдейт вне диалога не пишутся.
  */
 export class TelegramLog {
   constructor(private readonly logger: ServerContext['logger']) {}
@@ -47,14 +50,26 @@ export class TelegramLog {
 
   /** Бросок порта: имя ошибки без её текста. */
   failed(method: BotApiMethod, error: unknown): void {
-    this.error(LOG_TEXTS.failed, {
-      method,
-      name: error instanceof Error ? error.name : typeof error,
-    });
+    this.error(LOG_TEXTS.failed, { method, name: TelegramLog.nameOf(error) });
   }
 
   badResult(method: BotApiMethod): void {
     this.error(LOG_TEXTS.badResult, { method, reason: 'result' });
+  }
+
+  /** Апдейт отвергнут: не по схеме или нарушает допуск диалога. */
+  refusedUpdate(reason: UpdateRefusal): void {
+    const text =
+      reason === 'schema' ? LOG_TEXTS.badUpdate : LOG_TEXTS.refusedUpdate;
+    this.warn(text, { reason });
+  }
+
+  /** Узел бесед бросил: вид сигнала и имя ошибки без её текста. */
+  signalFailed(kind: ConversationSignal['kind'], error: unknown): void {
+    this.error(LOG_TEXTS.signalFailed, {
+      signal: kind,
+      name: TelegramLog.nameOf(error),
+    });
   }
 
   private warn(text: string, meta: Record<string, unknown>): void {
@@ -67,5 +82,9 @@ export class TelegramLog {
 
   private meta(meta: Record<string, unknown>): Record<string, unknown> {
     return { messenger: TELEGRAM_CAPABILITIES.name, ...meta };
+  }
+
+  private static nameOf(error: unknown): string {
+    return error instanceof Error ? error.name : typeof error;
   }
 }

@@ -77,18 +77,20 @@ describe('вход dmg-ui/testing/fixtures', () => {
 });
 
 describe('вход dmg-ui/tg-bot', () => {
-  it('состав — возможности Telegram и мессенджер на порту Bot API', async () => {
+  it('состав — возможности Telegram, мессенджер на порту Bot API и приём апдейтов', async () => {
     expect(Object.keys(await import('dmg-ui/tg-bot')).sort()).toEqual([
       'TELEGRAM_CAPABILITIES',
       'TelegramMessenger',
+      'TelegramUpdates',
     ]);
   });
 });
 
 describe('вход dmg-ui/tg-bot/testing', () => {
-  it('состав — подставной порт Bot API', async () => {
+  it('состав — подставной порт Bot API и построитель апдейтов', async () => {
     expect(Object.keys(await import('dmg-ui/tg-bot/testing')).sort()).toEqual([
       'MemoryBotApi',
+      'TestUpdates',
     ]);
   });
 });

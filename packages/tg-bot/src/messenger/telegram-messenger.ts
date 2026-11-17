@@ -5,7 +5,6 @@ import type {
   MessageHandle,
   MessengerCapabilities,
   MessengerPort,
-  SendOptions,
   Updated,
 } from 'dmg-ui/chat-ui';
 import * as v from 'valibot';
@@ -61,11 +60,7 @@ export class TelegramMessenger implements MessengerPort {
   }
 
   /** Инициатива не меняет способ: Telegram пишет первым после первого входящего, это сверяет беседа. */
-  async show(
-    peer: string,
-    message: Message,
-    _send?: SendOptions,
-  ): Promise<Delivery<MessageHandle>> {
+  async show(peer: string, message: Message): Promise<Delivery<MessageHandle>> {
     return this.deliver('show', peer, message);
   }
 
@@ -150,12 +145,15 @@ export class TelegramMessenger implements MessengerPort {
     return TelegramMessenger.settled(outcome);
   }
 
-  /** `peer` не нужен: нажатие отвечается по своему id. */
+  /** Собеседник не нужен: нажатие отвечается по своему id — первый параметр порта пропущен. */
   async answer(
-    _peer: string,
-    press: string,
-    text?: string,
+    ...[, press, text]: Parameters<MessengerPort['answer']>
   ): Promise<Delivery<void>> {
+    return this.answerPress(press, text);
+  }
+
+  /** Ответ на нажатие по его id: у беседы и у нажатия, отвергнутого приёмом апдейтов (собеседника у такого нет). */
+  async answerPress(press: string, text?: string): Promise<Delivery<void>> {
     const outcome = await this.call('answerCallbackQuery', () =>
       this.api.answerCallbackQuery(
         text === undefined

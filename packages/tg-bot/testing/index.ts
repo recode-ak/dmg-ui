@@ -1,5 +1,6 @@
 // Вход dmg-ui/tg-bot/testing: подставной порт Bot API в памяти и его типы —
-// запись журнала, заданный отказ, сообщение чата глазами собеседника.
+// запись журнала, заданный отказ, сообщение чата глазами собеседника;
+// построитель апдейтов личного чата.
 
 export { MemoryBotApi } from './bot-api/memory-bot-api';
 export type {
@@ -7,3 +8,8 @@ export type {
   BotApiFailNext,
   BotChatLine,
 } from './bot-api/memory-bot-api.types';
+export { TestUpdates } from './updates/test-updates';
+export type {
+  TestPressUpdate,
+  TestTextUpdate,
+} from './updates/test-updates.types';

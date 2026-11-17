@@ -9,4 +9,7 @@ export const LOG_TEXTS = {
   refused: 'Bot API отказал',
   failed: 'сбой транспорта Bot API',
   badResult: 'ответ Bot API не по схеме',
+  badUpdate: 'апдейт не по схеме: сигнала нет',
+  refusedUpdate: 'апдейт вне диалога: сигнала нет',
+  signalFailed: 'узел бесед бросил на сигнале',
 } as const;

@@ -15,6 +15,7 @@ import {
   type Message,
   type MessageOption,
   MessengerCapabilitiesSchema,
+  type MessengerPort,
   ScreenPresenter,
   TextBuilder,
 } from 'dmg-ui/chat-ui';
@@ -151,10 +152,9 @@ describe('TelegramMessenger — показ и уведомление', () => {
 
   test('show с инициативой — тот же sendMessage', async () => {
     const { api, messenger } = setup();
+    const port: MessengerPort = messenger;
 
-    expect(await messenger.show(PEER, HELLO, { initiative: true })).toEqual(
-      ok('1'),
-    );
+    expect(await port.show(PEER, HELLO, { initiative: true })).toEqual(ok('1'));
     expect(methods(api)).toEqual(['sendMessage']);
   });
 });
