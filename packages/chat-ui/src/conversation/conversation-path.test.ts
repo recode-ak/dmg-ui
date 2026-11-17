@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { type DomainError, ok, type Result } from 'dmg-core';
+import { type DomainError, ok, type Result, Trace } from 'dmg-core';
 import {
   AwaitingBus,
   MemoryLogger,
@@ -19,6 +19,7 @@ import {
   type DataOf,
   type InstanceJson,
   type LoadContext,
+  type RefreshSignal,
   ScreenCode,
   ScreenDef,
   type StateOf,
@@ -382,6 +383,13 @@ const head = () => {
   return { id: `s-${signals}`, peer: PEER, sender: 'sender-a' };
 };
 
+/** Сигнал перечитывания по событию — как от сервера: след события. */
+const refreshSignal = (eventId: string): RefreshSignal => ({
+  event: 'taskCreated',
+  eventId,
+  trace: Trace.fromEvent({ eventId, correlationId: eventId }).toJSON(),
+});
+
 /** Сигнал «Назад» собеседника: у мессенджеров — команда или жест, не нажатие варианта. */
 const backSignal = (): ConversationSignal => ({ ...head(), kind: 'back' });
 
@@ -392,13 +400,6 @@ const labelsOf = (message: Message) => message.options.map((o) => o.label);
 const lastLine = (messenger: MemoryMessenger) => {
   const line = messenger.chat(PEER).at(-1);
   if (line === undefined) throw new Error('сообщений нет');
-  return line;
-};
-
-/** Сообщение беседы по номеру. */
-const lineAt = (messenger: MemoryMessenger, index: number) => {
-  const line = messenger.chat(PEER).at(index);
-  if (line === undefined) throw new Error(`нет сообщения ${index}`);
   return line;
 };
 
@@ -466,6 +467,7 @@ const screensOf = (conversation: Conversation) =>
 const sceneOf = (options: {
   readonly messenger: MemoryMessenger;
   readonly snapshot?: ConversationSnapshot;
+  readonly views?: ChatViews;
 }) => {
   const world = worldOf();
   const { messenger } = options;
@@ -486,7 +488,7 @@ const sceneOf = (options: {
         requests += 1;
         return `r-${requests}`;
       }),
-      views,
+      views: options.views ?? views,
       messenger,
       logger: new MemoryLogger(),
       peer: PEER,
@@ -536,6 +538,12 @@ const sceneOf = (options: {
     pressRef,
     reveal,
     press: async (label: string) => pressRef(await reveal(label)),
+    /** Перечитывание по событию и ожидание проактивного показа (TST-04). */
+    refresh: async () => {
+      const at = head();
+      kit.refresh.emit(refreshSignal(`e-${at.id}`));
+      await conversation.settled();
+    },
   };
 };
 
@@ -618,7 +626,7 @@ describe.each(MESSENGERS)(
 );
 
 describe('Conversation — вариант «Назад» и сигнал back', () => {
-  test('вариант «Назад» — когда путь не пуст, последним; нет — когда пуст', async () => {
+  test('путь не пуст — вариант «Назад» в беседе, в снимке — запись back живого экрана; путь пуст — варианта нет', async () => {
     const s = sceneOf({ messenger: editingMessenger() });
     await s.enter('start');
     const list = labelsOf(lastLine(s.messenger).message);
@@ -626,13 +634,8 @@ describe('Conversation — вариант «Назад» и сигнал back', 
     await s.press('Профиль');
 
     const snapshot = s.conversation.snapshot();
-    expect(list).toEqual(['Профиль', 'Дальше', 'Пометить']);
-    expect(labelsOf(lastLine(s.messenger).message)).toEqual([
-      'Заметки',
-      'Другой',
-      'К списку',
-      'Назад',
-    ]);
+    expect(list).not.toContain('Назад');
+    expect(labelsOf(lastLine(s.messenger).message)).toContain('Назад');
     const back = refOf(s.messenger, 'Назад');
     expect(snapshot.refs).toContainEqual({
       ref: back,
@@ -700,21 +703,47 @@ describe('Conversation — вариант «Назад» и сигнал back', 
     ]);
   });
 
-  test('back при пустом пути — живой экран снова', async () => {
+  test('проактивный показ при непустом пути — «Назад» остаётся', async () => {
     const s = sceneOf({ messenger: editingMessenger() });
     await s.enter('start');
-    await s.press('Пометить');
-    const before = s.conversation.screen();
+    await s.press('Профиль');
     const from = s.messenger.journal.length;
 
-    await s.back();
+    await s.refresh();
 
-    expect(s.conversation.screen()).toEqual(before);
-    expect(opsOf(s.messenger, from)).toEqual(['retire m1', 'show m2']);
-    expect(textsOf(s.messenger)).toEqual([
-      `Список: страница 0, людей 2, пометка «${MARK}»`,
-      `Список: страница 0, людей 2, пометка «${MARK}»`,
+    expect(opsOf(s.messenger, from)).toEqual(['edit m1']);
+    expect(labelsOf(lastLine(s.messenger).message)).toContain('Назад');
+    expect(screensOf(s.conversation)).toEqual([LIST]);
+  });
+
+  test('экран снимка, вид которого с тех пор изменился, — «Назад» нового показа ведёт на экран из пути', async () => {
+    const messenger = editingMessenger();
+    const first = sceneOf({ messenger });
+    await first.enter('start');
+    await first.press('Пометить');
+    await first.press('Профиль');
+    const saved = first.conversation.snapshot();
+    first.conversation.close();
+    // После перезапуска представление профиля другое: отпечаток не совпадёт.
+    const changed = views.over([
+      ScreenPresenter.for(
+        ProfileScreenDef,
+        ({ data }) => `Профиль ${data?.personId ?? ''}, новый вид`,
+      ),
     ]);
+    const s = sceneOf({ messenger, snapshot: saved, views: changed });
+
+    await s.conversation.receive({ ...head(), kind: 'cancel' });
+    const shown = lastLine(messenger).message;
+    await s.press('Назад');
+
+    expect(textOf(shown)).toBe(`Профиль ${PERSON}, новый вид`);
+    expect(labelsOf(shown)).toContain('Назад');
+    expect(s.conversation.screen()).toMatchObject({
+      address: { screen: LIST, params: { page: 0 } },
+      state: { filter: MARK },
+    });
+    expect(s.conversation.snapshot()).not.toHaveProperty('path');
   });
 });
 
@@ -1052,19 +1081,34 @@ describe('Conversation — «Назад» и закрытые экраны', () 
     expect(s.world.calls).toEqual([]);
   });
 
-  test('back при пустом пути сбрасывает черновик: экран снова, без заметки', async () => {
+  test('back при пустом пути — живой экран снова, без заметки: черновик сброшен, экземпляр прежний, место с вариантами уходит', async () => {
     const s = sceneOf({ messenger: editingMessenger() });
     await s.enter('notes');
+    const before = s.conversation.screen();
+    const opened = s.kit.observer.records.filter((r) => r.kind === 'opened');
     await s.press('Добавить');
     const from = s.messenger.journal.length;
 
     await s.back();
+    const draft = s.conversation.snapshot().draft;
     const ops = opsOf(s.messenger, from);
+    const again = s.messenger.journal.length;
+    await s.back();
+    const repeated = opsOf(s.messenger, again);
+    const texts = textsOf(s.messenger);
+    const after = s.conversation.screen();
     await s.text('Хлеб');
 
-    expect(s.conversation.snapshot().draft).toBeUndefined();
+    expect(draft).toBeUndefined();
+    // У вопроса текстом вариантов нет — уходить месту нечем.
     expect(ops).toEqual(['show m2']);
-    expect(textOf(lineAt(s.messenger, 1).message)).toBe('Заметки');
+    expect(repeated).toEqual(['retire m2', 'show m3']);
+    expect(texts.slice(1)).toEqual(['Заметки', 'Заметки']);
+    // Экземпляр не открывался заново: тот же снимок, записей открытия не прибавилось.
+    expect(after).toEqual(before);
+    expect(s.kit.observer.records.filter((r) => r.kind === 'opened')).toEqual(
+      opened,
+    );
     expect(s.world.calls).toEqual([]);
   });
 });

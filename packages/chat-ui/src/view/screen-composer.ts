@@ -147,16 +147,16 @@ export class ScreenComposer {
     }
   }
 
-  /** Сверка варианта: вид и имя цели; подпись не входит. */
-  private static key(option: ViewOption): string {
+  /** Имя цели варианта — для сверки и отпечатка; у «Назад», «Повторить», «В начало» имени нет. */
+  static target(option: ViewOption): string | undefined {
     switch (option.kind) {
       case 'action':
       case 'local':
-        return `${option.kind}:${option.name}`;
+        return option.name;
       case 'back':
       case 'retry':
       case 'home':
-        return option.kind;
+        return undefined;
       default: {
         const unknownKind: never = option;
         throw new Error(
@@ -164,6 +164,12 @@ export class ScreenComposer {
         );
       }
     }
+  }
+
+  /** Сверка варианта: вид и имя цели; подпись не входит. */
+  private static key(option: ViewOption): string {
+    const target = ScreenComposer.target(option);
+    return target === undefined ? option.kind : `${option.kind}:${target}`;
   }
 
   /** Шапка заместителя и «только чтение» — первым абзацем первого сообщения. */

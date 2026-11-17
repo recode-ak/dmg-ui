@@ -273,6 +273,7 @@ const sceneOf = (
     readonly messenger?: MemoryMessenger;
     readonly home?: string;
     readonly snapshot?: ConversationSnapshot;
+    readonly views?: ChatViews;
   } = {},
 ) => {
   const kit = new RuntimeKit(
@@ -298,7 +299,7 @@ const sceneOf = (
         requests += 1;
         return `r-${requests}`;
       }),
-      views,
+      views: options.views ?? views,
       messenger,
       logger,
       peer: PEER,
@@ -675,6 +676,55 @@ describe('Conversation — экран снимка', () => {
       'Другой экран',
     ]);
     expect(s.conversation.screen()?.address.screen).toBe('convUi/conv/other');
+  });
+
+  test('представление бросает при подъёме экрана снимка — дефект, экран остаётся в снимке, экземпляр закрыт; после починки сигнал экран поднимает', async () => {
+    let broken = false;
+    const fragile = ChatViews.of(ConvSetDef, [
+      ScreenPresenter.for(HomeScreenDef, ({ data }) => {
+        if (broken) throw new Error('render-mark-q7');
+        return `Главная: задач ${data?.count ?? 0}`;
+      }),
+      ScreenPresenter.for(OtherScreenDef, () => 'Другой экран'),
+      ScreenPresenter.for(BlankScreenDef, () => ''),
+    ]);
+    const first = sceneOf({ views: fragile });
+    await first.conversation.receive(first.signals.enter('start'));
+    const saved = first.conversation.snapshot();
+    first.conversation.close();
+    const s = sceneOf({ snapshot: saved, views: fragile });
+    // Шпион восстановления: какие экземпляры подняты и закрыты ли они.
+    const restored: { closed: boolean }[] = [];
+    const restore = s.kit.runtime.restore.bind(s.kit.runtime);
+    s.kit.runtime.restore = async (json, options) => {
+      const result = await restore(json, options);
+      if (!result.ok) return result;
+      const mark = { closed: false };
+      restored.push(mark);
+      const close = result.value.close.bind(result.value);
+      result.value.close = () => {
+        mark.closed = true;
+        close();
+      };
+      return result;
+    };
+
+    broken = true;
+    // id сигналов сцены начинаются заново: свои id, чтобы отсев не съел сигнал.
+    const failed = s.conversation.receive({
+      ...s.signals.cancel(),
+      id: 's-broken',
+    });
+    await expect(failed).rejects.toThrow('render-mark-q7');
+    const kept = s.conversation.snapshot();
+    broken = false;
+    await s.conversation.receive({ ...s.signals.cancel(), id: 's-fixed' });
+
+    expect(kept.screen).toEqual(saved.screen);
+    expect(restored).toEqual([{ closed: true }, { closed: false }]);
+    expect(sent(s.messenger).map(text)).toEqual(['Главная: задач 2']);
+    expect(s.conversation.screen()?.address.screen).toBe(HOME);
+    expect(s.conversation.snapshot().screen?.serial).toBe(saved.screen?.serial);
   });
 });
 

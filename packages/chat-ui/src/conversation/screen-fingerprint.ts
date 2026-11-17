@@ -1,4 +1,5 @@
-import type { ViewMessage, ViewOption } from '../view/view.types';
+import { ScreenComposer } from '../view/screen-composer';
+import type { ViewMessage } from '../view/view.types';
 import { Sha256 } from './sha256';
 
 /**
@@ -26,29 +27,10 @@ export class ScreenFingerprint {
         ]),
         message.options.map((option) => [
           option.kind,
-          ScreenFingerprint.target(option),
+          ScreenComposer.target(option) ?? null,
           option.label,
         ]),
       ]),
     );
-  }
-
-  /** Имя цели варианта; у «Назад», «Повторить», «В начало» имени нет. */
-  private static target(option: ViewOption): string | null {
-    switch (option.kind) {
-      case 'action':
-      case 'local':
-        return option.name;
-      case 'back':
-      case 'retry':
-      case 'home':
-        return null;
-      default: {
-        const unknownKind: never = option;
-        throw new Error(
-          `ScreenFingerprint: неизвестный вид варианта ${(unknownKind as ViewOption).kind}`,
-        );
-      }
-    }
   }
 }

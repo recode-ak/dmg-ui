@@ -114,13 +114,21 @@ export class ConversationScreens {
     if (pending === undefined) return true;
     // Бросок порта до ответа ядра экран снимка не снимает: следующий сигнал пробует снова.
     const restored = await this.restore(pending.instance, trace);
-    this.pending = undefined;
     if (restored === undefined) {
+      this.pending = undefined;
       await this.parts.output.note(CONVERSATION_TEXTS.notRestored);
       return false;
     }
     const view = restored.view();
-    const shown = await ScreenFingerprint.of(this.compose(view).messages);
+    let shown: string;
+    try {
+      shown = await ScreenFingerprint.of(this.compose(view).messages);
+    } catch (error) {
+      // Дефект представления экран снимка не снимает: экземпляр закрыт, следующий сигнал пробует снова.
+      restored.close();
+      throw error;
+    }
+    this.pending = undefined;
     if (shown === pending.shown) {
       const from = view.revision - 1;
       this.parts.refs.rebase(pending.serial, from, view.revision);

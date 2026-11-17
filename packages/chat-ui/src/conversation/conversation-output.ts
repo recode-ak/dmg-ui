@@ -144,7 +144,8 @@ export class ConversationOutput {
   /**
    * Показ в место: на месте, если место последнее, не защищено следом
    * (`kept`) и число сообщений совпало (вид пока один — `text`); иначе новыми.
-   * Пустые сообщения в порт не уходят. Место сменилось — true.
+   * Не доставлено ни одно — место прежнее: следующий показ поправит его и
+   * вернёт варианты. Пустые в порт не уходят. Место сменилось — true.
    */
   private async place(
     all: readonly Message[],
@@ -159,7 +160,7 @@ export class ConversationOutput {
       targets === undefined
         ? await this.renew(messages, send)
         : await this.update(targets, send);
-    if (placed === undefined) return false;
+    if (placed === undefined || placed.length === 0) return false;
     this.handles = placed.map((p) => p.handle);
     this.message = placed.at(-1)?.message;
     this.latest = true;

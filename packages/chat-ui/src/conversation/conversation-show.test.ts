@@ -727,39 +727,28 @@ describe.each(MESSENGERS)(
       );
     });
 
-    test('вопрос поля и подтверждение — в живом месте: «Да» и «Нет» правят его на месте', async () => {
+    test('вопрос поля с вариантами — в живом месте: вопрос и ответ на него правят место на месте', async () => {
       const s = sceneOf({ messenger: make() });
       await s.enter('form');
 
       await s.press('Выбрать');
       await s.press('Красный');
-      await s.press('Удалить');
-      await s.press('Нет');
-      await s.press('Удалить');
-      await s.press('Да');
 
-      expect(s.world.calls).toEqual(['pick:red', 'drop']);
-      const texts = [
-        'Форма',
-        'Выберите: Цвет',
-        'Форма',
-        'Удалить всё?\n\nВернуть нельзя.',
-        'Форма',
-        'Удалить всё?\n\nВернуть нельзя.',
-        'Форма',
-      ];
+      expect(s.world.calls).toEqual(['pick:red']);
       if (editing) {
         expect(s.messenger.chat(PEER)).toMatchObject([
-          { handle: 'm1', edits: 6, retired: false },
+          { handle: 'm1', edits: 2, retired: false },
         ]);
         expect(
           opsOf(s.messenger).filter((op) => op.startsWith('retire')),
         ).toEqual([]);
       } else {
-        expect(textsOf(s.messenger)).toEqual(texts);
-        expect(opsOf(s.messenger).slice(1)).toEqual(
-          Array.from({ length: 6 }, (_, i) => `update m${i + 2}`),
-        );
+        expect(textsOf(s.messenger)).toEqual([
+          'Форма',
+          'Выберите: Цвет',
+          'Форма',
+        ]);
+        expect(opsOf(s.messenger).slice(1)).toEqual(['update m2', 'update m3']);
       }
       expect(textOf(lastLine(s.messenger).message)).toBe('Форма');
     });
@@ -867,6 +856,46 @@ describe('Conversation — уход места и правка, которая �
       'answer',
     ]);
     expect(s.conversation.snapshot().screen?.handles).toEqual(['m3', 'm4']);
+  });
+
+  test('показ новыми ничего не доставил — место прежнее: следующий показ правит его на месте и возвращает варианты', async () => {
+    let now = T0;
+    // Мессенджер с правкой и окном инициативы: проактивный показ вне окна не доходит.
+    const messenger = new RecordingMessenger({
+      capabilities: {
+        ...MemoryMessenger.editing().capabilities,
+        initiative: { kind: 'window', ms: 1000 },
+      },
+      clock: () => now,
+    });
+    const s = sceneOf({ messenger });
+    await s.enter('multi');
+    const place = s.conversation.snapshot().screen;
+
+    now = T0 + 2000;
+    s.world.parts = 3;
+    await s.refresh();
+    const kept = s.conversation.snapshot().screen;
+    const from = messenger.journal.length;
+    messenger.heard(PEER);
+    s.world.parts = 2;
+    await s.refresh();
+
+    expect(opsOf(messenger, 2, from)).toEqual([
+      'retire m2',
+      'undelivered show window',
+      'undelivered show window',
+      'undelivered show window',
+    ]);
+    expect(kept).toMatchObject({
+      handles: ['m1', 'm2'],
+      latest: true,
+      message: place?.message,
+    });
+    expect(opsOf(messenger, from)).toEqual(['edit m1', 'edit m2']);
+    expect(lineAt(messenger, 1)).toMatchObject({ handle: 'm2', retired: true });
+    expect(lineAt(messenger, 1).message.options).toHaveLength(2);
+    expect(s.conversation.snapshot().screen?.handles).toEqual(['m1', 'm2']);
   });
 });
 

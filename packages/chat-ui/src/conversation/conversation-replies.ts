@@ -200,7 +200,7 @@ export class ConversationReplies {
       default: {
         const unknownKind: never = option;
         throw new Error(
-          `неизвестный вид варианта: ${(unknownKind as ViewOption).kind}`,
+          `ConversationReplies: неизвестный вид варианта ${(unknownKind as ViewOption).kind}`,
         );
       }
     }

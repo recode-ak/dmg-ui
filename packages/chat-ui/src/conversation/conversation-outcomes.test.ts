@@ -743,10 +743,26 @@ describe.each(MESSENGERS)(
       expect(lastText(s.messenger)).toBe('Хранилище');
       if (editing) {
         expect(s.messenger.chat(PEER)).toMatchObject([
-          { handle: 'm1', edits: 4 },
+          { handle: 'm1', edits: 4, retired: false },
         ]);
+        expect(
+          opsOf(s.messenger).filter((op) => op.startsWith('retire')),
+        ).toEqual([]);
       } else {
         expect(s.messenger.chat(PEER)).toHaveLength(5);
+        expect(
+          s.messenger.chat(PEER).map((line) => textOf(line.message)),
+        ).toEqual([
+          'Хранилище',
+          'Удалить всё?\n\nВернуть нельзя.',
+          'Хранилище',
+          'Удалить всё?\n\nВернуть нельзя.',
+          'Хранилище',
+        ]);
+        // Каждый показ — в живое место: мессенджер без правки шлёт новое через `update`.
+        expect(opsOf(s.messenger).slice(1)).toEqual(
+          Array.from({ length: 4 }, (_, i) => `update m${i + 2}`),
+        );
       }
     });
 
