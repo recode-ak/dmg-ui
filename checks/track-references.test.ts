@@ -108,6 +108,7 @@ describe('ссылки на трек в репо', () => {
         return file ? [file] : [];
       }),
       ...TextTree.read(ROOT, 'docs', ['.md']),
+      ...TextTree.read(ROOT, 'examples', ['.md']),
     ];
     expect(format(new TrackReferenceScanner().scanDocuments(files))).toEqual(
       [],

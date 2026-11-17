@@ -15,5 +15,5 @@
     "noImplicitOverride": true,
     "types": ["bun", "node"]
   },
-  "include": ["packages", "checks", "acceptance"]
+  "include": ["packages", "checks", "acceptance", "examples"]
 }

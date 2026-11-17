@@ -14,6 +14,7 @@ const REQUIRED = [
   'docs/guides/channel-package.md',
   'docs/reference/rules.md',
   'docs/decisions.md',
+  'examples/tg-bot/README.md',
   'llms.txt',
   'debt.md',
 ];
@@ -118,6 +119,7 @@ describe('документы репо', () => {
         return file ? [file] : [];
       }),
       ...TextTree.read(ROOT, 'docs', ['.md']),
+      ...TextTree.read(ROOT, 'examples', ['.md']),
     ];
     const found = new DocsLinkChecker(ROOT).check(files);
     expect(found.map((v) => `${v.file}:${v.line} ${v.text}`)).toEqual([]);
