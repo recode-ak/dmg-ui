@@ -156,7 +156,9 @@ const world = (messenger: MemoryMessenger) => {
     );
 
   const journal = (who: Who) =>
-    messenger.journal.filter((entry) => entry.peer === who.peer);
+    messenger.journal.filter(
+      (entry) => entry.op !== 'community' && entry.peer === who.peer,
+    );
 
   /** Уведомления, дошедшие до собеседника: записи журнала `notify`. */
   const notices = (who: Who): Message[] =>

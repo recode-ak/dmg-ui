@@ -1,5 +1,6 @@
 import { err, ok } from 'dmg-core';
 import {
+  type CommunityPort,
   type Delivery,
   type Message,
   MessageFit,
@@ -26,13 +27,15 @@ import type {
 /**
  * Подставной мессенджер в памяти (D-UI-40): одна реализация порта с журналом,
  * поведение выводится из возможностей. Окно инициативы — по часам теста, без
- * таймеров; ответ собеседнику сам открывает окно.
+ * таймеров; ответ собеседнику сам открывает окно. Порт сообщества — если
+ * возможности объявляют операции.
  *
  * @see memory-messenger.test.ts
  */
 export class MemoryMessenger implements MessengerPort {
   readonly journal: MessengerEntry[] = [];
   readonly capabilities: MessengerCapabilities;
+  readonly community?: CommunityPort;
   private readonly clock: () => number;
   private readonly fit: MessageFit;
   /** Последний контакт собеседника, мс. */
@@ -46,6 +49,16 @@ export class MemoryMessenger implements MessengerPort {
     this.capabilities = spec.capabilities;
     this.clock = spec.clock ?? (() => 0);
     this.fit = new MessageFit(spec.capabilities);
+    if (spec.capabilities.community.operations.length > 0) {
+      this.community = {
+        exclude: (community, member) =>
+          this.operate('exclude', community, member),
+        invite: (community, member) =>
+          this.operate('invite', community, member),
+        approve: (community, member) =>
+          this.operate('approve', community, member),
+      };
+    }
   }
 
   /** «Правит сообщения, вариантов много». */
@@ -72,7 +85,7 @@ export class MemoryMessenger implements MessengerPort {
   chat(peer: string): readonly ChatLine[] {
     const lines = new Map<MessageHandle, ChatLine>();
     for (const entry of this.journal) {
-      if (entry.peer !== peer) continue;
+      if (entry.op === 'community' || entry.peer !== peer) continue;
       if (entry.op === 'sent') {
         const { handle, message } = entry;
         lines.set(handle, { handle, message, edits: 0, retired: false });
@@ -160,6 +173,18 @@ export class MemoryMessenger implements MessengerPort {
     const refused = this.refused(peer, message, true);
     if (refused !== undefined) return this.undelivered('notify', peer, refused);
     return ok(this.sent('notify', peer, message));
+  }
+
+  /** Операция сообщества: заданный сбой — недоставка без записи; иначе запись `community`. */
+  private async operate(
+    operation: keyof CommunityPort,
+    community: string,
+    member: string,
+  ): Promise<Delivery<void>> {
+    const failure = this.takeFailure();
+    if (failure !== undefined) return err({ reason: failure });
+    this.journal.push({ op: 'community', operation, community, member });
+    return ok();
   }
 
   /** Признак инициативы; ответ собеседнику — контакт, он открывает окно. */

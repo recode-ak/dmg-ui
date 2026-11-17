@@ -1182,7 +1182,9 @@ describe('Conversations — уведомления', () => {
       'Назначенные мне',
     ]);
     expect(
-      second.messenger.journal.filter((e) => e.peer !== WHO_A.peer),
+      second.messenger.journal.filter(
+        (e) => e.op !== 'community' && e.peer !== WHO_A.peer,
+      ),
     ).toEqual([]);
     const saved = await snapshotOf(w.store);
     expect(saved.notified).toHaveLength(1);
@@ -1351,7 +1353,7 @@ describe('Conversations — уведомления', () => {
 
     expect(whileHeld).toEqual([]);
     const journal = node.messenger.journal.filter(
-      (entry) => entry.peer === WHO_A.peer,
+      (entry) => entry.op !== 'community' && entry.peer === WHO_A.peer,
     );
     const answeredAt = journal.findIndex((entry) => entry.op === 'answered');
     const noticeAt = journal.findIndex(

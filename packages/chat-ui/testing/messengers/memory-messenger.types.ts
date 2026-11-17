@@ -1,4 +1,5 @@
 import type {
+  CommunityPort,
   Message,
   MessageHandle,
   MessengerCapabilities,
@@ -62,4 +63,11 @@ export type MessengerEntry =
       readonly via: MemoryOperation;
       readonly peer: string;
       readonly reason: UndeliveredReason;
+    }
+  | {
+      /** Операция порта сообщества дошла (недоставка записи не даёт). */
+      readonly op: 'community';
+      readonly operation: keyof CommunityPort;
+      readonly community: string;
+      readonly member: string;
     };

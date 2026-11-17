@@ -13,6 +13,8 @@ import { MemoryMessenger } from './memory-messenger';
 // теста; сообщение, которое страж изменил бы, и пустой текст без вариантов
 // отвергаются. Недоставка — значение и запись `undelivered` в журнале.
 // `chat` — тот же журнал глазами собеседника: что он видит и что ушло.
+// Порт сообщества — только у `editing`: операция пишет запись `community`,
+// `failNext` действует и на неё.
 
 const DAY = 86_400_000;
 const T0 = 1_700_000_000_000;
@@ -58,6 +60,7 @@ describe('MemoryMessenger — наборы возможностей', () => {
       'joined',
       'left',
       'removed',
+      'requested',
     ]);
     expect([...community.operations].sort()).toEqual([
       'approve',
@@ -538,4 +541,54 @@ describe('MemoryMessenger — failNext', () => {
       ]);
     },
   );
+});
+
+describe('MemoryMessenger — порт сообщества', () => {
+  const GROUP = 'group-1';
+  const MEMBER = 'member-a';
+
+  test.each(['exclude', 'invite', 'approve'] as const)(
+    'editing: %s — ok и запись community с сообществом и участником',
+    async (operation) => {
+      const port = MemoryMessenger.editing();
+
+      expect(await port.community?.[operation](GROUP, MEMBER)).toEqual(ok());
+      expect(port.journal).toEqual([
+        { op: 'community', operation, community: GROUP, member: MEMBER },
+      ]);
+    },
+  );
+
+  test('editing: failNext — недоставка операции сообщества с причиной, записи community нет, затем как обычно', async () => {
+    const port = MemoryMessenger.editing();
+    port.failNext('blocked');
+
+    expect(await port.community?.exclude(GROUP, MEMBER)).toEqual(
+      err({ reason: 'blocked' }),
+    );
+    expect(port.journal.filter((entry) => entry.op === 'community')).toEqual(
+      [],
+    );
+    expect(await port.community?.exclude(GROUP, MEMBER)).toEqual(ok());
+    expect(port.journal.filter((entry) => entry.op === 'community')).toEqual([
+      {
+        op: 'community',
+        operation: 'exclude',
+        community: GROUP,
+        member: MEMBER,
+      },
+    ]);
+  });
+
+  test('операции сообщества — не строки беседы участника', async () => {
+    const port = MemoryMessenger.editing();
+    await port.community?.exclude(GROUP, MEMBER);
+
+    expect(port.chat(MEMBER)).toEqual([]);
+    expect(port.chat(GROUP)).toEqual([]);
+  });
+
+  test('windowed: порта сообщества нет', () => {
+    expect(MemoryMessenger.windowed(() => T0).community).toBeUndefined();
+  });
 });

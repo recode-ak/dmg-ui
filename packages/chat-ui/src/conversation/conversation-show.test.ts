@@ -520,6 +520,8 @@ const opsOf = (messenger: MemoryMessenger, from = 0, to?: number): string[] =>
         return entry.text === undefined ? 'answer' : `answer «${entry.text}»`;
       case 'undelivered':
         return `undelivered ${entry.via} ${entry.reason}`;
+      case 'community':
+        return `community ${entry.operation}`;
       default: {
         const unknown: never = entry;
         throw new Error(`неизвестная запись ${String(unknown)}`);

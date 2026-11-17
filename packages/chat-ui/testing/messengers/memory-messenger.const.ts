@@ -15,7 +15,7 @@ export const EDITING_CAPABILITIES: MessengerCapabilities = {
   form: false,
   initiative: { kind: 'always' },
   community: {
-    signals: ['joined', 'left', 'added', 'removed'],
+    signals: ['joined', 'left', 'added', 'removed', 'requested'],
     operations: ['exclude', 'invite', 'approve', 'inviteLink'],
   },
 };

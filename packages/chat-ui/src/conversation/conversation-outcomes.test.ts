@@ -521,6 +521,8 @@ const opsOf = (messenger: MemoryMessenger, from = 0): string[] =>
         return record.text === undefined ? 'answer' : `answer «${record.text}»`;
       case 'undelivered':
         return `undelivered ${record.via} ${record.reason}`;
+      case 'community':
+        return `community ${record.operation}`;
       default: {
         const unknown: never = record;
         throw new Error(`неизвестная запись ${String(unknown)}`);

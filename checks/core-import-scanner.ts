@@ -204,6 +204,8 @@ export class CoreImportScanner {
           'valibot',
           'dmg-core',
           'dmg-core/graph',
+          // Подписка на события — `EventSubscriber` платформы (D-98 `dmg-core`, D-UI-59).
+          'dmg-core/app',
           'dmg-ui',
           'dmg-ui/server',
           'dmg-ui/graph',

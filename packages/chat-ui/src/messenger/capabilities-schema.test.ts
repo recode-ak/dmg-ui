@@ -194,6 +194,18 @@ describe('MessengerCapabilitiesSchema', () => {
     ).toBe(false);
   });
 
+  test('все пять сигналов (с заявкой requested) и четыре операции сообщества — по схеме', () => {
+    expect(
+      valid({
+        ...CAPABILITIES,
+        community: {
+          signals: ['joined', 'left', 'added', 'removed', 'requested'],
+          operations: ['exclude', 'invite', 'approve', 'inviteLink'],
+        },
+      }),
+    ).toBe(true);
+  });
+
   test('пропущенное обязательное поле — не по схеме', () => {
     const { edit, ...rest } = CAPABILITIES;
 

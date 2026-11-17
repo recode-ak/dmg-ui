@@ -1,5 +1,8 @@
 import type { LengthUnit } from '../limit/limit.types';
-import type { CommunityOperation, CommunitySignal } from './messenger.types';
+import type {
+  CommunityOperation,
+  CommunitySignalKind,
+} from './messenger.types';
 
 /** Источник записей лога стража лимитов. */
 export const LOG_SOURCE = 'chat-ui';
@@ -18,13 +21,14 @@ export const LENGTH_UNITS = [
   'utf8',
 ] as const satisfies readonly LengthUnit[];
 
-/** Сигналы сообщества. */
+/** Виды сигналов сообщества. */
 export const COMMUNITY_SIGNALS = [
   'joined',
   'left',
   'added',
   'removed',
-] as const satisfies readonly CommunitySignal[];
+  'requested',
+] as const satisfies readonly CommunitySignalKind[];
 
 /** Операции сообщества. */
 export const COMMUNITY_OPERATIONS = [

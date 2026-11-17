@@ -1,7 +1,7 @@
 import type { AnyEventDef, AnyUseCaseDef } from 'dmg-core';
 import type {
   CommunityOperation,
-  CommunitySignal,
+  CommunitySignalKind,
 } from '../messenger/messenger.types';
 
 // Манифесты сообщества (D-UI-60): сигнал мессенджера вызывает объявленный
@@ -16,7 +16,7 @@ export type ChatSignalSpec = {
   readonly name: string;
   readonly label: string;
   readonly description: string;
-  readonly signal: CommunitySignal;
+  readonly signal: CommunitySignalKind;
   readonly uc: AnyUseCaseDef;
   readonly input: Readonly<Record<string, ChatSignalField>>;
   /** Вызывать UC и для незнакомого человека — без поля человека. */

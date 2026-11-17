@@ -3,8 +3,14 @@
 // намерениями, их реестр с перекрытием под мессенджер; сообщение, помощники
 // лимита, порт мессенджера, его возможности и страж лимитов; поставщик графа
 // общей части мессенджеров, его имя и примеры для его правил, рендерер
-// примеров, манифесты сообщества; узел бесед доставляет и уведомления.
+// примеров, манифесты сообщества и их исполнитель; узел бесед доставляет и
+// уведомления.
 
+export {
+  Communities,
+  type CommunitiesSpec,
+} from './community/communities';
+export type { CommunityLimits } from './community/communities.types';
 export type {
   ChatCommunitySpec,
   ChatReactionSpec,
@@ -62,7 +68,9 @@ export { LimitedMessenger } from './messenger/limited-messenger';
 export { MessageFit } from './messenger/message-fit';
 export type {
   CommunityOperation,
+  CommunityPort,
   CommunitySignal,
+  CommunitySignalKind,
   Delivery,
   Fitted,
   Initiative,

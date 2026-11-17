@@ -4,6 +4,7 @@ import { SourceFile } from './source-tree';
 
 // Зоны пакета `chat-ui` (ARC-08): код канала знает только публичные входы
 // `dmg-ui` и `dmg-core` — не `src/` ядра и не пример по относительному пути;
+// подписка на события — `EventSubscriber` из `dmg-core/app` (D-98 `dmg-core`);
 // тестовый вход канала берёт привязку примера, `tg-bot` — канал по имени
 // входа; приёмочный каталог монорепо не ограничен по входам.
 
@@ -13,11 +14,12 @@ const scan = (text: string, path: string) =>
 describe('CoreImportScanner — канал диалога (packages/chat-ui/src/)', () => {
   const CHANNEL = 'packages/chat-ui/src/dialog/dialog-channel.ts';
 
-  it('разрешены valibot, dmg-core, dmg-core/graph, dmg-ui, dmg-ui/server, dmg-ui/graph и соседи', () => {
+  it('разрешены valibot, dmg-core, dmg-core/graph, dmg-core/app, dmg-ui, dmg-ui/server, dmg-ui/graph и соседи', () => {
     const text = [
       "import * as v from 'valibot';",
       "import { Trace } from 'dmg-core';",
       "import type { GraphProvider } from 'dmg-core/graph';",
+      "import { EventSubscriber } from 'dmg-core/app';",
       "import { ScreenRuntime } from 'dmg-ui';",
       "import { RenderFlags } from 'dmg-ui/server';",
       "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
@@ -34,7 +36,7 @@ describe('CoreImportScanner — канал диалога (packages/chat-ui/src/
     "import { test } from 'bun:test';",
     "import { ExampleApp } from 'dmg-core/testing/example';",
     "import { useTempDir } from 'dmg-core/testing';",
-    "import { a } from 'dmg-core/app';",
+    "import type { ArchApp } from 'dmg-core/arch';",
   ]) {
     it(`${text} в канале — нарушение`, () => {
       expect(scan(text, CHANNEL)).toHaveLength(1);

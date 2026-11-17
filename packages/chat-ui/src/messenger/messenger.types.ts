@@ -3,9 +3,9 @@ import type { ServerContext } from 'dmg-ui/server';
 import type { LengthUnit, TextLimit } from '../limit/limit.types';
 import type { Message, MessageKind } from '../message/message.types';
 
-// Порт мессенджера (D-UI-37): намерения общей части к собеседнику, способ
-// выбирает мессенджер; возможности мессенджера (D-UI-38) и разрезы стража
-// лимитов (D-UI-39).
+// Порт мессенджера (D-UI-37): намерения общей части к собеседнику и
+// операции сообщества, способ выбирает мессенджер; возможности мессенджера
+// (D-UI-38) и разрезы стража лимитов (D-UI-39).
 
 /** Идентификатор показанного сообщения: выдаёт мессенджер, общая часть хранит как есть (JSON). */
 export type MessageHandle = string;
@@ -58,10 +58,27 @@ export type OptionLimits = {
   readonly ref: number;
 };
 
-/** Сигнал сообщества (место; порт сообщества отдельный). */
-export type CommunitySignal = 'joined' | 'left' | 'added' | 'removed';
+/** Вид сигнала сообщества: вступил, вышел, бота добавили, бота убрали, подал заявку. */
+export type CommunitySignalKind =
+  | 'joined'
+  | 'left'
+  | 'added'
+  | 'removed'
+  | 'requested';
 
-/** Операция сообщества (место; порт сообщества отдельный). */
+/**
+ * Сигнал сообщества — данные мессенджера: `community` — непрозрачный handle
+ * группы, `member` — личность транспорта участника (вступил или вышел — он
+ * сам; бота добавили или убрали — кто это сделал); uuid в сигнале нет.
+ */
+export type CommunitySignal = {
+  readonly id: string;
+  readonly kind: CommunitySignalKind;
+  readonly community: string;
+  readonly member?: string;
+};
+
+/** Операция сообщества; `inviteLink` объявлена, но не исполняется (DEBT-UI-25). */
 export type CommunityOperation =
   | 'exclude'
   | 'invite'
@@ -87,9 +104,23 @@ export type MessengerCapabilities = {
   readonly form: boolean;
   readonly initiative: Initiative;
   readonly community: {
-    readonly signals: readonly CommunitySignal[];
+    readonly signals: readonly CommunitySignalKind[];
     readonly operations: readonly CommunityOperation[];
   };
+};
+
+/**
+ * Порт сообщества: операции над группой (`community` — handle, `member` —
+ * личность транспорта); способ исполнения выбирает мессенджер. Недоставка —
+ * значение, бросок — дефект.
+ */
+export type CommunityPort = {
+  /** Исключить участника. */
+  exclude(community: string, member: string): Promise<Delivery<void>>;
+  /** Пригласить человека. */
+  invite(community: string, member: string): Promise<Delivery<void>>;
+  /** Принять заявку на вступление. */
+  approve(community: string, member: string): Promise<Delivery<void>>;
 };
 
 /** Порт мессенджера: намерения общей части, способ выбирает мессенджер. Недоставка — значение, не бросок. */
@@ -119,6 +150,8 @@ export type MessengerPort = {
   answer(peer: string, press: string, text?: string): Promise<Delivery<void>>;
   /** Уведомление: всегда по инициативе; способ (обычное сообщение, шаблон) — мессенджера. */
   notify(peer: string, message: Message): Promise<Delivery<MessageHandle>>;
+  /** Операции сообщества; нет — мессенджер их не исполняет. */
+  readonly community?: CommunityPort;
 };
 
 /** Операция порта — для записи лога стража. */

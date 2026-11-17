@@ -324,6 +324,49 @@ describe('CH-03: свойства и охват', () => {
 
     expect(report.rule('CH-03')).toEqual([SIGNAL_LINE]);
   });
+
+  test('сигнал и реакция другого поставщика под приложением без мессенджера — строка «у приложения нет мессенджера» на каждый', () => {
+    // exampleWindowed есть у поставщика dmg-ui, но не у ChatGraphProvider:
+    // узла chatMessenger под ним нет, сигнал и реакцию ставит подставной.
+    const scene: ArchApp = {
+      ...ExampleArch,
+      providers: [
+        new UiGraphProvider({
+          set: ExampleUiSetDef,
+          apps: [ExampleDialogAppDef, ExampleWindowedAppDef],
+        }),
+        new ChatGraphProvider({ apps: [dialog()], examples: EXAMPLES }),
+        stub({
+          nodes: [
+            {
+              kind: 'chatSignal',
+              id: 'exampleWindowed/signal-gone',
+              label: 'Сигнал сцены',
+              description: 'Сигнал подставного поставщика без мессенджера.',
+              props: { signal: 'left' },
+            },
+            {
+              kind: 'chatReaction',
+              id: 'exampleWindowed/reaction-drop',
+              label: 'Реакция сцены',
+              description: 'Реакция подставного поставщика без мессенджера.',
+              props: { operation: 'exclude' },
+            },
+          ],
+          edges: [],
+        }),
+      ],
+    };
+    const report = ArchReport.of(scene);
+
+    expect(report.code).toBe(1);
+    expect([...report.rule('CH-03')].sort()).toEqual(
+      [
+        'CH-03: приложение exampleWindowed: реакция exampleWindowed/reaction-drop — у приложения нет мессенджера',
+        'CH-03: приложение exampleWindowed: сигнал exampleWindowed/signal-gone — у приложения нет мессенджера',
+      ].sort(),
+    );
+  });
 });
 
 describe('CH-03: тексты без данных (ERR-07)', () => {
