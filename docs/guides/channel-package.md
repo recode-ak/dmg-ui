@@ -72,7 +72,7 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 
 Страничный канал отличается тем, что экранов несколько (области `main` и `side`): `moved` открывает адрес в области назначения; `exited` в `main` ведёт на вход `start` с заметкой, в `side` — очищает область; `confirm` и `rejected` хранятся в области до следующего действия. Живого места, реакций и пути у него нет: всё показывается в области, `unavailable` — заметкой, и `unknown` тоже, а не броском; у `refused` нет отдельного текста для `caught`; адрес, который не декодировался, очищает область, а не ведёт на вход ([page-client.ts](../../packages/core/testing/page/client/page-client.ts), метод `settle`). «Один живой экран» — политика беседы, а не ядра.
 
-Подписи действий и выходов канал берёт из Def: `UiIds.findScreen(id)` даёт `AnyScreenDef` с `actions`, `locals` и `exits` (у каждого `label`); `normalize()` для этого не нужен.
+Подписи действий и выходов канал берёт из Def: `UiIds.findScreen(id)` даёт `AnyScreenDef` с `actions`, `locals` и `exits` (у каждого `label`); `normalize()` для этого не нужен. Уведомление набора по `id` — `UiIds.findNotification(id)` (чужой `id` и `id` экрана дают `undefined`).
 
 ## 5. Представление, показ и граф
 

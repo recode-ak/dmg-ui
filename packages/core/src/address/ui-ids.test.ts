@@ -28,6 +28,14 @@ describe('UiIds', () => {
     expect(ids.findScreen('exampleUi/todo/missing')).toBeUndefined();
   });
 
+  test('findNotification по id — тот же Def; чужой id, id экрана — undefined', () => {
+    expect(ids.findNotification('exampleUi/todo/taskAssigned')).toBe(
+      TaskAssignedNotificationDef,
+    );
+    expect(ids.findNotification('exampleUi/todo/missing')).toBeUndefined();
+    expect(ids.findNotification('exampleUi/todo/taskList')).toBeUndefined();
+  });
+
   test('два экрана с одним id в наборе — бросок с этим id', () => {
     const twin = ScreenDef.define({
       name: 'taskList',

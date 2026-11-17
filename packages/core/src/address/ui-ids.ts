@@ -13,12 +13,14 @@ const ORPHAN_ROOT = 'dmg-ui/orphan';
  * Идентификаторы узлов набора UI: `id` экрана, сторис и уведомления —
  * `<набор>/<модуль>/<имя>`. Одно вычисление `id` для адресов и графа (граф
  * расширяет его, а не пишет второе). Чистый: графа платформы не знает.
+ * Поиск уведомления по `id` — D-UI-55.
  */
 export class UiIds {
   private readonly setName: string;
   private readonly claimed = new Set<string>();
   private readonly ofDef = new Map<object, string>();
   private readonly screens = new Map<string, AnyScreenDef>();
+  private readonly notifications = new Map<string, AnyNotificationDef>();
 
   /**
    * Повтор `id` в модуле (экран, сторис, уведомление с одним именем) или один
@@ -36,7 +38,8 @@ export class UiIds {
         this.claim(set, module, 'сторис', story);
       }
       for (const notification of module.notifications ?? []) {
-        this.claim(set, module, 'уведомление', notification);
+        const id = this.claim(set, module, 'уведомление', notification);
+        this.notifications.set(id, notification);
       }
     }
   }
@@ -86,6 +89,14 @@ export class UiIds {
 
   findScreen(id: string): AnyScreenDef | undefined {
     return this.screens.get(id);
+  }
+
+  /**
+   * Уведомление набора по `id` (D-UI-55); чужой `id` и `id` экрана —
+   * `undefined`, не бросок.
+   */
+  findNotification(id: string): AnyNotificationDef | undefined {
+    return this.notifications.get(id);
   }
 
   private claim(
