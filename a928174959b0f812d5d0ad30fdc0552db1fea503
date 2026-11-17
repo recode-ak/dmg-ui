@@ -1,0 +1,4 @@
+Задача: правка по повторной проверке — пределы схемы снимка действуют и при записи.
+Файлы: packages/chat-ui/src/conversation/{conversations.ts,conversation-log.ts,conversation.const.ts,conversation.types.ts,conversation-input.ts} и тесты conversations.test.ts, conversation-snapshot.test.ts; docs/decisions.md (D-UI-45).
+Причина: снимок сверх предела сохранялся без ошибки и отвергался после перезапуска — беседа молча начиналась заново.
+Гейт: bun run check — 1384 pass, 0 fail, 113 файлов, 14 снимков (два прогона).
