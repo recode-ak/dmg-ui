@@ -14,9 +14,11 @@
 // Внутренние `WirePorts`, `PageConnection`, `PageOutbox`, `serverFrame`,
 // `PageRegions`, `PagePlacements`, `PageForms`, `PageInbox`, `PageSeenKeys`,
 // `ViewCell`, `PageTextPresenter`, `PagePath`, `PageParams`, `PageLayoutUrls`,
-// `PageHistory`, `PageHistoryRecord` наружу не выходят. Областей три —
-// основная, соседняя и модальная (`PageRegionName`): куда открыть переход,
-// объявляет приложение страниц (`PagePlacement`).
+// `PageHistory`, `PageHistoryRecord`, `PageOverlay` наружу не выходят. Жест
+// показывает ожидаемый итог до ответа — функция представления `PageExpected`
+// (D-UI-84). Областей три — основная, соседняя и модальная
+// (`PageRegionName`): куда открыть переход, объявляет приложение страниц
+// (`PagePlacement`).
 
 export { PageBrowserHistory } from './client/page-browser-history';
 export { PageBrowserSocket } from './client/page-browser-socket';
@@ -93,6 +95,7 @@ export { PageRenderer } from './view/page-renderer';
 export type {
   PageConfirm,
   PageEntered,
+  PageExpected,
   PageStaleReason,
   PageViewState,
   PageViewStatus,

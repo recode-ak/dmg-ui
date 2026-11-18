@@ -1,10 +1,11 @@
-import { ok } from 'dmg-core';
+import { err, ok, type Result } from 'dmg-core';
 import {
   type ActionField,
   type ActionOutcome,
   type Address,
   AddressCodec,
   type AddressJson,
+  type InstanceView,
   type LocalOutcome,
   type OpenOptions,
   type ScreenInstance,
@@ -16,7 +17,10 @@ import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageLayoutUrls } from '../url/page-layout-urls';
 import { PageUrls } from '../url/page-urls';
-import type { PageViewState } from '../view/page-view-state.types';
+import type {
+  PageExpected,
+  PageViewState,
+} from '../view/page-view-state.types';
 import type { ViewSource } from '../view/view-source.types';
 import type { ServerMessage } from '../wire/page-messages.types';
 import type { ClientEnd } from '../wire/page-wire.types';
@@ -44,6 +48,7 @@ import { PageHistory } from './page-history';
 import type { PageHistoryEntry } from './page-history.types';
 import { PageHistoryRecord } from './page-history-record';
 import { PageInbox } from './page-inbox';
+import { PageOverlay } from './page-overlay';
 import { PagePlacements } from './page-placements';
 import { PageRegions } from './page-regions';
 import { PageSystemClock } from './page-system-clock';
@@ -76,7 +81,17 @@ type Act = {
   readonly confirmed: boolean;
   /** Введённое в форму (у жеста нет): для эха при отказе входа и повтора подтверждения. */
   readonly values?: PageFormValues;
+  /** Ожидаемый итог: показан до ответа (D-UI-84). */
+  readonly expected?: PageExpected;
 };
+
+/** Экземпляр области для действия или исход `unavailable`, если действовать нельзя. */
+type Ready =
+  | { readonly instance: ScreenInstance; readonly outcome?: undefined }
+  | {
+      readonly instance?: undefined;
+      readonly outcome: Extract<ActionOutcome, { kind: 'unavailable' }>;
+    };
 
 /**
  * Вкладка одной личности — «браузерная» половина: исполнитель экранов здесь,
@@ -88,6 +103,8 @@ type Act = {
  * связи переход ждёт соединения, действия отключены; после `attach` открытые
  * экземпляры перечитаны восстановлением из снимка (D-UI-74). С портом
  * истории переход — шаг, «Назад» и перезагрузка — путь по записи (D-UI-81).
+ * Жест и «Да» показывают ожидаемый итог до ответа; пока он показан, действия
+ * области недоступны (D-UI-84).
  * @see ./page-client.test.ts
  */
 export class PageClient {
@@ -102,6 +119,8 @@ export class PageClient {
   private readonly codec: AddressCodec;
   private readonly ids: UiIds;
   private readonly regions: PageRegions;
+  /** Что видит человек: область с ожидаемыми итогами поверх (D-UI-84). */
+  private readonly overlays = new Map<PageRegionName, PageOverlay>();
   private readonly forms = new PageForms();
   private readonly notes: PageInbox;
   /** Адрес входа `start` — куда вкладка возвращается. */
@@ -144,6 +163,16 @@ export class PageClient {
       (node, error) => this.fault(node, error),
       new PagePlacements(this.ids, spec.placements ?? []),
     );
+    for (const name of PAGE_REGIONS) {
+      this.overlays.set(
+        name,
+        new PageOverlay(
+          this.regions.source(name),
+          (view, data) => this.expectedData(view, data),
+          (node, error) => this.fault(node, error),
+        ),
+      );
+    }
     this.ports = new WirePorts(spec.end, (address) =>
       this.regions.signalled(address),
     );
@@ -264,7 +293,7 @@ export class PageClient {
     values: PageFormValues,
     revision?: number,
   ): Promise<ActionOutcome> {
-    const ready = this.ready(region);
+    const ready = this.acting(region);
     if (ready.instance === undefined) return ready.outcome;
     const { instance } = ready;
     const view = instance.view();
@@ -284,14 +313,16 @@ export class PageClient {
    * варианта, не подпись). Ревизия обязательна — вида, по которому нарисована
    * цель жеста; устаревшая — исход `stale`. Наличие и доступность действия,
    * подтверждение и схему входа проверяет ядро; исход — по общей таблице.
+   * `expected` — ожидаемый итог: показан до ответа (D-UI-84).
    */
   async submitInput(
     region: PageRegionName,
     action: string,
     input: unknown,
     revision: number,
+    expected?: PageExpected,
   ): Promise<ActionOutcome> {
-    const ready = this.ready(region);
+    const ready = this.acting(region);
     if (ready.instance === undefined) return ready.outcome;
     return this.act(region, {
       instance: ready.instance,
@@ -299,15 +330,26 @@ export class PageClient {
       input,
       revision,
       confirmed: false,
+      ...(expected === undefined ? {} : { expected }),
     });
   }
 
-  /** «Да» ожидающему подтверждению области: тот же вход с `confirmed: true`. */
-  async confirm(region: PageRegionName): Promise<ActionOutcome> {
+  /**
+   * «Да» ожидающему подтверждению области: тот же вход с `confirmed: true`;
+   * `expected` — ожидаемый итог, показан до ответа (D-UI-84).
+   */
+  async confirm(
+    region: PageRegionName,
+    expected?: PageExpected,
+  ): Promise<ActionOutcome> {
     const instance = this.regions.instance(region);
     const pending = this.regions.pending(region);
     if (instance === undefined) return this.unavailable(region, 'closed');
-    if (pending === undefined || this.regions.behind(region)) {
+    if (
+      pending === undefined ||
+      this.regions.behind(region) ||
+      this.overlay(region).expecting()
+    ) {
       return this.unavailable(region, 'disabled');
     }
     return this.act(region, {
@@ -317,6 +359,7 @@ export class PageClient {
       revision: pending.revision,
       confirmed: true,
       ...(pending.values === undefined ? {} : { values: pending.values }),
+      ...(expected === undefined ? {} : { expected }),
     });
   }
 
@@ -374,14 +417,17 @@ export class PageClient {
     if (address !== undefined) await this.openJson(region, address);
   }
 
-  /** Источник состояния области — один объект на всё время жизни вкладки. */
+  /**
+   * Источник состояния области — один объект на всё время жизни вкладки:
+   * что видит человек, с ожидаемыми итогами поверх (D-UI-84).
+   */
   source(name: PageRegionName): ViewSource<PageViewState> {
-    return this.regions.source(name);
+    return this.overlay(name);
   }
 
   /** Текущее состояние области — `source(name).get()`. */
   region(name: PageRegionName): PageViewState {
-    return this.regions.state(name);
+    return this.overlay(name).get();
   }
 
   /** Снимок областей с экземпляром в форме JSON. */
@@ -429,13 +475,30 @@ export class PageClient {
   }
 
   private async act(region: PageRegionName, act: Act): Promise<ActionOutcome> {
-    const outcome = await act.instance.act({
-      action: act.action,
-      input: act.input,
-      revision: act.revision,
-      confirmed: act.confirmed,
-      trace: this.traces.next(),
-    });
+    // Сверка экземпляра явная: тот же адрес, открытый заново, начинает с той
+    // же ревизии — по ревизии смену экземпляра не отличить.
+    const withdraw =
+      act.expected === undefined
+        ? undefined
+        : this.overlay(region).put(
+            act.revision,
+            act.expected,
+            () => this.regions.instance(region) === act.instance,
+          );
+    let outcome: ActionOutcome;
+    try {
+      outcome = await act.instance.act({
+        action: act.action,
+        input: act.input,
+        revision: act.revision,
+        confirmed: act.confirmed,
+        trace: this.traces.next(),
+      });
+    } finally {
+      // Снятие до политики исхода: иначе отказ на миг показал бы итог вместе
+      // с заметкой отказа.
+      withdraw?.();
+    }
     // Экземпляр ушёл из области (переход, очистка) — побеждает последнее
     // начатое: исход только вызывающему.
     if (this.regions.instance(region) === act.instance) {
@@ -840,12 +903,7 @@ export class PageClient {
    * Экземпляр области для действия формы или жеста; нет экземпляра или данные
    * с прежнего соединения — исход `unavailable` (с заметкой области).
    */
-  private ready(region: PageRegionName):
-    | { readonly instance: ScreenInstance; readonly outcome?: undefined }
-    | {
-        readonly instance?: undefined;
-        readonly outcome: Extract<ActionOutcome, { kind: 'unavailable' }>;
-      } {
+  private ready(region: PageRegionName): Ready {
     const instance = this.regions.instance(region);
     if (instance === undefined) {
       return { outcome: this.unavailable(region, 'closed') };
@@ -854,6 +912,42 @@ export class PageClient {
       return { outcome: this.unavailable(region, 'disabled') };
     }
     return { instance };
+  }
+
+  /**
+   * Экземпляр области для действия на сервер: как `ready`, и пока показан
+   * ожидаемый итог — `unavailable: 'disabled'` (D-UI-84). Локальных
+   * действий это не касается: они без ревизии и на сервер не идут.
+   */
+  private acting(region: PageRegionName): Ready {
+    const ready = this.ready(region);
+    if (ready.instance !== undefined && this.overlay(region).expecting()) {
+      return { outcome: this.unavailable(region, 'disabled') };
+    }
+    return ready;
+  }
+
+  /** Наложение ожидаемых итогов области. */
+  private overlay(name: PageRegionName): PageOverlay {
+    const overlay = this.overlays.get(name);
+    if (overlay === undefined) {
+      throw new Error(`PageClient: нет области ${name}`);
+    }
+    return overlay;
+  }
+
+  /**
+   * Ожидаемый итог — по схеме данных экрана: в вид идёт её выход, потому что
+   * представление приводит данные к типу экрана без проверки.
+   */
+  private expectedData(
+    view: InstanceView,
+    data: unknown,
+  ): Result<unknown, void> {
+    const schema = this.ids.findScreen(view.screen)?.data;
+    if (schema === undefined) return err(undefined);
+    const parsed = v.safeParse(schema, data);
+    return parsed.success ? ok(parsed.output) : err(undefined);
   }
 
   /** Адрес области как `Address`; пустая область — `undefined`. */

@@ -28,13 +28,16 @@ export class PageFormModel {
     if (state.status !== 'ready' || view === undefined) return NONE;
     const def = this.ids.findScreen(view.screen);
     const offline = state.stale === 'offline';
+    // Пока показан ожидаемый итог, действия области ждут ответа (D-UI-84);
+    // локальные — нет: они без ревизии и на сервер не идут.
+    const expecting = state.expected === true;
     const forms: PageForm[] = [
       ...view.actions.map((action) =>
         this.form(state, 'action', action.name, action.fields, {
           label: def?.actions[action.name]?.label ?? action.name,
           description: def?.actions[action.name]?.description ?? '',
           primary: view.primary === action.name,
-          available: action.available && !offline,
+          available: action.available && !offline && !expecting,
           ...(action.confirm === undefined ? {} : { confirm: action.confirm }),
         }),
       ),

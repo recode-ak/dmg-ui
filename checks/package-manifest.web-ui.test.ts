@@ -6,6 +6,7 @@ import type {
   PageClock,
   PageDialFailure,
   PageEntered,
+  PageExpected,
   PageForm,
   PageFormField,
   PageFormSet,
@@ -97,6 +98,7 @@ describe('вход dmg-ui/web-ui', () => {
       'PageLayoutUrls',
       'PageHistory',
       'PageHistoryRecord',
+      'PageOverlay',
     ]) {
       expect(exported).not.toContain(internal);
     }
@@ -121,6 +123,8 @@ export type WebUiViewTypes = [
   PageViewState['issues'],
   PageViewState['confirm'],
   PageViewState['entered'],
+  PageViewState['expected'],
+  PageExpected,
   ViewSource<PageViewState>['get'],
   ViewSource<PageViewState>['subscribe'],
   PageRegionPresenter<PageTextTarget>['show'],

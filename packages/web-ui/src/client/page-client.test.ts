@@ -5,17 +5,25 @@ import {
   ErrorDef,
   ErrorText,
   err,
+  F,
   ok,
   type Result,
   type SerializedResult,
 } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
-import { ExampleAppDef, TaskEvents } from 'dmg-core/testing/example';
+import {
+  CompleteTaskUcDef,
+  ExampleAppDef,
+  ListTasksUcDef,
+  TaskEvents,
+} from 'dmg-core/testing/example';
 import {
   type ActionSteps,
   type AnyScreenDef,
   CodeLoader,
   CodeLoaders,
+  type InstanceView,
+  type LoadContext,
   ScreenCode,
   ScreenDef,
   UiAppDef,
@@ -4540,5 +4548,959 @@ describe('PageClient — переход по записи вытеснен де�
       note: PAGE_NOTES.failed,
     });
     expect(t.faults).toEqual([]);
+  });
+});
+
+// Ожидаемый итог действия: жест передаёт вместе с входом функцию — данные
+// вида, какими их покажет ответ. Область показывает итог до ответа
+// (`expected: true`, «Ждём ответа…» в тексте) и откатывается к виду области,
+// как только ответ пришёл или область перестала быть готовой той же ревизии
+// того же экземпляра. Пока итог показан, действия этой области недоступны;
+// соседняя область не ждёт. История, снимок и URL итога не видят.
+
+const EXPECTING = 'Ждём ответа…';
+
+/** Данные экрана со строками задач: прочие ключи остаются как есть. */
+const TasksData = v.looseObject({
+  tasks: v.array(
+    v.object({ uuid: v.string(), title: v.string(), status: v.string() }),
+  ),
+});
+
+/** Строка задачи карточки. */
+const CardData = v.object({
+  uuid: v.string(),
+  title: v.string(),
+  status: v.string(),
+});
+
+/** Итог «Выполнить» карточки: задача выполнена. */
+const completed = (view: InstanceView) => ({
+  ...v.parse(CardData, view.data),
+  status: 'done',
+});
+
+/** Итог для экрана со строками задач: задача `taskId` выполнена, прочие как были. */
+const finished = (taskId: string) => (view: InstanceView) => {
+  const data = v.parse(TasksData, view.data);
+  return {
+    ...data,
+    tasks: data.tasks.map((task) =>
+      task.uuid === taskId ? { ...task, status: 'done' } : task,
+    ),
+  };
+};
+
+/** Вход вызова UC, как его видит заглушка. */
+const CallInput = v.object({
+  input: v.object({ taskId: v.string() }),
+});
+
+/**
+ * Конец со списком задач, который помнит выполненные: `completeTask` с ответом
+ * `result` (успех отмечает задачу) — по `release`. Остальные ответы — как у
+ * `answered`.
+ */
+const completing = (result: SerializedResult = ok({})) => {
+  const doneIds = new Set<string>();
+  return answered()
+    .answer('listTasks', () =>
+      ok(
+        TASKS.map((task) =>
+          doneIds.has(task.uuid) ? { ...task, status: 'done' } : task,
+        ),
+      ),
+    )
+    .answer('completeTask', (call) => {
+      if (result.ok) doneIds.add(v.parse(CallInput, call).input.taskId);
+      return result;
+    })
+    .hold('completeTask');
+};
+
+/** Список в `main` и карточка Хлеба в `side`. */
+const carded = async (end: StubEnd = completing()) => {
+  const t = await listed(end);
+  await t.client.submit('main', 'open', { taskId: 'Хлеб' });
+  return { ...t, rev: t.client.region('side').view?.revision ?? 0 };
+};
+
+const statusOf = (state: PageViewState): unknown =>
+  v.parse(CardData, state.view?.data).status;
+
+describe('PageClient — ожидаемый итог действия', () => {
+  test('показ до ответа: сразу после жеста — итог и expected; текст области — «Ждём ответа…» и статус итога', async () => {
+    const { client, end, text, rev } = await carded();
+
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+
+    expect(client.region('side').expected).toBe(true);
+    expect(statusOf(client.region('side'))).toBe('done');
+    expect(text.region('side')).toContain(EXPECTING);
+    expect(text.region('side')).toContain('Статус: выполнена');
+    await end.flush();
+    expect(end.names()).toContain('completeTask');
+    expect(client.region('side').expected).toBe(true);
+    end.release('completeTask');
+    await acting;
+  });
+
+  test('успех: stayed; журнал — «открыта», итог с expected, данные сервера новой ревизии без expected; «открыта» между ними нет', async () => {
+    const { client, end, rev } = await carded();
+    const log = journal(client, 'side');
+
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+    await end.flush();
+    end.release('completeTask');
+    const outcome = await acting;
+
+    expect(outcome).toEqual({ kind: 'stayed', revision: rev + 1 });
+    const seen = log.map((state) => [
+      state.view?.revision,
+      statusOf(state),
+      state.expected,
+    ]);
+    expect(seen[0]).toEqual([rev, 'open', undefined]);
+    expect(seen[1]).toEqual([rev, 'done', true]);
+    expect(seen.length).toBeGreaterThan(2);
+    for (const entry of seen.slice(2)) {
+      expect(entry).toEqual([rev + 1, 'done', undefined]);
+    }
+    expect(client.region('side').expected).toBeUndefined();
+    expect(client.region('side').view?.data).toMatchObject({ status: 'done' });
+  });
+
+  test('отказ UC: refused; вид — «открыта» без expected, заметка — текст отказа; итог и заметка отказа вместе не показаны', async () => {
+    const { client, end, rev } = await carded(
+      completing(err(ErrorDef.serialize(denied))),
+    );
+    const log = journal(client, 'side');
+
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+    await end.flush();
+    end.release('completeTask');
+    const outcome = await acting;
+
+    expect(outcome).toMatchObject({ kind: 'refused' });
+    expect(client.region('side').expected).toBeUndefined();
+    expect(statusOf(client.region('side'))).toBe('open');
+    expect(client.region('side').note).toBe(ErrorText.of(denied).summary);
+    expect(log.some((state) => state.expected === true)).toBe(true);
+    expect(
+      log.some(
+        (state) =>
+          state.expected === true &&
+          state.note === ErrorText.of(denied).summary,
+      ),
+    ).toBe(false);
+  });
+
+  test('ревизия устарела к жесту: перечитано сигналом до жеста — stale, итог ни разу не показан, вызова нет', async () => {
+    const { client, end, rev } = await carded();
+    end.emit(signalOf(watchOf(end, CARD_ID), 'e-1'));
+    await end.flush();
+    expect(client.region('side').view?.revision).toBe(rev + 1);
+    const log = journal(client, 'side');
+
+    const outcome = await client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+
+    expect(outcome).toMatchObject({ kind: 'stale' });
+    expect(log.some((state) => state.expected === true)).toBe(false);
+    expect(end.names()).not.toContain('completeTask');
+  });
+
+  test('перечитывание раньше в очереди: итог показан вместе с refreshing; после ответа чтения — снят, исход stale', async () => {
+    const { client, end, rev } = await carded();
+    end.hold('listTasks');
+    end.emit(signalOf(watchOf(end, CARD_ID), 'e-1'));
+
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+
+    expect(client.region('side')).toMatchObject({
+      expected: true,
+      refreshing: true,
+    });
+    await end.flush();
+    end.release('listTasks');
+    const outcome = await acting;
+
+    expect(outcome).toMatchObject({ kind: 'stale' });
+    expect(client.region('side').expected).toBeUndefined();
+    expect(client.region('side').view?.revision).toBe(rev + 1);
+    expect(end.names()).not.toContain('completeTask');
+  });
+
+  test('сигнал во время ожидания: итог и refreshing вместе; после ответа — ревизия выросла, expected нет', async () => {
+    const { client, end, rev } = await carded();
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+    await end.flush();
+
+    end.emit(signalOf(watchOf(end, CARD_ID), 'e-1'));
+
+    expect(client.region('side')).toMatchObject({
+      expected: true,
+      refreshing: true,
+    });
+    end.release('completeTask');
+    await acting;
+    await end.flush();
+    expect(client.region('side').expected).toBeUndefined();
+    expect(client.region('side').refreshing).toBe(false);
+    expect(client.region('side').view?.revision).toBeGreaterThan(rev);
+    expect(client.region('side').view?.data).toMatchObject({ status: 'done' });
+  });
+
+  test('отвергнутый вход: rejected, замечания есть, expected и введённого нет', async () => {
+    const { client, rev } = await carded();
+
+    const acting = client.submitInput(
+      'side',
+      'assign',
+      { assigneeId: 'не-uuid' },
+      rev,
+      completed,
+    );
+    expect(client.region('side').expected).toBe(true);
+    const outcome = await acting;
+
+    expect(outcome).toMatchObject({ kind: 'rejected' });
+    expect(client.region('side').issues.length).toBeGreaterThan(0);
+    expect(client.region('side').expected).toBeUndefined();
+    expect(client.region('side').entered).toBeUndefined();
+    expect(statusOf(client.region('side'))).toBe('open');
+  });
+
+  test('обрыв во время ожидания: сразу — нет связи без итога; исход refused с заметкой обрыва; после переподключения перечитано без итога', async () => {
+    const { client, end, rev } = await carded();
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+    await end.flush();
+    expect(client.region('side').expected).toBe(true);
+
+    end.drop();
+
+    expect(client.region('side').stale).toBe('offline');
+    expect(client.region('side').expected).toBeUndefined();
+    expect(statusOf(client.region('side'))).toBe('open');
+    const outcome = await acting;
+    expect(outcome).toMatchObject({ kind: 'refused' });
+    expect(client.region('side').note).toBe(PAGE_NOTES.interrupted);
+    expect(client.region('side').expected).toBeUndefined();
+    const next = nextEnd();
+    await client.attach(next);
+    expect(next.names()).toContain('listTasks');
+    expect(client.region('side').stale).toBeUndefined();
+    expect(client.region('side').expected).toBeUndefined();
+    expect(client.region('side').status).toBe('ready');
+  });
+
+  test('без связи: unavailable disabled, итог не показан, на провод ничего', async () => {
+    const { client, end, rev } = await carded();
+    end.drop();
+    const log = journal(client, 'side');
+
+    const outcome = await client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(log.some((state) => state.expected === true)).toBe(false);
+    expect(end.afterBreak).toEqual([]);
+  });
+
+  test('уход из области: moved — после исхода в main итога нет, карточка открыта', async () => {
+    const { client } = await listed(completing());
+    const rev = client.region('main').view?.revision ?? 0;
+
+    const acting = client.submitInput(
+      'main',
+      'open',
+      { taskId: TASK_B },
+      rev,
+      finished(TASK_B),
+    );
+    expect(client.region('main').expected).toBe(true);
+    const outcome = await acting;
+
+    expect(outcome).toMatchObject({ kind: 'moved' });
+    expect(client.region('main').expected).toBeUndefined();
+    expect(client.region('main').view?.data).toMatchObject({
+      tasks: [{ status: 'open' }, { status: 'open' }],
+    });
+    expect(client.region('side').view?.address).toEqual(CARD_B);
+  });
+
+  test('закрытие во время ожидания: side пуста; после ответа — пуста, исход — вызывающему', async () => {
+    const { client, end, rev } = await carded();
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+    await end.flush();
+    expect(client.region('side').expected).toBe(true);
+
+    client.close('side');
+
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+    end.release('completeTask');
+    const outcome = await acting;
+    expect(outcome.kind).toEqual(expect.any(String));
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+  });
+
+  test('тот же адрес заново во время ожидания: новый экземпляр той же ревизии — итога нет ни до, ни после ответа', async () => {
+    const { client, end, rev } = await carded();
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+    await end.flush();
+    expect(client.region('side').expected).toBe(true);
+
+    await client.openLink(CARD_LINK);
+
+    expect(client.region('side').view?.address).toEqual(CARD_LINK);
+    expect(client.region('side').view?.revision).toBe(rev);
+    expect(client.region('side').expected).toBeUndefined();
+    expect(statusOf(client.region('side'))).toBe('open');
+    end.release('completeTask');
+    await acting;
+    await end.flush();
+    expect(client.region('side').expected).toBeUndefined();
+  });
+
+  test('«Назад» во время ожидания: панель закрыта, «Вперёд» вернул карточку — итога нет', async () => {
+    const end = completing();
+    const { client, history } = await booted(undefined, undefined, end);
+    await client.submit('main', 'open', { taskId: 'Хлеб' });
+    const rev = client.region('side').view?.revision ?? 0;
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+    await end.flush();
+    expect(client.region('side').expected).toBe(true);
+
+    await history.back();
+
+    expect(client.region('side').status).toBe('empty');
+    await history.forward();
+    expect(client.region('side').view?.address).toEqual(CARD_LINK);
+    expect(client.region('side').expected).toBeUndefined();
+    end.release('completeTask');
+    await acting;
+    await end.flush();
+    expect(client.region('side').expected).toBeUndefined();
+  });
+
+  test('история: от постановки до снятия итога записей и замен нет; запись и ссылка — без итога', async () => {
+    const end = completing();
+    const { client, history } = await booted(undefined, undefined, end);
+    await client.submit('main', 'open', { taskId: 'Хлеб' });
+    const rev = client.region('side').view?.revision ?? 0;
+    const { pushes, replaces } = history;
+    const url = client.url();
+
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+
+    expect(client.region('side').expected).toBe(true);
+    expect([history.pushes, history.replaces]).toEqual([pushes, replaces]);
+    await end.flush();
+    expect(client.region('side').expected).toBe(true);
+    expect([history.pushes, history.replaces]).toEqual([pushes, replaces]);
+    expect(client.url()).toBe(url);
+    expect(JSON.stringify(history.entries())).not.toContain('expected');
+    expect(JSON.stringify(client.snapshot())).not.toContain('expected');
+    end.release('completeTask');
+    await acting;
+    expect(history.pushes).toBe(pushes);
+    expect(client.url()).toBe(url);
+    expect(JSON.stringify(history.entries())).not.toContain('expected');
+  });
+
+  test('история после отказанной замены: итог до ответа записей и замен не даёт', async () => {
+    const end = completing();
+    const { client, history } = await booted(undefined, undefined, end);
+    await client.submit('main', 'open', { taskId: 'Хлеб' });
+    history.fail(new Error('замена отказана'));
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    history.fail(undefined);
+    const { pushes, replaces } = history;
+    const rev = client.region('side').view?.revision ?? 0;
+
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+
+    expect(client.region('side').expected).toBe(true);
+    expect([history.pushes, history.replaces]).toEqual([pushes, replaces]);
+    end.release('completeTask');
+    await acting;
+  });
+
+  test('жест с итогом по виду в отказе: итога нет, сбоев нет', async () => {
+    const end = completing().answer(
+      'listTasks',
+      err(ErrorDef.serialize(denied)),
+    );
+    const { client, faults } = await listed(end);
+    expect(client.region('main').status).toBe('refused');
+    const rev = client.region('main').view?.revision ?? 0;
+
+    const acting = client.submitInput(
+      'main',
+      'completeSelected',
+      {},
+      rev,
+      finished(TASK_A),
+    );
+
+    expect(client.region('main').expected).toBeUndefined();
+    expect(faults).toEqual([]);
+    await acting;
+  });
+
+  test('подтверждение: жест с итогом — confirm без итога; «Да» с итогом — итог вместе с прежним подтверждением; после ответа снят', async () => {
+    const end = completing().hold('completeTasks');
+    const { client } = await listed(end);
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    const rev = client.region('main').view?.revision ?? 0;
+    const all = finished(TASK_A);
+
+    const asked = await client.submitInput(
+      'main',
+      'completeSelected',
+      {},
+      rev,
+      all,
+    );
+
+    expect(asked).toMatchObject({ kind: 'confirm' });
+    expect(client.region('main').expected).toBeUndefined();
+    const confirm = client.region('main').confirm;
+    expect(confirm).toMatchObject({ action: 'completeSelected' });
+
+    const confirming = client.confirm('main', all);
+
+    expect(client.region('main').expected).toBe(true);
+    expect(client.region('main').confirm).toEqual(confirm);
+    expect(client.region('main').view?.data).toMatchObject({
+      tasks: [
+        { uuid: TASK_A, status: 'done' },
+        { uuid: TASK_B, status: 'open' },
+      ],
+    });
+    await end.flush();
+    end.release('completeTasks');
+    expect(await confirming).toMatchObject({ kind: 'stayed' });
+    expect(client.region('main').expected).toBeUndefined();
+    expect(client.region('main').confirm).toBeUndefined();
+  });
+
+  test('введённое и замечания при итоге — от области: отвергнутая форма, затем жест с итогом в той же области', async () => {
+    const { client } = await listed(completing());
+    await client.submit('main', 'create', { title: '' });
+    const { entered, issues } = client.region('main');
+    expect(entered).toBeDefined();
+    const rev = client.region('main').view?.revision ?? 0;
+
+    const acting = client.submitInput(
+      'main',
+      'open',
+      { taskId: TASK_B },
+      rev,
+      finished(TASK_B),
+    );
+
+    expect(client.region('main').expected).toBe(true);
+    expect(client.region('main').entered).toEqual(entered);
+    expect(client.region('main').issues).toEqual(issues);
+    await acting;
+  });
+
+  test('итог не по схеме данных экрана: итога нет, в faults — один сбой фиксированным текстом без данных; вызов ушёл', async () => {
+    const { client, end, faults, rev } = await carded();
+    const weird = (view: InstanceView) => ({
+      ...v.parse(CardData, view.data),
+      status: 'weird',
+    });
+
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      weird,
+    );
+
+    expect(client.region('side').expected).toBeUndefined();
+    expect(statusOf(client.region('side'))).toBe('open');
+    await end.flush();
+    expect(end.names()).toContain('completeTask');
+    end.release('completeTask');
+    expect(await acting).toMatchObject({ kind: 'stayed' });
+    expect(
+      faults.map((fault) => ({
+        node: fault.node,
+        error: (fault.error as Error).message,
+      })),
+    ).toEqual([{ node: CARD_ID, error: PAGE_FAULTS.expected }]);
+    expect(faults[0]?.error).not.toHaveProperty('cause');
+    expect(JSON.stringify(faults)).not.toContain('weird');
+    expect(String(faults[0]?.error)).not.toContain('weird');
+  });
+
+  test('лишний ключ в итоге отброшен схемой: значения журнала — данные JSON', async () => {
+    const { client, end, rev } = await carded();
+    const seen: { state: PageViewState; json: string }[] = [];
+    client.source('side').subscribe((state) => {
+      seen.push({ state, json: JSON.stringify(state) });
+    });
+
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      (view) => ({ ...completed(view), extra: () => 'функция' }),
+    );
+
+    expect(client.region('side').expected).toBe(true);
+    expect(client.region('side').view?.data).toEqual({
+      uuid: TASK_A,
+      title: 'Хлеб',
+      status: 'done',
+    });
+    await end.flush();
+    end.release('completeTask');
+    await acting;
+    expect(seen.some((s) => s.state.expected === true)).toBe(true);
+    for (const { state, json } of seen) {
+      expect(JSON.parse(json)).toEqual(state);
+      expect(JSON.stringify(state)).toBe(json);
+    }
+  });
+
+  test('без итога: жест в четыре параметра — итог не показан, вид прежний до ответа', async () => {
+    const { client, end, rev } = await carded();
+    const before = client.region('side');
+
+    const acting = client.submitInput('side', 'complete', undefined, rev);
+
+    expect(client.region('side')).toBe(before);
+    expect(client.region('side').expected).toBeUndefined();
+    await end.flush();
+    expect(statusOf(client.region('side'))).toBe('open');
+    end.release('completeTask');
+    expect(await acting).toMatchObject({ kind: 'stayed' });
+  });
+});
+
+// Локальная доска: строки задач и жест «Выполнить» со входом — какую задачу.
+// Учебная сторис такого действия не имеет; итог виден в строке задачи.
+
+const BoardRow = v.object({
+  uuid: F.uuid('задачи'),
+  title: v.pipe(v.string(), v.description('Название задачи')),
+  status: v.pipe(v.picklist(['open', 'done']), v.description('Статус задачи')),
+});
+
+const BoardScreenDef = ScreenDef.define({
+  name: 'board',
+  label: 'Доска',
+  description: 'Строки задач с выполнением по одной.',
+  reads: [ListTasksUcDef],
+  data: v.object({
+    tasks: v.pipe(v.array(BoardRow), v.description('Задачи доски')),
+  }),
+  actions: {
+    finish: {
+      label: 'Выполнить',
+      description: 'Отмечает задачу доски выполненной.',
+      input: v.object({ taskId: F.uuid('задачи') }),
+      uc: CompleteTaskUcDef,
+    },
+  },
+});
+
+type BoardData = v.InferOutput<typeof BoardScreenDef.data>;
+
+class BoardCode extends ScreenCode<typeof BoardScreenDef> {
+  override readonly actions: Partial<ActionSteps<typeof BoardScreenDef>> = {
+    finish: {
+      command: ({ input }) => ({ taskId: input.taskId }),
+      done: () => BoardScreenDef.at({}),
+    },
+  };
+
+  override async load({
+    read,
+  }: LoadContext<typeof BoardScreenDef>): Promise<
+    Result<BoardData, DomainError>
+  > {
+    const listed = await read(ListTasksUcDef, {});
+    if (!listed.ok) return listed;
+    return ok({
+      tasks: listed.value.flatMap((task) =>
+        task.status === 'open' || task.status === 'done'
+          ? [{ uuid: task.uuid, title: task.title, status: task.status }]
+          : [],
+      ),
+    });
+  }
+
+  /** Выполнить можно, пока есть открытая задача. */
+  override available(name: string, data: BoardData): boolean {
+    return name !== 'finish' || data.tasks.some((t) => t.status === 'open');
+  }
+}
+
+const BoardSetDef = UiSetDef.define({
+  name: 'boardUi',
+  label: 'Набор доски',
+  description: 'Локальная доска задач с выполнением по одной.',
+  app: ExampleAppDef,
+  modules: [
+    UiModuleDef.define({
+      name: 'tasks',
+      label: 'Задачи',
+      description: 'Доска задач.',
+      screens: [BoardScreenDef],
+      stories: [],
+    }),
+  ],
+});
+
+const BoardAppDef = UiAppDef.define({
+  name: 'boardPages',
+  label: 'Доска на страницах',
+  description: 'Приложение страниц доски задач.',
+  set: BoardSetDef,
+  channel: PAGE_CHANNEL,
+  stories: [],
+  entries: {
+    start: {
+      label: 'Доска',
+      description: 'Доска задач.',
+      address: BoardScreenDef.at({}),
+    },
+  },
+});
+
+/** Вкладка доски: доска в `main`, выполнение задачи — по `release`. */
+const boarded = async (end = completing()) => {
+  const client = new PageClient({
+    app: BoardAppDef,
+    codes: CodeLoaders.of(BoardSetDef, [
+      CodeLoader.screen(BoardScreenDef, async () => new BoardCode()),
+    ]),
+    routes: [],
+    end,
+    observer: new MemoryUiObserver(),
+    clock: new ManualPageClock(),
+  });
+  await client.route('/tasks/board');
+  return { client, end, rev: client.region('main').view?.revision ?? 0 };
+};
+
+const rowsOf = (state: PageViewState) =>
+  v.parse(TasksData, state.view?.data).tasks.map((task) => task.status);
+
+describe('PageClient — ожидаемый итог на доске', () => {
+  test('жест со входом: строка B выполнена до ответа, A и C как были; после ответа — данные сервера', async () => {
+    const { client, end, rev } = await boarded();
+    expect(rowsOf(client.region('main'))).toEqual(['open', 'open', 'open']);
+
+    const acting = client.submitInput(
+      'main',
+      'finish',
+      { taskId: TASK_B },
+      rev,
+      finished(TASK_B),
+    );
+
+    expect(client.region('main').expected).toBe(true);
+    expect(rowsOf(client.region('main'))).toEqual(['open', 'done', 'open']);
+    await end.flush();
+    end.release('completeTask');
+    expect(await acting).toEqual({ kind: 'stayed', revision: rev + 1 });
+    expect(client.region('main').expected).toBeUndefined();
+    expect(rowsOf(client.region('main'))).toEqual(['open', 'done', 'open']);
+    expect(end.calls().find((c) => c.uc === 'completeTask')).toMatchObject({
+      input: { taskId: TASK_B },
+    });
+  });
+
+  test('два действия подряд в одной области: пока итог первого показан, второе недоступно и не уходит; формы действий отключены; после ответа второе проходит', async () => {
+    const { client, end, rev } = await boarded();
+    const first = client.submitInput(
+      'main',
+      'finish',
+      { taskId: TASK_A },
+      rev,
+      finished(TASK_A),
+    );
+    await end.flush();
+
+    const second = client.submitInput(
+      'main',
+      'finish',
+      { taskId: TASK_B },
+      rev,
+      finished(TASK_B),
+    );
+
+    expect(await soon(second, end)).toBe('разрешён');
+    expect(await second).toEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(end.names().filter((name) => name === 'completeTask')).toHaveLength(
+      1,
+    );
+    expect(client.region('main').expected).toBe(true);
+    expect(rowsOf(client.region('main'))).toEqual(['done', 'open', 'open']);
+    const forms = new PageFormModel(BoardSetDef).of(client.region('main'));
+    expect(forms.forms.find((form) => form.name === 'finish')?.available).toBe(
+      false,
+    );
+    end.release('completeTask');
+    expect(await first).toMatchObject({ kind: 'stayed' });
+    expect(client.region('main').expected).toBeUndefined();
+
+    const again = await client.submitInput(
+      'main',
+      'finish',
+      { taskId: TASK_B },
+      client.region('main').view?.revision ?? 0,
+      finished(TASK_B),
+    );
+
+    expect(again).toMatchObject({ kind: 'stayed' });
+    expect(rowsOf(client.region('main'))).toEqual(['done', 'done', 'open']);
+  });
+
+  test('подтверждение, пока итог области показан, недоступно', async () => {
+    const end = completing().hold('completeTasks');
+    const { client } = await listed(end);
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    const rev = client.region('main').view?.revision ?? 0;
+    await client.submitInput('main', 'completeSelected', {}, rev);
+    const confirming = client.confirm('main', finished(TASK_A));
+    await end.flush();
+
+    const twice = client.confirm('main', finished(TASK_A));
+
+    expect(await soon(twice, end)).toBe('разрешён');
+    expect(await twice).toEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(client.region('main').note).toBe(PAGE_NOTES.unavailable);
+    expect(end.names().filter((name) => name === 'completeTasks')).toHaveLength(
+      1,
+    );
+    end.release('completeTasks');
+    await confirming;
+  });
+
+  test('форма области, пока итог показан, недоступна: исход сразу, вызова нет, заметка', async () => {
+    const { client, end, rev } = await carded();
+    const acting = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      rev,
+      completed,
+    );
+    await end.flush();
+
+    const formed = client.submit('side', 'assign', { assigneeId: testUuid(2) });
+
+    expect(await soon(formed, end)).toBe('разрешён');
+    expect(await formed).toEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(end.names()).not.toContain('assignTask');
+    expect(client.region('side').note).toBe(PAGE_NOTES.unavailable);
+    end.release('completeTask');
+    await acting;
+  });
+
+  test('локальное действие, пока итог показан, не блокируется: ждёт очереди экземпляра и меняет состояние', async () => {
+    const end = completing().hold('completeTasks');
+    const { client } = await listed(end);
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    const rev = client.region('main').view?.revision ?? 0;
+    await client.submitInput('main', 'completeSelected', {}, rev);
+    const confirming = client.confirm('main', finished(TASK_A));
+    await end.flush();
+    expect(client.region('main').expected).toBe(true);
+
+    const toggled = client.local('main', 'toggle', { taskId: 'Молоко' });
+
+    expect(await soon(toggled, end)).toBe('ждёт');
+    end.release('completeTasks');
+    await confirming;
+    expect(await toggled).toEqual({ kind: 'changed' });
+  });
+});
+
+describe('PageClient — ожидаемый итог в двух областях', () => {
+  /** Список с выбором Хлеба в `main` под вопросом подтверждения и карточка Молока в `side`. */
+  const paired = async (end: StubEnd) => {
+    const t = await listed(end.hold('completeTasks'));
+    await t.client.submit('main', 'open', { taskId: 'Молоко' });
+    await t.client.local('main', 'toggle', { taskId: 'Хлеб' });
+    const main = t.client.region('main').view?.revision ?? 0;
+    await t.client.submitInput('main', 'completeSelected', {}, main);
+    return { ...t, side: t.client.region('side').view?.revision ?? 0 };
+  };
+
+  test('два действия подряд в разных областях: итоги независимы, соседняя область не ждёт', async () => {
+    const { client, end, side } = await paired(completing());
+
+    const listing = client.confirm('main', finished(TASK_A));
+    const carding = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      side,
+      completed,
+    );
+
+    expect(client.region('main').expected).toBe(true);
+    expect(client.region('side').expected).toBe(true);
+    expect(client.region('main').view?.data).toMatchObject({
+      tasks: [
+        { uuid: TASK_A, status: 'done' },
+        { uuid: TASK_B, status: 'open' },
+      ],
+    });
+    expect(client.region('side').view?.data).toMatchObject({
+      uuid: TASK_B,
+      status: 'done',
+    });
+    await end.flush();
+    expect(end.names()).toContain('completeTasks');
+    expect(end.names()).toContain('completeTask');
+    end.release('completeTask');
+    expect(await carding).toMatchObject({ kind: 'stayed' });
+    expect(client.region('side').expected).toBeUndefined();
+    expect(client.region('main').expected).toBe(true);
+    end.release('completeTasks');
+    expect(await listing).toMatchObject({ kind: 'stayed' });
+    expect(client.region('main').expected).toBeUndefined();
+  });
+
+  test('отказ карточки — откат только side; итог main держится', async () => {
+    const { client, end, side } = await paired(
+      completing(err(ErrorDef.serialize(denied))),
+    );
+    const listing = client.confirm('main', finished(TASK_A));
+    const carding = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      side,
+      completed,
+    );
+    await end.flush();
+
+    end.release('completeTask');
+
+    expect(await carding).toMatchObject({ kind: 'refused' });
+    expect(client.region('side').expected).toBeUndefined();
+    expect(statusOf(client.region('side'))).toBe('open');
+    expect(client.region('side').note).toBe(ErrorText.of(denied).summary);
+    expect(client.region('main').expected).toBe(true);
+    end.release('completeTasks');
+    await listing;
+  });
+
+  test('отказ первого при живом втором: main без итога с заметкой отказа, side с итогом; затем второе — успех', async () => {
+    const end = completing().answer(
+      'completeTasks',
+      err(ErrorDef.serialize(denied)),
+    );
+    const { client, side } = await paired(end);
+    const listing = client.confirm('main', finished(TASK_A));
+    const carding = client.submitInput(
+      'side',
+      'complete',
+      undefined,
+      side,
+      completed,
+    );
+    await end.flush();
+
+    end.release('completeTasks');
+
+    expect(await listing).toMatchObject({ kind: 'refused' });
+    expect(client.region('main').expected).toBeUndefined();
+    expect(client.region('main').note).toBe(ErrorText.of(denied).summary);
+    expect(rowsOf(client.region('main'))).toEqual(['open', 'open']);
+    expect(client.region('side').expected).toBe(true);
+    expect(statusOf(client.region('side'))).toBe('done');
+    end.release('completeTask');
+    expect(await carding).toMatchObject({ kind: 'stayed' });
+    expect(client.region('side').expected).toBeUndefined();
+    expect(statusOf(client.region('side'))).toBe('done');
   });
 });

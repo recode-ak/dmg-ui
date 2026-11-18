@@ -12,8 +12,8 @@ import type { ViewSource } from './view-source.types';
  * Текстовое представление области поверх источника состояния: пометка «нет
  * связи» (`stale: 'offline'`, D-UI-74), заметка, тело по статусу, замечания
  * формы, подтверждение — через пустую строку. Тело: `loading` — «Загрузка…»,
- * `ready` и `refused` — вид (при перечитывании — «Обновляется…» перед ним),
- * `empty` — ничего (D-UI-70).
+ * `ready` и `refused` — вид (перед ним — «Ждём ответа…» при ожидаемом итоге,
+ * D-UI-84, и «Обновляется…» при перечитывании), `empty` — ничего (D-UI-70).
  */
 export class PageTextPresenter implements PageRegionPresenter<PageTextTarget> {
   private readonly renderer: PageRenderer;
@@ -51,6 +51,7 @@ export class PageTextPresenter implements PageRegionPresenter<PageTextTarget> {
       case 'ready':
       case 'refused':
         return [
+          state.expected === true ? PAGE_TEXTS.expected : undefined,
           state.refreshing ? PAGE_TEXTS.refreshing : undefined,
           state.view === undefined
             ? undefined

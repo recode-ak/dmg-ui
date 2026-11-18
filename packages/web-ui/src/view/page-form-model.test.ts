@@ -635,3 +635,19 @@ describe('PageFormModel.of — привязка замечаний к форме
     expect(fieldOf(formOf(patched, 'create'), 'title').optional).toBe(false);
   });
 });
+
+describe('PageFormModel.of — ожидаемый итог', () => {
+  test('expected — формы действий недоступны, локальные — как в виде', async () => {
+    const { state } = await listed();
+
+    const forms = model().of({ ...state, expected: true }).forms;
+
+    const actions = forms.filter((form) => form.kind === 'action');
+    expect(actions.length).toBeGreaterThan(0);
+    expect(actions.every((form) => !form.available)).toBe(true);
+    expect(formOf({ ...state, expected: true }, 'toggle').available).toBe(
+      formOf(state, 'toggle').available,
+    );
+    expect(formOf(state, 'toggle').available).toBe(true);
+  });
+});

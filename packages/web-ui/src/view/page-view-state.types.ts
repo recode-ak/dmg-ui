@@ -28,6 +28,7 @@ export type PageEntered = {
  * Состояние области — только данные JSON (D-UI-70). `address` нет только у
  * `empty`; `view` есть ровно у `ready` и `refused`, и `view.status` равен
  * `status`. `refreshing` — идёт перечитывание по сигналу, вид прежний.
+ * `expected` — данные вида — ожидаемый итог действия, ответа ещё нет (D-UI-84).
  */
 export type PageViewState = {
   readonly status: PageViewStatus;
@@ -39,4 +40,13 @@ export type PageViewState = {
   readonly issues: readonly FieldIssue[];
   readonly confirm?: PageConfirm;
   readonly entered?: PageEntered;
+  readonly expected?: true;
 };
+
+/**
+ * Ожидаемый итог действия: данные вида, какими их покажет ответ; проверяется
+ * схемой данных экрана (D-UI-84). Получает вид с итогами прежних наложений —
+ * живые данные экземпляра, менять их нельзя. Зовётся на каждый пересчёт
+ * области (перечитывание, заметка, локальное действие) — должна быть чистой.
+ */
+export type PageExpected = (view: InstanceView) => unknown;

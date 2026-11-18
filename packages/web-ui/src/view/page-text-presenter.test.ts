@@ -203,3 +203,25 @@ describe('PageTextPresenter — нет связи', () => {
     ]);
   });
 });
+
+describe('PageTextPresenter — ожидаемый итог', () => {
+  const EXPECTING = 'Ждём ответа…';
+
+  test('expected — «Ждём ответа…» перед видом', () => {
+    const { writes } = shown({ ...READY, expected: true });
+
+    expect(writes).toEqual([`${EXPECTING}\n\n${renderer.screen(VIEW)}`]);
+  });
+
+  test('expected при перечитывании — «Ждём ответа…», затем «Обновляется…», затем вид', () => {
+    const { writes } = shown({ ...READY, expected: true, refreshing: true });
+
+    const text = writes[0] ?? '';
+    const view = text.indexOf(renderer.screen(VIEW));
+    expect(text.indexOf(EXPECTING)).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf(EXPECTING)).toBeLessThan(view);
+    expect(text.indexOf('Обновляется…')).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf('Обновляется…')).toBeLessThan(view);
+    expect(text.indexOf(EXPECTING)).toBeLessThan(text.indexOf('Обновляется…'));
+  });
+});
