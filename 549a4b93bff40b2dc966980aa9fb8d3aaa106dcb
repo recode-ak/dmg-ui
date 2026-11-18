@@ -1,0 +1,3 @@
+Трек dmg-ui-web, показ ожидаемого итога до ответа (red-тесты и реализация одним коммитом).
+Файлы: packages/web-ui/src/client/page-overlay.ts, page-overlay.types.ts, page-overlay.test.ts (новые); page-client.ts, page-client.const.ts, page-client.test.ts; view/page-view-state.types.ts, page-renderer.ts, page-text-presenter.ts(+test), page-form-model.ts(+test); index.ts; checks/package-manifest.web-ui.test.ts; docs/decisions.md (D-UI-84, хвосты D-UI-70, D-UI-79), docs/guides/channel-package.md, debt.md (DEBT-UI-41, DEBT-UI-33).
+Проверка: bun run check — 3791 тест, 20 снимков (было 3736 / 20). Ядро, chat-ui, tg-bot, примеры, приёмочный тест, сервер, провод, граф, URL — без правок.
