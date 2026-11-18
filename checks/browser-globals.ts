@@ -13,27 +13,37 @@ const KEY = (names: string) => `\\[\\s*['"\`](?:${names})['"\`]\\s*\\]`;
 
 /**
  * Глобалы браузера и среды. Первая проверка: API браузера в `packages/**` и
- * `examples/**` без `.test.ts`, кроме клиента страничного пакета
- * (`packages/web-ui/src/client/`) и клиента примера для браузера
- * (`examples/web/src/client/`): серверу и моделям представлений примера
- * браузер не нужен, остальной код работает и на сервере. Голые `window`, `document`, `history`,
- * `location` встречаются в обычном коде (`'window'` в схемах, свойство
- * `history`), поэтому они ловятся по форме использования: `window.<член>`,
- * `document.createElement`, `history.pushState`, `location.href`,
- * `globalThis.window`, `self.document`, `window['document']`, `{ … } = window`.
- * Вторая проверка: `Bun` и `process` во
- * всём `packages/web-ui/src/` без `.test.ts` — сервер говорит с соединением
- * через порт, клиент выполняется в браузере. `fetch` не ловится: в `tg-bot`
- * его закрывает `NetworkGlobalScanner`, клиенту он понадобится. Не ловит:
- * члены `document` вне списка, алиасы (`const w = window`), вычисляемые ключи
- * (`window[name]`); комментарий с `window.x` вне клиента считается нарушением.
- * Член объекта, часть имени и строка в литерале — не нарушение.
+ * `examples/**` без `.test.ts`, кроме двух адаптеров клиента страничного
+ * пакета (`page-browser-socket.ts` и `page-history.types.ts` с формой окна
+ * браузера в `packages/web-ui/src/client/`) и клиента примера для браузера
+ * (`examples/web/src/client/`): остальной клиент пакета, провод, кодек адреса
+ * и представления получают среду аргументом (окно приходит в
+ * `PageBrowserHistory` параметром), серверу и моделям представлений примера
+ * браузер не нужен, остальной код работает и на сервере. Голые `window`,
+ * `document`, `history`, `location` встречаются в обычном коде (`'window'` в
+ * схемах, свойство `history`), поэтому они ловятся по форме использования:
+ * `window.<член>`, `document.createElement`, `history.pushState`,
+ * `location.href`, `globalThis.window`, `self.document`,
+ * `window['document']`, `{ … } = window`. Вторая проверка: `Bun` и `process`
+ * во всём `packages/web-ui/src/` без `.test.ts` — сервер говорит с
+ * соединением через порт, клиент выполняется в браузере. `fetch` не ловится:
+ * в `tg-bot` его закрывает `NetworkGlobalScanner`, клиенту он понадобится. Не
+ * ловит: члены `document` вне списка, алиасы (`const w = window`),
+ * вычисляемые ключи (`window[name]`); комментарий с `window.x` вне
+ * разрешённых файлов считается нарушением. Член объекта, часть имени и строка
+ * в литерале — не нарушение.
  */
 export class BrowserGlobalScanner {
   protected static readonly BROWSER_ZONES = ['packages/', 'examples/'];
-  protected static readonly BROWSER_ALLOWED = [
-    'packages/web-ui/src/client/',
-    'examples/web/src/client/',
+  /** Клиент примера для браузера: DOM и сокет — его работа. */
+  protected static readonly BROWSER_ALLOWED = ['examples/web/src/client/'];
+  /**
+   * Клиент страничного пакета получает среду аргументом: страница однажды
+   * сможет работать и на сервере. Браузер трогают только адаптеры.
+   */
+  static readonly BROWSER_ADAPTERS = [
+    'packages/web-ui/src/client/page-browser-socket.ts',
+    'packages/web-ui/src/client/page-history.types.ts',
   ];
   protected static readonly ENV_ZONE = 'packages/web-ui/src/';
 
@@ -90,7 +100,10 @@ export class BrowserGlobalScanner {
       BrowserGlobalScanner.BROWSER_ZONES.some((zone) =>
         path.startsWith(zone),
       ) &&
-      !BrowserGlobalScanner.BROWSER_ALLOWED.some((dir) => path.startsWith(dir))
+      !BrowserGlobalScanner.BROWSER_ALLOWED.some((dir) =>
+        path.startsWith(dir),
+      ) &&
+      !BrowserGlobalScanner.BROWSER_ADAPTERS.includes(path)
     );
   }
 }

@@ -5,9 +5,9 @@ import { SourceFile, SourceTree } from './source-tree';
 import type { Violation } from './violation.types';
 
 // Глобалы браузера (`WebSocket`, `window.…`, `document.createElement`, …)
-// разрешены только в клиенте страничного пакета и в примере для браузера:
-// остальной код работает и на сервере. Голые слова `window`, `document`,
-// `history`, `location` встречаются в обычном коде (`'window'` в схемах,
+// разрешены только адаптерам браузера клиента страничного пакета и клиенту
+// примера для браузера: остальной код работает и на сервере. Голые слова
+// `window`, `document`, `history`, `location` встречаются в обычном коде (`'window'` в схемах,
 // свойство `history`), поэтому они ловятся по форме использования. Глобалы
 // среды `Bun` и `process` запрещены во всём `packages/web-ui/src/`: сервер
 // говорит с соединением через порт, клиент выполняется в браузере. Тесты не
@@ -16,6 +16,8 @@ import type { Violation } from './violation.types';
 
 const ROOT = resolve(import.meta.dir, '..');
 const SRC = 'packages/web-ui/src';
+/** Файлы клиента, которым браузер разрешён: сверка по реальному репо ниже. */
+const ADAPTERS = ['page-browser-socket.ts', 'page-history.types.ts'];
 
 const scan = (text: string, path: string): Violation[] =>
   new BrowserGlobalScanner().scan([SourceFile.of(path, text)]);
@@ -160,6 +162,51 @@ describe('BrowserGlobalScanner — кодек адреса (web-ui/src/url/)', (
   });
 });
 
+describe('BrowserGlobalScanner — клиент страничного пакета (web-ui/src/client/)', () => {
+  // Клиент получает всё от среды аргументом (порт истории, конец провода,
+  // часы): так страница однажды сможет работать и на сервере. Глобалы браузера
+  // разрешены только файлам-адаптерам, которые и называют типы браузера.
+  const line = 'const s = new WebSocket(url);';
+
+  for (const file of [
+    'page-client.ts',
+    'page-reconnector.ts',
+    'page-history.ts',
+    'view-cell.ts',
+    'view/x.ts',
+  ]) {
+    const path = `${SRC}/client/${file}`;
+
+    it(`WebSocket в не-адаптере ${path} — нарушение`, () => {
+      expect(scan(line, path)).toEqual([
+        { file: path, line: 1, text: 'WebSocket' },
+      ]);
+    });
+  }
+
+  it('window, document, history, location в не-адаптере клиента — нарушения', () => {
+    const path = `${SRC}/client/page-client.ts`;
+
+    expect(
+      scan(
+        "window.addEventListener('x', f);\nconst d = document.body;\nhistory.pushState(s, '', u);\nconst h = location.href;",
+        path,
+      ).map((v) => v.text),
+    ).toEqual([
+      'window.addEventListener',
+      'document.body',
+      'history.pushState',
+      'location.href',
+    ]);
+  });
+
+  for (const file of ADAPTERS) {
+    it(`адаптер ${file} браузер трогать может`, () => {
+      expect(scan(line, `${SRC}/client/${file}`)).toEqual([]);
+    });
+  }
+});
+
 describe('BrowserGlobalScanner — разрешённые зоны и не глобалы', () => {
   const lines = [
     'const s = new WebSocket(url);',
@@ -172,17 +219,8 @@ describe('BrowserGlobalScanner — разрешённые зоны и не гл�
     'const l = localStorage;',
   ].join('\n');
 
-  for (const path of [
-    `${SRC}/client/x.ts`,
-    'examples/web/src/client/main.ts',
-  ]) {
-    it(`в ${path} глобалы браузера разрешены`, () => {
-      expect(scan(lines, path)).toEqual([]);
-    });
-  }
-
-  it('вложенный каталог клиента тоже разрешён', () => {
-    expect(scan(lines, `${SRC}/client/view/x.ts`)).toEqual([]);
+  it('в клиенте примера для браузера глобалы разрешены', () => {
+    expect(scan(lines, 'examples/web/src/client/main.ts')).toEqual([]);
   });
 
   it('вложенный каталог клиента примера тоже разрешён', () => {
@@ -276,11 +314,11 @@ describe('BrowserGlobalScanner — корни globalThis, self и обращен
     });
   }
 
-  it('разрешены в клиенте', () => {
+  it('разрешены в клиенте примера для браузера', () => {
     expect(
       scan(
         "const d = self.document;\nconst w = globalThis['WebSocket'];\nconst { document } = self;",
-        `${SRC}/client/x.ts`,
+        'examples/web/src/client/x.ts',
       ),
     ).toEqual([]);
   });
@@ -354,6 +392,21 @@ describe('BrowserGlobalScanner — реальный репо', () => {
     expect(real().some((file) => file.path.startsWith(`${SRC}/client/`))).toBe(
       true,
     );
+  });
+
+  it('каждый адаптер существует и без исключения даёт нарушение — переименованный файл не станет тихой дырой', () => {
+    const files = real();
+
+    for (const path of BrowserGlobalScanner.BROWSER_ADAPTERS) {
+      const file = files.find((f) => f.path === path);
+      expect(file).toBeDefined();
+      const renamed = SourceFile.of(
+        `${SRC}/client/renamed-adapter.ts`,
+        file?.text ?? '',
+      );
+
+      expect(new BrowserGlobalScanner().scan([renamed])).not.toEqual([]);
+    }
   });
 
   it('на packages и examples — ноль нарушений', () => {
