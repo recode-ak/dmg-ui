@@ -29,6 +29,7 @@ import type {
 import type { ClientEnd } from '../wire/page-wire.types';
 import type { PAGE_REGIONS, PAGE_ROOT_REGION } from './page-client.const';
 import type { PageClock } from './page-clock.types';
+import type { PageHistoryPort } from './page-history.types';
 import type { PageTraces } from './page-traces';
 import type { ViewCell } from './view-cell';
 
@@ -70,6 +71,8 @@ export type PageClientSpec = {
   readonly requestIds?: () => string;
   /** Сырые броски кода экранов и слушателей вида — для диагностики. */
   readonly faults?: (fault: UiFault) => void;
+  /** История вкладки: шаги, «Назад», перезагрузка (D-UI-81); без порта истории нет. */
+  readonly history?: PageHistoryPort;
 };
 
 export type { PageFormValues };
@@ -173,12 +176,14 @@ export type PortWatch = {
 };
 
 /**
- * Переход без связи, ждущий соединения: жетон открытия области, адрес и
- * промис вызывающего.
+ * Переход без связи, ждущий соединения: жетон открытия области, адрес,
+ * снимок экземпляра для восстановления (переход по записи истории) и промис
+ * вызывающего.
  */
 export type DeferredOpen = {
   readonly ticket: number;
   readonly address: Address;
+  readonly json?: unknown;
   readonly resolve: () => void;
   readonly reject: (error: unknown) => void;
 };

@@ -1,3 +1,4 @@
+import { ok } from 'dmg-core';
 import {
   type ActionField,
   type ActionOutcome,
@@ -39,6 +40,9 @@ import type {
   RegionMarks,
 } from './page-client.types';
 import { PageForms } from './page-forms';
+import { PageHistory } from './page-history';
+import type { PageHistoryEntry } from './page-history.types';
+import { PageHistoryRecord } from './page-history-record';
 import { PageInbox } from './page-inbox';
 import { PagePlacements } from './page-placements';
 import { PageRegions } from './page-regions';
@@ -82,7 +86,8 @@ type Act = {
  * (D-UI-70). Допущения: из двух открытий в область побеждает последнее
  * начатое; контекст рендера — из `hello` текущего соединения (D-UI-33). Без
  * связи переход ждёт соединения, действия отключены; после `attach` открытые
- * экземпляры перечитаны восстановлением из снимка (D-UI-74).
+ * экземпляры перечитаны восстановлением из снимка (D-UI-74). С портом
+ * истории переход — шаг, «Назад» и перезагрузка — путь по записи (D-UI-81).
  * @see ./page-client.test.ts
  */
 export class PageClient {
@@ -105,6 +110,8 @@ export class PageClient {
   private readonly urls: PageUrls;
   /** Ссылка с составом областей: `urls` плюс вложенные адреса `PAGE_LINKED_REGIONS`. */
   private readonly layout: PageLayoutUrls;
+  /** Записи истории вкладки; без порта истории нет. */
+  private readonly history: PageHistory | undefined;
 
   /**
    * Приложение другого канала, нет входа `start` — ошибка сборки, бросок;
@@ -157,6 +164,18 @@ export class PageClient {
       onFault: (error) => this.fault(PAGE_CHANNEL, error),
     });
     this.listen(spec.end);
+    this.history = this.recorded(spec);
+  }
+
+  /**
+   * Первая загрузка и перезагрузка вкладки: области по текущей записи
+   * истории тем же путём, что «Назад» (D-UI-81). Не шаг — начальная запись
+   * заменяется. Без порта истории — бросок сборки привязки.
+   */
+  async boot(): Promise<void> {
+    const port = this.spec.history;
+    if (port === undefined) throw new Error('PageClient: нет порта истории');
+    await this.revisit(port.current());
   }
 
   /**
@@ -182,10 +201,12 @@ export class PageClient {
       this.deferred.delete(region);
       if (deferred !== undefined) {
         work.push(
-          this.load(region, deferred.ticket, deferred.address).then(
-            deferred.resolve,
-            deferred.reject,
-          ),
+          this.load(
+            region,
+            deferred.ticket,
+            deferred.address,
+            deferred.json,
+          ).then(deferred.resolve, deferred.reject),
         );
       } else if (this.regions.behind(region)) {
         work.push(this.resync(region));
@@ -205,31 +226,13 @@ export class PageClient {
   /**
    * URL страницы (путь, строка запроса) → адрес в `main` и области из
    * резервных ключей; неразборчивый — вход `start` с заметкой, без URL и
-   * причины в заметке (D-UI-76); неразборчивое значение области — она пуста
-   * с заметкой. Областей, которых в ссылке нет, не касается. Открытия идут
-   * параллельно; промис отклоняется, только если не загрузился код экрана
-   * (первой причиной, после всех открытий): отказ данных лежит в виде экрана.
+   * причины в заметке (D-UI-76); неразборчивое значение области — пуста с
+   * заметкой; областей вне ссылки не касается. Открытия параллельно; отказ —
+   * только если не загрузился код экрана (первой причиной, после всех). Шаг
+   * истории: ссылка внутри страницы; первая загрузка — `boot`.
    */
-  async route(url: string): Promise<void> {
-    const parsed = this.layout.parse(url);
-    if (!parsed.ok) {
-      await this.open(PAGE_ROOT_REGION, this.start, {
-        note: PAGE_NOTES.notFound,
-      });
-      return;
-    }
-    const { main, regions } = parsed.value;
-    const work = [this.open(PAGE_ROOT_REGION, main)];
-    for (const name of PAGE_LINKED_REGIONS) {
-      const region = regions[name];
-      if (region === undefined) continue;
-      if (region.ok) work.push(this.open(name, region.value));
-      else this.clear(name, { note: PAGE_NOTES.notFound });
-    }
-    const settled = await Promise.allSettled(work);
-    for (const result of settled) {
-      if (result.status === 'rejected') throw result.reason;
-    }
+  route(url: string): Promise<void> {
+    return this.step(() => this.routed(url));
   }
 
   /**
@@ -248,7 +251,7 @@ export class PageClient {
 
   /** Закрыть `side` или `modal`: пусто без заметки, экземпляр и подписка сняты. */
   close(region: PageClosableRegion): void {
-    this.clear(region);
+    void this.step(() => this.clear(region));
   }
 
   /**
@@ -360,9 +363,8 @@ export class PageClient {
 
   /** Ссылка уведомления (внешние данные) — по размещению экрана; не декодируется — заметка. */
   openLink(address: AddressJson): Promise<void> {
-    return this.openJson(
-      this.regions.target(undefined, address.screen),
-      address,
+    return this.step(() =>
+      this.openJson(this.regions.target(undefined, address.screen), address),
     );
   }
 
@@ -449,23 +451,16 @@ export class PageClient {
     outcome: ActionOutcome,
   ): Promise<void> {
     switch (outcome.kind) {
-      case 'moved': {
-        const target = this.regions.target(region, outcome.address.screen);
-        await this.openJson(target, outcome.address);
-        if (target === region) return;
-        // Временная область после шага закрывается, если в ней всё ещё он.
-        if (!PAGE_TRANSIENT_REGIONS.includes(region)) {
-          this.regions.mark(region, {});
-        } else if (this.regions.instance(region) === act.instance) {
-          this.clear(region);
-        }
+      case 'moved':
+        // Шаг — весь переход вместе с очисткой окна: уход из окна на тот же
+        // адрес меняет адреса только очисткой, после открытия цели.
+        await this.step(() => this.moved(region, act, outcome.address));
         return;
-      }
       case 'stayed':
         this.regions.mark(region, {});
         return;
       case 'exited':
-        await this.exited(region, act.instance, outcome.exit);
+        await this.step(() => this.exited(region, act.instance, outcome.exit));
         return;
       case 'confirm':
         this.regions.mark(region, {
@@ -517,6 +512,22 @@ export class PageClient {
     }
   }
 
+  /** Переход по исходу: цель открыта, временная область после шага закрыта, если в ней всё ещё он. */
+  private async moved(
+    region: PageRegionName,
+    act: Act,
+    address: AddressJson,
+  ): Promise<void> {
+    const target = this.regions.target(region, address.screen);
+    await this.openJson(target, address);
+    if (target === region) return;
+    if (!PAGE_TRANSIENT_REGIONS.includes(region)) {
+      this.regions.mark(region, {});
+    } else if (this.regions.instance(region) === act.instance) {
+      this.clear(region);
+    }
+  }
+
   /** Выход: текст из `exits` Def; в корневой области — вход `start`, в прочих — пусто. */
   private async exited(
     region: PageRegionName,
@@ -529,6 +540,29 @@ export class PageClient {
       await this.open(region, this.start, { note });
     } else {
       this.clear(region, { note });
+    }
+  }
+
+  /** Разбор URL и открытия `route` — работа его шага. */
+  private async routed(url: string): Promise<void> {
+    const parsed = this.layout.parse(url);
+    if (!parsed.ok) {
+      await this.open(PAGE_ROOT_REGION, this.start, {
+        note: PAGE_NOTES.notFound,
+      });
+      return;
+    }
+    const { main, regions } = parsed.value;
+    const work = [this.open(PAGE_ROOT_REGION, main)];
+    for (const name of PAGE_LINKED_REGIONS) {
+      const region = regions[name];
+      if (region === undefined) continue;
+      if (region.ok) work.push(this.open(name, region.value));
+      else this.clear(name, { note: PAGE_NOTES.notFound });
+    }
+    const settled = await Promise.allSettled(work);
+    for (const result of settled) {
+      if (result.status === 'rejected') throw result.reason;
     }
   }
 
@@ -547,12 +581,14 @@ export class PageClient {
 
   /**
    * Прежний экземпляр снят до загрузки; опоздавший экземпляр `place` закроет.
-   * Без связи открытие ждёт `attach`: ни кода экрана, ни вызовов.
+   * Без связи открытие ждёт `attach`: ни кода экрана, ни вызовов. `json` —
+   * снимок экземпляра того же адреса: восстановление вместо открытия.
    */
   private open(
     region: PageRegionName,
     address: Address,
     marks?: RegionMarks,
+    json?: unknown,
   ): Promise<void> {
     this.displace(region);
     const ticket = this.regions.opening(
@@ -560,9 +596,17 @@ export class PageClient {
       this.codec.encode(address),
       marks,
     );
-    if (this.regions.connected) return this.load(region, ticket, address);
+    if (this.regions.connected) {
+      return this.load(region, ticket, address, json);
+    }
     const { promise, resolve, reject } = Promise.withResolvers<void>();
-    this.deferred.set(region, { ticket, address, resolve, reject });
+    this.deferred.set(region, {
+      ticket,
+      address,
+      ...(json === undefined ? {} : { json }),
+      resolve,
+      reject,
+    });
     return promise;
   }
 
@@ -572,16 +616,20 @@ export class PageClient {
    * связи, и перечитан по текущему. Сравнивается конец, чей контекст взяло
    * открытие, а не конец чтения: чтение могло уйти уже по новому, но вид и
    * проверка действий (`readOnly`, заместитель) — с прежнего `hello`.
+   * Снимок `json` не восстановился (ревизия, адрес) — открытие по адресу.
    */
   private async load(
     region: PageRegionName,
     ticket: number,
     address: Address,
+    json?: unknown,
   ): Promise<void> {
     const end = this.end;
     let instance: ScreenInstance;
     try {
-      instance = await this.runtime.open(address, this.options());
+      instance =
+        (json === undefined ? undefined : await this.restore(json)) ??
+        (await this.runtime.open(address, this.options()));
     } catch (error) {
       // Отказ — вызывающему, как раньше; область в `loading` не остаётся.
       this.regions.failed(region, ticket, { note: PAGE_NOTES.failed });
@@ -603,16 +651,85 @@ export class PageClient {
    * иначе область пуста, восстанавливать нечего.
    */
   private resuming(region: PageRegionName, json: unknown): number | undefined {
-    const slot = v.safeParse(SlotAddress, json);
-    const address = slot.success
-      ? this.codec.decode(slot.output.address)
-      : undefined;
-    if (address?.ok !== true) {
+    const address = this.slotAddress(json);
+    if (address === undefined) {
       this.clear(region);
       return undefined;
     }
     this.displace(region);
-    return this.regions.opening(region, this.codec.encode(address.value));
+    return this.regions.opening(region, this.codec.encode(address));
+  }
+
+  /** Адрес слота снимка (внешние данные); не по форме или не декодируется — `undefined`. */
+  private slotAddress(json: unknown): Address | undefined {
+    const slot = v.safeParse(SlotAddress, json);
+    if (!slot.success) return undefined;
+    const address = this.codec.decode(slot.output.address);
+    return address.ok ? address.value : undefined;
+  }
+
+  /**
+   * Переход по записи истории («Назад», «Вперёд», `boot`), D-UI-81: URL
+   * главнее записи для `main` и областей ссылки; запись даёт состояние при
+   * том же адресе и области вне ссылки; без цели — область закрыта.
+   * Неразборчивый URL — вход `start` с заметкой. Не шаг и не даёт шагам
+   * записей; отказ — как `route`.
+   */
+  private async revisit(entry: PageHistoryEntry): Promise<void> {
+    let generation: number | undefined;
+    try {
+      generation = this.history?.traversing();
+      const slots = PageHistoryRecord.read(entry.record);
+      const parsed = this.layout.parse(entry.url);
+      if (!parsed.ok) {
+        for (const name of PAGE_REGIONS) {
+          if (name !== PAGE_ROOT_REGION) this.clear(name);
+        }
+        await this.open(PAGE_ROOT_REGION, this.start, {
+          note: PAGE_NOTES.notFound,
+        });
+        return;
+      }
+      const { main, regions } = parsed.value;
+      const work: Promise<void>[] = [];
+      for (const name of PAGE_REGIONS) {
+        const named = name === PAGE_ROOT_REGION ? ok(main) : regions[name];
+        if (named !== undefined && !named.ok) {
+          this.clear(name, { note: PAGE_NOTES.notFound });
+          continue;
+        }
+        const target = named?.value ?? this.slotAddress(slots[name]);
+        if (target === undefined) this.clear(name);
+        else work.push(this.reach(name, target, slots[name]));
+      }
+      const settled = await Promise.allSettled(work);
+      for (const result of settled) {
+        if (result.status === 'rejected') throw result.reason;
+      }
+    } finally {
+      if (generation !== undefined) this.history?.traversed(generation);
+    }
+  }
+
+  /**
+   * Цель области при переходе по записи. Тот же адрес, что у живой (и
+   * грузящейся), — не тронута: список не перечитывается и не теряет выбор.
+   * Слот записи того же адреса — восстановление, иначе открытие с начала.
+   */
+  private reach(
+    region: PageRegionName,
+    target: Address,
+    slot: unknown,
+  ): Promise<void> {
+    const key = JSON.stringify(this.codec.encode(target));
+    if (JSON.stringify(this.regions.state(region).address) === key) {
+      return Promise.resolve();
+    }
+    const recorded = this.slotAddress(slot);
+    const same =
+      recorded !== undefined &&
+      JSON.stringify(this.codec.encode(recorded)) === key;
+    return this.open(region, target, undefined, same ? slot : undefined);
   }
 
   /**
@@ -759,6 +876,55 @@ export class PageClient {
       this.regions.mark(region, { note: PageClient.note(reason) });
     }
     return { kind: 'unavailable', reason };
+  }
+
+  /** Работа перехода — шагом истории, если порт задан; без порта — как есть. */
+  private step(work: () => Promise<void> | void): Promise<void> {
+    return this.history?.step(work) ?? Promise.resolve(work());
+  }
+
+  /**
+   * История поверх порта сборки: подписка на три области и на переходы по
+   * записи. Сбой порта — в `faults` фиксированным текстом: бросок браузера
+   * несёт URL с параметрами людей.
+   */
+  private recorded(spec: PageClientSpec): PageHistory | undefined {
+    const port = spec.history;
+    if (port === undefined) return undefined;
+    const history = new PageHistory(
+      port,
+      {
+        url: () => this.url(),
+        snapshot: () => this.snapshot(),
+        places: () => this.places(),
+        loading: () =>
+          PAGE_REGIONS.some(
+            (name) => this.regions.state(name).status === 'loading',
+          ),
+      },
+      () => this.fault(PAGE_CHANNEL, new Error(PAGE_FAULTS.history)),
+    );
+    for (const name of PAGE_REGIONS) {
+      this.regions.source(name).subscribe(() => history.changed());
+    }
+    // Отказ перехода по записи ловить некому (его начал браузер): в
+    // диагностику как есть — это отказ загрузки кода экрана.
+    port.onTraverse((entry) =>
+      this.revisit(entry).catch((error: unknown) =>
+        this.fault(PAGE_CHANNEL, error),
+      ),
+    );
+    return history;
+  }
+
+  /** Адрес каждой непустой области JSON-строкой, в том числе грузящейся. */
+  private places(): Record<string, string> {
+    const places: Record<string, string> = {};
+    for (const name of PAGE_REGIONS) {
+      const address = this.regions.state(name).address;
+      if (address !== undefined) places[name] = JSON.stringify(address);
+    }
+    return places;
   }
 
   /** Бросок слушателя ячейки области — в точку диагностики; её бросок гасится. */

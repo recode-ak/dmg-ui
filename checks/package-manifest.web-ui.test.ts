@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type {
   PageAdmission,
+  PageBrowserWindow,
   PageClientSpec,
   PageClock,
   PageDialFailure,
@@ -11,6 +12,8 @@ import type {
   PageGateRefusal,
   PageGateSpec,
   PageHeaders,
+  PageHistoryEntry,
+  PageHistoryPort,
   PageInboxEntry,
   PagePlacement,
   PageReconnectorSpec,
@@ -32,13 +35,15 @@ import type {
 // Составы входов страничного пакета: канал, его имя, контракт представления,
 // текстовая страница, сообщения, провод в памяти, мост и конец сокета,
 // переподключатель и часы вкладки, ворота соединения, кодек адреса в URL,
-// модель формы области — в `dmg-ui/web-ui`; привязка учебного примера к каналу и подставные часы —
-// в `dmg-ui/web-ui/testing`. Внутренние помощники клиента, представлений,
-// сервера и кодека адреса наружу не выходят.
+// модель формы области, привязка истории вкладки — в `dmg-ui/web-ui`;
+// привязка учебного примера к каналу, подставные часы и история — в
+// `dmg-ui/web-ui/testing`. Внутренние помощники клиента, представлений,
+// сервера, истории и кодека адреса наружу не выходят.
 
 const WEB_UI = [
   'ClientMessage',
   'PAGE_CHANNEL',
+  'PageBrowserHistory',
   'PageBrowserSocket',
   'PageClient',
   'PageFormModel',
@@ -61,7 +66,7 @@ const WEB_UI = [
 ];
 
 describe('вход dmg-ui/web-ui', () => {
-  it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, переподключатель и часы, ворота, кодек адреса в URL, модель формы', async () => {
+  it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, переподключатель и часы, ворота, кодек адреса в URL, модель формы, привязка истории', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui')).sort()).toEqual(WEB_UI);
   });
 
@@ -71,7 +76,7 @@ describe('вход dmg-ui/web-ui', () => {
     expect(PAGE_CHANNEL).toBe('dmg-ui-pages');
   });
 
-  it('внутренние помощники клиента, представлений, сервера, провода и кодека адреса не экспортируются', async () => {
+  it('внутренние помощники клиента, истории, представлений, сервера, провода и кодека адреса не экспортируются', async () => {
     const exported = Object.keys(await import('dmg-ui/web-ui'));
 
     for (const internal of [
@@ -90,6 +95,8 @@ describe('вход dmg-ui/web-ui', () => {
       'PageParams',
       'PagePlacements',
       'PageLayoutUrls',
+      'PageHistory',
+      'PageHistoryRecord',
     ]) {
       expect(exported).not.toContain(internal);
     }
@@ -178,6 +185,23 @@ export type WebUiLayoutTypes = [
 ];
 
 /**
+ * Состав типов истории вкладки во входе `dmg-ui/web-ui` — так же через
+ * `tsc`: привязка вкладки к истории браузера и подставная история пишутся по
+ * ним.
+ */
+export type WebUiHistoryTypes = [
+  PageHistoryPort['current'],
+  PageHistoryPort['push'],
+  PageHistoryPort['replace'],
+  PageHistoryPort['onTraverse'],
+  PageHistoryEntry['url'],
+  PageHistoryEntry['record'],
+  PageBrowserWindow['history'],
+  PageBrowserWindow['location'],
+  PageClientSpec['history'],
+];
+
+/**
  * Состав типов кодека адреса во входе `dmg-ui/web-ui` — так же через `tsc`:
  * привязка вкладки к адресной строке и маршруты приложения пишутся по ним.
  */
@@ -190,11 +214,12 @@ export type WebUiUrlTypes = [
 ];
 
 describe('вход dmg-ui/web-ui/testing', () => {
-  it('состав — привязка учебного примера к страничному каналу и подставные часы', async () => {
+  it('состав — привязка учебного примера к страничному каналу, подставные часы и история', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui/testing')).sort()).toEqual([
       'ExamplePagesAppDef',
       'ExamplePagesArch',
       'ManualPageClock',
+      'MemoryPageHistory',
       'examplePageRoutes',
       'examplePageViews',
     ]);

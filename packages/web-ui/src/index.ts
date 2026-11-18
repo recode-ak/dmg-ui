@@ -7,14 +7,18 @@
 // `PageBrowserSocket`; переподключатель `PageReconnector` даёт вкладке новый
 // конец (`PageClient.attach`). Входящие вкладки — источник вида
 // `PageClient.inbox()`; время вкладки — порт `PageClock` с умолчанием
-// `PageSystemClock`. Маршрут `PageRouteDef` и кодек адреса в URL `PageUrls`
-// лежат в `url/` (D-UI-76): строка на входе и выходе, без браузера.
+// `PageSystemClock`; история вкладки — порт `PageHistoryPort` с привязкой
+// `PageBrowserHistory` поверх узкого типа окна `PageBrowserWindow` (D-UI-81).
+// Маршрут `PageRouteDef` и кодек адреса в URL `PageUrls` лежат в `url/`
+// (D-UI-76): строка на входе и выходе, без браузера.
 // Внутренние `WirePorts`, `PageConnection`, `PageOutbox`, `serverFrame`,
 // `PageRegions`, `PagePlacements`, `PageForms`, `PageInbox`, `PageSeenKeys`,
-// `ViewCell`, `PageTextPresenter`, `PagePath`, `PageParams`, `PageLayoutUrls`
-// наружу не выходят. Областей три — основная, соседняя и модальная (`PageRegionName`):
-// куда открыть переход, объявляет приложение страниц (`PagePlacement`).
+// `ViewCell`, `PageTextPresenter`, `PagePath`, `PageParams`, `PageLayoutUrls`,
+// `PageHistory`, `PageHistoryRecord` наружу не выходят. Областей три —
+// основная, соседняя и модальная (`PageRegionName`): куда открыть переход,
+// объявляет приложение страниц (`PagePlacement`).
 
+export { PageBrowserHistory } from './client/page-browser-history';
 export { PageBrowserSocket } from './client/page-browser-socket';
 export {
   PageClient,
@@ -27,6 +31,11 @@ export {
   type PageSnapshot,
 } from './client/page-client';
 export type { PageClock } from './client/page-clock.types';
+export type {
+  PageBrowserWindow,
+  PageHistoryEntry,
+  PageHistoryPort,
+} from './client/page-history.types';
 export { PageReconnector } from './client/page-reconnector';
 export type { PageReconnectorSpec } from './client/page-reconnector.types';
 export type {

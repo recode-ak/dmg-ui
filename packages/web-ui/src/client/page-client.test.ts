@@ -13,6 +13,7 @@ import { testUuid } from 'dmg-core/testing';
 import { ExampleAppDef, TaskEvents } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  type AnyScreenDef,
   CodeLoader,
   CodeLoaders,
   ScreenCode,
@@ -41,6 +42,7 @@ import {
   examplePageRoutes,
   examplePageViews,
   ManualPageClock,
+  MemoryPageHistory,
 } from '../../testing';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageFormModel } from '../view/page-form-model';
@@ -62,7 +64,9 @@ import type {
   PageInboxEntry,
   PagePlacement,
   PageRegionName,
+  PageSlotJson,
 } from './page-client.types';
+import type { PageHistoryPort } from './page-history.types';
 import { PageText } from './page-text';
 
 // Клиентская половина страничного канала: три области (`main`, `side`,
@@ -210,6 +214,7 @@ const tab = (
   end = new StubEnd().answer('listTasks', ok(TASKS)),
   codes = exampleCodes(),
   placements?: readonly PagePlacement[],
+  history?: PageHistoryPort,
 ) => {
   let requests = 0;
   const observer = new MemoryUiObserver();
@@ -230,6 +235,7 @@ const tab = (
       return `r-${requests}`;
     },
     ...(placements === undefined ? {} : { placements }),
+    ...(history === undefined ? {} : { history }),
   });
   const text = new PageText(client, examplePageViews);
   return { client, end, observer, faults, text, clock };
@@ -3395,5 +3401,1144 @@ describe('PageClient — отказ route, окно при уходе, resume б
     expect(create?.fields.find((f) => f.name === 'title')?.value).toBe(
       'Новая задача',
     );
+  });
+});
+
+// История вкладки: порт `history` в сборке клиента. Шаг (новая запись) — там,
+// где начинается переход: исход `moved` и `exited`, ссылка уведомления,
+// `route`, `close`; прочие изменения областей переписывают текущую запись,
+// кроме смены только ревизии и пока область грузится. Запись — строка JSON
+// `{"version":1,"regions":…}` со снимком областей; URL — `url()`. «Назад» и
+// «Вперёд» ставят области по URL и записи, перезагрузка — `boot()` тем же
+// путём. Порт — подставная история: `back()`/`forward()` ждут клиента.
+
+/** Запись истории как её пишет клиент. */
+type HistoryRecordJson = {
+  readonly version: number;
+  readonly regions: Readonly<Record<string, PageSlotJson>>;
+};
+
+const CARD_B = { screen: CARD_ID, params: { taskId: TASK_B } };
+const CARD_C = { screen: CARD_ID, params: { taskId: TASK_C } };
+const sideUrl = (path: string, query = '/') =>
+  `${query}${query.includes('?') ? '&' : '?'}_side=${encodeURIComponent(path)}`;
+const SIDE_B_URL = sideUrl(`/todo/taskCard?taskId=${TASK_B}`);
+const ASSIGNED_IN_MODAL: readonly PagePlacement[] = [
+  { screen: AssignedTasksScreenDef, region: 'modal' },
+];
+
+/** Разобранная запись истории `at` (по умолчанию — текущая). */
+const recordAt = (
+  history: MemoryPageHistory,
+  at = history.position,
+): HistoryRecordJson => {
+  const record = history.entries()[at]?.record;
+  if (typeof record !== 'string') {
+    throw new Error(`запись ${at} не строка: ${String(record)}`);
+  }
+  return JSON.parse(record);
+};
+
+/** Области записи истории `at` по порядку имён. */
+const regionsAt = (history: MemoryPageHistory, at = history.position) =>
+  Object.keys(recordAt(history, at).regions).sort();
+
+const urlsOf = (history: MemoryPageHistory) =>
+  history.entries().map((entry) => entry.url);
+
+/** Строка записи истории со слотами `regions`, как её пишет клиент. */
+const recordOf = (regions: Readonly<Record<string, unknown>>) =>
+  JSON.stringify({ version: 1, regions });
+
+/** Вкладка с историей после первой загрузки по текущей записи. */
+const booted = async (
+  history = new MemoryPageHistory('/'),
+  placements?: readonly PagePlacement[],
+  end = answered(),
+) => {
+  const t = tab(end, undefined, placements, history);
+  await t.client.boot();
+  return { ...t, history };
+};
+
+/** Список с выбором A, затем вторая страница: две записи. */
+const paged = async () => {
+  const t = await booted();
+  await t.client.local('main', 'toggle', { taskId: 'Хлеб' });
+  await t.client.submit('main', 'next', {});
+  return t;
+};
+
+/**
+ * Вторая модуль-фикстура: два UI-модуля поверх учебного приложения. Список
+ * людей (`roster`) с параметром страницы, состоянием фильтра и переходом в
+ * карточку другого модуля (`cards`); у карточки нет ни выхода, ни «Назад».
+ * Строка поиска в адресе — необязательный параметр: одиночный суррогат в ней
+ * не выражается в URL.
+ */
+const ProfileScreenDef = ScreenDef.define({
+  name: 'profile',
+  label: 'Человек',
+  description: 'Карточка человека: ни выхода, ни возврата.',
+  params: v.strictObject({
+    personId: v.pipe(v.string(), v.description('Человек')),
+  }),
+  reads: [],
+  data: v.object({}),
+});
+
+const PeopleScreenDef = ScreenDef.define({
+  name: 'people',
+  label: 'Люди',
+  description: 'Список людей по страницам с фильтром.',
+  params: v.strictObject({
+    page: v.pipe(
+      v.number(),
+      v.integer(),
+      v.minValue(0),
+      v.description('Страница списка'),
+    ),
+    query: v.optional(v.pipe(v.string(), v.description('Строка поиска'))),
+  }),
+  reads: [],
+  data: v.object({}),
+  state: v.strictObject({
+    filter: v.pipe(v.string(), v.description('Фильтр списка')),
+  }),
+  actions: {
+    open: {
+      label: 'Открыть',
+      description: 'Карточка человека.',
+      input: v.object({
+        personId: v.pipe(v.string(), v.description('Человек')),
+      }),
+      to: (): readonly AnyScreenDef[] => [ProfileScreenDef],
+    },
+    find: {
+      label: 'Найти',
+      description: 'Тот же список со строкой поиска.',
+      input: v.object({
+        query: v.pipe(v.string(), v.description('Строка поиска')),
+      }),
+    },
+  },
+  locals: {
+    mark: {
+      label: 'Отфильтровать',
+      description: 'Фильтр списка без вызова на сервер.',
+      input: v.object({
+        filter: v.pipe(v.string(), v.description('Фильтр списка')),
+      }),
+    },
+  },
+});
+
+class PeopleCode extends ScreenCode<typeof PeopleScreenDef> {
+  override readonly locals = {
+    mark: (_state: unknown, _data: unknown, input: { filter: string }) => ({
+      filter: input.filter,
+    }),
+  };
+
+  override readonly actions: Partial<ActionSteps<typeof PeopleScreenDef>> = {
+    open: { done: ({ input }) => ProfileScreenDef.at(input) },
+    find: {
+      done: ({ params, input }) =>
+        PeopleScreenDef.at({ page: params.page, query: input.query }),
+    },
+  };
+
+  override async load(): Promise<Result<Record<string, never>, DomainError>> {
+    return ok({});
+  }
+
+  override initialState(): { filter: string } {
+    return { filter: '' };
+  }
+}
+
+class ProfileCode extends ScreenCode<typeof ProfileScreenDef> {
+  override async load(): Promise<Result<Record<string, never>, DomainError>> {
+    return ok({});
+  }
+}
+
+const RosterSetDef = UiSetDef.define({
+  name: 'rosterUi',
+  label: 'Набор людей',
+  description: 'Два UI-модуля: список людей и карточки.',
+  app: ExampleAppDef,
+  modules: [
+    UiModuleDef.define({
+      name: 'roster',
+      label: 'Люди',
+      description: 'Список людей.',
+      screens: [PeopleScreenDef],
+      stories: [],
+    }),
+    UiModuleDef.define({
+      name: 'cards',
+      label: 'Карточки',
+      description: 'Карточка человека.',
+      screens: [ProfileScreenDef],
+      stories: [],
+    }),
+  ],
+});
+
+const RosterAppDef = UiAppDef.define({
+  name: 'rosterPages',
+  label: 'Люди на страницах',
+  description: 'Приложение страниц двух UI-модулей.',
+  set: RosterSetDef,
+  channel: PAGE_CHANNEL,
+  stories: [],
+  entries: {
+    start: {
+      label: 'Люди',
+      description: 'Список людей с начала.',
+      address: PeopleScreenDef.at({ page: 0 }),
+    },
+  },
+});
+
+const PEOPLE_ID = 'rosterUi/roster/people';
+const PROFILE_ID = 'rosterUi/cards/profile';
+
+/** Вкладка фикстуры с историей после первой загрузки; карточка — в `main`. */
+const rostered = async (history: MemoryPageHistory, faults: UiFault[] = []) => {
+  const client = new PageClient({
+    app: RosterAppDef,
+    codes: CodeLoaders.of(RosterSetDef, [
+      CodeLoader.screen(PeopleScreenDef, async () => new PeopleCode()),
+      CodeLoader.screen(ProfileScreenDef, async () => new ProfileCode()),
+    ]),
+    routes: [{ path: '/', entry: 'start' }],
+    end: new StubEnd(),
+    placements: [{ screen: ProfileScreenDef, region: 'main' }],
+    observer: new MemoryUiObserver(),
+    clock: new ManualPageClock(),
+    history,
+    faults: (fault) => faults.push(fault),
+  });
+  await client.boot();
+  return client;
+};
+
+describe('PageClient — история: шаг и замена', () => {
+  test('boot на / без записи — список в main; одна запись со слотом main после готовности; новых записей нет', async () => {
+    const history = new MemoryPageHistory('/');
+    const { client } = tab(answered(), undefined, undefined, history);
+
+    await client.boot();
+
+    expect(client.region('main').view?.address).toEqual(LIST);
+    expect(urlsOf(history)).toEqual(['/']);
+    expect(recordAt(history)).toEqual({
+      version: 1,
+      regions: {
+        main: { address: LIST, revision: 1, state: { selected: [] } },
+      },
+    });
+    expect(history.pushes).toBe(0);
+  });
+
+  test('локальное действие — та же запись заменена новым состоянием; записей одна', async () => {
+    const { client, history } = await booted();
+
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    expect(urlsOf(history)).toEqual(['/']);
+    expect(recordAt(history).regions.main?.state).toEqual({
+      selected: [TASK_A],
+    });
+    expect(history.pushes).toBe(0);
+  });
+
+  test('переход на тот же экран с другим адресом — новая запись; у прежней — уходящее состояние', async () => {
+    const { history } = await paged();
+
+    expect(urlsOf(history)).toEqual(['/', '/?page=1']);
+    expect(recordAt(history, 0).regions.main?.state).toEqual({
+      selected: [TASK_A],
+    });
+    expect(recordAt(history, 1).regions.main).toEqual({
+      address: { screen: LIST_ID, params: { page: 1 } },
+      revision: 1,
+      state: { selected: [] },
+    });
+    expect(history.position).toBe(1);
+  });
+
+  test('карточка рядом — новая запись с _side; у прежней слота side нет', async () => {
+    const { client, history } = await booted();
+
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    expect(urlsOf(history)).toEqual(['/', SIDE_B_URL]);
+    expect(regionsAt(history, 0)).toEqual(['main']);
+    expect(regionsAt(history, 1)).toEqual(['main', 'side']);
+    expect(recordAt(history).regions.side?.address).toEqual(CARD_B);
+  });
+
+  test('close(side) — сразу новая запись без _side и без слота side', async () => {
+    const { client, history } = await booted();
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    client.close('side');
+
+    expect(urlsOf(history)).toEqual(['/', SIDE_B_URL, '/']);
+    expect(regionsAt(history)).toEqual(['main']);
+    expect(regionsAt(history, 1)).toEqual(['main', 'side']);
+  });
+
+  test('ссылка уведомления — новая запись', async () => {
+    const { client, history } = await booted();
+
+    await client.openLink(ASSIGNED);
+
+    expect(urlsOf(history)).toEqual(['/', sideUrl('/assigned')]);
+    expect(recordAt(history).regions.side?.address).toEqual(ASSIGNED);
+  });
+
+  test('выход из экрана в side — новая запись без side', async () => {
+    const { client, history } = await booted();
+    await client.openLink(ASSIGNED);
+
+    const outcome = await client.submit('side', 'close', {});
+
+    expect(outcome).toMatchObject({ kind: 'exited', exit: 'closed' });
+    expect(urlsOf(history)).toEqual(['/', sideUrl('/assigned'), '/']);
+    expect(regionsAt(history)).toEqual(['main']);
+  });
+
+  test('выход из экрана в main — новая запись со входом start', async () => {
+    const { client, history } = await booted(
+      new MemoryPageHistory('/assigned'),
+    );
+
+    const outcome = await client.submit('main', 'close', {});
+
+    expect(outcome).toMatchObject({ kind: 'exited', exit: 'closed' });
+    expect(urlsOf(history)).toEqual(['/assigned', '/']);
+    expect(recordAt(history).regions.main?.address).toEqual(LIST);
+  });
+
+  test('уход из окна переходом на тот же адрес main — ровно одна новая запись, в ней нет окна; в прежней окно есть', async () => {
+    const { client, history } = await booted(undefined, CARD_IN_MODAL);
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    expect(urlsOf(history)).toEqual(['/', '/']);
+
+    await client.submit('modal', 'back', {});
+
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    expect(urlsOf(history)).toEqual(['/', '/', '/']);
+    expect(regionsAt(history, 1)).toEqual(['main', 'modal']);
+    expect(regionsAt(history, 2)).toEqual(['main']);
+  });
+
+  test('«Повторить» — записей не прибавилось', async () => {
+    const { client, history } = await booted();
+
+    await client.retry('main');
+
+    expect(history.entries()).toHaveLength(1);
+    expect(history.pushes).toBe(0);
+  });
+
+  test('сигнал перечитывания — ревизия растёт, запись не переписывается', async () => {
+    const { client, end, history } = await booted();
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    const replaces = history.replaces;
+
+    await end.deliver(signalOf(watchOf(end, LIST_ID), 'e-1'));
+
+    expect(client.region('main').view?.revision).toBe(2);
+    expect(history.replaces).toBe(replaces);
+    expect(history.entries()).toHaveLength(1);
+  });
+
+  test('исход stayed — записей не прибавилось', async () => {
+    const { client, history } = await booted();
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    const outcome = await client.submit('side', 'assign', {
+      assigneeId: testUuid(2),
+    });
+
+    expect(outcome.kind).toBe('stayed');
+    expect(history.entries()).toHaveLength(2);
+  });
+
+  test('восстановление при attach — ни новых записей, ни замены', async () => {
+    const { client, end, history } = await booted();
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    const replaces = history.replaces;
+    const revision = client.region('main').view?.revision ?? 0;
+    end.drop();
+
+    await client.attach(nextEnd());
+
+    expect(client.region('main').view?.revision).toBe(revision + 1);
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(history.entries()).toHaveLength(1);
+    expect(history.replaces).toBe(replaces);
+  });
+
+  test('пока цель грузится, текущая запись — только та, что положил шаг; после готовности — одна замена', async () => {
+    const { client, end, history } = await booted();
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    end.hold('listTasks');
+    const replaces = history.replaces;
+
+    const going = client.submit('main', 'next', {});
+    await end.flush();
+
+    expect(client.region('main').status).toBe('loading');
+    expect(history.pushes).toBe(1);
+    expect(history.replaces).toBe(replaces);
+    expect(recordAt(history).regions).toEqual({});
+    end.release('listTasks');
+    await going;
+    expect(history.replaces).toBe(replaces + 1);
+    expect(regionsAt(history)).toEqual(['main']);
+  });
+
+  test('отвергнутая форма и ожидающее подтверждение в запись не попадают: в слоте только адрес, ревизия, состояние', async () => {
+    const { client, history } = await booted();
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    await client.submit('main', 'completeSelected', {});
+    await client.submit('main', 'create', { title: '' });
+    expect(client.region('main').entered).toBeDefined();
+
+    await client.openLink(ASSIGNED);
+
+    const record = recordAt(history);
+    expect(Object.keys(record).sort()).toEqual(['regions', 'version']);
+    expect(Object.keys(record.regions.main ?? {}).sort()).toEqual([
+      'address',
+      'revision',
+      'state',
+    ]);
+    for (const word of ['entered', 'confirm', 'issues', 'note']) {
+      expect(history.entries()[1]?.record).not.toContain(word);
+    }
+  });
+
+  test('ссылка не строится (одиночный суррогат в адресе) — ни новой записи, ни замены; запись прежнего экрана цела', async () => {
+    const history = new MemoryPageHistory('/?page=2');
+    const faults: UiFault[] = [];
+    const client = await rostered(history, faults);
+    await client.local('main', 'mark', { filter: 'Ан' });
+    const before = history.entries();
+    const replaces = history.replaces;
+
+    await client.submit('main', 'find', { query: '\uD800' });
+
+    expect(client.region('main').view?.address.params).toEqual({
+      page: 2,
+      query: '\uD800',
+    });
+    expect(client.url()).toBeUndefined();
+    expect(history.entries()).toEqual(before);
+    expect(history.pushes).toBe(0);
+    expect(history.replaces).toBe(replaces);
+    expect(recordAt(history).regions.main?.state).toEqual({ filter: 'Ан' });
+    expect(faults).toEqual([]);
+  });
+
+  test('без порта истории boot отклонён броском сборки', async () => {
+    const { client } = tab(answered());
+
+    await expect(client.boot()).rejects.toThrow(
+      'PageClient: нет порта истории',
+    );
+  });
+});
+
+describe('PageClient — «Назад» и «Вперёд»', () => {
+  test('«Назад» — прежние параметры и состояние; «Вперёд» — следующая страница с начальным состоянием', async () => {
+    const { client, history } = await paged();
+
+    await history.back();
+
+    expect(client.region('main').view?.address.params).toEqual({ page: 0 });
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    await history.forward();
+    expect(client.region('main').view?.address.params).toEqual({ page: 1 });
+    expect(client.region('main').view?.state).toEqual({ selected: [] });
+    expect(history.entries()).toHaveLength(2);
+  });
+
+  test('«Назад» после перехода в экран другого UI-модуля — прежние параметры и состояние; у карточки нет ни выхода, ни «Назад»', async () => {
+    const history = new MemoryPageHistory('/?page=2');
+    const client = await rostered(history);
+    await client.local('main', 'mark', { filter: 'Ан' });
+
+    await client.submit('main', 'open', { personId: 'p-1' });
+
+    expect(client.region('main').view?.screen).toBe(PROFILE_ID);
+    expect(client.region('main').view?.actions).toEqual([]);
+    expect(ProfileScreenDef.exits).toEqual({});
+    expect(urlsOf(history)).toEqual([
+      '/?page=2',
+      '/cards/profile?personId=p-1',
+    ]);
+    await history.back();
+    expect(client.region('main').view?.screen).toBe(PEOPLE_ID);
+    expect(client.region('main').view?.address.params).toEqual({ page: 2 });
+    expect(client.region('main').view?.state).toEqual({ filter: 'Ан' });
+    await history.forward();
+    expect(client.region('main').view?.address).toEqual({
+      screen: PROFILE_ID,
+      params: { personId: 'p-1' },
+    });
+  });
+
+  test('«Назад» и «Вперёд» новых записей не кладут; текущая заменена итогом восстановления', async () => {
+    const { history } = await paged();
+    const pushes = history.pushes;
+
+    await history.back();
+    await history.forward();
+
+    expect(history.pushes).toBe(pushes);
+    expect(urlsOf(history)).toEqual(['/', '/?page=1']);
+    expect(recordAt(history, 0).regions.main?.state).toEqual({
+      selected: [TASK_A],
+    });
+  });
+
+  test('закрыть панель «Назадом» — side пуста, main — тот же объект, список заново не читался', async () => {
+    const { client, end, history } = await booted();
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    const main = client.region('main');
+    const calls = end.names().length;
+
+    await history.back();
+
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+    expect(client.region('main')).toBe(main);
+    expect(end.names()).toHaveLength(calls);
+  });
+
+  test('открыть панель «Вперёдом» — карточка снова в side', async () => {
+    const { client, history } = await booted();
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    await history.back();
+
+    await history.forward();
+
+    expect(client.region('side').view?.address).toEqual(CARD_B);
+    expect(client.url()).toBe(SIDE_B_URL);
+  });
+
+  test('«Назад» после закрытия панели — карточка снова в side', async () => {
+    const { client, history } = await booted();
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    client.close('side');
+
+    await history.back();
+
+    expect(client.region('side').view?.address).toEqual(CARD_B);
+  });
+
+  test('окно в записи: «Назад» к шагу с открытым окном — окно восстановлено; «Вперёд» — окно закрыто', async () => {
+    const { client, history } = await booted(undefined, CARD_IN_MODAL);
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    client.close('modal');
+    expect(urlsOf(history)).toEqual(['/', '/', '/']);
+
+    await history.back();
+
+    expect(client.region('modal').view?.address).toEqual(CARD_B);
+    await history.forward();
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+  });
+
+  test('два «Назад» подряд без ожидания — итог второй записи; запись промежуточного шага сохранила свой слот main', async () => {
+    const { client, history } = await paged();
+    await client.route('/assigned');
+    expect(urlsOf(history)).toEqual(['/', '/?page=1', '/assigned']);
+
+    await Promise.all([history.back(), history.back()]);
+
+    expect(history.position).toBe(0);
+    expect(client.region('main').view?.address).toEqual(LIST);
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(recordAt(history, 1).regions.main?.address).toEqual({
+      screen: LIST_ID,
+      params: { page: 1 },
+    });
+  });
+
+  test('«Назад» без связи отложен: main в loading с пометкой, вызовов нет; после attach — экран с состоянием из записи', async () => {
+    const { client, end, history } = await paged();
+    end.drop();
+
+    const going = history.back();
+
+    expect(await soon(going, end)).toBe('ждёт');
+    expect(client.region('main')).toMatchObject({
+      status: 'loading',
+      address: LIST,
+      stale: 'offline',
+    });
+    expect(end.afterBreak).toEqual([]);
+    const next = nextEnd();
+    await client.attach(next);
+    expect(await soon(going, next)).toBe('разрешён');
+    expect(client.region('main')).toMatchObject({ status: 'ready' });
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(client.region('main').stale).toBeUndefined();
+  });
+
+  test('конец сменился, пока грузится экран записи, — экран перечитан по новому концу: контекст нового hello, состояние из записи', async () => {
+    const { history } = await paged();
+    const { codes, release } = holdable();
+    const reloaded = history.reloaded();
+    const { client } = tab(answered(), codes, undefined, reloaded);
+
+    const going = reloaded.back();
+    expect(client.region('main').status).toBe('loading');
+    const next = nextEnd({ ...CONTEXT, readOnly: true });
+    await client.attach(next);
+    release();
+    await going;
+    await next.flush();
+
+    expect(client.region('main').view?.context).toMatchObject({
+      readOnly: true,
+    });
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(client.region('main').stale).toBeUndefined();
+  });
+
+  test('ссылка внутри страницы — шаг: route даёт новую запись, «Назад» возвращает список', async () => {
+    const { client, history } = await booted();
+
+    await client.route('/assigned');
+
+    expect(urlsOf(history)).toEqual(['/', '/assigned']);
+    await history.back();
+    expect(client.region('main').view?.address).toEqual(LIST);
+  });
+
+  test('route с портом области вне ссылки не закрывает: side на месте', async () => {
+    const { client, history } = await booted();
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    const side = client.region('side');
+
+    await client.route('/assigned');
+
+    expect(client.region('side')).toBe(side);
+    expect(history.entries()).toHaveLength(3);
+  });
+});
+
+describe('PageClient — перезагрузка', () => {
+  /** Перезагрузка: те же записи истории, новая вкладка на новом конце, `boot()`. */
+  const reload = async (
+    history: MemoryPageHistory,
+    placements?: readonly PagePlacement[],
+  ) => booted(history.reloaded(), placements);
+
+  test('три области восстановлены с состоянием; записей столько же, новых нет', async () => {
+    const first = await booted(undefined, ASSIGNED_IN_MODAL);
+    await first.client.local('main', 'toggle', { taskId: 'Хлеб' });
+    await first.client.submit('main', 'open', { taskId: 'Молоко' });
+    await first.client.openLink(ASSIGNED);
+    expect(first.client.region('modal').view?.screen).toBe(ASSIGNED_ID);
+
+    const second = await reload(first.history, ASSIGNED_IN_MODAL);
+
+    expect(second.client.region('main').view?.state).toEqual({
+      selected: [TASK_A],
+    });
+    expect(second.client.region('side').view?.address).toEqual(CARD_B);
+    expect(second.client.region('modal').view?.address).toEqual(ASSIGNED);
+    expect(second.history.entries()).toHaveLength(3);
+    expect(second.history.pushes).toBe(0);
+  });
+
+  test('перезагрузка на промежуточной записи после «Назад» — её области; «Вперёд» после перезагрузки — следующая запись', async () => {
+    const first = await paged();
+    await first.client.submit('main', 'open', { taskId: 'Сыр' });
+    await first.history.back();
+
+    const second = await reload(first.history);
+
+    expect(second.client.region('main').view?.address.params).toEqual({
+      page: 1,
+    });
+    expect(second.client.region('side')).toEqual(EMPTY_REGION);
+    await second.history.forward();
+    expect(second.client.region('side').view?.address).toEqual(CARD_C);
+  });
+
+  test('испорченное состояние в записи — список по URL с начальным состоянием; запись заменена исправленной', async () => {
+    const history = new MemoryPageHistory(
+      '/',
+      recordOf({
+        main: { address: LIST, revision: 3, state: { selected: 42 } },
+      }),
+    );
+
+    const { client } = await booted(history);
+
+    expect(client.region('main').view?.state).toEqual({ selected: [] });
+    expect(recordAt(history).regions.main?.state).toEqual({ selected: [] });
+  });
+
+  test.each([
+    [
+      '-1',
+      recordOf({
+        main: { address: LIST, revision: -1, state: { selected: [TASK_A] } },
+      }),
+    ],
+    [
+      '1e309',
+      `{"version":1,"regions":{"main":{"address":${JSON.stringify(LIST)},"revision":1e309,"state":{"selected":[${JSON.stringify(TASK_A)}]}}}}`,
+    ],
+  ])(
+    'восстановление отказало (ревизия %s) — экран по адресу заново, начальное состояние',
+    async (_, record) => {
+      const history = new MemoryPageHistory('/', record);
+
+      const { client } = await booted(history);
+
+      expect(client.region('main').view?.address).toEqual(LIST);
+      expect(client.region('main').view?.state).toEqual({ selected: [] });
+      expect(client.region('main').view?.revision).toBe(1);
+    },
+  );
+
+  describe('неразборчивая запись — экраны по URL с начальным состоянием, окно не восстановлено', () => {
+    const regions = {
+      main: { address: LIST, revision: 1, state: { selected: [TASK_A] } },
+      side: { address: CARD_LINK, revision: 1 },
+      modal: { address: ASSIGNED, revision: 1 },
+    };
+
+    test('запись другой версии', async () => {
+      const record = JSON.stringify({ version: 2, regions });
+      const history = new MemoryPageHistory(SIDE_CARD_URL, record);
+
+      const { client } = await booted(history, ASSIGNED_IN_MODAL);
+
+      expect(client.region('main').view?.address).toEqual(LIST);
+      expect(client.region('main').view?.state).toEqual({ selected: [] });
+      expect(client.region('side').view?.address).toEqual(CARD_LINK);
+      expect(client.region('modal')).toEqual(EMPTY_REGION);
+    });
+  });
+
+  test('годная запись при той же неразборчивой — окно восстановлено (контроль сцен неразборчивой записи)', async () => {
+    const history = new MemoryPageHistory(
+      SIDE_CARD_URL,
+      recordOf({
+        main: { address: LIST, revision: 1, state: { selected: [TASK_A] } },
+        modal: { address: ASSIGNED, revision: 1 },
+      }),
+    );
+
+    const { client } = await booted(history, ASSIGNED_IN_MODAL);
+
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(client.region('modal').view?.address).toEqual(ASSIGNED);
+  });
+
+  test('неразборчивый URL при годной записи — вход start с заметкой «Страница не найдена», side и окно пусты', async () => {
+    const history = new MemoryPageHistory(
+      '/нет',
+      recordOf({
+        main: { address: LIST, revision: 1, state: { selected: [TASK_A] } },
+        side: { address: CARD_LINK, revision: 1 },
+        modal: { address: ASSIGNED, revision: 1 },
+      }),
+    );
+
+    const { client } = await booted(history, ASSIGNED_IN_MODAL);
+
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      address: LIST,
+      note: PAGE_NOTES.notFound,
+    });
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+  });
+
+  test('URL главнее записи: слот main с другим адресом — открыт адрес URL с начальным состоянием', async () => {
+    const history = new MemoryPageHistory(
+      '/?page=1',
+      recordOf({
+        main: { address: LIST, revision: 1, state: { selected: [TASK_A] } },
+      }),
+    );
+
+    const { client } = await booted(history);
+
+    expect(client.region('main').view?.address.params).toEqual({ page: 1 });
+    expect(client.region('main').view?.state).toEqual({ selected: [] });
+  });
+
+  test('_side в URL неразборчив — side пуста с заметкой, слот side записи не берётся; main открыт', async () => {
+    const history = new MemoryPageHistory(
+      `/?_side=${encodeURIComponent('/нет/такого')}`,
+      recordOf({
+        main: { address: LIST, revision: 1, state: { selected: [TASK_A] } },
+        side: { address: CARD_LINK, revision: 1 },
+      }),
+    );
+
+    const { client } = await booted(history);
+
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(client.region('side')).toEqual({
+      ...EMPTY_REGION,
+      note: PAGE_NOTES.notFound,
+    });
+  });
+
+  test('URL главнее записи и для панели: _side с другой карточкой — карточка из URL', async () => {
+    const history = new MemoryPageHistory(
+      SIDE_B_URL,
+      recordOf({
+        main: { address: LIST, revision: 1, state: { selected: [] } },
+        side: { address: CARD_LINK, revision: 1 },
+      }),
+    );
+
+    const { client } = await booted(history);
+
+    expect(client.region('side').view?.address).toEqual(CARD_B);
+  });
+
+  test('панель вне ссылки — из записи: URL без _side, слот side в записи', async () => {
+    const history = new MemoryPageHistory(
+      '/',
+      recordOf({
+        main: { address: LIST, revision: 1, state: { selected: [] } },
+        side: { address: CARD_LINK, revision: 1 },
+      }),
+    );
+
+    const { client } = await booted(history);
+
+    expect(client.region('side').view?.address).toEqual(CARD_LINK);
+  });
+
+  test('чужой экран в слоте окна — окно пусто, остальные области целы', async () => {
+    const history = new MemoryPageHistory(
+      SIDE_CARD_URL,
+      recordOf({
+        main: { address: LIST, revision: 1, state: { selected: [TASK_A] } },
+        side: { address: CARD_LINK, revision: 1 },
+        modal: { address: { screen: 'нет/такого', params: {} }, revision: 1 },
+      }),
+    );
+
+    const { client } = await booted(history);
+
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(client.region('side').view?.address).toEqual(CARD_LINK);
+  });
+
+  test('перезагрузка без связи — области в loading с пометкой, вызовов нет; после attach — восстановлены', async () => {
+    const first = await booted();
+    await first.client.local('main', 'toggle', { taskId: 'Хлеб' });
+    await first.client.submit('main', 'open', { taskId: 'Молоко' });
+    const end = answered();
+    const { client } = tab(end, undefined, undefined, first.history.reloaded());
+    end.drop();
+
+    const booting = client.boot();
+
+    expect(await soon(booting, end)).toBe('ждёт');
+    for (const name of ['main', 'side'] as const) {
+      expect(client.region(name)).toMatchObject({
+        status: 'loading',
+        stale: 'offline',
+      });
+    }
+    expect(end.afterBreak).toEqual([]);
+    const next = nextEnd();
+    await client.attach(next);
+    expect(await soon(booting, next)).toBe('разрешён');
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(client.region('side').view?.address).toEqual(CARD_B);
+  });
+});
+
+describe('PageClient — сбой истории', () => {
+  test('порт отказывает — переходы работают, в faults — узел канала и фиксированный текст без URL и без броска порта', async () => {
+    const { client, faults, history } = await booted();
+    const refusal = new Error('SecurityError: https://school.example/?page=1');
+    history.fail(refusal);
+
+    await client.submit('main', 'next', {});
+
+    expect(client.region('main').view?.address.params).toEqual({ page: 1 });
+    expect(history.entries()).toHaveLength(1);
+    expect(faults.length).toBeGreaterThan(0);
+    for (const fault of faults) {
+      expect(fault.node).toBe(PAGE_CHANNEL);
+      expect(fault.error).not.toBe(refusal);
+      expect(fault.error).toEqual(new Error(PAGE_FAULTS.history));
+    }
+    expect(PAGE_FAULTS.history).toBe('запись истории не принята браузером');
+  });
+
+  test('после снятия отказа следующий шаг записан', async () => {
+    const { client, history } = await booted();
+    history.fail(new Error('SecurityError'));
+    await client.submit('main', 'next', {});
+
+    history.fail(undefined);
+    await client.openLink(CARD_LINK);
+
+    expect(history.entries()).toHaveLength(2);
+    expect(history.current().url).toBe(
+      sideUrl(`/todo/taskCard?taskId=${TASK_A}`, '/?page=1'),
+    );
+  });
+});
+
+describe('PageClient — переход по записи и идущие шаги', () => {
+  test('«Назад» во время шага на тот же адрес, ещё грузящегося, — новой записи нет, «Вперёд» цел', async () => {
+    const { client, end, history } = await paged();
+    const pushes = history.pushes;
+    end.hold('listTasks');
+
+    const going = client.route('/?page=1');
+    await end.flush();
+    const back = history.back();
+    await end.flush();
+    end.release('listTasks');
+    await Promise.all([going, back]);
+
+    expect(urlsOf(history)).toEqual(['/', '/?page=1']);
+    expect(history.position).toBe(0);
+    expect(history.pushes).toBe(pushes);
+  });
+
+  test('«Назад» во время ухода из окна на тот же адрес — новой записи нет, слот окна в записи «Вперёд» цел', async () => {
+    const { client, end, history } = await booted(undefined, CARD_IN_MODAL);
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    const pushes = history.pushes;
+    end.hold('listTasks');
+
+    const leaving = client.submit('modal', 'back', {});
+    await end.flush();
+    const back = history.back();
+    await end.flush();
+    end.release('listTasks');
+    await Promise.all([leaving, back]);
+
+    expect(history.position).toBe(0);
+    expect(history.pushes).toBe(pushes);
+    expect(recordAt(history, 1).regions.modal?.address).toEqual(CARD_B);
+  });
+
+  test('«Назад» к записи с окном, пока окно грузится, — промежуточный снимок (панель очищена, окна ещё нет) в запись не пишется', async () => {
+    const end = answered();
+    const { client, history } = await booted(undefined, ASSIGNED_IN_MODAL, end);
+    await client.openLink(ASSIGNED);
+    client.close('modal');
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    expect(regionsAt(history, 1)).toEqual(['main', 'modal']);
+    end.hold('listAssignedTasks');
+
+    const going = Promise.all([history.back(), history.back()]);
+    await end.flush();
+
+    expect(history.position).toBe(1);
+    expect(regionsAt(history, 1)).toEqual(['main', 'modal']);
+    end.release('listAssignedTasks');
+    await going;
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+    expect(client.region('modal').view?.address).toEqual(ASSIGNED);
+    expect(regionsAt(history, 1)).toEqual(['main', 'modal']);
+  });
+
+  test('отказ перехода по записи — в faults как есть; промис «Назад» разрешён, у main заметка', async () => {
+    const { codes, broken } = breakable();
+    const history = new MemoryPageHistory('/');
+    const t = tab(answered(), codes, undefined, history);
+    await t.client.boot();
+    await t.client.submit('main', 'next', {});
+    broken.add('taskList');
+
+    await history.back();
+
+    expect(t.faults).toHaveLength(1);
+    expect(t.faults[0]?.node).toBe(PAGE_CHANNEL);
+    expect(t.faults[0]?.error).toEqual(new Error('код taskList не загрузился'));
+    expect(t.client.region('main').note).toBe(PAGE_NOTES.failed);
+  });
+
+  test('шаг сразу после начала первой загрузки — своя запись', async () => {
+    const end = answered().hold('listTasks');
+    const history = new MemoryPageHistory('/');
+    const { client } = tab(end, undefined, undefined, history);
+
+    const booting = client.boot();
+    const going = client.route('/assigned');
+    end.release('listTasks');
+    await Promise.all([booting, going]);
+
+    expect(urlsOf(history)).toEqual(['/', '/assigned']);
+  });
+
+  test('route на тот же адрес — новой записи нет', async () => {
+    const { client, history } = await booted();
+
+    await client.route('/');
+
+    expect(urlsOf(history)).toEqual(['/']);
+    expect(history.pushes).toBe(0);
+  });
+
+  test('route на тот же адрес во время первой загрузки — новой записи нет', async () => {
+    const end = answered().hold('listTasks');
+    const history = new MemoryPageHistory('/');
+    const { client } = tab(end, undefined, undefined, history);
+
+    const booting = client.boot();
+    const going = client.route('/');
+    end.release('listTasks');
+    await Promise.all([booting, going]);
+
+    expect(urlsOf(history)).toEqual(['/']);
+    expect(history.pushes).toBe(0);
+  });
+
+  test('неразборчивый URL записи закрывает прочие области: панель пуста, у main заметка', async () => {
+    const { client, history } = await booted(new MemoryPageHistory(SIDE_B_URL));
+    expect(client.region('side').view?.address).toEqual(CARD_B);
+    history.push('/нет', 'чужая');
+
+    await history.back();
+    await history.forward();
+
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+    expect(client.region('main').note).toBe(PAGE_NOTES.notFound);
+  });
+
+  test('после перехода по записи отсев сброшен: чужая запись с тем же состоянием переписана', async () => {
+    const { client, end, history } = await booted();
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+    history.push('/', 'чужая');
+
+    await history.back();
+    await history.forward();
+    await end.deliver(signalOf(watchOf(end, LIST_ID), 'e-1'));
+
+    expect(recordAt(history, 1).regions.main?.state).toEqual({
+      selected: [TASK_A],
+    });
+  });
+
+  test('адрес слота с другим порядком ключей — тот же адрес: состояние из записи', async () => {
+    const history = new MemoryPageHistory(
+      '/',
+      recordOf({
+        main: {
+          address: { params: { page: 0 }, screen: LIST_ID },
+          revision: 1,
+          state: { selected: [TASK_A] },
+        },
+      }),
+    );
+
+    const { client } = await booted(history);
+
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+  });
+
+  test('пустая область без цели в записи очищается: заметка прежней записи снята', async () => {
+    const { client, history } = await booted(
+      new MemoryPageHistory(`/?_side=${encodeURIComponent('/нет/такого')}`),
+    );
+    expect(client.region('side').note).toBe(PAGE_NOTES.notFound);
+
+    await client.route('/assigned');
+    await history.back();
+
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+  });
+});
+
+/**
+ * Код экранов, где одна следующая загрузка экрана `name` после `hold()` ждёт
+ * `release()`; прочие загрузки — сразу.
+ */
+const heldOnce = (name: string) => {
+  const codes = exampleCodes();
+  const screen = codes.screen.bind(codes);
+  let gate: PromiseWithResolvers<void> | undefined;
+  codes.screen = async (def) => {
+    const held = def.name === name ? gate : undefined;
+    if (held !== undefined) {
+      gate = undefined;
+      await held.promise;
+    }
+    return screen(def);
+  };
+  return {
+    codes,
+    hold: () => {
+      gate = Promise.withResolvers<void>();
+      return gate;
+    },
+  };
+};
+
+describe('PageClient — переход по записи вытеснен действием', () => {
+  test('«Назад» с удержанной загрузкой кода, затем route и локальное действие — замены пишутся; поздняя загрузка записей не трогает', async () => {
+    const { codes, hold } = heldOnce('taskList');
+    const history = new MemoryPageHistory('/?page=1');
+    const { client, end } = tab(answered(), codes, undefined, history);
+    await client.boot();
+    await client.route('/');
+    const gate = hold();
+
+    const back = history.back();
+    await end.flush();
+    expect(client.region('main').status).toBe('loading');
+    await client.route('/');
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    expect(urlsOf(history)).toEqual(['/?page=1', '/']);
+    expect(history.position).toBe(1);
+    expect(recordAt(history).regions.main?.state).toEqual({
+      selected: [TASK_A],
+    });
+    const written = history.entries();
+    const pushes = history.pushes;
+    gate.resolve();
+    await back;
+    await end.flush();
+    expect(history.entries()).toEqual(written);
+    expect(history.pushes).toBe(pushes);
+    expect(client.region('main').view?.address).toEqual(LIST);
+  });
+
+  test('отказ первой загрузки — вызывающему: boot отклонён, main пуста с заметкой, faults пусты', async () => {
+    const { codes, broken } = breakable();
+    broken.add('taskList');
+    const history = new MemoryPageHistory('/');
+    const t = tab(answered(), codes, undefined, history);
+
+    await expect(t.client.boot()).rejects.toThrow('код taskList не загрузился');
+
+    expect(t.client.region('main')).toEqual({
+      ...EMPTY_REGION,
+      note: PAGE_NOTES.failed,
+    });
+    expect(t.faults).toEqual([]);
   });
 });

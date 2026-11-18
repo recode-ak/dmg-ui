@@ -2,7 +2,11 @@ import { err, ok, type Result } from 'dmg-core';
 import type { Address } from 'dmg-ui';
 import type { PageLayoutParse } from './page-layout-urls.types';
 import type { PageUrls } from './page-urls';
-import { PAGE_URL_LIMIT, PAGE_URL_NAME } from './page-urls.const';
+import {
+  PAGE_URL_ASCII,
+  PAGE_URL_LIMIT,
+  PAGE_URL_NAME,
+} from './page-urls.const';
 import type { PageUrlRejection } from './page-urls.types';
 
 export type { PageLayoutParse } from './page-layout-urls.types';
@@ -34,21 +38,36 @@ export class PageLayoutUrls {
   }
 
   /**
+   * Свой URL — печатный ASCII, начинается ровно с одного `/`: `//` и `/\`
+   * браузер читает как чужой хост, а табуляцию и перевод строки вырезает до
+   * разбора. По инвариантам кодека чужого не бывает — страж на случай их
+   * поломки (D-UI-81).
+   */
+  static own(url: string): boolean {
+    return (
+      PAGE_URL_ASCII.test(url) &&
+      url.startsWith('/') &&
+      url[1] !== '/' &&
+      url[1] !== '\\'
+    );
+  }
+
+  /**
    * Ссылка: основной адрес, затем области из `linked` по порядку. Область без
-   * адреса, невыразимая или не влезшая в предел — пропущена, ссылка целиком
-   * не отказывает; нет основного URL — `undefined`.
+   * адреса, невыразимая, не своя или не влезшая в предел — пропущена, ссылка
+   * целиком не отказывает; нет своего основного URL — `undefined`.
    */
   url(
     main: Address,
     regions: Readonly<Record<string, Address | undefined>>,
   ): string | undefined {
     const first = this.urls.url(main);
-    if (first === undefined) return undefined;
+    if (first === undefined || !PageLayoutUrls.own(first)) return undefined;
     let url: string = first;
     for (const name of this.linked) {
       const address = regions[name];
       const nested = address === undefined ? undefined : this.urls.url(address);
-      if (nested === undefined) continue;
+      if (nested === undefined || !PageLayoutUrls.own(nested)) continue;
       const next = `${url}${url.includes('?') ? '&' : '?'}_${name}=${encodeURIComponent(nested)}`;
       if (next.length <= PAGE_URL_LIMIT) url = next;
     }

@@ -347,3 +347,78 @@ describe('PageLayoutUrls.parse — мусор не бросает', () => {
     },
   );
 });
+
+describe('PageLayoutUrls.own — свой URL начинается с одного `/`', () => {
+  test.each([
+    '/',
+    '/a',
+    '/?x=1',
+    `/todo/taskCard?taskId=${TASK_A}`,
+    `/?_side=${encodeURIComponent('//evil.com')}`,
+  ])('%p — свой', (url) => {
+    expect(PageLayoutUrls.own(url)).toBe(true);
+  });
+
+  test.each([
+    '//',
+    '//evil.com/x',
+    '/\\evil.com',
+    '/\\\\',
+    'a',
+    '',
+    '?x=1',
+    'http://x',
+    '\\/x',
+    '/\t/x',
+    '/\n/x',
+    '/\r/x',
+    '/ /x',
+  ])('%p — чужой: браузер прочёл бы его как другой хост или не путь', (url) => {
+    expect(PageLayoutUrls.own(url)).toBe(false);
+  });
+
+  test('ссылки кодека свои: основная и с вложенной областью', () => {
+    const links = [
+      layout(['side']).url(list(0), {}),
+      layout(['side']).url(list(3), { side: card(TASK_A) }),
+    ];
+
+    for (const link of links) {
+      expect(link).toBeDefined();
+      expect(PageLayoutUrls.own(link ?? '')).toBe(true);
+    }
+  });
+});
+
+describe('PageLayoutUrls.url — страж своего URL', () => {
+  /** Кодек со сломанным инвариантом: адрес карточки даёт строку `bad`. */
+  class CrookedUrls extends PageUrls {
+    constructor(private readonly bad: string) {
+      super({ app: RoutedAppDef, routes: ROUTED });
+    }
+
+    override url(address: Address): string | undefined {
+      return address.screen === card(TASK_A).screen
+        ? this.bad
+        : super.url(address);
+    }
+  }
+
+  test.each(['//evil.com/x', '/\\evil.com'])(
+    'основной URL %p не свой — ссылки нет',
+    (bad) => {
+      const crooked = new PageLayoutUrls(new CrookedUrls(bad), ['side']);
+
+      expect(crooked.url(card(TASK_A), {})).toBeUndefined();
+    },
+  );
+
+  test.each(['//evil.com/x', '/\\evil.com'])(
+    'вложенный URL %p не свой — область пропущена, основная на месте',
+    (bad) => {
+      const crooked = new PageLayoutUrls(new CrookedUrls(bad), ['side']);
+
+      expect(crooked.url(list(1), { side: card(TASK_A) })).toBe('/?page=1');
+    },
+  );
+});
