@@ -3,18 +3,28 @@
 # спецификатору, импорт одиннадцати входов и сверка их с `exports`, запуск и tsc.
 # Сеть и ssh нужны, поэтому в `bun run check` скрипт не входит.
 #
-#   bun run smoke git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.2.0
-#   bun run smoke git+file:///путь/к/клону#v0.2.0
+#   bun run smoke git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.0
+#   bun run smoke git+file:///путь/к/клону#v0.3.0
 #
 # Аргумент — спецификатор источника dmg-ui. dmg-core ставится той же командой
 # (peer: Bun ищет его в npm и получает 404), тег — из devDependencies репо.
+# Если спецификатор оканчивается на `#vX.Y.Z`, версия установленного dmg-ui
+# обязана быть `X.Y.Z`: тег и `version` пакета не должны расходиться. Без такого
+# тега (`#main`, `#v0.3.0-rc`, нет `#`) версия не сверяется — скрипт об этом пишет.
 set -euo pipefail
 
 if [ $# -ne 1 ]; then
-  echo "usage: consumer-smoke.sh <спецификатор dmg-ui, например git+ssh://…#v0.2.0>" >&2
+  echo "usage: consumer-smoke.sh <спецификатор dmg-ui, например git+ssh://…#v0.3.0>" >&2
   exit 2
 fi
 SOURCE="$1"
+EXPECTED_VERSION=""
+if [[ "$SOURCE" =~ \#v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+  EXPECTED_VERSION="${BASH_REMATCH[1]}"
+else
+  echo "smoke: версия не сверена (спецификатор без тега vX.Y.Z)"
+fi
+export EXPECTED_VERSION
 PKG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CORE="$(jq -r '.devDependencies["dmg-core"]' "$PKG/package.json")"
 case "$CORE" in
@@ -102,6 +112,11 @@ if (declared.join() !== checked.join()) {
   process.exit(1);
 }
 console.log(`smoke: установлен dmg-ui ${manifest.version}, входов ${checked.length}`);
+const expected = process.env.EXPECTED_VERSION ?? '';
+if (expected !== '' && manifest.version !== expected) {
+  console.error(`smoke: версия установленного dmg-ui ${manifest.version} ≠ тегу ${expected}`);
+  process.exit(1);
+}
 TS
 
 echo "smoke: bun run"

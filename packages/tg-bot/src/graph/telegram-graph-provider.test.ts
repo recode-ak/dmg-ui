@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   GetTaskUcDef,
   RemoveUserUcDef,
@@ -7,11 +9,12 @@ import {
 import type { CommunityOperation, CommunitySignalKind } from 'dmg-ui/chat-ui';
 import { MemoryMessenger } from 'dmg-ui/chat-ui/testing';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
+import * as v from 'valibot';
 import {
   stubProvider,
   telegramScene,
 } from '../../testing/telegram-graph-scene';
-import { TELEGRAM_PROVIDER } from './telegram-graph.const';
+import { TELEGRAM_PROVIDER, TELEGRAM_VERSION } from './telegram-graph.const';
 import { TelegramGraphProvider } from './telegram-graph-provider';
 
 // Поставщик графа Telegram: `dmg-ui-tg`, без своих видов и
@@ -31,12 +34,18 @@ const tg = (report: ArchReport) =>
   report.lines.filter((line) => line.startsWith('TG-'));
 
 describe('TelegramGraphProvider', () => {
-  test('имя dmg-ui-tg, версия 0.2.0', () => {
+  test('имя dmg-ui-tg, версия равна version из package.json', () => {
+    const file = join(import.meta.dir, '../../../../package.json');
+    const { version } = v.parse(
+      v.object({ version: v.string() }),
+      JSON.parse(readFileSync(file, 'utf8')),
+    );
     const provider = new TelegramGraphProvider();
 
     expect(TELEGRAM_PROVIDER).toBe('dmg-ui-tg');
     expect(provider.name).toBe('dmg-ui-tg');
-    expect(provider.version).toBe('0.2.0');
+    expect(provider.version).toBe(version);
+    expect(TELEGRAM_VERSION).toBe(version);
   });
 
   test('kinds() и contribute() пусты: вид chatEntryPoint повторно не регистрируется', () => {

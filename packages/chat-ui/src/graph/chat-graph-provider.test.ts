@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ok } from 'dmg-core';
 import type { ArchApp } from 'dmg-core/arch';
 import { AppGraph, DomainIds, type Graph } from 'dmg-core/graph';
@@ -47,6 +49,7 @@ import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { ChatExamples } from './chat-examples';
 import { ChatGraphProvider } from './chat-graph-provider';
+import { CHAT_VERSION } from './chat-kinds';
 
 // Поставщик графа общей части мессенджеров `dmg-ui-chat` (D-UI-57): один на
 // все приложения; под каждым приложением — узел возможностей `chatMessenger`,
@@ -248,6 +251,20 @@ describe('ChatGraphProvider на графе примера', () => {
     expect(
       providers.some((provider) => provider instanceof StubViewProvider),
     ).toBe(false);
+  });
+
+  test('версия поставщика равна version из package.json', () => {
+    const file = join(import.meta.dir, '../../../../package.json');
+    const { version } = v.parse(
+      v.object({ version: v.string() }),
+      JSON.parse(readFileSync(file, 'utf8')),
+    );
+    const chat = (ExampleDialogArch.providers ?? []).find(
+      (provider) => provider instanceof ChatGraphProvider,
+    );
+
+    expect(chat?.version).toBe(version);
+    expect(CHAT_VERSION).toBe(version);
   });
 
   test('правила поставщика примера — среди них CH-01 и CH-02', () => {
