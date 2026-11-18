@@ -2,6 +2,7 @@ import type { SerializedResult } from 'dmg-core';
 import type {
   Address,
   AddressJson,
+  AnyScreenDef,
   AnyUiAppDef,
   CodeLoaders,
   FieldIssue,
@@ -12,8 +13,10 @@ import type {
   UiObserver,
 } from 'dmg-ui';
 import type { PageRoute } from '../url/page-urls.types';
+import type { PageFormValues } from '../view/page-form.types';
 import type {
   PageConfirm,
+  PageEntered,
   PageStaleReason,
   PageViewState,
 } from '../view/page-view-state.types';
@@ -24,12 +27,28 @@ import type {
   WatchRefusedMessage,
 } from '../wire/page-messages.types';
 import type { ClientEnd } from '../wire/page-wire.types';
+import type { PAGE_REGIONS, PAGE_ROOT_REGION } from './page-client.const';
 import type { PageClock } from './page-clock.types';
 import type { PageTraces } from './page-traces';
 import type { ViewCell } from './view-cell';
 
-/** Области страницы: основная и соседняя. */
-export type PageRegionName = 'main' | 'side';
+/** Области страницы: основная, соседняя и модальная — по перечню `PAGE_REGIONS`. */
+export type PageRegionName = (typeof PAGE_REGIONS)[number];
+
+/** Область, которую можно закрыть: корневая всегда с экраном. */
+export type PageClosableRegion = Exclude<
+  PageRegionName,
+  typeof PAGE_ROOT_REGION
+>;
+
+/**
+ * Объявление приложения страниц: переход на экран открывается в области.
+ * Экран и приложение UI об областях не знают — решает канал.
+ */
+export type PagePlacement = {
+  readonly screen: AnyScreenDef;
+  readonly region: PageRegionName;
+};
 
 /**
  * Сборка вкладки: приложение UI, код экранов, маршруты (шаблоны пути — входы
@@ -42,6 +61,8 @@ export type PageClientSpec = {
   readonly codes: CodeLoaders;
   readonly routes: readonly PageRoute[];
   readonly end: ClientEnd;
+  /** Куда открывать переходы на экраны; без объявления — по положению. */
+  readonly placements?: readonly PagePlacement[];
   readonly observer: UiObserver;
   /** Часы срока отсева повторов; по умолчанию — `PageSystemClock`. */
   readonly clock?: PageClock;
@@ -51,20 +72,24 @@ export type PageClientSpec = {
   readonly faults?: (fault: UiFault) => void;
 };
 
-/** Значения формы по именам полей — строки, как у формы страницы. */
-export type PageFormValues = Readonly<Record<string, string>>;
+export type { PageFormValues };
 
-/** Подтверждение с тем, что нужно для повтора входа с `confirmed: true`. */
+/**
+ * Подтверждение с тем, что нужно для повтора входа с `confirmed: true`;
+ * `values` — введённое в форму (у жеста нет), для эха при отказе входа.
+ */
 export type PendingConfirm = PageConfirm & {
   readonly input: unknown;
   readonly revision: number;
+  readonly values?: PageFormValues;
 };
 
-/** Отметки области после сигнала: заметка, замечания формы, подтверждение, устаревание. */
+/** Отметки области после сигнала: заметка, замечания и введённое, подтверждение, устаревание. */
 export type RegionMarks = {
   readonly note?: string;
   readonly issues?: readonly FieldIssue[];
   readonly confirm?: PendingConfirm;
+  readonly entered?: PageEntered;
   readonly stale?: PageStaleReason;
 };
 
@@ -129,11 +154,10 @@ export type PageSlotJson = {
   readonly state?: unknown;
 };
 
-/** Снимок вкладки: обе области; пустой области в снимке нет. */
-export type PageSnapshot = {
-  readonly main?: PageSlotJson;
-  readonly side?: PageSlotJson;
-};
+/** Снимок вкладки: области с экземпляром; пустой области в снимке нет. */
+export type PageSnapshot = Readonly<
+  Partial<Record<PageRegionName, PageSlotJson>>
+>;
 
 /** Сообщения сервера, которые разбирают порты исполнителя. */
 export type PortMessage =

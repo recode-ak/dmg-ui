@@ -10,8 +10,10 @@
 // `PageSystemClock`. Маршрут `PageRouteDef` и кодек адреса в URL `PageUrls`
 // лежат в `url/` (D-UI-76): строка на входе и выходе, без браузера.
 // Внутренние `WirePorts`, `PageConnection`, `PageOutbox`, `serverFrame`,
-// `PageRegions`, `PageForms`, `PageInbox`, `PageSeenKeys`, `ViewCell`,
-// `PageTextPresenter`, `PagePath`, `PageParams` наружу не выходят.
+// `PageRegions`, `PagePlacements`, `PageForms`, `PageInbox`, `PageSeenKeys`,
+// `ViewCell`, `PageTextPresenter`, `PagePath`, `PageParams`, `PageLayoutUrls`
+// наружу не выходят. Областей три — основная, соседняя и модальная (`PageRegionName`):
+// куда открыть переход, объявляет приложение страниц (`PagePlacement`).
 
 export { PageBrowserSocket } from './client/page-browser-socket';
 export {
@@ -19,6 +21,7 @@ export {
   type PageClientSpec,
   type PageFormValues,
   type PageInboxEntry,
+  type PagePlacement,
   type PageRegionName,
   type PageSlotJson,
   type PageSnapshot,
@@ -68,12 +71,19 @@ export {
   type PageUrlsSpec,
 } from './url/page-urls';
 export type {
+  PageForm,
+  PageFormField,
+  PageFormSet,
+} from './view/page-form.types';
+export { PageFormModel } from './view/page-form-model';
+export type {
   PageRegionPresenter,
   PageTextTarget,
 } from './view/page-region-presenter.types';
 export { PageRenderer } from './view/page-renderer';
 export type {
   PageConfirm,
+  PageEntered,
   PageStaleReason,
   PageViewState,
   PageViewStatus,

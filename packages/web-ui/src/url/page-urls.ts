@@ -125,6 +125,19 @@ export class PageUrls {
     return err('unknownPath');
   }
 
+  /**
+   * Пары строки запроса URL — внешние данные, без броска: те же проверки
+   * формы, что у `parse`, ключ и значение декодированы один раз. Отказ формы
+   * или повтор ключа — `undefined`. Ключей, которых нет у экрана, не отсеивает.
+   */
+  pairs(url: string): ReadonlyMap<string, string> | undefined {
+    if (url.length > PAGE_URL_LIMIT) return undefined;
+    if (!PAGE_URL_ASCII.test(url) || url.includes('#') || !url.startsWith('/'))
+      return undefined;
+    const mark = url.indexOf('?');
+    return this.query(mark < 0 ? '' : url.slice(mark + 1));
+  }
+
   /** Экран набора: имена модуля и экрана — в общий путь, вид параметров — по схеме. */
   private claimScreen(module: string, def: AnyScreenDef): void {
     const id = this.ids.screen(def);

@@ -1,4 +1,5 @@
 import {
+  type ActionField,
   type ActionOutcome,
   type Address,
   AddressCodec,
@@ -12,6 +13,7 @@ import {
 } from 'dmg-ui';
 import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
+import { PageLayoutUrls } from '../url/page-layout-urls';
 import { PageUrls } from '../url/page-urls';
 import type { PageViewState } from '../view/page-view-state.types';
 import type { ViewSource } from '../view/view-source.types';
@@ -20,12 +22,16 @@ import type { ClientEnd } from '../wire/page-wire.types';
 import {
   PAGE_FAULTS,
   PAGE_HOME,
+  PAGE_LINKED_REGIONS,
   PAGE_NOTES,
   PAGE_REGIONS,
+  PAGE_ROOT_REGION,
+  PAGE_TRANSIENT_REGIONS,
 } from './page-client.const';
 import type {
   DeferredOpen,
   PageClientSpec,
+  PageClosableRegion,
   PageFormValues,
   PageInboxEntry,
   PageRegionName,
@@ -34,6 +40,7 @@ import type {
 } from './page-client.types';
 import { PageForms } from './page-forms';
 import { PageInbox } from './page-inbox';
+import { PagePlacements } from './page-placements';
 import { PageRegions } from './page-regions';
 import { PageSystemClock } from './page-system-clock';
 import { PageTraces } from './page-traces';
@@ -41,18 +48,17 @@ import { WirePorts } from './wire-ports';
 
 export type {
   PageClientSpec,
+  PageClosableRegion,
   PageFormValues,
   PageInboxEntry,
+  PagePlacement,
   PageRegionName,
   PageSlotJson,
   PageSnapshot,
 } from './page-client.types';
 
 /** Снимок вкладки — внешние данные: области берутся как есть, их проверит `restore`. */
-const SnapshotJson = v.object({
-  main: v.optional(v.unknown()),
-  side: v.optional(v.unknown()),
-});
+const SnapshotJson = v.record(v.string(), v.unknown());
 
 /** Область снимка: адрес — для `loading` до ответа `restore`. */
 const SlotAddress = v.object({ address: v.unknown() });
@@ -64,6 +70,8 @@ type Act = {
   readonly input: unknown;
   readonly revision: number;
   readonly confirmed: boolean;
+  /** Введённое в форму (у жеста нет): для эха при отказе входа и повтора подтверждения. */
+  readonly values?: PageFormValues;
 };
 
 /**
@@ -95,6 +103,8 @@ export class PageClient {
   private readonly start: Address;
   /** Кодек адреса `main` ↔ URL страницы по маршрутам приложения. */
   private readonly urls: PageUrls;
+  /** Ссылка с составом областей: `urls` плюс вложенные адреса `PAGE_LINKED_REGIONS`. */
+  private readonly layout: PageLayoutUrls;
 
   /**
    * Приложение другого канала, нет входа `start` — ошибка сборки, бросок;
@@ -114,6 +124,8 @@ export class PageClient {
       );
     }
     this.urls = new PageUrls({ app, routes });
+    this.layout = new PageLayoutUrls(this.urls, PAGE_LINKED_REGIONS);
+    this.ids = new UiIds(app.set);
     this.spec = spec;
     this.end = spec.end;
     this.start = home.address;
@@ -121,7 +133,10 @@ export class PageClient {
       spec.requestIds ?? (() => crypto.randomUUID()),
       PAGE_CHANNEL,
     );
-    this.regions = new PageRegions((node, error) => this.fault(node, error));
+    this.regions = new PageRegions(
+      (node, error) => this.fault(node, error),
+      new PagePlacements(this.ids, spec.placements ?? []),
+    );
     this.ports = new WirePorts(spec.end, (address) =>
       this.regions.signalled(address),
     );
@@ -134,7 +149,6 @@ export class PageClient {
       ...(spec.faults === undefined ? {} : { faults: spec.faults }),
     });
     this.codec = new AddressCodec(app.set);
-    this.ids = new UiIds(app.set);
     this.notes = new PageInbox({
       ids: this.ids,
       observer: spec.observer,
@@ -189,15 +203,52 @@ export class PageClient {
   }
 
   /**
-   * URL страницы (путь и строка запроса) → адрес в `main`; неразборчивый —
-   * вход `start` с заметкой, без URL и причины в заметке (D-UI-76). Промис
-   * отклоняется, только если не загрузился код экрана: разбор не бросает,
-   * а отказ чтения данных лежит в виде экрана.
+   * URL страницы (путь, строка запроса) → адрес в `main` и области из
+   * резервных ключей; неразборчивый — вход `start` с заметкой, без URL и
+   * причины в заметке (D-UI-76); неразборчивое значение области — она пуста
+   * с заметкой. Областей, которых в ссылке нет, не касается. Открытия идут
+   * параллельно; промис отклоняется, только если не загрузился код экрана
+   * (первой причиной, после всех открытий): отказ данных лежит в виде экрана.
    */
   async route(url: string): Promise<void> {
-    const address = this.urls.parse(url);
-    if (address.ok) await this.open('main', address.value);
-    else await this.open('main', this.start, { note: PAGE_NOTES.notFound });
+    const parsed = this.layout.parse(url);
+    if (!parsed.ok) {
+      await this.open(PAGE_ROOT_REGION, this.start, {
+        note: PAGE_NOTES.notFound,
+      });
+      return;
+    }
+    const { main, regions } = parsed.value;
+    const work = [this.open(PAGE_ROOT_REGION, main)];
+    for (const name of PAGE_LINKED_REGIONS) {
+      const region = regions[name];
+      if (region === undefined) continue;
+      if (region.ok) work.push(this.open(name, region.value));
+      else this.clear(name, { note: PAGE_NOTES.notFound });
+    }
+    const settled = await Promise.allSettled(work);
+    for (const result of settled) {
+      if (result.status === 'rejected') throw result.reason;
+    }
+  }
+
+  /**
+   * Ссылка на текущие области: `main` и области из `PAGE_LINKED_REGIONS`;
+   * пустая `main` или невыразимый в URL адрес — `undefined`.
+   */
+  url(): string | undefined {
+    const main = this.addressOf(PAGE_ROOT_REGION);
+    if (main === undefined) return undefined;
+    const regions: Record<string, Address | undefined> = {};
+    for (const name of PAGE_LINKED_REGIONS) {
+      regions[name] = this.addressOf(name);
+    }
+    return this.layout.url(main, regions);
+  }
+
+  /** Закрыть `side` или `modal`: пусто без заметки, экземпляр и подписка сняты. */
+  close(region: PageClosableRegion): void {
+    this.clear(region);
   }
 
   /**
@@ -210,11 +261,9 @@ export class PageClient {
     values: PageFormValues,
     revision?: number,
   ): Promise<ActionOutcome> {
-    const instance = this.regions.instance(region);
-    if (instance === undefined) return this.unavailable(region, 'closed');
-    if (this.regions.behind(region)) {
-      return this.unavailable(region, 'disabled');
-    }
+    const ready = this.ready(region);
+    if (ready.instance === undefined) return ready.outcome;
+    const { instance } = ready;
     const view = instance.view();
     const fields = view.actions.find((a) => a.name === action)?.fields ?? [];
     return this.act(region, {
@@ -222,6 +271,30 @@ export class PageClient {
       action,
       input: this.forms.input(fields, values),
       revision: revision ?? view.revision,
+      confirmed: false,
+      values: PageClient.declared(fields, values),
+    });
+  }
+
+  /**
+   * Жест: готовый вход действия, минуя сборку из строк формы (значение
+   * варианта, не подпись). Ревизия обязательна — вида, по которому нарисована
+   * цель жеста; устаревшая — исход `stale`. Наличие и доступность действия,
+   * подтверждение и схему входа проверяет ядро; исход — по общей таблице.
+   */
+  async submitInput(
+    region: PageRegionName,
+    action: string,
+    input: unknown,
+    revision: number,
+  ): Promise<ActionOutcome> {
+    const ready = this.ready(region);
+    if (ready.instance === undefined) return ready.outcome;
+    return this.act(region, {
+      instance: ready.instance,
+      action,
+      input,
+      revision,
       confirmed: false,
     });
   }
@@ -240,6 +313,7 @@ export class PageClient {
       input: pending.input,
       revision: pending.revision,
       confirmed: true,
+      ...(pending.values === undefined ? {} : { values: pending.values }),
     });
   }
 
@@ -249,11 +323,9 @@ export class PageClient {
     name: string,
     values: PageFormValues,
   ): Promise<LocalOutcome> {
-    const instance = this.regions.instance(region);
-    if (instance === undefined) return this.unavailable(region, 'closed');
-    if (this.regions.behind(region)) {
-      return this.unavailable(region, 'disabled');
-    }
+    const ready = this.ready(region);
+    if (ready.instance === undefined) return ready.outcome;
+    const { instance } = ready;
     const fields =
       instance.view().locals.find((l) => l.name === name)?.fields ?? [];
     const outcome = await instance.local({
@@ -265,7 +337,14 @@ export class PageClient {
         this.regions.mark(region, {});
         break;
       case 'rejected':
-        this.regions.mark(region, { issues: outcome.issues });
+        this.regions.mark(region, {
+          issues: outcome.issues,
+          entered: {
+            kind: 'local',
+            name,
+            values: PageClient.declared(fields, values),
+          },
+        });
         break;
       case 'refused':
         this.regions.mark(region, { note: outcome.refusal.text });
@@ -279,9 +358,12 @@ export class PageClient {
     return outcome;
   }
 
-  /** Ссылка уведомления (внешние данные) — в `side`; не декодируется — заметка. */
+  /** Ссылка уведомления (внешние данные) — по размещению экрана; не декодируется — заметка. */
   openLink(address: AddressJson): Promise<void> {
-    return this.openJson('side', address);
+    return this.openJson(
+      this.regions.target(undefined, address.screen),
+      address,
+    );
   }
 
   /** «Повторить»: тот же адрес области открывается заново. */
@@ -300,7 +382,7 @@ export class PageClient {
     return this.regions.state(name);
   }
 
-  /** Снимок обеих областей в форме JSON. */
+  /** Снимок областей с экземпляром в форме JSON. */
   snapshot(): PageSnapshot {
     return this.regions.snapshot();
   }
@@ -309,31 +391,37 @@ export class PageClient {
    * Восстановление вкладки из снимка (внешние данные): область с
    * декодируемым адресом — `loading` до ответа `restore`; мусор или
    * невосстановленный адрес `main` — вход `start` общим путём перехода (без
-   * связи он ждёт соединения); невосстановленная `side` — пуста. Допущение:
+   * связи он ждёт соединения); невосстановленная прочая область — пуста.
+   * Допущение:
    * `resume` зовётся на живом конце при старте вкладки — начатый до `attach`
    * не перечитывается по новому концу.
    */
   async resume(json: unknown): Promise<void> {
     const parsed = v.safeParse(SnapshotJson, json);
     const slots = parsed.success ? parsed.output : {};
-    const main = this.resuming('main', slots.main);
-    const side = this.resuming('side', slots.side);
+    const tickets = new Map<PageRegionName, number>();
+    for (const name of PAGE_REGIONS) {
+      const ticket = this.resuming(name, slots[name]);
+      if (ticket !== undefined) tickets.set(name, ticket);
+    }
     try {
-      const restoredMain =
-        main === undefined ? undefined : await this.restore(slots.main);
-      if (main === undefined || restoredMain === undefined) {
-        await this.open('main', this.start);
-      } else {
-        this.regions.place('main', main, restoredMain);
+      for (const name of PAGE_REGIONS) {
+        const ticket = tickets.get(name);
+        const restored =
+          ticket === undefined ? undefined : await this.restore(slots[name]);
+        if (ticket !== undefined && restored !== undefined) {
+          this.regions.place(name, ticket, restored);
+        } else if (name === PAGE_ROOT_REGION) {
+          await this.open(name, this.start);
+        } else if (ticket !== undefined) {
+          this.clear(name);
+        }
       }
-      if (side === undefined) return;
-      const restoredSide = await this.restore(slots.side);
-      if (restoredSide === undefined) this.clear('side');
-      else this.regions.place('side', side, restoredSide);
     } catch (error) {
       // Отказ — вызывающему; области снимка в `loading` не остаются.
-      this.regions.failed('main', main, { note: PAGE_NOTES.failed });
-      this.regions.failed('side', side, { note: PAGE_NOTES.failed });
+      for (const [name, ticket] of tickets) {
+        this.regions.failed(name, ticket, { note: PAGE_NOTES.failed });
+      }
       throw error;
     }
   }
@@ -364,7 +452,13 @@ export class PageClient {
       case 'moved': {
         const target = this.regions.target(region, outcome.address.screen);
         await this.openJson(target, outcome.address);
-        if (target !== region) this.regions.mark(region, {});
+        if (target === region) return;
+        // Временная область после шага закрывается, если в ней всё ещё он.
+        if (!PAGE_TRANSIENT_REGIONS.includes(region)) {
+          this.regions.mark(region, {});
+        } else if (this.regions.instance(region) === act.instance) {
+          this.clear(region);
+        }
         return;
       }
       case 'stayed':
@@ -381,11 +475,23 @@ export class PageClient {
             description: outcome.description,
             input: act.input,
             revision: act.revision,
+            ...(act.values === undefined ? {} : { values: act.values }),
           },
         });
         return;
       case 'rejected':
-        this.regions.mark(region, { issues: outcome.issues });
+        this.regions.mark(region, {
+          issues: outcome.issues,
+          ...(act.values === undefined
+            ? {}
+            : {
+                entered: {
+                  kind: 'action',
+                  name: act.action,
+                  values: act.values,
+                },
+              }),
+        });
         return;
       case 'refused':
         // Отказ из-за обрыва — не ошибка сервера: результат покажет
@@ -411,7 +517,7 @@ export class PageClient {
     }
   }
 
-  /** Выход: текст из `exits` Def; в `main` — вход `start`, в `side` — пусто. */
+  /** Выход: текст из `exits` Def; в корневой области — вход `start`, в прочих — пусто. */
   private async exited(
     region: PageRegionName,
     instance: ScreenInstance,
@@ -419,8 +525,11 @@ export class PageClient {
   ): Promise<void> {
     const def = this.ids.findScreen(instance.view().screen);
     const note = def?.exits[exit]?.label ?? exit;
-    if (region === 'main') await this.open('main', this.start, { note });
-    else this.clear(region, { note });
+    if (region === PAGE_ROOT_REGION) {
+      await this.open(region, this.start, { note });
+    } else {
+      this.clear(region, { note });
+    }
   }
 
   /** Адрес из внешних данных (исход, ссылка, «Повторить»): не декодирован — заметка. */
@@ -603,12 +712,39 @@ export class PageClient {
     }
   }
 
-  /** Экземпляры обеих областей завершили работу (D-UI-49); не отклоняется. */
+  /** Экземпляры всех областей завершили работу (D-UI-49); не отклоняется. */
   private async idle(): Promise<void> {
-    await Promise.allSettled([
-      this.regions.instance('main')?.settled(),
-      this.regions.instance('side')?.settled(),
-    ]);
+    await Promise.allSettled(
+      PAGE_REGIONS.map((name) => this.regions.instance(name)?.settled()),
+    );
+  }
+
+  /**
+   * Экземпляр области для действия формы или жеста; нет экземпляра или данные
+   * с прежнего соединения — исход `unavailable` (с заметкой области).
+   */
+  private ready(region: PageRegionName):
+    | { readonly instance: ScreenInstance; readonly outcome?: undefined }
+    | {
+        readonly instance?: undefined;
+        readonly outcome: Extract<ActionOutcome, { kind: 'unavailable' }>;
+      } {
+    const instance = this.regions.instance(region);
+    if (instance === undefined) {
+      return { outcome: this.unavailable(region, 'closed') };
+    }
+    if (this.regions.behind(region)) {
+      return { outcome: this.unavailable(region, 'disabled') };
+    }
+    return { instance };
+  }
+
+  /** Адрес области как `Address`; пустая область — `undefined`. */
+  private addressOf(region: PageRegionName): Address | undefined {
+    const json = this.regions.state(region).address;
+    if (json === undefined) return undefined;
+    const address = this.codec.decode(json);
+    return address.ok ? address.value : undefined;
   }
 
   /**
@@ -636,6 +772,19 @@ export class PageClient {
 
   private options(): OpenOptions {
     return { context: this.end.context, trace: this.traces.next() };
+  }
+
+  /** Значения только объявленных полей формы: чужие ключи отброшены. */
+  private static declared(
+    fields: readonly ActionField[],
+    values: PageFormValues,
+  ): PageFormValues {
+    const declared: Record<string, string> = {};
+    for (const field of fields) {
+      const value = values[field.name];
+      if (value !== undefined) declared[field.name] = value;
+    }
+    return declared;
   }
 
   private static note(reason: UnavailableReason): string {

@@ -1,7 +1,16 @@
 import type { PageRegionName } from './page-client.types';
 
-/** Области страницы по порядку. */
-export const PAGE_REGIONS: readonly PageRegionName[] = ['main', 'side'];
+/** Области страницы по порядку: единственный перечень, типы и циклы выводятся из него. */
+export const PAGE_REGIONS = ['main', 'side', 'modal'] as const;
+
+/** Корневая область: выход из экрана ведёт в её вход `start`, закрыть её нельзя. */
+export const PAGE_ROOT_REGION = 'main' as const;
+
+/** Временные области: уход из них переходом закрывает их. */
+export const PAGE_TRANSIENT_REGIONS: readonly PageRegionName[] = ['modal'];
+
+/** Области, которые попадают в ссылку страницы (кроме основной). */
+export const PAGE_LINKED_REGIONS: readonly PageRegionName[] = ['side'];
 
 /** Вход приложения UI, к которому вкладка возвращается после выхода в `main`. */
 export const PAGE_HOME = 'start';

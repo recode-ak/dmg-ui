@@ -826,3 +826,74 @@ describe('PageUrls — сборка: параметры экранов набо�
     });
   });
 });
+
+describe('PageUrls.pairs — пары строки запроса одним разбором', () => {
+  const pairs = (url: string) => routedUrls().pairs(url);
+
+  test('ключ и значение декодируются один раз: %5Fside — _side, %2F — /', () => {
+    expect(pairs('/?%5Fside=%2Ftask%2Fa')).toEqual(
+      new Map([['_side', '/task/a']]),
+    );
+  });
+
+  test('значение с двойным кодированием остаётся после одного слоя закодированным', () => {
+    expect(pairs('/?_side=%252Ftask')).toEqual(new Map([['_side', '%2Ftask']]));
+  });
+
+  test('+ — знак +, не пробел', () => {
+    expect(pairs('/?a=b+c')).toEqual(new Map([['a', 'b+c']]));
+  });
+
+  test('пары — по порядку строки запроса; ключи, которых нет у экрана, возвращаются', () => {
+    const result = pairs('/?page=2&_ga=GA1.2&_side=%2F');
+
+    expect([...(result ?? [])]).toEqual([
+      ['page', '2'],
+      ['_ga', 'GA1.2'],
+      ['_side', '/'],
+    ]);
+  });
+
+  test.each([
+    ['без строки запроса', '/'],
+    ['пустая строка запроса', '/?'],
+    ['путь маршрута без запроса', `/task/${TASK_A}`],
+  ])('%s — пустая карта', (_name, url) => {
+    expect(pairs(url)).toEqual(new Map());
+  });
+
+  test('строка ровно в предел — карта, на знак длиннее — undefined', () => {
+    const fits = `/?a=${'x'.repeat(LIMIT - '/?a='.length)}`;
+
+    expect(fits).toHaveLength(LIMIT);
+    expect(pairs(fits)?.get('a')).toHaveLength(LIMIT - '/?a='.length);
+    expect(pairs(`${fits}x`)).toBeUndefined();
+  });
+
+  test.each([
+    ['не ASCII', '/?a=ж'],
+    ['решётка', '/?a=1#x'],
+    ['нет ведущего /', 'a=1'],
+    ['запрос без пути', '?a=1'],
+    ['пустая пара в конце', '/?a=1&'],
+    ['пустая пара в начале', '/?&a=1'],
+    ['пара без =', '/?a'],
+    ['пустой ключ', '/?=1'],
+    ['повтор ключа', '/?a=1&a=2'],
+    ['повтор ключа через кодирование', '/?_side=1&%5Fside=2'],
+    ['кривое кодирование %', '/?a=%ZZ'],
+    ['обрыв кодирования %', '/?a=%'],
+    ['управляющий знак NUL', '/?a=%00'],
+    ['управляющий знак в ключе', '/?%0A=1'],
+    ['невалидный UTF-8', '/?a=%ED%A0%80'],
+  ])('отказ формы: %s — undefined, без броска', (_name, url) => {
+    expect(pairs(url)).toBeUndefined();
+  });
+
+  test('отказ на тех же входах, что у parse: форма не пропускается ни там, ни здесь', () => {
+    for (const url of ['/?a=1&a=2', '/?a=%ZZ', '/?a=1#x', 'a=1', '/?a=ж']) {
+      expect(pairs(url)).toBeUndefined();
+      expect(routedUrls().parse(url).ok).toBe(false);
+    }
+  });
+});

@@ -11,27 +11,30 @@ import type {
   RegionMarks,
   RegionSlot,
 } from './page-client.types';
+import type { PagePlacements } from './page-placements';
 import { ViewCell } from './view-cell';
 
 /**
- * Две области страницы — `main` и `side` — и политика переходов:
- * `moved` на тот же Def — на месте, на другой — в соседнюю область. В
- * области — один живой экземпляр: открытие закрывает прежний сразу, в
- * область встаёт экземпляр последнего начатого открытия. Каждое изменение —
- * новое значение `PageViewState` в ячейке области (D-UI-70). Без связи
- * непустая область помечена `stale: 'offline'` до перечитывания (D-UI-74).
+ * Области страницы по перечню `PAGE_REGIONS` и политика переходов: куда
+ * открыть экран, решает `PagePlacements`. В области — один живой
+ * экземпляр: открытие закрывает прежний сразу, в область встаёт экземпляр
+ * последнего начатого открытия. Каждое изменение — новое значение
+ * `PageViewState` в ячейке области (D-UI-70). Без связи непустая область
+ * помечена `stale: 'offline'` до перечитывания (D-UI-74).
  */
 export class PageRegions {
-  private readonly slots: Readonly<Record<PageRegionName, RegionSlot>>;
+  private readonly slots = new Map<PageRegionName, RegionSlot>();
   private tickets = 0;
   private online = true;
 
   /** `onFault` — бросок слушателя ячейки: узел — экран области или канал. */
-  constructor(onFault: (node: string, error: unknown) => void) {
-    this.slots = {
-      main: PageRegions.empty(onFault),
-      side: PageRegions.empty(onFault),
-    };
+  constructor(
+    onFault: (node: string, error: unknown) => void,
+    private readonly placements: PagePlacements,
+  ) {
+    for (const name of PAGE_REGIONS) {
+      this.slots.set(name, PageRegions.empty(onFault));
+    }
   }
 
   /** Источник состояния области — один объект на всё время жизни вкладки. */
@@ -62,11 +65,11 @@ export class PageRegions {
     return this.slot(name).marks.confirm;
   }
 
-  /** Куда ведёт исход `moved` на экран `screen` из области. */
-  target(from: PageRegionName, screen: string): PageRegionName {
-    const current = this.slot(from).instance?.view().screen;
-    if (current === screen) return from;
-    return from === 'main' ? 'side' : 'main';
+  /** Куда ведёт исход `moved` на экран `screen` из области (без `from` — ссылка). */
+  target(from: PageRegionName | undefined, screen: string): PageRegionName {
+    const current =
+      from === undefined ? undefined : this.slot(from).instance?.view().screen;
+    return this.placements.target(from, current, screen);
   }
 
   /**
@@ -277,7 +280,11 @@ export class PageRegions {
   }
 
   private slot(name: PageRegionName): RegionSlot {
-    return this.slots[name];
+    const slot = this.slots.get(name);
+    if (slot === undefined) {
+      throw new Error(`PageRegions: нет области ${name}`);
+    }
+    return slot;
   }
 
   /**
@@ -285,7 +292,7 @@ export class PageRegions {
    * непустой области с данными прежнего соединения, важнее `revision`.
    */
   private static stateOf(slot: RegionSlot): PageViewState {
-    const { note, issues = [], confirm } = slot.marks;
+    const { note, issues = [], confirm, entered } = slot.marks;
     const empty = slot.instance === undefined && slot.loading === undefined;
     const stale = slot.behind && !empty ? 'offline' : slot.marks.stale;
     const marks = {
@@ -293,6 +300,7 @@ export class PageRegions {
       ...(stale === undefined ? {} : { stale }),
       ...(note === undefined ? {} : { note }),
       issues,
+      ...(entered === undefined ? {} : { entered }),
       ...(confirm === undefined
         ? {}
         : {

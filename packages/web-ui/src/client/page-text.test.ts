@@ -7,6 +7,7 @@ import {
   MemoryUiObserver,
   TASK_A,
   TASK_B,
+  TaskCardScreenDef,
 } from 'dmg-ui/testing';
 import {
   ExamplePagesAppDef,
@@ -19,10 +20,11 @@ import type {
 } from '../wire/page-messages.types';
 import type { ClientEnd } from '../wire/page-wire.types';
 import { PageClient } from './page-client';
+import type { PagePlacement } from './page-client.types';
 import { PageText } from './page-text';
 
 // Текстовая страница вкладки — подставная цель показа для тестов: текстовое
-// представление на `main` и `side`, склейка областей через `---` и входящие
+// представление на `main`, `side` и `modal`, склейка областей через `---` и входящие
 // вкладки. После `close()` текст больше не меняется.
 
 const TASKS = [
@@ -66,7 +68,7 @@ class StubEnd implements ClientEnd {
   }
 }
 
-const page = () => {
+const page = (placements?: readonly PagePlacement[]) => {
   const end = new StubEnd();
   const client = new PageClient({
     app: ExamplePagesAppDef,
@@ -74,6 +76,7 @@ const page = () => {
     routes: examplePageRoutes,
     end,
     observer: new MemoryUiObserver(),
+    ...(placements === undefined ? {} : { placements }),
   });
   return { end, client, text: new PageText(client, examplePageViews) };
 };
@@ -123,6 +126,73 @@ describe('PageText', () => {
     expect(client.region('main').view?.address).toMatchObject({
       params: { page: 1 },
     });
+    expect(text.page()).toBe(before);
+  });
+});
+
+describe('PageText — три области', () => {
+  const CARD_IN_MODAL: readonly PagePlacement[] = [
+    { screen: TaskCardScreenDef, region: 'modal' },
+  ];
+
+  /** Список в `main`, поручения в `side`, карточка Молока в `modal`. */
+  const threeRegions = async () => {
+    const t = page(CARD_IN_MODAL);
+    await t.client.route('/');
+    await t.client.openLink({ screen: ASSIGNED_ID, params: {} });
+    await t.client.submit('main', 'open', { taskId: 'Молоко' });
+    return t;
+  };
+
+  test('page() — main, side, modal через «---» в этом порядке', async () => {
+    const { client, text } = await threeRegions();
+
+    expect(client.region('modal').view?.data).toMatchObject({
+      title: 'Молоко',
+    });
+    expect(text.region('main')).toContain('Мои задачи');
+    expect(text.region('side')).toContain('Назначенные мне');
+    expect(text.region('modal')).toContain('Молоко');
+    expect(text.page()).toBe(
+      [text.region('main'), text.region('side'), text.region('modal')].join(
+        '\n\n---\n\n',
+      ),
+    );
+  });
+
+  test('пустая средняя область опускается: main и modal через «---»', async () => {
+    const { client, text } = page(CARD_IN_MODAL);
+    await client.route('/');
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    expect(text.region('side')).toBe('');
+    expect(text.page()).toBe(
+      [text.region('main'), text.region('modal')].join('\n\n---\n\n'),
+    );
+  });
+
+  test('region(modal) — текст окна; пустое окно — пустая строка', async () => {
+    const { client, text } = page(CARD_IN_MODAL);
+    await client.route('/');
+
+    expect(text.region('modal')).toBe('');
+
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    expect(text.region('modal')).toContain('Молоко');
+
+    client.close('modal');
+
+    expect(text.region('modal')).toBe('');
+  });
+
+  test('после close() окно текст не меняет', async () => {
+    const { client, text } = await threeRegions();
+    const before = text.page();
+
+    text.close();
+    client.close('modal');
+
     expect(text.page()).toBe(before);
   });
 });

@@ -1,4 +1,5 @@
 import type { AddressJson, FieldIssue, InstanceView } from 'dmg-ui';
+import type { PageFormValues } from './page-form.types';
 
 /** Статус области: пуста, грузится, вид готов, вид отказа. */
 export type PageViewStatus = 'empty' | 'loading' | 'ready' | 'refused';
@@ -11,6 +12,16 @@ export type PageConfirm = {
   readonly action: string;
   readonly label: string;
   readonly description: string;
+};
+
+/**
+ * Введённое в отвергнутую форму: какая форма и её значения. Живёт до
+ * следующего действия области; в снимок вкладки не входит.
+ */
+export type PageEntered = {
+  readonly kind: 'action' | 'local';
+  readonly name: string;
+  readonly values: PageFormValues;
 };
 
 /**
@@ -27,4 +38,5 @@ export type PageViewState = {
   readonly note?: string;
   readonly issues: readonly FieldIssue[];
   readonly confirm?: PageConfirm;
+  readonly entered?: PageEntered;
 };

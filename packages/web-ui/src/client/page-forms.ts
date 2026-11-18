@@ -1,5 +1,5 @@
 import type { ActionField } from 'dmg-ui';
-import type { PageFormValues } from './page-client.types';
+import type { PageFormValues } from '../view/page-form.types';
 
 /**
  * Вход формой страницы: все поля действия разом — один `act` или

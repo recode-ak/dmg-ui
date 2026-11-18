@@ -4,10 +4,15 @@ import type {
   PageClientSpec,
   PageClock,
   PageDialFailure,
+  PageEntered,
+  PageForm,
+  PageFormField,
+  PageFormSet,
   PageGateRefusal,
   PageGateSpec,
   PageHeaders,
   PageInboxEntry,
+  PagePlacement,
   PageReconnectorSpec,
   PageRegionPresenter,
   PageRoute,
@@ -26,8 +31,8 @@ import type {
 
 // Составы входов страничного пакета: канал, его имя, контракт представления,
 // текстовая страница, сообщения, провод в памяти, мост и конец сокета,
-// переподключатель и часы вкладки, ворота соединения, кодек адреса в URL —
-// в `dmg-ui/web-ui`; привязка учебного примера к каналу и подставные часы —
+// переподключатель и часы вкладки, ворота соединения, кодек адреса в URL,
+// модель формы области — в `dmg-ui/web-ui`; привязка учебного примера к каналу и подставные часы —
 // в `dmg-ui/web-ui/testing`. Внутренние помощники клиента, представлений,
 // сервера и кодека адреса наружу не выходят.
 
@@ -36,6 +41,7 @@ const WEB_UI = [
   'PAGE_CHANNEL',
   'PageBrowserSocket',
   'PageClient',
+  'PageFormModel',
   'PageGate',
   'PageGraphProvider',
   'PageHost',
@@ -55,7 +61,7 @@ const WEB_UI = [
 ];
 
 describe('вход dmg-ui/web-ui', () => {
-  it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, переподключатель и часы, ворота, кодек адреса в URL', async () => {
+  it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, переподключатель и часы, ворота, кодек адреса в URL, модель формы', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui')).sort()).toEqual(WEB_UI);
   });
 
@@ -82,6 +88,8 @@ describe('вход dmg-ui/web-ui', () => {
       'serverFrame',
       'PagePath',
       'PageParams',
+      'PagePlacements',
+      'PageLayoutUrls',
     ]) {
       expect(exported).not.toContain(internal);
     }
@@ -105,6 +113,7 @@ export type WebUiViewTypes = [
   PageViewState['note'],
   PageViewState['issues'],
   PageViewState['confirm'],
+  PageViewState['entered'],
   ViewSource<PageViewState>['get'],
   ViewSource<PageViewState>['subscribe'],
   PageRegionPresenter<PageTextTarget>['show'],
@@ -150,6 +159,22 @@ export type WebUiReconnectTypes = [
   PageInboxEntry['data'],
   PageInboxEntry['links'],
   PageClientSpec['clock'],
+];
+
+/**
+ * Состав типов компоновки и формы во входе `dmg-ui/web-ui` — так же через
+ * `tsc`: объявление размещения экранов, введённое в отвергнутую форму и
+ * модель формы области пишутся по ним.
+ */
+export type WebUiLayoutTypes = [
+  PagePlacement,
+  PagePlacement['screen'],
+  PagePlacement['region'],
+  PageClientSpec['placements'],
+  PageEntered,
+  PageForm,
+  PageFormField,
+  PageFormSet,
 ];
 
 /**

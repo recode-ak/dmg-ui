@@ -1,19 +1,32 @@
 import { describe, expect, test } from 'bun:test';
 import {
   CoreErrors,
+  type DomainError,
   ErrorDef,
   ErrorText,
   err,
   ok,
+  type Result,
   type SerializedResult,
 } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
-import { TaskEvents } from 'dmg-core/testing/example';
-import type { UiFault } from 'dmg-ui';
+import { ExampleAppDef, TaskEvents } from 'dmg-core/testing/example';
+import {
+  type ActionSteps,
+  CodeLoader,
+  CodeLoaders,
+  ScreenCode,
+  ScreenDef,
+  UiAppDef,
+  type UiFault,
+  UiModuleDef,
+  UiSetDef,
+} from 'dmg-ui';
 import {
   ASSIGNED_ID,
   AssignedTasksScreenDef,
   CARD_ID,
+  ExampleUiSetDef,
   exampleCodes,
   LIST_ID,
   MemoryUiObserver,
@@ -22,6 +35,7 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
+import * as v from 'valibot';
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
@@ -29,6 +43,7 @@ import {
   ManualPageClock,
 } from '../../testing';
 import { PAGE_CHANNEL } from '../page-channel.const';
+import { PageFormModel } from '../view/page-form-model';
 import type { PageViewState } from '../view/page-view-state.types';
 import type {
   ClientMessage as ClientMsg,
@@ -43,11 +58,15 @@ import {
   PAGE_NOTES,
   SEEN_TTL_MS,
 } from './page-client.const';
-import type { PageInboxEntry, PageRegionName } from './page-client.types';
+import type {
+  PageInboxEntry,
+  PagePlacement,
+  PageRegionName,
+} from './page-client.types';
 import { PageText } from './page-text';
 
-// Клиентская половина страничного канала: две области (`main`, `side`),
-// политики исходов, входящие, снимок, состояния области, обрыв и смена
+// Клиентская половина страничного канала: три области (`main`, `side`,
+// `modal`), политики исходов, входящие, снимок, состояния области, обрыв и смена
 // конца. Сервер — заглушка конца провода: отвечает на `call` по имени UC,
 // умеет сам прислать сообщение и оборваться. Ответы — микрозадачи, `flush()`
 // отдаёт их без таймеров (TST-04); удержанный UC отвечает по `release`;
@@ -190,6 +209,7 @@ const denied = CoreErrors.ACCESS_DENIED.make({
 const tab = (
   end = new StubEnd().answer('listTasks', ok(TASKS)),
   codes = exampleCodes(),
+  placements?: readonly PagePlacement[],
 ) => {
   let requests = 0;
   const observer = new MemoryUiObserver();
@@ -209,6 +229,7 @@ const tab = (
       requests += 1;
       return `r-${requests}`;
     },
+    ...(placements === undefined ? {} : { placements }),
   });
   const text = new PageText(client, examplePageViews);
   return { client, end, observer, faults, text, clock };
@@ -314,6 +335,22 @@ const watchOf = (end: StubEnd, screen: string): string => {
 
 const ASSIGNED_NOTE = 'exampleUi/todo/taskAssigned';
 const COMPLETED_NOTE = 'exampleUi/todo/taskCompleted';
+
+/** Новый конец после переподключения: ответы списка и назначенных. */
+const nextEnd = (context = CONTEXT) =>
+  new StubEnd(context)
+    .answer('listTasks', ok(TASKS))
+    .answer('listAssignedTasks', ok([]));
+
+/** Исход промиса к концу `flush()`: не разрешённый к этому моменту — «ждёт». */
+const soon = (promise: Promise<unknown>, end: StubEnd) =>
+  Promise.race([
+    promise.then(
+      () => 'разрешён',
+      () => 'отклонён',
+    ),
+    end.flush().then(() => 'ждёт'),
+  ]);
 
 describe('PageClient.route', () => {
   test('вход маршрута открывается в main: подписка раньше вызова, вызов — простая команда с requestId', async () => {
@@ -1536,22 +1573,6 @@ describe('PageClient — состояния области: контракт и�
 });
 
 describe('PageClient — обрыв и переподключение', () => {
-  /** Новый конец после переподключения: ответы списка и назначенных. */
-  const nextEnd = (context = CONTEXT) =>
-    new StubEnd(context)
-      .answer('listTasks', ok(TASKS))
-      .answer('listAssignedTasks', ok([]));
-
-  /** Исход промиса к концу `flush()`: не разрешённый к этому моменту — «ждёт». */
-  const soon = (promise: Promise<unknown>, end: StubEnd) =>
-    Promise.race([
-      promise.then(
-        () => 'разрешён',
-        () => 'отклонён',
-      ),
-      end.flush().then(() => 'ждёт'),
-    ]);
-
   const offline = 'offline';
   const failed: PageViewState = {
     status: 'empty',
@@ -2072,5 +2093,1307 @@ describe('PageClient — обрыв и переподключение', () => {
       status: 'ready',
       address: ASSIGNED,
     });
+  });
+});
+
+// Три области: основная, боковая и модальная. Куда открыть переход, решает
+// приложение страниц (`placements`) и умолчание по положению; закрывает область
+// человек (`close`), выход из экрана области и уход из временной области
+// переходом. Состав областей — в ссылке (`url()`, `route`).
+
+const CARD_IN_MODAL: readonly PagePlacement[] = [
+  { screen: TaskCardScreenDef, region: 'modal' },
+];
+const CARD_LINK = { screen: CARD_ID, params: { taskId: TASK_A } };
+const EMPTY_REGION: PageViewState = {
+  status: 'empty',
+  refreshing: false,
+  issues: [],
+};
+
+/** Конец со всеми ответами, которые нужны сценариям трёх областей. */
+const answered = () =>
+  new StubEnd()
+    .answer('listTasks', ok(TASKS))
+    .answer('listAssignedTasks', ok([]))
+    .answer('assignTask', ok({}))
+    .answer('createTask', ok({ taskId: TASK_A }))
+    .answer('completeTasks', ok({}));
+
+/**
+ * Список в `main`, карточка Молока в `modal` (по объявлению), поручения в
+ * `side` (по умолчанию для ссылки).
+ */
+const layered = async (end = answered(), placements = CARD_IN_MODAL) => {
+  const t = tab(end, undefined, placements);
+  await t.client.route('/');
+  await t.client.submit('main', 'open', { taskId: 'Молоко' });
+  await t.client.openLink(ASSIGNED);
+  return t;
+};
+
+/** URL со вложенной карточкой A в боковой области. */
+const SIDE_CARD_URL = `/?_side=${encodeURIComponent(`/todo/taskCard?taskId=${TASK_A}`)}`;
+
+describe('PageClient — три области', () => {
+  test('три области вместе: независимые источники, три записи снимка, три подписки', async () => {
+    const { client, end } = await layered();
+
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(client.region('side').view?.screen).toBe(ASSIGNED_ID);
+    expect(client.region('modal').view?.screen).toBe(CARD_ID);
+    expect(Object.keys(client.snapshot()).sort()).toEqual([
+      'main',
+      'modal',
+      'side',
+    ]);
+    expect(end.watches()).toHaveLength(3);
+    const before = {
+      side: client.region('side'),
+      modal: client.region('modal'),
+    };
+
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    expect(client.region('main').view?.state).toEqual({ selected: [TASK_A] });
+    expect(client.region('side')).toBe(before.side);
+    expect(client.region('modal')).toBe(before.modal);
+    expect(client.source('modal')).toBe(client.source('modal'));
+    expect(client.source('modal')).not.toBe(client.source('side'));
+  });
+
+  test('без объявлений открыть — в side, окно не тронуто', async () => {
+    const { client } = await listed(answered());
+
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    expect(client.region('side').view?.screen).toBe(CARD_ID);
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+  });
+
+  test('с объявлением карточки в окне открыть — в modal, side не тронута', async () => {
+    const { client } = tab(answered(), undefined, CARD_IN_MODAL);
+    await client.route('/');
+    const side = journal(client, 'side');
+
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    expect(client.region('modal').view?.data).toMatchObject({
+      uuid: TASK_B,
+      title: 'Молоко',
+    });
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+    expect(side).toHaveLength(1);
+  });
+
+  test('второй переход в окно — прежний экземпляр окна закрыт', async () => {
+    const { client, end } = tab(answered(), undefined, CARD_IN_MODAL);
+    await client.route('/');
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    const card = watchOf(end, CARD_ID);
+
+    await client.submit('main', 'open', { taskId: 'Хлеб' });
+
+    expect(client.region('modal').view?.data).toMatchObject({ title: 'Хлеб' });
+    expect(end.unwatches()).toEqual([card]);
+  });
+
+  test('ссылка уведомления на карточку при card: modal — открывается в окне', async () => {
+    const end = answered();
+    const { client } = tab(end, undefined, CARD_IN_MODAL);
+    await client.route('/');
+    end.emit({
+      kind: 'notification',
+      notification: ASSIGNED_NOTE,
+      data: { title: 'Сыр' },
+      links: [CARD_LINK],
+      eventId: 'e-1',
+    });
+    await end.flush();
+    const link = client.inbox().get()[0]?.links[0];
+    if (link === undefined) throw new Error('в уведомлении нет ссылки');
+
+    await client.openLink(link);
+
+    expect(client.region('modal').view?.screen).toBe(CARD_ID);
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+  });
+
+  test('ссылка на экран без объявления — в side, как раньше', async () => {
+    const { client } = tab(answered(), undefined, CARD_IN_MODAL);
+    await client.route('/');
+
+    await client.openLink(ASSIGNED);
+
+    expect(client.region('side').view?.screen).toBe(ASSIGNED_ID);
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+  });
+});
+
+describe('PageClient.close — закрытие области', () => {
+  test.each([
+    ['side', ASSIGNED_ID],
+    ['modal', CARD_ID],
+  ] as const)(
+    'close(%s): область пуста без заметки, экземпляр закрыт, снимок без записи, остальные не тронуты',
+    async (region, screen) => {
+      const { client, end } = await layered();
+      const log = journal(client, region);
+      const others = (['main', 'side', 'modal'] as const).filter(
+        (name) => name !== region,
+      );
+      const before = others.map((name) => [name, client.region(name)] as const);
+
+      client.close(region);
+
+      expect(client.region(region)).toEqual(EMPTY_REGION);
+      expect(statuses(log)).toEqual(['ready', 'empty']);
+      expect(end.unwatches()).toEqual([watchOf(end, screen)]);
+      expect(Object.keys(client.snapshot())).not.toContain(region);
+      for (const [name, state] of before) {
+        expect(client.region(name)).toBe(state);
+      }
+    },
+  );
+
+  test('close пустой области — без броска, область пуста', async () => {
+    const { client } = await listed(answered());
+
+    client.close('modal');
+    client.close('side');
+
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+  });
+
+  test('закрытая область не помнит экрана: повторное открытие — с начального состояния', async () => {
+    const { client } = tab(answered(), undefined, [
+      { screen: TaskListScreenDef, region: 'side' },
+    ]);
+    await client.route('/');
+    await client.openLink(LIST);
+    await client.local('side', 'toggle', { taskId: 'Хлеб' });
+    expect(client.region('side').view?.state).toEqual({ selected: [TASK_A] });
+
+    client.close('side');
+    await client.openLink(LIST);
+
+    expect(client.region('side').view?.state).toEqual({ selected: [] });
+    expect(client.region('side').view?.revision).toBe(1);
+  });
+
+  test('закрытие во время загрузки: область пуста, опоздавший экземпляр закрыт и не оживает', async () => {
+    const end = answered().hold('listAssignedTasks');
+    const { client } = tab(end, undefined, [
+      { screen: AssignedTasksScreenDef, region: 'modal' },
+    ]);
+    await client.route('/');
+    const opening = client.openLink(ASSIGNED);
+    expect(client.region('modal').status).toBe('loading');
+
+    client.close('modal');
+
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    end.release('listAssignedTasks');
+    await opening;
+    await end.flush();
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    expect(end.unwatches()).toEqual([watchOf(end, ASSIGNED_ID)]);
+  });
+
+  test('закрытие снимает ожидающее подтверждение: после close и повторного открытия подтверждать нечего', async () => {
+    const { client } = tab(answered(), undefined, [
+      { screen: TaskListScreenDef, region: 'side' },
+    ]);
+    await client.route('/');
+    await client.openLink(LIST);
+    await client.local('side', 'toggle', { taskId: 'Хлеб' });
+    await client.submit('side', 'completeSelected', {});
+    expect(client.region('side').confirm).toBeDefined();
+
+    client.close('side');
+
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+    await client.openLink(LIST);
+    expect(client.region('side').confirm).toBeUndefined();
+    expect(await client.confirm('side')).toEqual({
+      kind: 'unavailable',
+      reason: 'disabled',
+    });
+  });
+
+  test('закрытие снимает замечания и введённое: у пустой области их нет, после повторного открытия тоже', async () => {
+    const { client } = tab(answered(), undefined, [
+      { screen: TaskListScreenDef, region: 'side' },
+    ]);
+    await client.route('/');
+    await client.openLink(LIST);
+    await client.submit('side', 'create', { title: '' });
+    expect(client.region('side').issues).toHaveLength(1);
+    expect(client.region('side').entered).toBeDefined();
+
+    client.close('side');
+
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+    await client.openLink(LIST);
+    expect(client.region('side').issues).toEqual([]);
+    expect(client.region('side').entered).toBeUndefined();
+  });
+
+  test('отложенный переход в закрываемую область вытеснен: его промис разрешён, после attach область пуста', async () => {
+    const end = answered();
+    const { client } = tab(end, undefined, CARD_IN_MODAL);
+    await client.route('/');
+    end.drop();
+    const opening = client.openLink(CARD_LINK);
+    expect(await soon(opening, end)).toBe('ждёт');
+
+    client.close('modal');
+
+    expect(await soon(opening, end)).toBe('разрешён');
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    await client.attach(nextEnd());
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+  });
+});
+
+describe('PageClient — выход из экрана области и уход из окна', () => {
+  test.each([
+    ['modal', [{ screen: AssignedTasksScreenDef, region: 'modal' }]],
+    ['side', undefined],
+  ] as const)(
+    'выход из экрана в %s: область пуста с заметкой из exits, main не тронута',
+    async (region, placements) => {
+      const { client } = tab(answered(), undefined, placements);
+      await client.route('/');
+      await client.openLink(ASSIGNED);
+      expect(client.region(region).view?.screen).toBe(ASSIGNED_ID);
+      const main = client.region('main');
+
+      const outcome = await client.submit(region, 'close', {});
+
+      expect(outcome).toMatchObject({ kind: 'exited', exit: 'closed' });
+      expect(client.region(region)).toEqual({
+        ...EMPTY_REGION,
+        note: 'Поручения просмотрены',
+      });
+      expect(client.region('main')).toBe(main);
+    },
+  );
+
+  test('уход из окна переходом: назначение открывается раньше, окно очищается после; side остаётся', async () => {
+    const end = answered();
+    const { client } = await layered(end);
+    end.hold('listTasks');
+
+    const going = client.submit('modal', 'back', {});
+    await end.flush();
+
+    expect(client.region('main').status).toBe('loading');
+    expect(client.region('modal').view?.screen).toBe(CARD_ID);
+    end.release('listTasks');
+    await going;
+
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    expect(client.region('side').view?.screen).toBe(ASSIGNED_ID);
+    expect(end.unwatches()).toContain(watchOf(end, CARD_ID));
+  });
+
+  test('уход из side тем же переходом — side остаётся карточкой (область не временная)', async () => {
+    const { client } = tab(answered(), undefined, [
+      { screen: TaskCardScreenDef, region: 'side' },
+    ]);
+    await client.route('/');
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    await client.submit('side', 'back', {});
+
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(client.region('side').view?.screen).toBe(CARD_ID);
+  });
+
+  test('переход внутри окна на объявленный для окна экран — замена на месте, main не тронута', async () => {
+    const { client, end } = tab(answered(), undefined, [
+      { screen: TaskCardScreenDef, region: 'modal' },
+      { screen: TaskListScreenDef, region: 'modal' },
+    ]);
+    await client.route('/');
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    const main = client.region('main');
+
+    await client.submit('modal', 'back', {});
+
+    expect(client.region('modal').view?.screen).toBe(LIST_ID);
+    expect(client.region('main')).toBe(main);
+    expect(end.unwatches()).toEqual([watchOf(end, CARD_ID)]);
+  });
+
+  test('окно не блокирует остальные области: действие main исполняется при открытом окне', async () => {
+    const { client, end } = await layered();
+
+    const outcome = await client.submit('main', 'create', { title: 'Хлеб' });
+
+    expect(outcome).toMatchObject({ kind: 'exited', exit: 'created' });
+    expect(end.names()).toContain('createTask');
+    expect(client.region('modal').view?.screen).toBe(CARD_ID);
+  });
+
+  test('исход ушедшего экземпляра: окно закрыто до ответа — исход вызывающему, область не тронута', async () => {
+    const end = answered().hold('assignTask');
+    const { client } = await layered(end);
+    const log = journal(client, 'modal');
+
+    const acting = client.submit('modal', 'assign', {
+      assigneeId: testUuid(2),
+    });
+    await end.flush();
+    client.close('modal');
+    end.release('assignTask');
+    const outcome = await acting;
+    await end.flush();
+
+    expect(outcome.kind).toBe('stayed');
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    expect(statuses(log)).toEqual(['ready', 'empty']);
+  });
+});
+
+describe('PageClient — три области: обрыв, восстановление, сигналы', () => {
+  test('обрыв: у каждой непустой области stale offline, журнал каждой это видит', async () => {
+    const { client, end } = await layered();
+    const logs = (['main', 'side', 'modal'] as const).map((name) =>
+      journal(client, name),
+    );
+
+    end.drop();
+    await end.flush();
+
+    for (const name of ['main', 'side', 'modal'] as const) {
+      expect(client.region(name)).toMatchObject({
+        status: 'ready',
+        stale: 'offline',
+      });
+    }
+    for (const log of logs) {
+      expect(log.at(-1)?.stale).toBe('offline');
+      expect(log.length).toBeGreaterThan(1);
+    }
+  });
+
+  test('обрыв: пустая область (окно) пометки не получает', async () => {
+    const { client, end } = await listed(answered());
+    await client.openLink(ASSIGNED);
+
+    end.drop();
+    await end.flush();
+
+    expect(client.region('main').stale).toBe('offline');
+    expect(client.region('side').stale).toBe('offline');
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+  });
+
+  test('переход в окно без связи: окно в loading с пометкой, вызовов нет; после attach — окно открыто по новому концу', async () => {
+    const end = answered();
+    const { client, observer } = tab(end, undefined, CARD_IN_MODAL);
+    await client.route('/');
+    end.drop();
+
+    const opening = client.openLink(CARD_LINK);
+
+    expect(await soon(opening, end)).toBe('ждёт');
+    expect(client.region('modal')).toMatchObject({
+      status: 'loading',
+      address: CARD_LINK,
+      stale: 'offline',
+    });
+    expect(end.afterBreak).toEqual([]);
+    expect(observer.kinds()).not.toContain('defect');
+    const next = nextEnd();
+    await client.attach(next);
+    expect(await soon(opening, next)).toBe('разрешён');
+    expect(client.region('modal')).toMatchObject({ status: 'ready' });
+    expect(client.region('modal').view?.data).toMatchObject({ uuid: TASK_A });
+    expect(client.region('modal').stale).toBeUndefined();
+  });
+
+  test('восстановление: после attach три экземпляра перечитаны по новому концу, пометки сняты, подписки на все три', async () => {
+    const { client, end } = await layered();
+    end.drop();
+    const next = nextEnd();
+
+    await client.attach(next);
+
+    for (const name of ['main', 'side', 'modal'] as const) {
+      const state = client.region(name);
+      expect(state).toMatchObject({ status: 'ready', refreshing: false });
+      expect(state.view?.revision).toBe(2);
+      expect(state.stale).toBeUndefined();
+    }
+    expect(client.region('modal').view?.screen).toBe(CARD_ID);
+    expect(next.watches()).toHaveLength(3);
+    expect(next.names().sort()).toEqual([
+      'listAssignedTasks',
+      'listTasks',
+      'listTasks',
+    ]);
+    expect(next.unwatches()).toEqual([]);
+    expect(end.afterBreak).toEqual([]);
+  });
+
+  test('сигнал по адресу карточки: перечитывается только окно; промис ждёт и его; чужие области не трогает', async () => {
+    const end = answered();
+    const { client } = await layered(end);
+    end.hold('listTasks');
+
+    const delivered = end.deliver(signalOf(watchOf(end, CARD_ID), 'e-1'));
+
+    expect(client.region('modal').refreshing).toBe(true);
+    expect(client.region('main').refreshing).toBe(false);
+    expect(client.region('side').refreshing).toBe(false);
+    expect(await soon(delivered, end)).toBe('ждёт');
+    end.release('listTasks');
+    await delivered;
+    expect(client.region('modal')).toMatchObject({ refreshing: false });
+    expect(client.region('modal').view?.revision).toBe(2);
+    expect(client.region('main').view?.revision).toBe(1);
+    expect(client.region('side').view?.revision).toBe(1);
+  });
+});
+
+describe('PageClient.resume — три области', () => {
+  test('снимок трёх областей — три области восстановлены, подписки на все три', async () => {
+    const first = await layered();
+    const snapshot = first.client.snapshot();
+    expect(Object.keys(snapshot).sort()).toEqual(['main', 'modal', 'side']);
+    expect(JSON.parse(JSON.stringify(snapshot))).toStrictEqual(snapshot);
+    const second = tab(answered());
+
+    await second.client.resume(snapshot);
+
+    expect(second.client.region('main').view?.screen).toBe(LIST_ID);
+    expect(second.client.region('side').view?.screen).toBe(ASSIGNED_ID);
+    expect(second.client.region('modal').view?.screen).toBe(CARD_ID);
+    expect(second.client.region('modal').view?.data).toMatchObject({
+      title: 'Молоко',
+    });
+    expect(second.end.watches()).toHaveLength(3);
+  });
+
+  test.each([
+    { name: 'число', modal: 42 },
+    { name: 'адрес-строка', modal: { address: 'мусор', revision: 1 } },
+    {
+      name: 'чужой экран',
+      modal: { address: { screen: 'нет/такого', params: {} }, revision: 1 },
+    },
+  ])(
+    'окно снимка — $name: окно пусто, main и side целы, без броска',
+    async ({ modal }) => {
+      const first = await layered();
+      const second = tab(answered());
+
+      await second.client.resume({ ...first.client.snapshot(), modal });
+
+      expect(second.client.region('modal')).toEqual(EMPTY_REGION);
+      expect(second.client.region('main').view?.screen).toBe(LIST_ID);
+      expect(second.client.region('side').view?.screen).toBe(ASSIGNED_ID);
+    },
+  );
+
+  test('мусор в main — вход start; side и окно восстановлены', async () => {
+    const first = await layered();
+    const second = tab(answered());
+
+    await second.client.resume({ ...first.client.snapshot(), main: 42 });
+
+    expect(second.client.region('main').view?.address).toEqual(LIST);
+    expect(second.client.region('side').view?.screen).toBe(ASSIGNED_ID);
+    expect(second.client.region('modal').view?.screen).toBe(CARD_ID);
+  });
+
+  test('resume без связи отложен: main в loading с пометкой, вызовов нет; после attach — вход start', async () => {
+    const { client, end } = tab(answered());
+    end.drop();
+
+    const resuming = client.resume(42);
+
+    expect(await soon(resuming, end)).toBe('ждёт');
+    expect(client.region('main')).toMatchObject({
+      status: 'loading',
+      stale: 'offline',
+    });
+    expect(end.afterBreak).toEqual([]);
+    const next = nextEnd();
+    await client.attach(next);
+    expect(await soon(resuming, next)).toBe('разрешён');
+    expect(client.region('main').view?.address).toEqual(LIST);
+  });
+});
+
+describe('PageClient.route — состав областей в ссылке', () => {
+  test('/?_side=<карточка> — main по умолчанию и карточка в side', async () => {
+    const { client, end } = tab(answered());
+
+    await client.route(SIDE_CARD_URL);
+
+    expect(client.region('main').view?.address).toEqual(LIST);
+    expect(client.region('side').view?.address).toEqual(CARD_LINK);
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    expect(end.watches()).toHaveLength(2);
+  });
+
+  test('_modal по умолчанию пропущен: окно не открывается', async () => {
+    const { client } = tab(answered());
+    const modal = encodeURIComponent('/assigned');
+
+    await client.route(`/?_modal=${modal}`);
+
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(client.region('modal')).toEqual(EMPTY_REGION);
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+  });
+
+  test('следующий route без _side оставляет side: области вне ссылки не трогаются', async () => {
+    const { client } = tab(answered());
+    await client.route(SIDE_CARD_URL);
+    const side = client.region('side');
+
+    await client.route('/assigned');
+
+    expect(client.region('main').view?.screen).toBe(ASSIGNED_ID);
+    expect(client.region('side')).toBe(side);
+  });
+
+  test('_side неразборчив: main открыт, side пуста с заметкой «не найдено»', async () => {
+    const { client } = tab(answered());
+
+    await client.route(`/?_side=${encodeURIComponent('/нет/такого')}`);
+
+    expect(client.region('main').view?.address).toEqual(LIST);
+    expect(client.region('side')).toEqual({
+      ...EMPTY_REGION,
+      note: PAGE_NOTES.notFound,
+    });
+  });
+
+  test('_side со значением параметра не по схеме — side пуста с заметкой, main открыт', async () => {
+    const { client } = tab(answered());
+
+    await client.route(
+      `/?_side=${encodeURIComponent('/todo/taskCard?taskId=не-uuid')}`,
+    );
+
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(client.region('side')).toEqual({
+      ...EMPTY_REGION,
+      note: PAGE_NOTES.notFound,
+    });
+  });
+
+  test('внешняя ссылка неразборчива: вход start с заметкой, область из ссылки не открывается', async () => {
+    const { client } = tab(answered());
+
+    await client.route(`/нет${SIDE_CARD_URL.slice(1)}`);
+
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      address: LIST,
+      note: PAGE_NOTES.notFound,
+    });
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+  });
+
+  test('код экрана области не загрузился: промис отклонён только после завершения остальных открытий', async () => {
+    const { codes, broken } = breakable();
+    broken.add('taskCard');
+    const end = answered().hold('listTasks');
+    const { client } = tab(end, codes);
+
+    const routing = client.route(SIDE_CARD_URL);
+
+    expect(await soon(routing, end)).toBe('ждёт');
+    end.release('listTasks');
+    await expect(routing).rejects.toThrow('код taskCard не загрузился');
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(client.region('side')).toMatchObject({
+      status: 'empty',
+      note: PAGE_NOTES.failed,
+    });
+  });
+});
+
+describe('PageClient.url — ссылка по состоянию областей', () => {
+  test('main пуста — undefined', () => {
+    expect(tab(answered()).client.url()).toBeUndefined();
+  });
+
+  test('только main — путь адреса', async () => {
+    const { client } = await listed(answered());
+
+    expect(client.url()).toBe('/');
+  });
+
+  test('список и карточка в side — ссылка с _side', async () => {
+    const { client } = await listed(answered());
+    await client.openLink(CARD_LINK);
+
+    expect(client.url()).toBe(SIDE_CARD_URL);
+  });
+
+  test('страница списка и карточка — запрос main первым, затем _side', async () => {
+    const { client } = await listed(answered());
+    await client.submit('main', 'next', {});
+    await client.openLink(CARD_LINK);
+
+    expect(client.url()).toBe(
+      `/?page=1&_side=${encodeURIComponent(`/todo/taskCard?taskId=${TASK_A}`)}`,
+    );
+  });
+
+  test('окно в ссылку не попадает', async () => {
+    const { client } = tab(answered(), undefined, CARD_IN_MODAL);
+    await client.route('/');
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    expect(client.region('modal').view?.screen).toBe(CARD_ID);
+
+    expect(client.url()).toBe('/');
+  });
+
+  test('круг url() → route в новой вкладке даёт те же адреса областей', async () => {
+    const first = await listed(answered());
+    await first.client.submit('main', 'next', {});
+    await first.client.openLink(CARD_LINK);
+    const url = first.client.url();
+    if (url === undefined) throw new Error('ссылки нет');
+    const second = tab(answered());
+
+    await second.client.route(url);
+
+    expect(second.client.region('main').address).toEqual(
+      first.client.region('main').address,
+    );
+    expect(second.client.region('side').address).toEqual(
+      first.client.region('side').address,
+    );
+    expect(second.client.region('modal')).toEqual(EMPTY_REGION);
+  });
+});
+
+describe('PageClient — сборка с размещением', () => {
+  const Stray = ScreenDef.define({
+    name: 'stray',
+    label: 'Чужой',
+    description: 'Экран вне набора.',
+    reads: [],
+    data: v.object({}),
+  });
+
+  test('экран вне набора в placements — бросок сборки', () => {
+    expect(() =>
+      tab(undefined, undefined, [{ screen: Stray, region: 'side' }]),
+    ).toThrow('PageClient:');
+  });
+
+  test('один экран дважды — бросок сборки', () => {
+    expect(() =>
+      tab(undefined, undefined, [
+        { screen: TaskCardScreenDef, region: 'modal' },
+        { screen: TaskCardScreenDef, region: 'side' },
+      ]),
+    ).toThrow('PageClient:');
+  });
+});
+
+// Форма целиком и жест. Отвергнутый вход возвращается состоянием области
+// (`issues` с полем и `entered` — введённое), подтверждение — свойство
+// действия и идёт исходом `confirm`, жест — готовый вход действия минуя сборку
+// из строк формы.
+
+/** Форма с подтверждением и полем с проверкой: учебный пример такого действия не имеет. */
+const RewriteScreenDef = ScreenDef.define({
+  name: 'rewrite',
+  label: 'Переписать',
+  description: 'Поле названия и подтверждение.',
+  reads: [],
+  data: v.object({}),
+  actions: {
+    rewrite: {
+      label: 'Переписать',
+      description: 'Название сменится.',
+      input: v.object({
+        title: v.pipe(
+          v.string(),
+          v.maxLength(5, 'Не длиннее 5 знаков'),
+          v.description('Название'),
+        ),
+      }),
+      confirm: { label: 'Переписать?', description: 'Название сменится.' },
+    },
+  },
+});
+
+class RewriteCode extends ScreenCode<typeof RewriteScreenDef> {
+  /** Названия, с которыми действие дошло до шага `done`. */
+  readonly written: string[] = [];
+
+  override readonly actions: Partial<ActionSteps<typeof RewriteScreenDef>> = {
+    rewrite: {
+      done: ({ input }) => {
+        this.written.push(input.title);
+        return RewriteScreenDef.at({});
+      },
+    },
+  };
+
+  override async load(): Promise<Result<Record<string, never>, DomainError>> {
+    return ok({});
+  }
+}
+
+const RewriteSetDef = UiSetDef.define({
+  name: 'rewriteUi',
+  label: 'Набор формы',
+  description: 'Локальный экран формы с подтверждением.',
+  app: ExampleAppDef,
+  modules: [
+    UiModuleDef.define({
+      name: 'forms',
+      label: 'Формы',
+      description: 'Одна форма.',
+      screens: [RewriteScreenDef],
+      stories: [],
+    }),
+  ],
+});
+
+const RewriteAppDef = UiAppDef.define({
+  name: 'rewritePages',
+  label: 'Форма на страницах',
+  description: 'Приложение страниц одной формы с подтверждением.',
+  set: RewriteSetDef,
+  channel: PAGE_CHANNEL,
+  stories: [],
+  entries: {
+    start: {
+      label: 'Форма',
+      description: 'Форма с подтверждением.',
+      address: RewriteScreenDef.at({}),
+    },
+  },
+});
+
+/** Вкладка формы с подтверждением: форма открыта в `main`. */
+const rewriting = async () => {
+  const code = new RewriteCode();
+  const end = new StubEnd();
+  const client = new PageClient({
+    app: RewriteAppDef,
+    codes: CodeLoaders.of(RewriteSetDef, [
+      CodeLoader.screen(RewriteScreenDef, async () => code),
+    ]),
+    routes: [],
+    end,
+    observer: new MemoryUiObserver(),
+    clock: new ManualPageClock(),
+  });
+  await client.route('/forms/rewrite');
+  return { client, end, code };
+};
+
+/** Подставная цель жеста: помнит последнее состояние области и «роняет» на неё значение варианта. */
+class DropTarget {
+  state: PageViewState;
+
+  constructor(
+    private readonly client: PageClient,
+    private readonly region: PageRegionName,
+    private readonly action: string,
+    private readonly field: string,
+  ) {
+    this.state = client.region(region);
+    client.source(region).subscribe((state) => {
+      this.state = state;
+    });
+  }
+
+  /** Ревизия вида, по которому нарисована цель, уходит вместе с жестом. */
+  drop(value: string) {
+    return this.client.submitInput(
+      this.region,
+      this.action,
+      { [this.field]: value },
+      this.state.view?.revision ?? 0,
+    );
+  }
+}
+
+describe('PageClient — форма: введённое и замечания', () => {
+  test('отвергнутый вход: issues с полем и текстом, entered с введённым; вызов UC не ушёл', async () => {
+    const end = answered();
+    const { client } = await listed(end);
+
+    const outcome = await client.submit('main', 'create', { title: '' });
+
+    expect(outcome).toMatchObject({ kind: 'rejected' });
+    expect(client.region('main').issues).toEqual([
+      { field: 'title', text: 'Название не может быть пустым' },
+    ]);
+    expect(client.region('main').entered).toEqual({
+      kind: 'action',
+      name: 'create',
+      values: { title: '' },
+    });
+    expect(end.names()).not.toContain('createTask');
+  });
+
+  test('следующий вход снимает замечания и введённое', async () => {
+    const { client } = await listed(answered());
+    await client.submit('main', 'create', { title: '' });
+
+    await client.submit('main', 'create', { title: 'Хлеб' });
+
+    expect(client.region('main').issues).toEqual([]);
+    expect(client.region('main').entered).toBeUndefined();
+  });
+
+  test('локальное действие снимает замечания и введённое прежней формы', async () => {
+    const { client } = await listed(answered());
+    await client.submit('main', 'create', { title: '' });
+
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    expect(client.region('main').issues).toEqual([]);
+    expect(client.region('main').entered).toBeUndefined();
+  });
+
+  test('в entered — только объявленные поля формы: чужие ключи значений отброшены', async () => {
+    const { client } = await listed(answered());
+
+    await client.submit('main', 'create', { title: '', lost: 'чужое' });
+
+    expect(client.region('main').entered).toEqual({
+      kind: 'action',
+      name: 'create',
+      values: { title: '' },
+    });
+  });
+
+  test('локальное действие отвергнуто: entered.kind — local, введённое по полям', async () => {
+    const { client, end } = await listed(answered());
+
+    const outcome = await client.local('main', 'toggle', { taskId: 'нет' });
+
+    expect(outcome).toMatchObject({ kind: 'rejected' });
+    expect(client.region('main').entered).toEqual({
+      kind: 'local',
+      name: 'toggle',
+      values: { taskId: 'нет' },
+    });
+    expect(client.region('main').issues).toHaveLength(1);
+    expect(end.names()).toEqual(['listTasks']);
+  });
+
+  test('entered есть у области, чьё действие отвергнуто, и только у неё', async () => {
+    const { client } = await layered();
+
+    await client.submit('modal', 'assign', { assigneeId: 'не-uuid' });
+
+    expect(client.region('modal').entered).toEqual({
+      kind: 'action',
+      name: 'assign',
+      values: { assigneeId: 'не-uuid' },
+    });
+    expect(client.region('main').entered).toBeUndefined();
+    expect(client.region('side').entered).toBeUndefined();
+  });
+
+  test('значения формы с вариантами — подписи — в entered как введены, не значениями', async () => {
+    const { client } = await listed(answered());
+
+    await client.local('main', 'toggle', { taskId: 'Нет такой задачи' });
+
+    expect(client.region('main').entered).toEqual({
+      kind: 'local',
+      name: 'toggle',
+      values: { taskId: 'Нет такой задачи' },
+    });
+  });
+
+  test('введённое и текст замечания не попадают в журнал исполнителя и в faults', async () => {
+    const { client, observer, faults } = await layered();
+
+    await client.submit('modal', 'assign', { assigneeId: 'секрет-не-uuid' });
+
+    expect(client.region('modal').entered?.values).toEqual({
+      assigneeId: 'секрет-не-uuid',
+    });
+    expect(JSON.stringify(observer.records)).not.toContain('секрет-не-uuid');
+    expect(faults).toEqual([]);
+  });
+
+  test('подтверждение, затем отказ входа: confirm(region) показывает замечания и введённое из ожидающего подтверждения', async () => {
+    const { client, code } = await rewriting();
+
+    const asked = await client.submit('main', 'rewrite', {
+      title: 'слишком длинное',
+    });
+
+    expect(asked).toMatchObject({ kind: 'confirm' });
+    expect(client.region('main').confirm).toEqual({
+      action: 'rewrite',
+      label: 'Переписать?',
+      description: 'Название сменится.',
+    });
+    expect(client.region('main').issues).toEqual([]);
+    expect(client.region('main').entered).toBeUndefined();
+
+    const rejected = await client.confirm('main');
+
+    expect(rejected).toMatchObject({ kind: 'rejected' });
+    expect(client.region('main').issues).toEqual([
+      { field: 'title', text: 'Не длиннее 5 знаков' },
+    ]);
+    expect(client.region('main').entered).toEqual({
+      kind: 'action',
+      name: 'rewrite',
+      values: { title: 'слишком длинное' },
+    });
+    expect(client.region('main').confirm).toBeUndefined();
+    expect(code.written).toEqual([]);
+  });
+
+  test('подтверждение с верным входом: confirm(region) исполняет, подтверждение снято', async () => {
+    const { client, code } = await rewriting();
+    await client.submit('main', 'rewrite', { title: 'ок' });
+
+    const done = await client.confirm('main');
+
+    expect(done).toMatchObject({ kind: 'stayed' });
+    expect(code.written).toEqual(['ок']);
+    expect(client.region('main').confirm).toBeUndefined();
+    expect(client.region('main').entered).toBeUndefined();
+  });
+
+  test('подтверждение — свойство действия: недоступное без выбора, после выбора submit даёт confirm с текстами Def, confirm исполняет', async () => {
+    const { client, end } = await listed(answered());
+
+    expect(await client.submit('main', 'completeSelected', {})).toMatchObject({
+      kind: 'unavailable',
+      reason: 'disabled',
+    });
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    const asked = await client.submit('main', 'completeSelected', {});
+
+    expect(asked).toMatchObject({ kind: 'confirm' });
+    expect(client.region('main').confirm).toEqual({
+      action: 'completeSelected',
+      label: 'Выполнить выбранные задачи?',
+      description: 'Выполненную задачу нельзя вернуть в работу.',
+    });
+    expect(end.names()).not.toContain('completeTasks');
+    expect(await client.confirm('main')).toMatchObject({ kind: 'stayed' });
+    expect(end.names()).toContain('completeTasks');
+  });
+});
+
+describe('PageClient.submitInput — жест: готовый вход действия', () => {
+  test('значение варианта уходит как есть: карточка в side, область main не перечитана', async () => {
+    const { client, end } = await listed(answered());
+    const target = new DropTarget(client, 'main', 'open', 'taskId');
+    const list = client.region('main');
+
+    const outcome = await target.drop(TASK_B);
+
+    expect(outcome).toMatchObject({ kind: 'moved' });
+    expect(client.region('side').view?.address).toEqual({
+      screen: CARD_ID,
+      params: { taskId: TASK_B },
+    });
+    expect(client.region('side').view?.data).toMatchObject({
+      title: 'Молоко',
+    });
+    expect(client.region('main')).toEqual(list);
+    expect(client.region('main').view?.revision).toBe(1);
+    expect(end.unwatches()).toEqual([]);
+  });
+
+  test('жест минует сборку формы: значение, совпавшее с подписью, не превращается в значение варианта', async () => {
+    const { client } = await listed(answered());
+    const target = new DropTarget(client, 'main', 'open', 'taskId');
+
+    const outcome = await target.drop('Молоко');
+
+    expect(outcome).toMatchObject({ kind: 'rejected' });
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+  });
+
+  test('та же строка через форму — подпись заменяется значением варианта', async () => {
+    const { client } = await listed(answered());
+
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+
+    expect(client.region('side').view?.address).toEqual({
+      screen: CARD_ID,
+      params: { taskId: TASK_B },
+    });
+  });
+
+  test('жест в окно: действие карточки в modal исполняется с готовым входом', async () => {
+    const { client, end } = await layered();
+    const target = new DropTarget(client, 'modal', 'assign', 'assigneeId');
+
+    const outcome = await target.drop(testUuid(2));
+
+    expect(outcome).toMatchObject({ kind: 'stayed' });
+    expect(end.calls().find((c) => c.uc === 'assignTask')).toMatchObject({
+      input: { taskId: TASK_B, assigneeId: testUuid(2) },
+    });
+  });
+
+  test('устаревшая ревизия: список перечитан между захватом и броском — stale, заметка, карточка не открыта', async () => {
+    const end = answered();
+    const { client } = await listed(end);
+    const target = new DropTarget(client, 'main', 'open', 'taskId');
+    const captured = target.state.view?.revision;
+    end.emit(signalOf(watchOf(end, LIST_ID), 'e-1'));
+    await end.flush();
+    expect(client.region('main').view?.revision).toBe(2);
+
+    const outcome = await client.submitInput(
+      'main',
+      'open',
+      { taskId: TASK_B },
+      captured ?? 0,
+    );
+
+    expect(outcome).toMatchObject({ kind: 'stale' });
+    expect(client.region('main')).toMatchObject({
+      note: PAGE_NOTES.stale,
+      stale: 'revision',
+    });
+    expect(client.region('side')).toEqual(EMPTY_REGION);
+  });
+
+  test('цель обновилась после перечитывания — жест по свежей ревизии проходит', async () => {
+    const end = answered();
+    const { client } = await listed(end);
+    const target = new DropTarget(client, 'main', 'open', 'taskId');
+    end.emit(signalOf(watchOf(end, LIST_ID), 'e-1'));
+    await end.flush();
+
+    const outcome = await target.drop(TASK_B);
+
+    expect(outcome).toMatchObject({ kind: 'moved' });
+  });
+
+  test('жест без связи: unavailable disabled, на провод ничего', async () => {
+    const { client, end } = await listed(answered());
+    const target = new DropTarget(client, 'main', 'open', 'taskId');
+    end.drop();
+
+    const outcome = await target.drop(TASK_B);
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(end.afterBreak).toEqual([]);
+  });
+
+  test('жест в закрытую область: unavailable closed', async () => {
+    const { client } = await listed(answered());
+
+    const outcome = await client.submitInput(
+      'side',
+      'open',
+      { taskId: TASK_B },
+      1,
+    );
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'closed' });
+    expect(client.region('side').note).toBe(PAGE_NOTES.closed);
+  });
+
+  test('жест: отказ входа — замечания есть, введённого нет', async () => {
+    const { client } = await listed(answered());
+    const target = new DropTarget(client, 'main', 'create', 'title');
+
+    const outcome = await target.drop('');
+
+    expect(outcome).toMatchObject({ kind: 'rejected' });
+    expect(client.region('main').issues).toEqual([
+      { field: 'title', text: 'Название не может быть пустым' },
+    ]);
+    expect(client.region('main').entered).toBeUndefined();
+  });
+
+  test('жест на недоступное действие — unavailable disabled от ядра, вызова нет', async () => {
+    const { client, end } = await listed(answered());
+
+    const outcome = await client.submitInput('main', 'completeSelected', {}, 1);
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(end.names()).toEqual(['listTasks']);
+  });
+
+  test('жест на действие с подтверждением: confirm, затем confirm(region) исполняет с тем же готовым входом', async () => {
+    const { client, code } = await rewriting();
+    const target = new DropTarget(client, 'main', 'rewrite', 'title');
+
+    const asked = await target.drop('ок');
+
+    expect(asked).toMatchObject({ kind: 'confirm' });
+    expect(client.region('main').confirm).toMatchObject({
+      action: 'rewrite',
+    });
+    expect(code.written).toEqual([]);
+    expect(await client.confirm('main')).toMatchObject({ kind: 'stayed' });
+    expect(code.written).toEqual(['ок']);
+  });
+
+  test('жест по действию окна, пока main грузится: исход окна, main не тронута', async () => {
+    const end = answered();
+    const { client } = await layered(end);
+    end.hold('listAssignedTasks');
+    const routing = client.route('/assigned');
+    expect(client.region('main').status).toBe('loading');
+    const target = new DropTarget(client, 'modal', 'assign', 'assigneeId');
+
+    const outcome = await target.drop(testUuid(2));
+
+    expect(outcome).toMatchObject({ kind: 'stayed' });
+    expect(client.region('main').status).toBe('loading');
+    end.release('listAssignedTasks');
+    await routing;
+    expect(client.region('main').view?.screen).toBe(ASSIGNED_ID);
+  });
+});
+
+describe('PageClient — состояние области с введённым остаётся данными JSON', () => {
+  test('на каждом значении журнала трёх областей, включая entered: JSON-копия равна, значение не меняется после выдачи; в снимок entered не входит', async () => {
+    const { client } = tab(answered(), undefined, CARD_IN_MODAL);
+    const seen: { state: PageViewState; json: string }[] = [];
+    for (const region of ['main', 'side', 'modal'] as const) {
+      client.source(region).subscribe((state) => {
+        seen.push({ state, json: JSON.stringify(state) });
+      });
+    }
+
+    await client.route('/');
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    await client.openLink(ASSIGNED);
+    await client.submit('main', 'create', { title: '' });
+    await client.local('main', 'toggle', { taskId: 'нет' });
+    await client.submit('modal', 'assign', { assigneeId: 'не-uuid' });
+    await client.submit('main', 'create', { title: 'Хлеб' });
+
+    const kinds = seen.map((s) => s.state.entered?.kind);
+    expect(kinds).toContain('action');
+    expect(kinds).toContain('local');
+    for (const { state, json } of seen) {
+      expect(JSON.parse(json)).toEqual(state);
+      expect(JSON.stringify(state)).toBe(json);
+    }
+    expect(JSON.stringify(client.snapshot())).not.toContain('entered');
+  });
+});
+
+describe('PageClient — отказ route, окно при уходе, resume без восстановления, введённое', () => {
+  test('route: сломан код экранов main и side — отклонён первой причиной, причиной main', async () => {
+    const { codes, broken } = breakable();
+    broken.add('taskList');
+    broken.add('taskCard');
+    const { client } = tab(answered(), codes);
+
+    await expect(client.route(SIDE_CARD_URL)).rejects.toThrow(
+      'код taskList не загрузился',
+    );
+  });
+
+  test('уход из окна: окно, переоткрытое за время ожидания назначения, не закрывается', async () => {
+    const end = answered();
+    const { client } = tab(end, undefined, [
+      { screen: TaskCardScreenDef, region: 'modal' },
+      { screen: AssignedTasksScreenDef, region: 'modal' },
+    ]);
+    await client.route('/');
+    await client.submit('main', 'open', { taskId: 'Молоко' });
+    end.hold('listTasks');
+
+    const going = client.submit('modal', 'back', {});
+    await end.flush();
+    expect(client.region('main').status).toBe('loading');
+    client.close('modal');
+    await client.openLink(ASSIGNED);
+    expect(client.region('modal').view?.screen).toBe(ASSIGNED_ID);
+    end.release('listTasks');
+    await going;
+
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(client.region('modal').view?.screen).toBe(ASSIGNED_ID);
+  });
+
+  describe('resume: адрес декодируется, но экземпляр не восстановлен', () => {
+    /** Снимок трёх областей, у выбранных ревизия испорчена: адрес читается, `restore` отказывает. */
+    const spoiled = async (regions: readonly PageRegionName[]) => {
+      const snapshot = (await layered()).client.snapshot();
+      const patched: Record<string, unknown> = { ...snapshot };
+      for (const name of regions) {
+        patched[name] = { ...snapshot[name], revision: 'x' };
+      }
+      return patched;
+    };
+
+    test('side и modal — обе пусты, не в loading; main восстановлена', async () => {
+      const second = tab(answered());
+
+      await second.client.resume(await spoiled(['side', 'modal']));
+
+      expect(second.client.region('side')).toEqual(EMPTY_REGION);
+      expect(second.client.region('modal')).toEqual(EMPTY_REGION);
+      expect(second.client.region('main').view?.screen).toBe(LIST_ID);
+    });
+
+    test('main — вход start, не loading; прочие восстановлены', async () => {
+      const second = tab(answered());
+
+      await second.client.resume(await spoiled(['main']));
+
+      expect(second.client.region('main').status).toBe('ready');
+      expect(second.client.region('main').view?.address).toEqual(LIST);
+      expect(second.client.region('side').view?.screen).toBe(ASSIGNED_ID);
+      expect(second.client.region('modal').view?.screen).toBe(CARD_ID);
+    });
+  });
+
+  test('local с лишним ключом: в entered.values только объявленные поля', async () => {
+    const { client } = await listed(answered());
+
+    await client.local('main', 'toggle', { taskId: 'нет', лишнее: 'x' });
+
+    expect(client.region('main').entered).toEqual({
+      kind: 'local',
+      name: 'toggle',
+      values: { taskId: 'нет' },
+    });
+  });
+
+  test('submit без значения поля: в entered.values ключа нет, форма показывает начальное', async () => {
+    const { client } = await listed(answered());
+
+    const outcome = await client.submit('main', 'create', {});
+
+    expect(outcome).toMatchObject({ kind: 'rejected' });
+    expect(client.region('main').entered).toEqual({
+      kind: 'action',
+      name: 'create',
+      values: {},
+    });
+    const create = new PageFormModel(ExampleUiSetDef)
+      .of(client.region('main'))
+      .forms.find((form) => form.name === 'create');
+    expect(create?.fields.find((f) => f.name === 'title')?.value).toBe(
+      'Новая задача',
+    );
   });
 });
