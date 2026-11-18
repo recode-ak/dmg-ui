@@ -417,24 +417,37 @@ export class PageClient {
     return restored.ok ? restored.value : undefined;
   }
 
-  /** Сообщение сервера вкладке: порты, входящие или ничего. */
-  private receive(message: ServerMessage): void {
+  /**
+   * Сообщение сервера вкладке с промисом реакции, который ждёт провод в
+   * памяти (D-UI-71). Сообщение уходит в порты, во входящие или никуда;
+   * промис разрешается, когда экземпляры областей отработали реакцию
+   * (`idle()`).
+   */
+  private receive(message: ServerMessage): Promise<void> {
     switch (message.kind) {
       case 'result':
       case 'signal':
       case 'watch-refused':
       case 'refused':
         this.ports.receive(message);
-        return;
+        return this.idle();
       case 'notification':
         this.notes.receive(message);
-        return;
+        return this.idle();
       case 'hello':
         // Контекст пришёл при соединении; повтор вид не меняет (D-UI-33).
-        return;
+        return this.idle();
       default:
-        PageClient.unknown(message);
+        return PageClient.unknown(message);
     }
+  }
+
+  /** Экземпляры обеих областей завершили работу (D-UI-49); не отклоняется. */
+  private async idle(): Promise<void> {
+    await Promise.allSettled([
+      this.regions.instance('main')?.settled(),
+      this.regions.instance('side')?.settled(),
+    ]);
   }
 
   /**

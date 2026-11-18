@@ -1,34 +1,29 @@
 import { err, type Identified, ok, type Result, Trace } from 'dmg-core';
 import type { RenderContext } from 'dmg-ui';
-import { type CallerSource, RenderFlags } from 'dmg-ui/server';
+import { type CallerSource, RenderContexts } from 'dmg-ui/server';
 import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageId } from '../wire/page-messages';
-import type { ServerMessage } from '../wire/page-messages.types';
 import type { PageServerPort, ServerLink } from '../wire/page-wire.types';
 import { PageConnection } from './page-connection';
 import { PageDelivery } from './page-delivery';
-import { CONNECTION_LIMIT } from './page-server.const';
-import type { PageHostSpec, PagePlace } from './page-server.types';
+import { PageOutbox } from './page-outbox';
+import { CONNECTION_LIMIT, HOST_LOGS } from './page-server.const';
+import type { PageHostSpec } from './page-server.types';
 
-export type {
-  PageHostSpec,
-  PageLogger,
-  PagePlace,
-} from './page-server.types';
-
-/** Место личности по умолчанию. */
-const DEFAULT_PLACE: PagePlace = { locale: 'ru-RU', timeZone: 'Asia/Oral' };
+export type { PageHostSpec, PageLogger } from './page-server.types';
 
 /**
- * Серверная половина страничного канала: держит `UiServer`, экранов не
- * исполняет. Соединение — токен → `uuid` → сессия → `PageConnection` и
- * `hello` с контекстом (D-UI-33); уведомления — в `delivery`. Допущения: отзыв
- * токена открытое соединение не рвёт; признаки заместителя в `hello` — на
- * момент соединения (команду всё равно сверяет `dmg-core`).
+ * Серверная половина страничного канала с личностью по токену и местом того,
+ * кто работает (D-UI-41, D-UI-72). Держит `UiServer`, экранов не исполняет.
+ * Соединение — токен → `uuid` → сессия → `PageConnection` и `hello` с
+ * контекстом, место — из `PersonPlaces`. Уведомления — в `delivery`.
+ * Допущения: отзыв токена открытое соединение не рвёт; признаки заместителя
+ * в `hello` — на момент соединения.
  */
 export class PageHost<U extends Identified> implements PageServerPort {
   readonly delivery = new PageDelivery();
+  private readonly contexts: RenderContexts<U>;
 
   /** Приложение другого канала — ошибка сборки, бросок. */
   constructor(private readonly spec: PageHostSpec<U>) {
@@ -37,33 +32,42 @@ export class PageHost<U extends Identified> implements PageServerPort {
         `PageHost: приложение ${spec.app.name} канала ${spec.app.channel}, а не ${PAGE_CHANNEL}`,
       );
     }
+    this.contexts = new RenderContexts(spec.callers, spec.places);
   }
 
   /**
-   * Токен не по схеме или неизвестен, у личности уже `CONNECTION_LIMIT`
-   * соединений — `refused`, клиенту ничего не отправлено.
+   * Соединение по токену; сообщения клиенту — через `PageOutbox`, строкой с
+   * пределом длины (D-UI-71). Токен не по схеме или неизвестен, сбой порта
+   * личности или места, у личности уже `CONNECTION_LIMIT` соединений —
+   * `refused`, клиенту ничего не отправлено. После пуша `hello` — без
+   * `await`: связь отдаётся сразу.
    */
   async connect(
     token: string,
-    push: (message: ServerMessage) => void,
+    push: (text: string) => void,
   ): Promise<Result<ServerLink, 'refused'>> {
     if (!v.is(PageId, token)) return err('refused');
-    const uuid = this.spec.tokens(token);
+    const uuid = await this.identify(token);
     if (uuid === undefined) return err('refused');
-    const source = this.source(uuid);
-    const context = await this.context(source);
+    const context = await this.context(uuid);
+    if (context === undefined) return err('refused');
     // Проверка — после последнего `await`: до `attach` соединений не прибудет.
     if (this.delivery.connections(uuid) >= CONNECTION_LIMIT) {
       return err('refused');
     }
+    const outbox = new PageOutbox({
+      send: push,
+      logger: this.spec.logger,
+      source: PAGE_CHANNEL,
+    });
     const connection = new PageConnection({
-      session: this.spec.server.session(source),
-      push,
+      session: this.spec.server.session(this.source(uuid)),
+      push: (message) => outbox.push(message),
       logger: this.spec.logger,
       source: PAGE_CHANNEL,
     });
     this.delivery.attach(uuid, connection);
-    push({ kind: 'hello', context });
+    outbox.push({ kind: 'hello', context });
     return ok({
       receive: (raw) => connection.receive(raw),
       close: () => {
@@ -73,34 +77,44 @@ export class PageHost<U extends Identified> implements PageServerPort {
     });
   }
 
+  /**
+   * `uuid` по токену; не узнал — `undefined`. Сбой порта — `error` без токена
+   * и текста броска (ERR-07) и тоже `undefined`: соединение не открывается.
+   */
+  private async identify(token: string): Promise<string | undefined> {
+    try {
+      return await this.spec.tokens(token);
+    } catch {
+      this.spec.logger.error(PAGE_CHANNEL, HOST_LOGS.tokens);
+      return undefined;
+    }
+  }
+
   /** Источник вызывающего сессии: личность — из токена, канал следа — страничный. */
   private source(uuid: string): CallerSource<U> {
-    const callers = this.spec.identities(uuid);
     return {
       subjectId: uuid,
       channel: { name: PAGE_CHANNEL },
-      resolve: (trace) => callers.resolve(uuid, trace),
+      resolve: (trace) => this.spec.callers.resolve(uuid, trace),
     };
   }
 
   /**
-   * Контекст рендера соединения. Вызывающий не разрешился — признаков нет:
-   * вызовы UC той же личности сервер всё равно отклонит (как у диалога).
+   * Контекст рендера соединения — `RenderContexts` по `uuid` токена. Сбой
+   * порта места или вызывающего — `error` без текста броска и `undefined`.
    */
-  private async context(source: CallerSource<U>): Promise<RenderContext> {
+  private async context(uuid: string): Promise<RenderContext | undefined> {
     // Id запроса соединения создаёт сервер: признак `generated` честен,
     // предупреждать не о чем.
-    const trace = Trace.fromRequest({ channel: source.channel }, () => {});
-    const caller = await source.resolve(trace);
-    const flags = caller.ok
-      ? RenderFlags.of(caller.value)
-      : { delegate: false, readOnly: false };
-    const place = this.spec.place ?? DEFAULT_PLACE;
-    return {
-      locale: place.locale,
-      timeZone: place.timeZone,
-      delegate: flags.delegate,
-      readOnly: flags.readOnly,
-    };
+    const trace = Trace.fromRequest(
+      { channel: { name: PAGE_CHANNEL } },
+      () => {},
+    );
+    try {
+      return await this.contexts.of(uuid, trace);
+    } catch {
+      this.spec.logger.error(PAGE_CHANNEL, HOST_LOGS.context);
+      return undefined;
+    }
   }
 }

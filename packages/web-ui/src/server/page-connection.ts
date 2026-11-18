@@ -18,8 +18,8 @@ import type {
  * Одно соединение страничного канала на сервере: строки клиента — внешний
  * вход. Мусор и строка длиннее предела — `refused`, не бросок (ERR-01);
  * `call` — в сессию личности (не больше `CALL_LIMIT` разом), `watch` —
- * подписки по `watchId`. `warn` — без данных клиента (ERR-07); на мусор
- * и предел вызовов — раз на соединение.
+ * подписки по `watchId`. `warn` — без данных клиента (ERR-07); на мусор,
+ * предел вызовов и каждый вид отказа подписки — раз на соединение.
  */
 export class PageConnection<U extends Identified> implements PageRecipient {
   private readonly watches = new Map<string, () => void>();
@@ -125,9 +125,13 @@ export class PageConnection<U extends Identified> implements PageRecipient {
     this.watches.delete(watch);
   }
 
-  /** Отказ подписки: в лог — фиксированный текст, без адреса и id клиента. */
+  /**
+   * Отказ подписки: клиенту — `watch-refused` на каждый кадр, в лог —
+   * фиксированный текст вида отказа раз на соединение, без адреса и id
+   * клиента.
+   */
   private refuseWatch(watch: string, text: string): void {
-    this.spec.logger.warn(this.spec.source, text);
+    this.warnOnce(text);
     this.spec.push({ kind: 'watch-refused', watch });
   }
 

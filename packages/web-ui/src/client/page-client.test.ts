@@ -66,7 +66,8 @@ type Answer = SerializedResult | ((call: unknown) => SerializedResult);
 /** Конец провода клиента: журнал отправленного, ответы по имени UC, сообщения сервера. */
 class StubEnd implements ClientEnd {
   readonly sent: ClientMsg[] = [];
-  private readonly handlers: ((message: ServerMsg) => void)[] = [];
+  private readonly handlers: ((message: ServerMsg) => Promise<void> | void)[] =
+    [];
   private readonly answers = new Map<string, Answer>();
   /** Удержанные UC: ответы ждут `release`. */
   private readonly held = new Map<string, (() => void)[]>();
@@ -91,7 +92,7 @@ class StubEnd implements ClientEnd {
     for (const reply of queue) reply();
   }
 
-  onMessage(handler: (message: ServerMsg) => void): void {
+  onMessage(handler: (message: ServerMsg) => Promise<void> | void): void {
     this.handlers.push(handler);
   }
 
@@ -119,6 +120,11 @@ class StubEnd implements ClientEnd {
 
   emit(message: ServerMsg): void {
     for (const handler of this.handlers) handler(message);
+  }
+
+  /** Сообщение обработчикам; промис — их промисы, как их ждёт провод в памяти. */
+  async deliver(message: ServerMsg): Promise<void> {
+    await Promise.all(this.handlers.map((handler) => handler(message)));
   }
 
   /** Отдаёт все ответы заглушки и реакции клиента на них. */
@@ -532,6 +538,19 @@ describe('PageClient — сигналы и ревизия', () => {
       eventId: 'e-1',
     });
     expect(client.region('main').view?.revision).toBe(2);
+  });
+
+  test('промис обработчика сигнала — после перечитывания: область ready, ревизия 2, refreshing снят', async () => {
+    const { client, end } = await listed();
+    const [watch = ''] = end.watches();
+
+    await end.deliver(signalOf(watch, 'e-1'));
+
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      refreshing: false,
+      view: { revision: 2 },
+    });
   });
 
   test('stale — «Данные обновились», вид заново на новых данных; действие не исполнено', async () => {

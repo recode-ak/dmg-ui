@@ -68,8 +68,11 @@ describe('страничный канал — приложение другог�
         new PageHost({
           app: ExampleStubAppDef,
           server,
-          tokens: () => undefined,
-          identities: () => example.callers,
+          tokens: async () => undefined,
+          callers: example.callers,
+          places: {
+            place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
+          },
           logger: context.logger,
         }),
     ).toThrow('канала dmg-ui-stub, а не dmg-ui-pages');

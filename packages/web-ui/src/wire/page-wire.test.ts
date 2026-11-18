@@ -8,13 +8,15 @@ import type {
   ServerMessage as ServerMsg,
 } from './page-messages.types';
 import { PageWire } from './page-wire';
-import { QUIET_TURNS } from './page-wire.const';
+import { MAX_SERVER_TEXT } from './page-wire.const';
 import type { PageServerPort, ServerLink } from './page-wire.types';
 
 // Провод страничного канала в памяти: между половинами ходят только строки
-// JSON, порядок сохраняется, доставка асинхронная, `settled()` ждёт тишины
-// без таймеров (TST-04). Сервер — заглушка конца провода; схемы сообщений —
-// граница, на которой сервер отвечает `refused` (мусор — в `page-host.test.ts`).
+// JSON, порядок сохраняется, доставка асинхронная, `settled()` ждёт, пока не
+// завершится вся работа, включая промисы обработчиков, — без таймеров и без
+// счёта ходов (TST-04). Сервер — заглушка конца провода, пушит строки; схемы
+// сообщений — граница, на которой сервер отвечает `refused` (мусор — в
+// `page-host.test.ts`).
 
 const CONTEXT = {
   locale: 'ru-RU',
@@ -57,21 +59,28 @@ const call: ClientMsg = {
 };
 const unwatch: ClientMsg = { kind: 'unwatch', watch: 'w1' };
 
-/** Конец провода сервера: принятые строки, закрытия, `answer` — ответ на `call`. */
+/**
+ * Конец провода сервера: принятые строки, закрытия, ответ на `call`. `raw` —
+ * строка сервера как есть, `push` — сообщение, сериализованное здесь.
+ */
 class StubServer implements PageServerPort {
   readonly received: string[] = [];
   readonly tokens: string[] = [];
   closed = 0;
-  push: (message: ServerMsg) => void = () => {};
+  raw: (text: string) => void = () => {};
+
+  push(message: ServerMsg): void {
+    this.raw(JSON.stringify(message));
+  }
 
   async connect(
     token: string,
-    push: (message: ServerMsg) => void,
+    push: (text: string) => void,
   ): Promise<Result<ServerLink, 'refused'>> {
     this.tokens.push(token);
     if (token !== 'ok') return err('refused');
-    this.push = push;
-    push(HELLO);
+    this.raw = push;
+    this.push(HELLO);
     return ok({
       receive: async (raw) => {
         this.received.push(raw);
@@ -84,7 +93,7 @@ class StubServer implements PageServerPort {
           'kind' in message &&
           message.kind === 'call'
         ) {
-          push({ kind: 'result', id: 'c1', result: ok({}) });
+          this.push({ kind: 'result', id: 'c1', result: ok({}) });
         }
       },
       close: () => {
@@ -123,7 +132,7 @@ describe('PageWire.connect', () => {
 });
 
 describe('PageWire — граница JSON', () => {
-  test('в журнале только строки обеих сторон; круг JSON без потерь; каждая строка — сообщение по схеме', async () => {
+  test('в журнале только строки обеих сторон; каждая строка — JSON сообщения по схеме', async () => {
     const server = new StubServer();
     const { wire, end } = await connected(server);
 
@@ -138,7 +147,6 @@ describe('PageWire — граница JSON', () => {
     for (const text of wire.messages) {
       expect(typeof text).toBe('string');
       const parsed: unknown = JSON.parse(text);
-      expect(JSON.parse(JSON.stringify(parsed))).toStrictEqual(parsed);
       const known =
         v.safeParse(ClientMessage, parsed).success ||
         v.safeParse(ServerMessage, parsed).success;
@@ -167,7 +175,9 @@ describe('PageWire — граница JSON', () => {
     const server = new StubServer();
     const { wire, end } = await connected(server);
     const received: ServerMsg[] = [];
-    end.onMessage((message) => received.push(message));
+    end.onMessage((message) => {
+      received.push(message);
+    });
     const sent = [signal(1), signal(2), signal(3)];
 
     for (const message of sent) server.push(message);
@@ -182,7 +192,9 @@ describe('PageWire — граница JSON', () => {
     const server = new StubServer();
     const { wire, end } = await connected(server);
     const received: ServerMsg[] = [];
-    end.onMessage((message) => received.push(message));
+    end.onMessage((message) => {
+      received.push(message);
+    });
 
     end.send(call);
     await wire.settled();
@@ -190,11 +202,11 @@ describe('PageWire — граница JSON', () => {
     expect(received).toEqual([{ kind: 'result', id: 'c1', result: ok({}) }]);
   });
 
-  test('реакция клиента через QUIET_TURNS − 1 ходов микрозадач — settled её дожидается', async () => {
+  test('реакция клиента — промис обработчика: settled дожидается её и через 1000 ходов микрозадач', async () => {
     const server = new StubServer();
     const { wire, end } = await connected(server);
     end.onMessage(async () => {
-      for (let turn = 1; turn < QUIET_TURNS; turn += 1) await Promise.resolve();
+      for (let turn = 0; turn < 1000; turn += 1) await Promise.resolve();
       end.send(unwatch);
     });
 
@@ -202,6 +214,83 @@ describe('PageWire — граница JSON', () => {
     await wire.settled();
 
     expect(server.received.map((raw) => JSON.parse(raw))).toEqual([unwatch]);
+  });
+
+  test('обработчик сигнала шлёт call и ждёт result по тому же проводу — settled разрешается, тупика нет', async () => {
+    const server = new StubServer();
+    const { wire, end } = await connected(server);
+    const reread: ServerMsg[] = [];
+    let answered: ((message: ServerMsg) => void) | undefined;
+    end.onMessage(async (message) => {
+      if (message.kind === 'result') {
+        answered?.(message);
+        return;
+      }
+      if (message.kind !== 'signal') return;
+      // Перечитывание по сигналу: ответ приходит, пока этот промис не разрешён.
+      const reply = Promise.withResolvers<ServerMsg>();
+      answered = reply.resolve;
+      end.send(call);
+      reread.push(await reply.promise);
+    });
+
+    server.push(signal(1));
+    await wire.settled();
+
+    expect(reread).toEqual([{ kind: 'result', id: 'c1', result: ok({}) }]);
+  });
+
+  test('обработчик без промиса — settled не крутит ходы: работу, о которой провод не знает, не ждёт', async () => {
+    const server = new StubServer();
+    const { wire, end } = await connected(server);
+    end.onMessage(() => {
+      // Реакция мимо промиса обработчика: провод о ней не узнаёт. 50 ходов —
+      // с запасом больше собственных ходов `settled()` (около десяти).
+      void (async () => {
+        for (let turn = 0; turn < 50; turn += 1) await Promise.resolve();
+        end.send(unwatch);
+      })();
+    });
+
+    server.push(signal(1));
+    await wire.settled();
+
+    expect(server.received).toEqual([]);
+  });
+});
+
+describe('PageWire — предел строки сервера', () => {
+  const text = JSON.stringify(NOTIFICATION);
+
+  test('строка длиннее MAX_SERVER_TEXT — не доставлена, обрыв один раз, settled бросает', async () => {
+    const server = new StubServer();
+    const { wire, end } = await connected(server);
+    const received: ServerMsg[] = [];
+    const breaks: string[] = [];
+    end.onMessage((message) => {
+      received.push(message);
+    });
+    end.onBreak((error) => breaks.push(error.message));
+
+    server.raw(text.padEnd(MAX_SERVER_TEXT + 1, ' '));
+
+    await expect(wire.settled()).rejects.toThrow('длиннее предела');
+    expect(received).toEqual([]);
+    expect(breaks).toEqual([expect.stringContaining('длиннее предела')]);
+  });
+
+  test('строка ровно на пределе — доставлена', async () => {
+    const server = new StubServer();
+    const { wire, end } = await connected(server);
+    const received: ServerMsg[] = [];
+    end.onMessage((message) => {
+      received.push(message);
+    });
+
+    server.raw(text.padEnd(MAX_SERVER_TEXT, ' '));
+    await wire.settled();
+
+    expect(received).toStrictEqual([NOTIFICATION]);
   });
 });
 
@@ -211,13 +300,14 @@ describe('PageWire — сообщение сервера не по схеме', 
     const { wire, end } = await connected(server);
     const received: ServerMsg[] = [];
     const breaks: string[] = [];
-    end.onMessage((message) => received.push(message));
+    end.onMessage((message) => {
+      received.push(message);
+    });
     end.onBreak((error) => breaks.push(error.message));
 
     server.push({ kind: 'result', id: idOf(257), result: ok({}) });
 
-    expect(wire.settled()).rejects.toThrow('не по схеме');
-    await wire.settled().catch(() => {});
+    await expect(wire.settled()).rejects.toThrow('не по схеме');
     expect(received).toEqual([]);
     expect(breaks).toEqual([expect.stringContaining('не по схеме')]);
   });
@@ -226,7 +316,9 @@ describe('PageWire — сообщение сервера не по схеме', 
     const server = new StubServer();
     const { wire, end } = await connected(server);
     const received: ServerMsg[] = [];
-    end.onMessage((message) => received.push(message));
+    end.onMessage((message) => {
+      received.push(message);
+    });
 
     server.push({ kind: 'result', id: idOf(257), result: ok({}) });
     server.push(signal(1));

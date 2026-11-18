@@ -50,7 +50,7 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui/chat-ui/testing` | подставной мессенджер `MemoryMessenger`, привязка примера к диалогу | [Пакет мессенджера](docs/guides/messenger-package.md#9-как-тестировать) |
 | `dmg-ui/tg-bot` | мессенджер Telegram поверх порта Bot API, приём апдейтов, меню, правила `TG-NN` | [Telegram](docs/guides/telegram.md) |
 | `dmg-ui/tg-bot/testing` | подставной порт Bot API `MemoryBotApi`, построитель апдейтов, пример под Telegram | [Telegram](docs/guides/telegram.md#10-тестирование-и-пример) |
-| `dmg-ui/web-ui` | учебный страничный канал: клиент `PageClient`, сервер `PageHost`, провод в памяти `PageWire`, поставщик графа и правила `PG-NN`, контракт представления (`ViewSource`, `PageViewState`, `PageRegionPresenter`), текстовая страница `PageText` | [Пакет канала](docs/guides/channel-package.md) |
+| `dmg-ui/web-ui` | учебный страничный канал: клиент `PageClient`, сервер `PageHost`, провод в памяти `PageWire`, мост сокета `PageSockets`, ворота `PageGate`, конец сокета `PageSocketEnd` и адаптер `PageBrowserSocket`, поставщик графа и правила `PG-NN`, контракт представления (`ViewSource`, `PageViewState`, `PageRegionPresenter`), текстовая страница `PageText` | [Пакет канала](docs/guides/channel-package.md) |
 | `dmg-ui/web-ui/testing` | привязка учебного примера к страничному каналу | [Пакет канала](docs/guides/channel-package.md) |
 
 Полный список имён — в файлах входов; причины деления на входы — [D-UI-4](docs/decisions.md), [D-UI-34](docs/decisions.md) и [D-UI-63](docs/decisions.md).

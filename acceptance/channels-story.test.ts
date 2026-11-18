@@ -169,8 +169,9 @@ const onPages = async () => {
   const host = new PageHost({
     app: ExamplePagesAppDef,
     server: w.server,
-    tokens: (token) => tokens.get(token),
-    identities: () => w.example.callers,
+    tokens: async (token) => tokens.get(token),
+    callers: w.example.callers,
+    places,
     logger: w.context.logger,
   });
   new UiNotifier({

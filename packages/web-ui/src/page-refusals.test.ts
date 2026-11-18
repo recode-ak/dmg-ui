@@ -7,7 +7,7 @@ import {
   useTempDir,
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
-import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
+import { ApiAppDispatch, type PersonPlaces, UiServer } from 'dmg-ui/server';
 import {
   CARD_ID,
   ExampleUiSetDef,
@@ -24,7 +24,6 @@ import {
 import { PageClient } from './client/page-client';
 import { PageText } from './client/page-text';
 import { PageHost } from './server/page-host';
-import type { ServerMessage as ServerMsg } from './wire/page-messages.types';
 import { PageWire } from './wire/page-wire';
 import type { PageServerPort, ServerLink } from './wire/page-wire.types';
 
@@ -35,6 +34,9 @@ import type { PageServerPort, ServerLink } from './wire/page-wire.types';
 const A = testUuid(1);
 const B = testUuid(2);
 const tmp = useTempDir('dmg-ui-page-refusals-');
+const places: PersonPlaces = {
+  place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
+};
 
 /** Вкладка на проводе к `host` по токену. */
 const tab = async (host: PageServerPort, token: string) => {
@@ -77,8 +79,9 @@ const world = () => {
   const host = new PageHost({
     app: ExamplePagesAppDef,
     server,
-    tokens: (token) => tokens.get(token),
-    identities: () => example.callers,
+    tokens: async (token) => tokens.get(token),
+    callers: example.callers,
+    places,
     logger: context.logger,
   });
   return { bus, host };
@@ -88,22 +91,30 @@ const world = () => {
 class BrokenServer implements PageServerPort {
   async connect(
     token: string,
-    push: (message: ServerMsg) => void,
+    push: (text: string) => void,
   ): Promise<Result<ServerLink, 'refused'>> {
     if (token !== 't') return err('refused');
-    push({
-      kind: 'hello',
-      context: {
-        locale: 'ru-RU',
-        timeZone: 'Asia/Oral',
-        delegate: false,
-        readOnly: false,
-      },
-    });
+    push(
+      JSON.stringify({
+        kind: 'hello',
+        context: {
+          locale: 'ru-RU',
+          timeZone: 'Asia/Oral',
+          delegate: false,
+          readOnly: false,
+        },
+      }),
+    );
     return ok({
       receive: async (raw) => {
         if (raw.includes('"kind":"call"')) {
-          push({ kind: 'result', id: 'x'.repeat(257), result: ok([]) });
+          push(
+            JSON.stringify({
+              kind: 'result',
+              id: 'x'.repeat(257),
+              result: ok([]),
+            }),
+          );
         }
       },
       close: () => {},

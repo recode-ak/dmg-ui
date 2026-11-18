@@ -6,7 +6,12 @@ import {
   useTempDir,
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
-import { ApiAppDispatch, UiNotifier, UiServer } from 'dmg-ui/server';
+import {
+  ApiAppDispatch,
+  type PersonPlaces,
+  UiNotifier,
+  UiServer,
+} from 'dmg-ui/server';
 import {
   ASSIGNED_ID,
   CARD_ID,
@@ -45,6 +50,9 @@ const A = testUuid(1);
 const B = testUuid(2);
 const ASSIGNED = { screen: ASSIGNED_ID, params: {} };
 const tmp = useTempDir('dmg-ui-page-story-');
+const places: PersonPlaces = {
+  place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
+};
 
 /** Вкладка личности: свой провод (журнал) и клиент; `requestId` — `<префикс>-<n>`. */
 const tab = async (host: PageServerPort, token: string, prefix: string) => {
@@ -84,8 +92,9 @@ const world = async () => {
   const host = new PageHost({
     app: ExamplePagesAppDef,
     server,
-    tokens: (token) => tokens.get(token),
-    identities: () => example.callers,
+    tokens: async (token) => tokens.get(token),
+    callers: example.callers,
+    places,
     logger: context.logger,
   });
   new UiNotifier({

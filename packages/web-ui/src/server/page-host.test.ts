@@ -11,25 +11,34 @@ import {
   type ExampleUser,
   TaskEvents,
 } from 'dmg-core/testing/example';
+import type { Place } from 'dmg-ui';
 import {
   ApiAppDispatch,
   type DeliveredNotification,
+  type PersonPlaces,
   type RecipientCallers,
   UiServer,
 } from 'dmg-ui/server';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { exampleUser, oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import { ExamplePagesAppDef } from '../../testing';
+import { PAGE_CHANNEL } from '../page-channel.const';
 import type { ServerMessage as ServerMsg } from '../wire/page-messages.types';
-import { MAX_CLIENT_TEXT } from '../wire/page-wire.const';
+import { MAX_CLIENT_TEXT, MAX_SERVER_TEXT } from '../wire/page-wire.const';
 import type { ServerLink } from '../wire/page-wire.types';
 import { PageHost } from './page-host';
-import { CALL_LIMIT, CONNECTION_LIMIT } from './page-server.const';
+import {
+  CALL_LIMIT,
+  CONNECTION_LIMIT,
+  HOST_LOGS,
+  WATCH_LIMIT,
+} from './page-server.const';
 
 // Серверная половина страничного канала на настоящем `UiServer`: соединение
-// по токену, `hello` с контекстом рендера, `call`/`watch`/`unwatch`, мусор —
-// `refused` без броска, доставка уведомлений без `trace` и `recipient`.
-// Клиент — тест: строки JSON в `link.receive`, сообщения сервера — в `push`.
+// по токену, `hello` с контекстом рендера из места личности, `call`/`watch`/
+// `unwatch`, мусор — `refused` без броска, доставка уведомлений без `trace`
+// и `recipient`. Клиент — тест: строки JSON в `link.receive`, строки сервера —
+// в `push`.
 
 const A = testUuid(1);
 const B = testUuid(2);
@@ -39,12 +48,30 @@ const TOKENS = new Map([
   ['tA', A],
   ['tB', B],
 ]);
+/** Место личностей: у A и B — разное, чтобы видеть, чьё место в `hello`. */
+const PLACES = new Map<string, Place>([
+  [A, { locale: 'kk-KZ', timeZone: 'Asia/Almaty' }],
+  [B, { locale: 'ru-RU', timeZone: 'Asia/Oral' }],
+]);
 const tmp = useTempDir('dmg-ui-page-host-');
 
 type WorldSpec = {
-  readonly identities?: RecipientCallers<ExampleUser>;
-  readonly place?: { readonly locale: string; readonly timeZone: string };
+  readonly callers?: RecipientCallers<ExampleUser>;
+  readonly tokens?: (token: string) => Promise<string | undefined>;
+  readonly places?: PersonPlaces;
 };
+
+/** Порт места по `PLACES` с журналом запросов `(uuid, trace)`. */
+class JournalPlaces implements PersonPlaces {
+  readonly asked: { readonly uuid: string; readonly trace: Trace }[] = [];
+
+  async place(uuid: string, trace: Trace): Promise<Place> {
+    this.asked.push({ uuid, trace });
+    const place = PLACES.get(uuid);
+    if (place === undefined) throw new Error(`места для ${uuid} нет`);
+    return place;
+  }
+}
 
 const world = (spec: WorldSpec = {}) => {
   const bus = new AwaitingBus();
@@ -59,25 +86,26 @@ const world = (spec: WorldSpec = {}) => {
     dispatch: new ApiAppDispatch(example.api),
     context,
   });
+  const places = new JournalPlaces();
   const host = new PageHost({
     app: ExamplePagesAppDef,
     server,
-    tokens: (token) => TOKENS.get(token),
-    identities: () => spec.identities ?? example.callers,
+    tokens: spec.tokens ?? (async (token) => TOKENS.get(token)),
+    callers: spec.callers ?? example.callers,
+    places: spec.places ?? places,
     logger,
-    ...(spec.place === undefined ? {} : { place: spec.place }),
   });
-  return { bus, logger, host };
+  return { bus, logger, host, places };
 };
 
 type World = ReturnType<typeof world>;
 
-/** Сообщения сервера одного соединения по порядку. */
+/** Строки сервера одного соединения по порядку — разобранными. */
 class Pushed {
   readonly messages: ServerMsg[] = [];
 
-  readonly push = (message: ServerMsg): void => {
-    this.messages.push(message);
+  readonly push = (text: string): void => {
+    this.messages.push(JSON.parse(text));
   };
 
   of(kind: ServerMsg['kind']): ServerMsg[] {
@@ -103,13 +131,6 @@ const callOf = (id: string, uc: string, input: unknown, requestId: string) => ({
 
 const records = (op: string) =>
   oplogRecords(tmp().path).filter((r) => r.op === op);
-
-/** Всё, что сервер отправил, переживает круг JSON без потерь (`undefined`, `Date`). */
-const expectJsonOnly = (messages: readonly ServerMsg[]) => {
-  for (const message of messages) {
-    expect(JSON.parse(JSON.stringify(message))).toStrictEqual(message);
-  }
-};
 
 const assignedFor = (recipient: string, eventId: string) =>
   ({
@@ -139,7 +160,7 @@ describe('PageHost.connect — токен и hello', () => {
     expect(pushed.messages).toEqual([]);
   });
 
-  test('известный токен — hello первым и один раз; контекст по умолчанию, без заместителя', async () => {
+  test('известный токен — hello первым и один раз; место — из PersonPlaces по uuid токена, без заместителя', async () => {
     const w = world();
 
     const { pushed } = await open(w, 'tA');
@@ -148,29 +169,109 @@ describe('PageHost.connect — токен и hello', () => {
       {
         kind: 'hello',
         context: {
-          locale: 'ru-RU',
-          timeZone: 'Asia/Oral',
+          locale: 'kk-KZ',
+          timeZone: 'Asia/Almaty',
           delegate: false,
           readOnly: false,
         },
       },
     ]);
+    expect(w.places.asked.map((a) => a.uuid)).toEqual([A]);
+    expect(w.places.asked[0]?.trace.channel).toStrictEqual({
+      name: PAGE_CHANNEL,
+    });
   });
 
-  test('place канала — язык и пояс контекста в hello', async () => {
-    const w = world({ place: { locale: 'kk-KZ', timeZone: 'Asia/Almaty' } });
+  test('у B — своё место', async () => {
+    const w = world();
+
+    const { pushed } = await open(w, 'tB');
+
+    expect(pushed.messages[0]).toMatchObject({
+      kind: 'hello',
+      context: { locale: 'ru-RU', timeZone: 'Asia/Oral' },
+    });
+    expect(w.places.asked.map((a) => a.uuid)).toEqual([B]);
+  });
+
+  test('заместитель — место того, кто работает (uuid токена), а не замещаемого', async () => {
+    const w = world({
+      callers: {
+        resolve: async () =>
+          ok(new DelegateCaller(exampleUser(B), exampleUser(A), 'd-1')),
+      },
+    });
 
     const { pushed } = await open(w, 'tA');
 
     expect(pushed.messages[0]).toMatchObject({
       kind: 'hello',
-      context: { locale: 'kk-KZ', timeZone: 'Asia/Almaty' },
+      context: { locale: 'kk-KZ', timeZone: 'Asia/Almaty', delegate: true },
     });
+    expect(w.places.asked.map((a) => a.uuid)).toEqual([A]);
+  });
+
+  test.each([
+    [
+      'places бросил',
+      {
+        places: {
+          place: async () => {
+            throw new Error('страж-броска-порта');
+          },
+        },
+      },
+    ],
+    [
+      'tokens бросил',
+      {
+        tokens: async () => {
+          throw new Error('страж-броска-порта');
+        },
+      },
+    ],
+  ] satisfies [string, WorldSpec][])(
+    '%s — refused, error фиксированным текстом, соединения нет',
+    async (_name, spec) => {
+      const w = world(spec);
+      const pushed = new Pushed();
+
+      const res = await w.host.connect('tA', pushed.push);
+
+      expect(res).toEqual({ ok: false, error: 'refused' });
+      expect(pushed.messages).toEqual([]);
+      expect(w.host.delivery.connections(A)).toBe(0);
+      expect(w.logger.records.filter((r) => r.level === 'error')).toMatchObject(
+        [{ source: PAGE_CHANNEL }],
+      );
+      expect(JSON.stringify(w.logger.records)).not.toContain('страж');
+    },
+  );
+
+  test('callers.resolve бросил — refused, один error текстом сбоя порта, соединения нет', async () => {
+    const w = world({
+      callers: {
+        resolve: async () => {
+          throw new Error('страж-броска-вызывающего');
+        },
+      },
+    });
+    const pushed = new Pushed();
+
+    const res = await w.host.connect('tA', pushed.push);
+
+    expect(res).toEqual({ ok: false, error: 'refused' });
+    expect(pushed.messages).toEqual([]);
+    expect(w.host.delivery.connections(A)).toBe(0);
+    expect(w.logger.records.filter((r) => r.level === 'error')).toMatchObject([
+      { source: PAGE_CHANNEL, message: HOST_LOGS.context },
+    ]);
+    expect(JSON.stringify(w.logger.records)).not.toContain('страж');
   });
 
   test('заместитель только на чтение — признаки в hello, а команда всё равно отказана сервером', async () => {
     const w = world({
-      identities: {
+      callers: {
         resolve: async () =>
           ok(new DelegateCaller(exampleUser(A), exampleUser(B), 'd-1', true)),
       },
@@ -417,7 +518,6 @@ describe('PageConnection — watch и unwatch', () => {
       cause: { kind: 'event', eventId },
       correlationId: eventId,
     });
-    expectJsonOnly(pushed.messages);
   });
 
   test('чужое событие — сигнала нет (сопоставление по субъекту сессии)', async () => {
@@ -494,6 +594,25 @@ describe('PageConnection — watch и unwatch', () => {
     ]);
   });
 
+  test('N повторов id подписки — watch-refused на каждый, один warn; другой вид отказа — свой warn', async () => {
+    const w = world();
+    const { pushed, link } = await open(w, 'tA');
+    for (let n = 1; n <= WATCH_LIMIT; n += 1) {
+      await send(link, { kind: 'watch', watch: `w${n}`, address: LIST });
+    }
+
+    for (let n = 0; n < 5; n += 1) {
+      await send(link, { kind: 'watch', watch: 'w1', address: LIST });
+    }
+    const repeatWarns = w.logger.records.filter((r) => r.level === 'warn');
+    await send(link, { kind: 'watch', watch: 'сверх-1', address: LIST });
+    await send(link, { kind: 'watch', watch: 'сверх-2', address: LIST });
+
+    expect(pushed.of('watch-refused')).toHaveLength(7);
+    expect(repeatWarns).toHaveLength(1);
+    expect(w.logger.records.filter((r) => r.level === 'warn')).toHaveLength(2);
+  });
+
   test('unwatch освобождает место под подписку', async () => {
     const w = world();
     const { pushed, link } = await open(w, 'tA');
@@ -543,7 +662,6 @@ describe('PageDelivery', () => {
     const text = JSON.stringify(b.pushed.of('notification'));
     expect(text).not.toContain('r-assign');
     expect(text).not.toContain(B);
-    expectJsonOnly(b.pushed.messages);
   });
 
   test('все соединения получателя получают уведомление, чужие — нет', async () => {
@@ -570,6 +688,19 @@ describe('PageDelivery', () => {
     expect(b.pushed.of('notification')).toEqual([]);
   });
 
+  test('уведомление длиннее MAX_SERVER_TEXT — соединение его не получило, warn есть', async () => {
+    const w = world();
+    const b = await open(w, 'tB');
+
+    await w.host.delivery.deliver({
+      ...assignedFor(B, 'e-1'),
+      data: { title: 'x'.repeat(MAX_SERVER_TEXT) },
+    });
+
+    expect(b.pushed.of('notification')).toEqual([]);
+    expect(w.logger.records.filter((r) => r.level === 'warn')).toHaveLength(1);
+  });
+
   test('закрытое соединение уведомлений не получает', async () => {
     const w = world();
     const b = await open(w, 'tB');
@@ -578,5 +709,27 @@ describe('PageDelivery', () => {
     await w.host.delivery.deliver(assignedFor(B, 'e-1'));
 
     expect(b.pushed.of('notification')).toEqual([]);
+  });
+});
+
+describe('PageHost — лог без пропуска и данных клиента', () => {
+  test('неизвестный токен-страж и вызов со стражем во входе — стражей в логе нет', async () => {
+    const w = world();
+    const guardToken = 'страж-пропуска-неизвестный';
+    const guardInput = 'страж-входа-вызова';
+
+    await w.host.connect(guardToken, new Pushed().push);
+    const { link } = await open(w, 'tA');
+    await send(link, callOf('c1', 'createTask', { title: guardInput }, 'r-1'));
+    await send(
+      link,
+      callOf('c2', 'getTaskAssignee', { taskId: guardInput }, 'r-2'),
+    );
+    await link.receive(`{не json ${guardInput}`);
+
+    expect(w.logger.records.filter((r) => r.level === 'warn')).not.toEqual([]);
+    const text = JSON.stringify(w.logger.records);
+    expect(text).not.toContain(guardToken);
+    expect(text).not.toContain(guardInput);
   });
 });

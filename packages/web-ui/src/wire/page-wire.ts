@@ -1,26 +1,26 @@
 import { err, ok, type Result } from 'dmg-core';
 import type { RenderContext } from 'dmg-ui';
-import * as v from 'valibot';
-import { ServerMessage } from './page-messages';
+import { serverFrame } from './page-frames';
 import type {
   ClientMessage,
   ServerMessage as ServerMessageType,
 } from './page-messages.types';
-import { QUIET_TURNS } from './page-wire.const';
 import type { ClientEnd, PageServerPort, ServerLink } from './page-wire.types';
 
 /**
  * Провод в памяти — одно соединение; между концами только строки JSON,
  * журнал `messages` — в порядке отправки. Порядок в каждую сторону
  * сохраняется: сервер начинает строки по порядку, обрабатывает параллельно.
- * Сообщение сервера не по схеме клиенту не доставляется: это ошибка провода
- * (`settled()` бросает) и обрыв для клиента — как и `close`.
+ * Строка сервера длиннее предела или не по схеме клиенту не доставляется:
+ * это ошибка провода (`settled()` бросает) и обрыв для клиента — как и `close`.
  */
 export class PageWire {
   private readonly journal: string[] = [];
-  private readonly handlers: ((message: ServerMessageType) => void)[] = [];
+  private readonly handlers: ((
+    message: ServerMessageType,
+  ) => Promise<void> | void)[] = [];
   private readonly breaks: ((error: Error) => void)[] = [];
-  /** Незавершённые доставки и обработки обеих сторон — для `settled()`. */
+  /** Незавершённая работа обеих сторон, с промисами обработчиков, — для `settled()`. */
   private readonly running = new Set<Promise<void>>();
   private readonly errors: unknown[] = [];
   private toServer: Promise<void> = Promise.resolve();
@@ -48,8 +48,8 @@ export class PageWire {
       throw new Error('PageWire: провод уже соединён — один на соединение');
     }
     this.started = true;
-    const res = await this.server.connect(token, (message) =>
-      this.fromServer(message),
+    const res = await this.server.connect(token, (text) =>
+      this.fromServer(text),
     );
     if (!res.ok) return err('refused');
     const context = this.hello;
@@ -73,14 +73,13 @@ export class PageWire {
   }
 
   /**
-   * Ждёт тишины: все доставки и обработки завершены, и за `QUIET_TURNS`
-   * ходов микрозадач новых нет. Без таймеров (TST-04). Бросок обработчика —
+   * Ждёт, пока вся работа провода не завершится — доставки, обработка
+   * сервера и промисы обработчиков клиента; без таймеров (TST-04). Бросок —
    * после ожидания, первым.
+   * @see ./page-wire.test.ts — «обработчик сигнала шлёт call и ждёт result по тому же проводу»
    */
   async settled(): Promise<void> {
-    do {
-      while (this.running.size > 0) await Promise.all([...this.running]);
-    } while (!(await this.quiet()));
+    while (this.running.size > 0) await Promise.all([...this.running]);
     const [error] = this.errors.splice(0);
     if (error !== undefined) throw error;
   }
@@ -100,8 +99,7 @@ export class PageWire {
     this.broken(new Error('PageWire: соединение закрыто'));
   }
 
-  private fromServer(message: ServerMessageType): void {
-    const text = JSON.stringify(message);
+  private fromServer(text: string): void {
     this.journal.push(text);
     if (!this.open) {
       this.handshake(text);
@@ -112,22 +110,32 @@ export class PageWire {
 
   /** До открытия конца принимается только `hello`; прочее — некому доставить. */
   private handshake(text: string): void {
-    const message = PageWire.parse(text);
-    if (message?.kind === 'hello' && this.hello === undefined) {
-      this.hello = message.context;
+    const parsed = serverFrame(text);
+    if (
+      parsed.ok &&
+      parsed.value.kind === 'hello' &&
+      this.hello === undefined
+    ) {
+      this.hello = parsed.value.context;
     }
   }
 
-  private deliver(text: string): void {
+  /** Доставка обработчикам; завершается вместе с их промисами. */
+  private async deliver(text: string): Promise<void> {
     if (this.closed) return;
-    const message = PageWire.parse(text);
-    if (message === undefined) {
-      const error = new Error('PageWire: сообщение сервера не по схеме');
+    const parsed = serverFrame(text);
+    if (!parsed.ok) {
+      const error = new Error(
+        parsed.error === 'too-large'
+          ? 'PageWire: сообщение сервера длиннее предела'
+          : 'PageWire: сообщение сервера не по схеме',
+      );
       this.errors.push(error);
       this.broken(error);
       return;
     }
-    for (const handler of [...this.handlers]) handler(message);
+    const message = parsed.value;
+    await Promise.all([...this.handlers].map((handler) => handler(message)));
   }
 
   /** Обрыв для клиента: ожидающие ответа узнают о нём сразу. */
@@ -136,9 +144,10 @@ export class PageWire {
   }
 
   /**
-   * Шаг очереди одной стороны: начинается после предыдущего, работа
-   * отслеживается до завершения. Очередь не рвётся на броске — бросок
-   * копится для `settled()`.
+   * Шаг очереди одной стороны: начинается после предыдущего и разрешается,
+   * как только работа начата, — следующий шаг не ждёт её конца, поэтому
+   * обработчик, ждущий ответа сервера, не запирает очередь. Работа
+   * отслеживается до завершения; бросок копится для `settled()`.
    */
   private later(
     queue: Promise<void>,
@@ -161,25 +170,5 @@ export class PageWire {
         this.running.delete(done);
       });
     this.running.add(done);
-  }
-
-  private async quiet(): Promise<boolean> {
-    for (let turn = 0; turn < QUIET_TURNS; turn += 1) {
-      await Promise.resolve();
-      if (this.running.size > 0) return false;
-    }
-    return true;
-  }
-
-  /** Строка сервера → сообщение по схеме; не JSON или не по схеме — `undefined`. */
-  private static parse(text: string): ServerMessageType | undefined {
-    let json: unknown;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      return undefined;
-    }
-    const parsed = v.safeParse(ServerMessage, json);
-    return parsed.success ? parsed.output : undefined;
   }
 }
