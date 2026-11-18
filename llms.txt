@@ -8,11 +8,12 @@
 
 - [README](README.md): что даёт пакет, установка одной командой с `dmg-core`, одиннадцать входов, карта документов
 - [Сторис, экран, уведомление](docs/guides/story-screen-notification.md): модель, манифесты, код экрана, исполнение и исходы действий, чеклист правил UI-NN, ловушки, тесты
-- [Пакет канала](docs/guides/channel-package.md): что обязан дать канал, сборка сервера и исполнителя, политики по исходам, представления беседы, показ на месте или новым, путь и «Назад», ребро `presents` и свои правила (`PG`), граница JSON и провод, безопасность, доставка уведомлений
+- [Пакет канала](docs/guides/channel-package.md): что обязан дать канал, сборка сервера и исполнителя, политики по исходам, представления беседы, показ на месте или новым, путь и «Назад», ребро `presents` и свои правила, граница JSON и провод, безопасность, доставка уведомлений
+- [Web-канал](docs/guides/web-channel.md): подключение `dmg-ui/web-ui` — состав, контракт представления, провод и привязка к `Bun.serve`, URL и маршруты, области, история, форма и жест, показ до ответа, граф и правила `PG-NN`, безопасность, решения без реализации, тесты, чеклист проекта
 - [Пакет мессенджера](docs/guides/messenger-package.md): общая часть мессенджеров `chat-ui`, что обязан дать пакет мессенджера, беседа, лимиты, сообщество, граф и правила `CH-NN`, безопасность, тесты, сверка с другими мессенджерами, чеклист
 - [Telegram](docs/guides/telegram.md): подключение `dmg-ui/tg-bot` — сборка, апдейты и подлинность, тексты и кнопки, меню, сообщество, возможности, отказы Bot API, что не проверено на живом Telegram, чеклист проекта
 - [Пример Telegram-бота](examples/tg-bot/README.md): запускаемый пример `examples/tg-bot` на `grammy` (`bun run example:tg`, проба `bun run example:tg:probe <chat_id>`), окружение, трасса вызовов, чек-лист ручной проверки на тестовом боте, «Что пример не проверяет» (D-UI-68)
-- [Пример web-канала](examples/web/README.md): запускаемый пример `examples/web` (`bun run example:web`): сервер на `Bun.serve`, страница на DOM без фреймворка, два человека, «медленный сервер», окружение, чек-лист ручной проверки в браузере, «Что пример не проверяет» (D-UI-85)
+- [Пример web-канала](examples/web/README.md): запускаемый пример `examples/web` (вход `dmg-ui/web-ui`, гайд [Web-канал](docs/guides/web-channel.md); `bun run example:web`): сервер на `Bun.serve`, страница на DOM без фреймворка, два человека, «медленный сервер», окружение, чек-лист ручной проверки в браузере, «Что пример не проверяет» (D-UI-85)
 
 ## Правила
 
@@ -22,8 +23,11 @@
 
 - [Решения](docs/decisions.md): реестр D-UI-N — поставка, манифесты, граф, исполнитель, уведомления, граница с клиентом
 - [Технический долг](debt.md): DEBT-UI-N — открытое в пакете и триггеры
-- [Учебный набор UI](packages/core/testing/example/example-ui.set.ts): `ExampleUiSetDef`; привязка к диалогу и к страничному каналу — в [Пакете канала](docs/guides/channel-package.md)
+- [Учебный набор UI](packages/core/testing/example/example-ui.set.ts): `ExampleUiSetDef`; привязка к диалогу — в [Пакете канала](docs/guides/channel-package.md), к страничному каналу — в [Web-канале](docs/guides/web-channel.md)
 - [Мессенджер Telegram](docs/guides/telegram.md#2-сборка): `TelegramMessenger` поверх узкого порта Bot API, подставной порт `MemoryBotApi`
 - [Меню и граф Telegram](docs/guides/telegram.md#5-точки-входа-и-меню): `TelegramMenu`, `TelegramGraphProvider` и правила TG-01…TG-06
 - [Учебный пример под Telegram](docs/guides/telegram.md#10-тестирование-и-пример): `exampleTelegramViews`, `ExampleTelegramPreview`
 - [Апдейты Telegram](docs/guides/telegram.md#3-подача-апдейтов-и-подлинность): `TelegramUpdates`, `TELEGRAM_ALLOWED_UPDATES`, сообщество группы — [раздел 6](docs/guides/telegram.md#6-сообщество)
+- [Привязка сервера на `Bun.serve`](docs/guides/web-channel.md#44-привязка-к-bunserve): шесть условий, пульс, пределы кадра и очереди
+- [Контракт представления](docs/guides/web-channel.md#3-контракт-представления): `ViewSource`, `PageRegionPresenter`, `PageViewState`
+- [Решения без реализации](docs/guides/web-channel.md#14-решения-без-реализации): серверный рендер, markdown контента, смена личности, что не проверено без фреймворка

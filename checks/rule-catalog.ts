@@ -2,7 +2,7 @@ import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
 /**
- * Префиксы правил репо: `UI` — ядро, `PG` — страничный канал примера, `CH` —
+ * Префиксы правил репо: `UI` — ядро, `PG` — страничный канал `web-ui`, `CH` —
  * общая часть мессенджеров, `TG` — Telegram. Общий шаблон `[A-Z]+-NN` нельзя: заголовки
  * `rules.md` упоминают ID платформы (`ARC-13`).
  */

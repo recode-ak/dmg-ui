@@ -2,7 +2,7 @@
 
 Ядро UI на манифестах поверх `dmg-core` для TypeScript и Bun. Интерфейс описывается манифестами: сторис (кто и зачем), экран (что человек видит и делает), уведомление (что система сообщает сама). Из них ядро выводит адреса, исполнитель экранов, серверную часть, граф и проверки. Ядро о каналах не знает: мессенджер, веб-страница и консоль — отдельные пакеты каналов, а экраны и их код остаются общими.
 
-Документация на русском. Образец всех артефактов — учебный набор UI [`packages/core/testing/example`](packages/core/testing/example/example-ui.set.ts) и два учебных канала: диалоговый (пакет `chat-ui`) и страничный (пакет `web-ui`); для мессенджеров — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md).
+Документация на русском. Образец всех артефактов — учебный набор UI [`packages/core/testing/example`](packages/core/testing/example/example-ui.set.ts) и два канала: диалоговый (пакет `chat-ui`) и страничный (пакет `web-ui`); для мессенджеров — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md), для страницы — [Web-канал](docs/guides/web-channel.md).
 
 ## Кому что даёт
 
@@ -18,7 +18,7 @@
 | Слой | Что это | Знает |
 |---|---|---|
 | ядро `dmg-ui` | способ описать приложение UI и его правила: манифесты, исполнитель, граф, проверки | `dmg-core`; о каналах не знает |
-| пакет канала | мессенджер, веб-страница, консоль; в репо — `chat-ui` (общая часть мессенджеров: беседа и её представления) и `tg-bot` (канал Telegram: мессенджер поверх узкого порта Bot API) | ядро; `tg-bot` — ещё и `chat-ui` |
+| пакет канала | мессенджер, веб-страница, консоль; в репо — `chat-ui` (общая часть мессенджеров: беседа и её представления), `tg-bot` (канал Telegram: мессенджер поверх узкого порта Bot API) и `web-ui` (страничный канал: клиент в браузере, сервер сокета) | ядро; `tg-bot` — ещё и `chat-ui` |
 | проект | манифесты и код сторис, экранов, представлений; библиотека транспорта | ядро, пакеты каналов, домен |
 
 Шесть видов Def: набор UI (`UiSetDef`), приложение UI (`UiAppDef`), UI-модуль (`UiModuleDef`), сторис (`StoryDef`), экран (`ScreenDef`), уведомление (`NotificationDef`). Манифест статичен, код экрана лежит отдельно и грузится лениво. Экран читает query UC, действие вызывает command UC и возвращает переход; адрес экрана от канала не зависит. Подробно — [гайд по сторис, экрану и уведомлению](docs/guides/story-screen-notification.md); причины решений — [decisions.md](docs/decisions.md).
@@ -30,7 +30,7 @@
 ```sh
 bun add valibot @valibot/to-json-schema \
   git+ssh://git@github.com/recode-ak/dmg-core.git#v0.6.2 \
-  git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.2.0
+  git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.0
 ```
 
 Почему одной. `dmg-core` у `dmg-ui` — peer-зависимость, а Bun ищет peer в реестре npm и получает 404. Если `dmg-core` назван в той же команде, Bun берёт его из git и peer удовлетворён. `@valibot/to-json-schema` — peer самого `dmg-core`.
@@ -50,8 +50,8 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui/chat-ui/testing` | подставной мессенджер `MemoryMessenger`, привязка примера к диалогу | [Пакет мессенджера](docs/guides/messenger-package.md#9-как-тестировать) |
 | `dmg-ui/tg-bot` | мессенджер Telegram поверх порта Bot API, приём апдейтов, меню, правила `TG-NN` | [Telegram](docs/guides/telegram.md) |
 | `dmg-ui/tg-bot/testing` | подставной порт Bot API `MemoryBotApi`, построитель апдейтов, пример под Telegram | [Telegram](docs/guides/telegram.md#10-тестирование-и-пример) |
-| `dmg-ui/web-ui` | учебный страничный канал: клиент `PageClient`, сервер `PageHost`, провод в памяти `PageWire`, мост сокета `PageSockets`, ворота `PageGate`, конец сокета `PageSocketEnd` и адаптер `PageBrowserSocket`, переподключатель `PageReconnector`, поставщик графа и правила `PG-NN`, контракт представления (`ViewSource`, `PageViewState`, `PageRegionPresenter`), текстовая страница `PageText`, часы `PageSystemClock`, кодек адреса в URL `PageUrls` | [Пакет канала](docs/guides/channel-package.md) |
-| `dmg-ui/web-ui/testing` | привязка учебного примера к страничному каналу, подставные часы `ManualPageClock` | [Пакет канала](docs/guides/channel-package.md) |
+| `dmg-ui/web-ui` | страничный канал: клиент `PageClient`, сервер `PageHost`, провод в памяти `PageWire`, мост сокета `PageSockets`, ворота `PageGate`, конец сокета `PageSocketEnd` и адаптер `PageBrowserSocket`, переподключатель `PageReconnector`, поставщик графа и правила `PG-NN`, контракт представления (`ViewSource`, `PageViewState`, `PageRegionPresenter`), текстовая страница `PageText`, часы `PageSystemClock`, ворота и переподключение, история `PageBrowserHistory`, форма `PageFormModel`, реестр представлений `PageViews`, кодек адреса в URL `PageUrls`, пределы `MAX_CLIENT_TEXT` и `MAX_SERVER_TEXT` | [Web-канал](docs/guides/web-channel.md) |
+| `dmg-ui/web-ui/testing` | привязка учебного примера к страничному каналу, подставные часы `ManualPageClock` и история `MemoryPageHistory` | [Web-канал](docs/guides/web-channel.md#15-как-тестировать) |
 
 Полный список имён — в файлах входов; причины деления на входы — [D-UI-4](docs/decisions.md), [D-UI-34](docs/decisions.md) и [D-UI-63](docs/decisions.md).
 
@@ -60,7 +60,7 @@ bun add valibot @valibot/to-json-schema \
 - [`packages/core/testing/example/`](packages/core/testing/example/example-ui.set.ts) — набор UI поверх учебного приложения `dmg-core`: экраны, сторис, уведомления, код, привязки к каналам.
 - [`packages/chat-ui/src/conversation/`](packages/chat-ui/src/conversation/conversation.ts) — беседа мессенджера (вход `dmg-ui/chat-ui`): один живой экран, сигналы по одному, таблица ссылок, сбор входа, показ на месте или новым, путь и «Назад», снимок; представления — [`packages/chat-ui/src/view/`](packages/chat-ui/src/view/screen-presenter.ts); сторис на двух подставных мессенджерах — [`conversation-story.test.ts`](packages/chat-ui/testing/conversation-story.test.ts); [`packages/chat-ui/src/graph/`](packages/chat-ui/src/graph/chat-graph-provider.ts) — поставщик графа общей части мессенджеров; [`packages/chat-ui/src/dialog/`](packages/chat-ui/src/dialog/dialog-renderer.ts) — рендерер примеров учебного диалога; [`packages/chat-ui/src/community/`](packages/chat-ui/src/community/communities.ts) — манифесты сообщества и их исполнитель; привязка примера — `packages/chat-ui/testing/`.
 - [`packages/tg-bot/`](packages/tg-bot/testing/telegram-story.test.ts) — канал Telegram: сторис на подставном порте Bot API; подробно — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md).
-- [`packages/web-ui/src/`](packages/web-ui/src/server/page-host.ts) — страничный канал: несколько областей, между клиентом и сервером только JSON.
+- [`packages/web-ui/src/`](packages/web-ui/src/server/page-host.ts) — страничный канал: несколько областей, между клиентом и сервером только JSON; подключение — гайд [Web-канал](docs/guides/web-channel.md).
 
 Оба канала проводят одну и ту же сторис при общем коде экранов; так проверяется нейтральность ядра ([D-UI-31](docs/decisions.md)). Сквозная проверка «одна сторис — два канала» лежит на уровне монорепо, в [`acceptance/`](acceptance/channels-story.test.ts).
 
@@ -70,6 +70,7 @@ bun add valibot @valibot/to-json-schema \
 |---|---|
 | [Сторис, экран, уведомление](docs/guides/story-screen-notification.md) | как объявить манифесты, написать код экрана, как всё исполняется, чеклист правил, ловушки, тесты |
 | [Пакет канала](docs/guides/channel-package.md) | что должен дать канал, сборка, политики по исходам, граф, граница JSON, безопасность, доставка уведомлений |
+| [Web-канал](docs/guides/web-channel.md) | подключение `dmg-ui/web-ui`: состав, контракт представления, провод и привязка к `Bun.serve`, URL и маршруты, области, история, форма и жест, показ до ответа, граф и правила `PG-NN`, безопасность, решения без реализации, тесты, чеклист проекта |
 | [Пакет мессенджера](docs/guides/messenger-package.md) | общая часть мессенджеров `chat-ui` и что обязан дать пакет конкретного мессенджера: беседа, лимиты, сообщество, граф, тесты, чеклист |
 | [Telegram](docs/guides/telegram.md) | подключение `dmg-ui/tg-bot`: сборка, апдейты, тексты и кнопки, меню, сообщество, возможности, отказы, что не проверено на живом Telegram |
 | [Каталог правил](docs/reference/rules.md) | правила графа `UI-NN` и `PG-NN`, ограничения правил, проверки репозитория |
@@ -77,7 +78,7 @@ bun add valibot @valibot/to-json-schema \
 | [Технический долг](debt.md) | открытое в пакете, `DEBT-UI-N` |
 | [`llms.txt`](llms.txt) | вход для агентов |
 
-Что куда писать. Как объявить экран, сторис, уведомление — первый гайд. Как сделать канал — второй. Как сделать мессенджер — третий, как подключить Telegram — четвёртый. Новое правило графа — строка в каталоге правил. Почему выбрано так, а не иначе, — запись в решениях. Отступление, которое не исправлено, — запись в долге. Знание из `dmg-core` не повторяется: на него ссылаются путём `node_modules/dmg-core/docs/…`.
+Что куда писать. Как объявить экран, сторис, уведомление — гайд «Сторис, экран, уведомление». Как сделать канал — «Пакет канала», как подключить страничный канал — «Web-канал». Как сделать мессенджер — «Пакет мессенджера», как подключить Telegram — «Telegram». Новое правило графа — строка в каталоге правил. Почему выбрано так, а не иначе, — запись в решениях. Отступление, которое не исправлено, — запись в долге. Знание из `dmg-core` не повторяется: на него ссылаются путём `node_modules/dmg-core/docs/…`.
 
 ## Разработка пакета
 
@@ -88,15 +89,15 @@ bun install
 bun run check
 ```
 
-`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.2.0`), сверяет их с `exports` установленного пакета, импортирует девять входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
+`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.0`), сверяет их с `exports` установленного пакета, импортирует одиннадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
 Запускаемый пример на живом Telegram — [`examples/tg-bot`](examples/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
 
-Запускаемый пример в браузере — [`examples/web`](examples/web/README.md) ([D-UI-85](docs/decisions.md)): `bun run example:web` (сервер на `Bun.serve`, страница на DOM без фреймворка, два человека, «медленный сервер»); чек-лист ручной проверки — в README примера. Без зависимостей сверх пакета.
+Запускаемый пример в браузере — [`examples/web`](examples/web/README.md) (вход `dmg-ui/web-ui`, гайд [Web-канал](docs/guides/web-channel.md), [D-UI-85](docs/decisions.md)): `bun run example:web` (сервер на `Bun.serve`, страница на DOM без фреймворка, два человека, «медленный сервер»); чек-лист ручной проверки — в README примера. Без зависимостей сверх пакета.
 
 ## Статус
 
-Версия `0.2.0` не замораживает контракт между ядром и каналами: пока его определяют учебные каналы и мессенджеры. Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
+Версия `0.3.0` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
 
 ## Лицензия
 
