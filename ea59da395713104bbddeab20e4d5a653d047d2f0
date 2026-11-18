@@ -1,0 +1,5 @@
+Задачи: red-тесты; входящие и отсев уведомлений с пределом и сроком; переподключение и перечитывание открытых экземпляров; аудит безопасности; ревью и правки.
+Изменения: PageReconnector, PageClient.attach, stale 'offline' и отключённые действия без связи, отложенный переход, отказ вызова без связи, виды отказа и буфер ранних кадров у PageSocketEnd; входящие — источник вида, PageSeenKeys (256 ключей, 1 ч), PageClock и PageSystemClock, ManualPageClock; views ушёл из PageClientSpec.
+Файлы: packages/web-ui/src/client/* (10 новых, 12 изменённых с тестами), packages/web-ui/src/view/{page-renderer,page-text-presenter}.ts, packages/web-ui/src/index.ts, packages/web-ui/testing/{index,manual-page-clock}.ts, тесты page-socket, page-refusals, page-assembly, page-story, acceptance/channels-story, checks/package-manifest.web-ui; документы docs/decisions.md (D-UI-74, D-UI-75), docs/guides/channel-package.md, README.md, debt.md.
+Причина: вкладка переживает обрыв и перезапуск сервера; память входящих и отсева ограничена.
+Проверка: bun run check — 3027 тестов, 0 fail, 20 снимков; аудит безопасности и ревью без error, замечания закрыты, новые тесты подтверждены мутациями.
