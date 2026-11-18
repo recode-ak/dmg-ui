@@ -17,6 +17,7 @@ const REQUIRED = [
   'docs/reference/rules.md',
   'docs/decisions.md',
   'examples/tg-bot/README.md',
+  'examples/web/README.md',
   'llms.txt',
   'debt.md',
 ];

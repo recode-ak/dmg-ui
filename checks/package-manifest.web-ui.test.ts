@@ -43,6 +43,8 @@ import type {
 
 const WEB_UI = [
   'ClientMessage',
+  'MAX_CLIENT_TEXT',
+  'MAX_SERVER_TEXT',
   'PAGE_CHANNEL',
   'PageBrowserHistory',
   'PageBrowserSocket',
@@ -69,6 +71,13 @@ const WEB_UI = [
 describe('вход dmg-ui/web-ui', () => {
   it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, переподключатель и часы, ворота, кодек адреса в URL, модель формы, привязка истории', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui')).sort()).toEqual(WEB_UI);
+  });
+
+  it('пределы кадра экспортируются: клиент — 64 КиБ, сервер — 1 МиБ', async () => {
+    const { MAX_CLIENT_TEXT, MAX_SERVER_TEXT } = await import('dmg-ui/web-ui');
+
+    expect(MAX_CLIENT_TEXT).toBe(65536);
+    expect(MAX_SERVER_TEXT).toBe(1048576);
   });
 
   it('имя канала прежнее', async () => {

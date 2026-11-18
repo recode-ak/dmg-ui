@@ -30,6 +30,8 @@ const CHAT_UI_TESTING = 'packages/chat-ui/testing';
 const TG_BOT = 'packages/tg-bot/src';
 /** Пакет канала Telegram: тестовый вход `dmg-ui/tg-bot/testing` (зарезервирован). */
 const TG_BOT_TESTING = 'packages/tg-bot/testing';
+/** Пример для браузера: четыре каталога, у каждого своя зона. */
+const WEB_EXAMPLE = 'examples/web/src';
 /** Пакеты каналов: каждый файл лежит в каталоге с зоной (`src/` или `testing/`). */
 const CHANNEL_PACKAGES = [
   'packages/chat-ui',
@@ -63,7 +65,12 @@ export class CoreImportScanner {
    * `tg-bot/src` (как `chat-ui/src`, плюс `dmg-ui/chat-ui`, без внешних
    * библиотек), `tg-bot/testing` (как `chat-ui/testing`, плюс
    * `dmg-ui/chat-ui/testing` и `dmg-ui/tg-bot`); пакеты каналов друг друга не
-   * знают (`PackageDirections`). Приёмочный каталог
+   * знают (`PackageDirections`). Пример для браузера
+   * (`examples/web/src/{common,view,client,server}/`): `common/` не знает
+   * никого, `testing/` — общая фикстура тестов (видит `common/`, `view/`, `server/`, не клиента), `view/` видит `common/`, клиент — `view/` и `common/`, сервер
+   * (`node:*`, `bun:*`, `dmg-core/app`, `dmg-core/arch`) — `view/` и
+   * `common/`, но не клиента; в сборку для браузера (`common/`, `view/`,
+   * `client/`) среда и серверные входы не попадают. Приёмочный каталог
    * `acceptance/` не ограничен, но в `packages/` заходит только по именам
    * входов: относительно и по `dmg-ui/...`, не совпадающему с входом из
    * `exports`.
@@ -80,6 +87,20 @@ export class CoreImportScanner {
       'dmg-ui/testing',
       'dmg-core/gen',
       'dmg-core/cli',
+    ];
+    // Каталоги примера, едущие в сборку для браузера: ни среды, ни серверных
+    // входов платформы; учебный домен и тестовые входы пакета — разрешены.
+    const browserForbidden = forbidden.filter(
+      (spec) => spec !== 'dmg-core/testing/*' && spec !== 'dmg-ui/testing',
+    );
+    const browserAllowed = [
+      'valibot',
+      'dmg-core',
+      'dmg-core/testing/example',
+      'dmg-ui',
+      'dmg-ui/testing',
+      'dmg-ui/web-ui',
+      'dmg-ui/web-ui/testing',
     ];
     return new CoreImportScanner([
       {
@@ -231,6 +252,89 @@ export class CoreImportScanner {
           'dmg-ui/web-ui',
         ],
         allowedPaths: [WEB_UI_TESTING],
+      },
+      {
+        include: [`${WEB_EXAMPLE}/common/`],
+        exclude: ['.test.ts'],
+        forbidden: browserForbidden,
+        allowed: ['valibot'],
+        // Общее не знает никого: ни моделей, ни клиента, ни сервера.
+        allowedPaths: [`${WEB_EXAMPLE}/common`],
+      },
+      {
+        include: [`${WEB_EXAMPLE}/view/`],
+        exclude: ['.test.ts'],
+        forbidden: browserForbidden,
+        allowed: browserAllowed,
+        // Модели делят сервер, клиент и тесты: только себя и общее.
+        allowedPaths: [`${WEB_EXAMPLE}/view`, `${WEB_EXAMPLE}/common`],
+      },
+      {
+        include: [`${WEB_EXAMPLE}/client/`],
+        exclude: ['.test.ts'],
+        forbidden: browserForbidden,
+        allowed: browserAllowed,
+        allowedPaths: [
+          `${WEB_EXAMPLE}/client`,
+          `${WEB_EXAMPLE}/view`,
+          `${WEB_EXAMPLE}/common`,
+        ],
+      },
+      {
+        include: [`${WEB_EXAMPLE}/server/`],
+        exclude: ['.test.ts'],
+        // Среда сервера — `node:*` и `bun:*`; остальное закрыто белым списком.
+        forbidden: [],
+        allowed: [
+          'node:*',
+          'bun:*',
+          'valibot',
+          'dmg-core',
+          'dmg-core/app',
+          'dmg-core/arch',
+          'dmg-core/testing',
+          'dmg-core/testing/example',
+          'dmg-ui',
+          'dmg-ui/server',
+          'dmg-ui/graph',
+          'dmg-ui/testing',
+          'dmg-ui/testing/fixtures',
+          'dmg-ui/web-ui',
+          'dmg-ui/web-ui/testing',
+        ],
+        // Клиента сервер не видит: корневая программа не знает типов браузера.
+        allowedPaths: [
+          `${WEB_EXAMPLE}/server`,
+          `${WEB_EXAMPLE}/view`,
+          `${WEB_EXAMPLE}/common`,
+        ],
+      },
+      {
+        include: [`${WEB_EXAMPLE}/testing/`],
+        exclude: ['.test.ts'],
+        // Общая фикстура тестов примера: то же, что тесты сервера; клиента нет.
+        forbidden: [],
+        allowed: [
+          'node:*',
+          'bun:test',
+          'valibot',
+          'dmg-core',
+          'dmg-core/app',
+          'dmg-core/testing',
+          'dmg-core/testing/example',
+          'dmg-ui',
+          'dmg-ui/server',
+          'dmg-ui/testing',
+          'dmg-ui/testing/fixtures',
+          'dmg-ui/web-ui',
+          'dmg-ui/web-ui/testing',
+        ],
+        allowedPaths: [
+          `${WEB_EXAMPLE}/testing`,
+          `${WEB_EXAMPLE}/common`,
+          `${WEB_EXAMPLE}/view`,
+          `${WEB_EXAMPLE}/server`,
+        ],
       },
       {
         include: [`${PREVIEW}/`],

@@ -96,6 +96,30 @@ describe('BrowserGlobalScanner — глобалы браузера вне кли
   });
 });
 
+describe('BrowserGlobalScanner — пример для браузера вне клиента', () => {
+  // Разрешение сужено до `examples/web/src/client/`: серверу и чистым
+  // моделям представлений глобалы браузера не нужны, зона должна краснеть.
+  for (const dir of ['server', 'view', 'common']) {
+    const path = `examples/web/src/${dir}/x.ts`;
+
+    for (const [line, name] of [
+      ['const w = window.innerWidth;', 'window.innerWidth'],
+      ["const d = document.createElement('div');", 'document.createElement'],
+      ['const s = new WebSocket(u);', 'WebSocket'],
+    ] as const) {
+      it(`«${line}» в ${path} — нарушение «${name}»`, () => {
+        expect(scan(line, path)).toEqual([{ file: path, line: 1, text: name }]);
+      });
+    }
+  }
+
+  it('сервер примера: Bun и process разрешены (проверка среды — только packages/web-ui/src)', () => {
+    expect(
+      scan('Bun.serve(x);\nprocess.exit(1);', 'examples/web/src/server/x.ts'),
+    ).toEqual([]);
+  });
+});
+
 describe('BrowserGlobalScanner — представления пакета (web-ui/src/view/)', () => {
   // DOM представлению даёт только цель показа: свои глобалы браузера и среды
   // в представлениях пакета запрещены.
@@ -148,7 +172,10 @@ describe('BrowserGlobalScanner — разрешённые зоны и не гл�
     'const l = localStorage;',
   ].join('\n');
 
-  for (const path of [`${SRC}/client/x.ts`, 'examples/web/src/main.ts']) {
+  for (const path of [
+    `${SRC}/client/x.ts`,
+    'examples/web/src/client/main.ts',
+  ]) {
     it(`в ${path} глобалы браузера разрешены`, () => {
       expect(scan(lines, path)).toEqual([]);
     });
@@ -156,6 +183,10 @@ describe('BrowserGlobalScanner — разрешённые зоны и не гл�
 
   it('вложенный каталог клиента тоже разрешён', () => {
     expect(scan(lines, `${SRC}/client/view/x.ts`)).toEqual([]);
+  });
+
+  it('вложенный каталог клиента примера тоже разрешён', () => {
+    expect(scan(lines, 'examples/web/src/client/view/x.ts')).toEqual([]);
   });
 
   for (const path of [
@@ -282,7 +313,7 @@ describe('BrowserGlobalScanner — Bun и process в packages/web-ui/src/', () =
     for (const path of [
       'packages/web-ui/testing/x.ts',
       'packages/tg-bot/src/x.ts',
-      'examples/web/src/main.ts',
+      'examples/web/src/client/main.ts',
     ]) {
       expect(scan('Bun.serve(x);\nprocess.exit(1);', path)).toEqual([]);
     }

@@ -14,8 +14,9 @@ const KEY = (names: string) => `\\[\\s*['"\`](?:${names})['"\`]\\s*\\]`;
 /**
  * Глобалы браузера и среды. Первая проверка: API браузера в `packages/**` и
  * `examples/**` без `.test.ts`, кроме клиента страничного пакета
- * (`packages/web-ui/src/client/`) и примера для браузера (`examples/web/`):
- * остальной код работает и на сервере. Голые `window`, `document`, `history`,
+ * (`packages/web-ui/src/client/`) и клиента примера для браузера
+ * (`examples/web/src/client/`): серверу и моделям представлений примера
+ * браузер не нужен, остальной код работает и на сервере. Голые `window`, `document`, `history`,
  * `location` встречаются в обычном коде (`'window'` в схемах, свойство
  * `history`), поэтому они ловятся по форме использования: `window.<член>`,
  * `document.createElement`, `history.pushState`, `location.href`,
@@ -32,7 +33,7 @@ export class BrowserGlobalScanner {
   protected static readonly BROWSER_ZONES = ['packages/', 'examples/'];
   protected static readonly BROWSER_ALLOWED = [
     'packages/web-ui/src/client/',
-    'examples/web/',
+    'examples/web/src/client/',
   ];
   protected static readonly ENV_ZONE = 'packages/web-ui/src/';
 

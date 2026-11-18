@@ -11,6 +11,8 @@
 // `PageBrowserHistory` поверх узкого типа окна `PageBrowserWindow` (D-UI-81).
 // Маршрут `PageRouteDef` и кодек адреса в URL `PageUrls` лежат в `url/`
 // (D-UI-76): строка на входе и выходе, без браузера.
+// Пределы строки кадра `MAX_CLIENT_TEXT`, `MAX_SERVER_TEXT` нужны привязке
+// сервера сокетов: от них считаются `maxPayloadLength` и `backpressureLimit`.
 // Внутренние `WirePorts`, `PageConnection`, `PageOutbox`, `serverFrame`,
 // `PageRegions`, `PagePlacements`, `PageForms`, `PageInbox`, `PageSeenKeys`,
 // `ViewCell`, `PageTextPresenter`, `PagePath`, `PageParams`, `PageLayoutUrls`,
@@ -124,6 +126,7 @@ export type {
   WatchRefusedMessage,
 } from './wire/page-messages.types';
 export { PageWire } from './wire/page-wire';
+export { MAX_CLIENT_TEXT, MAX_SERVER_TEXT } from './wire/page-wire.const';
 export type {
   ClientEnd,
   PageServerPort,

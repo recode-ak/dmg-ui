@@ -92,6 +92,8 @@ bun run check
 
 Запускаемый пример на живом Telegram — [`examples/tg-bot`](examples/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
 
+Запускаемый пример в браузере — [`examples/web`](examples/web/README.md) ([D-UI-85](docs/decisions.md)): `bun run example:web` (сервер на `Bun.serve`, страница на DOM без фреймворка, два человека, «медленный сервер»); чек-лист ручной проверки — в README примера. Без зависимостей сверх пакета.
+
 ## Статус
 
 Версия `0.2.0` не замораживает контракт между ядром и каналами: пока его определяют учебные каналы и мессенджеры. Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).

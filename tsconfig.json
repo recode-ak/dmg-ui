@@ -15,5 +15,6 @@
     "noImplicitOverride": true,
     "types": ["bun", "node"]
   },
-  "include": ["packages", "checks", "acceptance", "examples"]
+  "include": ["packages", "checks", "acceptance", "examples"],
+  "exclude": ["examples/web/src/client"]
 }

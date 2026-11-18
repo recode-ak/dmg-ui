@@ -193,6 +193,63 @@ describe('ExampleZoneScanner — пример не выходит из свое�
   });
 });
 
+describe('ExampleZoneScanner — пример для браузера (examples/web/)', () => {
+  const WEB = 'examples/web/src';
+
+  for (const dir of ['server', 'client', 'view', 'common']) {
+    test(`${dir}/: выход за каталог примера относительным путём — нарушение`, () => {
+      const path = `${WEB}/${dir}/x.ts`;
+      for (const specifier of [
+        '../../../tg-bot/src/x',
+        '../../../../packages/web-ui/src/index',
+        '../../..',
+      ]) {
+        const found = scan(path, importFrom(specifier));
+        expect(found).toHaveLength(1);
+        expect(found[0]).toMatchObject({ file: path, line: 2 });
+        expect(found[0]?.text).toContain(specifier);
+      }
+    });
+
+    test(`${dir}/: абсолютный путь — нарушение`, () => {
+      expect(
+        scan(`${WEB}/${dir}/x.ts`, importFrom('/home/x/dmg-ui/packages/x')),
+      ).toHaveLength(1);
+    });
+  }
+
+  test('библиотека Telegram в примере для браузера — нарушение во всех каталогах', () => {
+    for (const dir of ['server', 'client', 'view', 'common']) {
+      for (const specifier of [LIB, `${LIB}/web`, LIB_TYPES]) {
+        const path = `${WEB}/${dir}/x.ts`;
+        const found = scan(path, importFrom(specifier));
+        expect(found).toHaveLength(1);
+        expect(found[0]).toMatchObject({ file: path, line: 2 });
+      }
+    }
+  });
+
+  test('тест примера для браузера: библиотека Telegram — нарушение', () => {
+    expect(scan(`${WEB}/server/x.test.ts`, importFrom(LIB))).toHaveLength(1);
+  });
+
+  for (const specifier of [
+    './x',
+    '../view/x',
+    '../common/x',
+    '../client/x',
+    '../../README',
+    '../../.env.example',
+    'dmg-ui/web-ui',
+    'dmg-ui/web-ui/testing',
+    'dmg-core/testing/example',
+  ]) {
+    test(`«${specifier}» внутри каталога примера — чисто`, () => {
+      expect(scan(`${WEB}/server/x.ts`, importFrom(specifier))).toEqual([]);
+    });
+  }
+});
+
 describe('ExampleZoneScanner — реальный репо', () => {
   test('на реальном репо — ноль нарушений', () => {
     // `examples/` и `scripts/` могут отсутствовать или не содержать `.ts`.
