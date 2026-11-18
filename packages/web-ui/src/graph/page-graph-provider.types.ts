@@ -1,6 +1,6 @@
 import type { AnyUiAppDef } from 'dmg-ui';
+import type { AnyPageRouteDef } from '../url/page-route-def.types';
 import type { PageViews } from '../view/page-views';
-import type { AnyPageRouteDef } from './page-route-def.types';
 
 /** Сборка поставщика графа страничного канала. */
 export type PageGraphSpec = {

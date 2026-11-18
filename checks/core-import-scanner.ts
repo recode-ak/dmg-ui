@@ -18,6 +18,8 @@ const PAGE_WIRE = `${PAGE}/wire`;
 const PAGE_GRAPH = `${PAGE}/graph`;
 /** Представления страничного канала: видят только себя и публичные входы ядра. */
 const PAGE_VIEW = `${PAGE}/view`;
+/** Кодек адреса страничного канала: строка на входе и выходе, никого из канала не видит. */
+const PAGE_URL = `${PAGE}/url`;
 /** Помощник рендера примеров: от канала и сервера не зависит. */
 const PREVIEW = 'packages/core/testing/preview';
 /** Пакет диалогового канала: код входа `dmg-ui/chat-ui`. */
@@ -125,6 +127,7 @@ export class CoreImportScanner {
           PAGE_CLIENT,
           PAGE_VIEW,
           PAGE_WIRE,
+          PAGE_URL,
           `${PAGE}/page-channel.const`,
         ],
       },
@@ -142,6 +145,14 @@ export class CoreImportScanner {
         forbidden,
         allowed: ['valibot', 'dmg-core', 'dmg-ui'],
         allowedPaths: [PAGE_WIRE],
+      },
+      {
+        include: [`${PAGE_URL}/`],
+        exclude: ['.test.ts'],
+        forbidden,
+        allowed: ['valibot', 'dmg-core', 'dmg-ui'],
+        // Кодек адреса — строка на входе и выходе, никого из канала не видит.
+        allowedPaths: [PAGE_URL],
       },
       {
         include: [`${PAGE_SERVER}/`],
@@ -163,8 +174,14 @@ export class CoreImportScanner {
           'dmg-ui/graph',
         ],
         // Имя канала и версию поставщика граф берёт из `page-channel.const`,
-        // реестр представлений для рёбер `presents` — из `view/`.
-        allowedPaths: [PAGE_GRAPH, PAGE_VIEW, `${PAGE}/page-channel.const`],
+        // реестр представлений для рёбер `presents` — из `view/`, маршрут и
+        // разбор его шаблона — из `url/`.
+        allowedPaths: [
+          PAGE_GRAPH,
+          PAGE_VIEW,
+          PAGE_URL,
+          `${PAGE}/page-channel.const`,
+        ],
       },
       {
         include: [`${PAGE}/`],
@@ -176,6 +193,7 @@ export class CoreImportScanner {
           `${PAGE_SERVER}/`,
           `${PAGE_WIRE}/`,
           `${PAGE_GRAPH}/`,
+          `${PAGE_URL}/`,
         ],
         forbidden,
         allowed: [

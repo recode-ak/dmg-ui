@@ -10,8 +10,8 @@ import {
   examplePageViews,
 } from '../../testing';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
+import { PageRouteDef } from '../url/page-route-def';
 import { PageGraphProvider } from './page-graph-provider';
-import { PageRouteDef } from './page-route-def';
 
 // Второй поставщик графа — страничный канал `dmg-ui-pages` (образец —
 // `dmg-core/testing/example/screen`): свой вид узла `pageRoute`, ребро

@@ -12,6 +12,7 @@ import {
 } from 'dmg-ui';
 import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
+import { PageUrls } from '../url/page-urls';
 import type { PageViewState } from '../view/page-view-state.types';
 import type { ViewSource } from '../view/view-source.types';
 import type { ServerMessage } from '../wire/page-messages.types';
@@ -43,7 +44,6 @@ export type {
   PageFormValues,
   PageInboxEntry,
   PageRegionName,
-  PageRoute,
   PageSlotJson,
   PageSnapshot,
 } from './page-client.types';
@@ -93,10 +93,12 @@ export class PageClient {
   private readonly notes: PageInbox;
   /** Адрес входа `start` — куда вкладка возвращается. */
   private readonly start: Address;
+  /** Кодек адреса `main` ↔ URL страницы по маршрутам приложения. */
+  private readonly urls: PageUrls;
 
   /**
-   * Приложение другого канала, нет входа `start`, маршрут на необъявленный
-   * вход или повтор пути — ошибка сборки, бросок.
+   * Приложение другого канала, нет входа `start` — ошибка сборки, бросок;
+   * броски маршрутов и невыразимых в URL экранов — от `PageUrls`.
    */
   constructor(spec: PageClientSpec) {
     const { app, routes } = spec;
@@ -111,18 +113,7 @@ export class PageClient {
         `PageClient: у приложения ${app.name} нет входа ${PAGE_HOME}`,
       );
     }
-    const paths = new Set<string>();
-    for (const route of routes) {
-      if (app.entries[route.entry] === undefined) {
-        throw new Error(
-          `PageClient: маршрут ${route.path} ведёт на вход ${route.entry}, которого нет у приложения ${app.name}`,
-        );
-      }
-      if (paths.has(route.path)) {
-        throw new Error(`PageClient: два маршрута с путём ${route.path}`);
-      }
-      paths.add(route.path);
-    }
+    this.urls = new PageUrls({ app, routes });
     this.spec = spec;
     this.end = spec.end;
     this.start = home.address;
@@ -197,16 +188,16 @@ export class PageClient {
     return this.notes.source;
   }
 
-  /** Путь страницы → вход маршрута в `main`; неизвестный путь — заметка. */
-  async route(path: string): Promise<void> {
-    const route = this.spec.routes.find((r) => r.path === path);
-    const entry =
-      route === undefined ? undefined : this.spec.app.entries[route.entry];
-    if (entry === undefined) {
-      this.clear('main', { note: PAGE_NOTES.notFound });
-      return;
-    }
-    await this.open('main', entry.address);
+  /**
+   * URL страницы (путь и строка запроса) → адрес в `main`; неразборчивый —
+   * вход `start` с заметкой, без URL и причины в заметке (D-UI-76). Промис
+   * отклоняется, только если не загрузился код экрана: разбор не бросает,
+   * а отказ чтения данных лежит в виде экрана.
+   */
+  async route(url: string): Promise<void> {
+    const address = this.urls.parse(url);
+    if (address.ok) await this.open('main', address.value);
+    else await this.open('main', this.start, { note: PAGE_NOTES.notFound });
   }
 
   /**

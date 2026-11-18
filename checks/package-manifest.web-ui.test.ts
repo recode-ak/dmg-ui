@@ -10,12 +10,15 @@ import type {
   PageInboxEntry,
   PageReconnectorSpec,
   PageRegionPresenter,
+  PageRoute,
   PageServerSocket,
   PageSocket,
   PageSocketEvents,
   PageSocketsSpec,
   PageStaleReason,
   PageTextTarget,
+  PageUrlRejection,
+  PageUrlsSpec,
   PageViewState,
   PageViewStatus,
   ViewSource,
@@ -23,10 +26,10 @@ import type {
 
 // Составы входов страничного пакета: канал, его имя, контракт представления,
 // текстовая страница, сообщения, провод в памяти, мост и конец сокета,
-// переподключатель и часы вкладки, ворота соединения — в `dmg-ui/web-ui`;
-// привязка учебного примера к каналу и подставные часы — в
-// `dmg-ui/web-ui/testing`. Внутренние помощники клиента, представлений и
-// сервера наружу не выходят.
+// переподключатель и часы вкладки, ворота соединения, кодек адреса в URL —
+// в `dmg-ui/web-ui`; привязка учебного примера к каналу и подставные часы —
+// в `dmg-ui/web-ui/testing`. Внутренние помощники клиента, представлений,
+// сервера и кодека адреса наружу не выходят.
 
 const WEB_UI = [
   'ClientMessage',
@@ -45,13 +48,14 @@ const WEB_UI = [
   'PageSockets',
   'PageSystemClock',
   'PageText',
+  'PageUrls',
   'PageViews',
   'PageWire',
   'ServerMessage',
 ];
 
 describe('вход dmg-ui/web-ui', () => {
-  it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, переподключатель и часы, ворота', async () => {
+  it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, переподключатель и часы, ворота, кодек адреса в URL', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui')).sort()).toEqual(WEB_UI);
   });
 
@@ -61,7 +65,7 @@ describe('вход dmg-ui/web-ui', () => {
     expect(PAGE_CHANNEL).toBe('dmg-ui-pages');
   });
 
-  it('внутренние помощники клиента, представлений, сервера и провода не экспортируются', async () => {
+  it('внутренние помощники клиента, представлений, сервера, провода и кодека адреса не экспортируются', async () => {
     const exported = Object.keys(await import('dmg-ui/web-ui'));
 
     for (const internal of [
@@ -76,6 +80,8 @@ describe('вход dmg-ui/web-ui', () => {
       'PageTextPresenter',
       'PageOutbox',
       'serverFrame',
+      'PagePath',
+      'PageParams',
     ]) {
       expect(exported).not.toContain(internal);
     }
@@ -144,6 +150,18 @@ export type WebUiReconnectTypes = [
   PageInboxEntry['data'],
   PageInboxEntry['links'],
   PageClientSpec['clock'],
+];
+
+/**
+ * Состав типов кодека адреса во входе `dmg-ui/web-ui` — так же через `tsc`:
+ * привязка вкладки к адресной строке и маршруты приложения пишутся по ним.
+ */
+export type WebUiUrlTypes = [
+  PageUrlsSpec['app'],
+  PageUrlsSpec['routes'],
+  PageUrlRejection,
+  PageRoute['path'],
+  PageRoute['entry'],
 ];
 
 describe('вход dmg-ui/web-ui/testing', () => {

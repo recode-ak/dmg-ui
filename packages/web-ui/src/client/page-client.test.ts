@@ -344,14 +344,57 @@ describe('PageClient.route', () => {
     expect(text.page()).toContain('Назначенные мне');
   });
 
-  test('неизвестный маршрут — заметка в main, ничего не открыто и не отправлено', async () => {
+  test('неразборчивый URL — вход start с заметкой: подписка на список и его чтение', async () => {
     const { client, end } = tab();
 
     await client.route('/нет');
 
-    expect(client.region('main').note).toBe('Страница не найдена');
-    expect(client.region('main').view).toBeUndefined();
-    expect(end.sent).toEqual([]);
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      address: LIST,
+      note: PAGE_NOTES.notFound,
+    });
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(end.sent.map((message) => message.kind)).toEqual(['watch', 'call']);
+    expect(watchOf(end, LIST_ID)).toEqual(expect.any(String));
+    expect(end.names()).toEqual(['listTasks']);
+  });
+
+  test('строка запроса — параметры адреса: /?page=1 — список, страница 1, без заметки', async () => {
+    const { client } = tab();
+
+    await client.route('/?page=1');
+
+    expect(client.region('main').view?.address).toEqual({
+      screen: LIST_ID,
+      params: { page: 1 },
+    });
+    expect(client.region('main').note).toBeUndefined();
+  });
+
+  test('общий путь экрана — карточка задачи в main', async () => {
+    const { client, end } = tab();
+
+    await client.route(`/todo/taskCard?taskId=${TASK_A}`);
+
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      address: { screen: CARD_ID, params: { taskId: TASK_A } },
+    });
+    expect(client.region('main').note).toBeUndefined();
+    expect(end.names()).toEqual(['listTasks']);
+  });
+
+  test('кривое значение параметра — вход start с заметкой, промис разрешён, броска нет', async () => {
+    const { client } = tab();
+
+    await expect(client.route('/?page=x')).resolves.toBeUndefined();
+
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      address: LIST,
+      note: PAGE_NOTES.notFound,
+    });
   });
 
   test('page() — текст страницы: заголовок экрана и задачи', async () => {
@@ -1066,23 +1109,26 @@ describe('PageClient — состояния области: открытие', (
     expect(statuses(log)).toEqual(['ready']);
   });
 
-  test('неизвестный маршрут во время загрузки: область пуста с заметкой, опоздавший экземпляр закрыт', async () => {
-    const end = new StubEnd().answer('listTasks', ok(TASKS)).hold('listTasks');
+  test('неразборчивый URL во время загрузки — побеждает вход start с заметкой, опоздавший экземпляр закрыт', async () => {
+    const end = new StubEnd()
+      .answer('listTasks', ok(TASKS))
+      .answer('listAssignedTasks', ok([]))
+      .hold('listAssignedTasks');
     const { client } = tab(end);
 
-    const routing = client.route('/');
+    const routing = client.route('/assigned');
     await client.route('/нет');
-    end.release('listTasks');
+    end.release('listAssignedTasks');
     await routing;
     await end.flush();
 
-    expect(client.region('main')).toEqual({
-      status: 'empty',
-      refreshing: false,
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      address: LIST,
       note: PAGE_NOTES.notFound,
-      issues: [],
     });
-    expect(end.unwatches()).toEqual([watchOf(end, LIST_ID)]);
+    expect(client.region('main').view?.screen).toBe(LIST_ID);
+    expect(end.unwatches()).toEqual([watchOf(end, ASSIGNED_ID)]);
   });
 
   test('недекодируемая ссылка во время загрузки side: side пуста с заметкой, опоздавший экземпляр закрыт', async () => {
@@ -1409,7 +1455,7 @@ describe('PageClient — состояния области: контракт и�
     }
     const main = journal(client, 'main');
 
-    await client.route('/нет');
+    await client.openLink({ screen: 'нет/такого', params: {} });
     await client.route('/');
     await client.local('main', 'toggle', { taskId: 'Хлеб' });
     await client.submit('main', 'open', { taskId: 'Молоко' });
@@ -1465,13 +1511,14 @@ describe('PageClient — состояния области: контракт и�
     const { client, faults } = tab();
     const boom = new Error('подписчик упал');
     let armed = false;
-    client.source('main').subscribe(() => {
+    client.source('side').subscribe(() => {
       if (armed) throw boom;
     });
     armed = true;
 
-    await client.route('/нет');
+    await client.openLink({ screen: 'нет/такого', params: {} });
 
+    expect(client.region('side').status).toBe('empty');
     expect(faults.find((f) => f.error === boom)?.node).toBe(PAGE_CHANNEL);
   });
 
@@ -1582,6 +1629,32 @@ describe('PageClient — обрыв и переподключение', () => {
     });
     expect(client.region('main').stale).toBeUndefined();
     expect(end2.names()).toEqual(['listAssignedTasks']);
+  });
+
+  test('без связи неразборчивый URL — вход start в loading с пометкой и заметкой, вызовов нет; после attach — вход start с заметкой', async () => {
+    const { client, end } = tab();
+    end.drop();
+
+    const routing = client.route('/нет');
+
+    expect(await soon(routing, end)).toBe('ждёт');
+    expect(client.region('main')).toMatchObject({
+      status: 'loading',
+      address: LIST,
+      stale: offline,
+      note: PAGE_NOTES.notFound,
+    });
+    expect(end.sent).toEqual([]);
+    expect(end.afterBreak).toEqual([]);
+    const end2 = nextEnd();
+    await client.attach(end2);
+    expect(await soon(routing, end2)).toBe('разрешён');
+    expect(client.region('main')).toMatchObject({
+      status: 'ready',
+      address: LIST,
+      note: PAGE_NOTES.notFound,
+    });
+    expect(end2.names()).toEqual(['listTasks']);
   });
 
   test('два перехода без связи в одну область: первый промис разрешён сразу, после attach открыт последний', async () => {
@@ -1860,27 +1933,27 @@ describe('PageClient — обрыв и переподключение', () => {
     }
 
     end.drop();
-    await client.route('/нет');
-    const linking = client.openLink(ASSIGNED);
+    await client.openLink({ screen: 'нет/такого', params: {} });
+    const routing = client.route('/assigned');
     await end.flush();
     await client.attach(nextEnd());
-    await linking;
+    await routing;
 
     expect(seen.some((state) => state.stale === offline)).toBe(true);
     const marked = seen.filter((state) => state.stale === offline);
     expect(marked.map((state) => state.status)).not.toContain('empty');
-    expect(client.region('main')).toEqual({
+    expect(client.region('side')).toEqual({
       status: 'empty',
       refreshing: false,
       note: PAGE_NOTES.notFound,
       issues: [],
     });
-    expect(client.region('side')).toMatchObject({
+    expect(client.region('main')).toMatchObject({
       status: 'ready',
       address: ASSIGNED,
       refreshing: false,
     });
-    expect(client.region('side').stale).toBeUndefined();
+    expect(client.region('main').stale).toBeUndefined();
   });
 
   test('attach при живом конце, пока удержан вызов загрузки: область готова без пометки, по новому концу одно чтение', async () => {

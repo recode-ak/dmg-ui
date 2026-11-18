@@ -11,6 +11,7 @@ import type {
   UiIds,
   UiObserver,
 } from 'dmg-ui';
+import type { PageRoute } from '../url/page-urls.types';
 import type {
   PageConfirm,
   PageStaleReason,
@@ -30,16 +31,11 @@ import type { ViewCell } from './view-cell';
 /** Области страницы: основная и соседняя. */
 export type PageRegionName = 'main' | 'side';
 
-/** Маршрут для клиента — структурно: путь страницы и имя входа приложения UI. */
-export type PageRoute = {
-  readonly path: string;
-  readonly entry: string;
-};
-
 /**
- * Сборка вкладки: приложение UI, код экранов, маршруты и клиентский конец
- * провода. `UiServer` клиенту не виден — только провод; представлений клиент
- * не берёт — текст строит цель показа.
+ * Сборка вкладки: приложение UI, код экранов, маршруты (шаблоны пути — входы
+ * приложения, D-UI-76) и клиентский конец провода. `UiServer` клиенту не
+ * виден — только провод; представлений клиент не берёт — текст строит цель
+ * показа.
  */
 export type PageClientSpec = {
   readonly app: AnyUiAppDef;

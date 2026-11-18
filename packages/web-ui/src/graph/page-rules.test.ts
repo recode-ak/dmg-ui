@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import { ExamplePagesAppDef, examplePageViews } from '../../testing';
+import { PageRouteDef } from '../url/page-route-def';
 import { PageGraphProvider } from './page-graph-provider';
-import { PageRouteDef } from './page-route-def';
 
 // Правила страничного канала: PG-01 «маршрут ведёт на вход приложения UI» и
 // PG-02 «у входа приложения есть маршрут». Оба читают только рёбра графа.

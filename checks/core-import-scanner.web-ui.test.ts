@@ -2,13 +2,15 @@ import { describe, expect, it } from 'bun:test';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile } from './source-tree';
 
-// Зоны пакета `web-ui`: клиент, представления, провод, сервер, граф и корень
-// канала — свои белые списки; клиент не знает сервер и `dmg-core/app`, сервер
-// не знает клиент; представления видят только себя и публичные входы ядра —
-// ни клиента, ни провода, ни сервера, ни графа; каналы-соседи (`chat-ui`,
-// `tg-bot`) и собственный вход из `src/` канал не импортирует; привязка
-// примера (`testing/`) — своя зона; пример ядра и привязки соседей друг друга
-// не знают.
+// Зоны пакета `web-ui`: клиент, представления, провод, сервер, граф, кодек
+// адреса и корень канала — свои белые списки; клиент не знает сервер и
+// `dmg-core/app`, сервер не знает клиент; представления видят только себя и
+// публичные входы ядра — ни клиента, ни провода, ни сервера, ни графа; кодек
+// адреса (`url/`) — строка на входе и выходе: никого из канала не видит, его
+// видят клиент, граф и корень; каналы-соседи (`chat-ui`, `tg-bot`) и
+// собственный вход из `src/` канал не импортирует; привязка примера
+// (`testing/`) — своя зона; пример ядра и привязки соседей друг друга не
+// знают.
 
 const PAGE = 'packages/web-ui/src';
 const CLIENT = `${PAGE}/client/page-client.ts`;
@@ -16,6 +18,7 @@ const VIEW = `${PAGE}/view/page-text-presenter.ts`;
 const SERVER = `${PAGE}/server/page-host.ts`;
 const WIRE = `${PAGE}/wire/page-wire.ts`;
 const GRAPH = `${PAGE}/graph/page-graph-provider.ts`;
+const URLS = `${PAGE}/url/page-urls.ts`;
 const CHANNEL_ROOT = `${PAGE}/index.ts`;
 const NEIGHBOURS = [
   "import { a } from 'dmg-ui/chat-ui';",
@@ -45,6 +48,12 @@ describe('CoreImportScanner — клиент страничного канала
     ).toEqual([]);
   });
 
+  it('кодек адреса из url/ — разрешён', () => {
+    expect(
+      scan("import { PageUrls } from '../url/page-urls';", CLIENT),
+    ).toEqual([]);
+  });
+
   it('константа канала из корня (page-channel.const) — разрешена, прочий корень — нет', () => {
     expect(
       scan("import { PAGE_CHANNEL } from '../page-channel.const';", CLIENT),
@@ -62,7 +71,7 @@ describe('CoreImportScanner — клиент страничного канала
     "import fs from 'node:fs';",
     "import { test } from 'bun:test';",
     "import { PageHost } from '../server/page-host';",
-    "import { PageRouteDef } from '../graph/page-route-def';",
+    "import { PageGraphProvider } from '../graph/page-graph-provider';",
     "import { ScreenRuntime } from '../../../core/src/runtime/screen-runtime';",
   ]) {
     it(`${text} в клиенте — нарушение`, () => {
@@ -101,6 +110,7 @@ describe('CoreImportScanner — провод страничного канала
     "import { PageClient } from '../client/page-client';",
     "import { PageHost } from '../server/page-host';",
     "import { PageRenderer } from '../view/page-renderer';",
+    "import { PageUrls } from '../url/page-urls';",
   ]) {
     it(`${text} в проводе — нарушение`, () => {
       expect(scan(text, WIRE)).toHaveLength(1);
@@ -138,8 +148,9 @@ describe('CoreImportScanner — сервер страничного канала
 
   for (const text of [
     "import { PageClient } from '../client/page-client';",
-    "import { PageRouteDef } from '../graph/page-route-def';",
+    "import { PageGraphProvider } from '../graph/page-graph-provider';",
     "import { PageRenderer } from '../view/page-renderer';",
+    "import { PageUrls } from '../url/page-urls';",
     "import { a } from 'dmg-core/app';",
     "import { a } from 'dmg-core/graph';",
     "import fs from 'node:fs';",
@@ -176,6 +187,7 @@ describe('CoreImportScanner — представления страничног�
     "import { ClientMessage } from '../wire/page-messages';",
     "import { PageHost } from '../server/page-host';",
     "import { PAGE_KINDS } from '../graph/page-kinds';",
+    "import { PageUrls } from '../url/page-urls';",
     "import { PAGE_CHANNEL } from '../page-channel.const';",
     "import { UiServer } from 'dmg-ui/server';",
     "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
@@ -209,11 +221,17 @@ describe('CoreImportScanner — граф страничного канала (we
       "import type { GraphProvider } from 'dmg-core/graph';",
       "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
       "import { UiIds } from 'dmg-ui';",
-      "import { PageRouteDef } from './page-route-def';",
+      "import { PAGE_KINDS } from './page-kinds';",
       "import type { PageViews } from '../view/page-views';",
     ].join('\n');
 
     expect(scan(text, GRAPH)).toEqual([]);
+  });
+
+  it('маршрут из url/ — разрешён', () => {
+    expect(
+      scan("import { PageRouteDef } from '../url/page-route-def';", GRAPH),
+    ).toEqual([]);
   });
 
   for (const text of [
@@ -235,6 +253,50 @@ describe('CoreImportScanner — граф страничного канала (we
   }
 });
 
+describe('CoreImportScanner — кодек адреса страничного канала (web-ui/src/url/)', () => {
+  it('разрешены valibot, dmg-core, dmg-ui и соседи по url/', () => {
+    const text = [
+      "import * as v from 'valibot';",
+      "import { toJsonSchema } from 'dmg-core';",
+      "import { AddressCodec } from 'dmg-ui';",
+      "import { PagePath } from './page-path';",
+    ].join('\n');
+
+    expect(scan(text, URLS)).toEqual([]);
+  });
+
+  for (const text of [
+    "import { PageClient } from '../client/page-client';",
+    "import { PageGraphProvider } from '../graph/page-graph-provider';",
+    "import { PageHost } from '../server/page-host';",
+    "import { PageWire } from '../wire/page-wire';",
+    "import { PageViews } from '../view/page-views';",
+    "import { PAGE_CHANNEL } from '../page-channel.const';",
+    "import { UiServer } from 'dmg-ui/server';",
+    "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
+    "import type { GraphProvider } from 'dmg-core/graph';",
+    "import { a } from 'dmg-core/app';",
+    "import fs from 'node:fs';",
+  ]) {
+    it(`${text} в кодеке адреса — нарушение`, () => {
+      expect(scan(text, URLS)).toHaveLength(1);
+    });
+  }
+
+  for (const text of NEIGHBOURS) {
+    it(`${text} в кодеке адреса — нарушение`, () => {
+      expect(scan(text, URLS)).toHaveLength(1);
+    });
+  }
+
+  it('*.test.ts кодека — вне зоны', () => {
+    const text =
+      "import { test } from 'bun:test';\nimport { PageClient } from '../client/page-client';";
+
+    expect(scan(text, `${PAGE}/url/page-urls.test.ts`)).toEqual([]);
+  });
+});
+
 describe('CoreImportScanner — корень страничного канала (web-ui/src/*.ts)', () => {
   it('разрешены публичные входы ядра и соседи по корню', () => {
     const text = [
@@ -253,6 +315,12 @@ describe('CoreImportScanner — корень страничного канала
   it('представления из view/ — разрешены', () => {
     expect(
       scan("import { PageViews } from './view/page-views';", CHANNEL_ROOT),
+    ).toEqual([]);
+  });
+
+  it('кодек адреса из url/ — разрешён', () => {
+    expect(
+      scan("import { PageUrls } from './url/page-urls';", CHANNEL_ROOT),
     ).toEqual([]);
   });
 

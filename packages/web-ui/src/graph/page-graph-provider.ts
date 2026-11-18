@@ -9,10 +9,10 @@ import type {
 import { UiIds } from 'dmg-ui';
 import { UI_EDGE_KINDS } from 'dmg-ui/graph';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
+import type { AnyPageRouteDef } from '../url/page-route-def.types';
 import { EntryRouteRule } from './entry-route.rule';
 import type { PageGraphSpec } from './page-graph-provider.types';
 import { PAGE_EDGE_KINDS, PAGE_KINDS, PAGE_NODE_KINDS } from './page-kinds';
-import type { AnyPageRouteDef } from './page-route-def.types';
 import { RouteEntryRule } from './route-entry.rule';
 
 export type { PageGraphSpec } from './page-graph-provider.types';

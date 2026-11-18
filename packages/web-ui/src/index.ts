@@ -7,10 +7,11 @@
 // `PageBrowserSocket`; переподключатель `PageReconnector` даёт вкладке новый
 // конец (`PageClient.attach`). Входящие вкладки — источник вида
 // `PageClient.inbox()`; время вкладки — порт `PageClock` с умолчанием
-// `PageSystemClock`.
+// `PageSystemClock`. Маршрут `PageRouteDef` и кодек адреса в URL `PageUrls`
+// лежат в `url/` (D-UI-76): строка на входе и выходе, без браузера.
 // Внутренние `WirePorts`, `PageConnection`, `PageOutbox`, `serverFrame`,
 // `PageRegions`, `PageForms`, `PageInbox`, `PageSeenKeys`, `ViewCell`,
-// `PageTextPresenter` наружу не выходят.
+// `PageTextPresenter`, `PagePath`, `PageParams` наружу не выходят.
 
 export { PageBrowserSocket } from './client/page-browser-socket';
 export {
@@ -19,7 +20,6 @@ export {
   type PageFormValues,
   type PageInboxEntry,
   type PageRegionName,
-  type PageRoute,
   type PageSlotJson,
   type PageSnapshot,
 } from './client/page-client';
@@ -38,12 +38,6 @@ export {
   PageGraphProvider,
   type PageGraphSpec,
 } from './graph/page-graph-provider';
-export {
-  type AnyPageRouteDef,
-  type NormalizedPageRoute,
-  PageRouteDef,
-  type PageRouteSpec,
-} from './graph/page-route-def';
 export { PAGE_CHANNEL } from './page-channel.const';
 export { PageGate } from './server/page-gate';
 export {
@@ -60,6 +54,18 @@ export type {
   PageSocketsSpec,
 } from './server/page-server.types';
 export { PageSockets } from './server/page-sockets';
+export {
+  type AnyPageRouteDef,
+  type NormalizedPageRoute,
+  PageRouteDef,
+  type PageRouteSpec,
+} from './url/page-route-def';
+export {
+  type PageRoute,
+  type PageUrlRejection,
+  PageUrls,
+  type PageUrlsSpec,
+} from './url/page-urls';
 export type {
   PageRegionPresenter,
   PageTextTarget,

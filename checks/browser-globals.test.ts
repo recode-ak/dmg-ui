@@ -112,6 +112,30 @@ describe('BrowserGlobalScanner — представления пакета (web-
   }
 });
 
+describe('BrowserGlobalScanner — кодек адреса (web-ui/src/url/)', () => {
+  // Кодек получает и отдаёт строку: путь и строка запроса страницы — не его
+  // забота. API кодирования URL — из ES, не браузера: оно разрешено.
+  const URLS = `${SRC}/url/page-urls.ts`;
+
+  it('путь страницы и запись истории браузера — два нарушения', () => {
+    expect(
+      scan("const p = location.pathname;\nhistory.pushState(s, '', u);", URLS),
+    ).toEqual([
+      { file: URLS, line: 1, text: 'location.pathname' },
+      { file: URLS, line: 2, text: 'history.pushState' },
+    ]);
+  });
+
+  it('encodeURIComponent и URLSearchParams — не нарушения', () => {
+    expect(
+      scan(
+        'const a = encodeURIComponent(x);\nconst q = new URLSearchParams();',
+        URLS,
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe('BrowserGlobalScanner — разрешённые зоны и не глобалы', () => {
   const lines = [
     'const s = new WebSocket(url);',
