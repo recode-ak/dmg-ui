@@ -16,22 +16,53 @@ export class PageParams {
 
   /** Вид параметров экрана `id`; невыразимая в URL схема — бросок сборки. */
   static of(id: string, def: AnyScreenDef): PageParams {
-    const kinds = new Map<string, PageParamKind>();
-    for (const [name, property] of PageParams.properties(id, def)) {
-      if (!PAGE_URL_NAME.test(name)) {
-        throw new Error(
-          `PageUrls: имя параметра ${name} экрана ${id} не выражается в URL`,
-        );
-      }
-      const type = typeof property === 'object' ? property.type : undefined;
-      if (type !== 'string' && type !== 'integer' && type !== 'boolean') {
-        throw new Error(
-          `PageUrls: параметр ${name} экрана ${id} не выражается в URL: нужна строка, целое или булево`,
-        );
-      }
-      kinds.set(name, type);
+    let schema: Readonly<Record<string, unknown>>;
+    try {
+      schema = { ...toJsonSchema(def.params) };
+    } catch {
+      // Непереводимое (`v.date()`) бросает без `id` экрана — свой текст.
+      throw new Error(`PageUrls: параметры экрана ${id} не выражаются в URL`);
     }
-    return new PageParams(kinds);
+    const read = PageParams.read(id, schema);
+    if (!read.ok) throw new Error(`PageUrls: ${read.error[0]}`);
+    return read.value;
+  }
+
+  /**
+   * Вид параметров по JSON Schema параметров экрана `id`; в отказе — все
+   * замечания по порядку полей. `properties` не запись — параметров нет.
+   */
+  static read(
+    id: string,
+    schema: Readonly<Record<string, unknown>>,
+  ): Result<PageParams, readonly string[]> {
+    const properties = schema.properties;
+    const fields =
+      typeof properties === 'object' &&
+      properties !== null &&
+      !Array.isArray(properties)
+        ? Object.entries(properties)
+        : [];
+    const kinds = new Map<string, PageParamKind>();
+    const remarks: string[] = [];
+    for (const [name, property] of fields) {
+      if (!PAGE_URL_NAME.test(name)) {
+        remarks.push(`имя параметра ${name} экрана ${id} не выражается в URL`);
+        continue;
+      }
+      const type =
+        typeof property === 'object' && property !== null
+          ? (property as { readonly type?: unknown }).type
+          : undefined;
+      if (type === 'string' || type === 'integer' || type === 'boolean') {
+        kinds.set(name, type);
+      } else {
+        remarks.push(
+          `параметр ${name} экрана ${id} не выражается в URL: нужна строка, целое или булево`,
+        );
+      }
+    }
+    return remarks.length === 0 ? ok(new PageParams(kinds)) : err(remarks);
   }
 
   /** Имена параметров в порядке схемы. */
@@ -83,16 +114,6 @@ export class PageParams {
         const never: never = kind;
         throw new Error(`PageUrls: вид параметра ${String(never)}`);
       }
-    }
-  }
-
-  /** Поля JSON Schema параметров экрана; непереводимая схема — бросок с `id`. */
-  private static properties(id: string, def: AnyScreenDef) {
-    try {
-      return Object.entries(toJsonSchema(def.params).properties ?? {});
-    } catch {
-      // Непереводимое (`v.date()`) бросает без `id` экрана — свой текст.
-      throw new Error(`PageUrls: параметры экрана ${id} не выражаются в URL`);
     }
   }
 

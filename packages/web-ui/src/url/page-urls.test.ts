@@ -13,7 +13,6 @@ import {
 } from 'dmg-ui';
 import {
   AssignedTasksScreenDef,
-  ExampleUiSetDef,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
@@ -21,6 +20,7 @@ import {
 } from 'dmg-ui/testing';
 import * as v from 'valibot';
 import { ExamplePagesAppDef, examplePageRoutes } from '../../testing';
+import { RoutedAppDef } from '../../testing/routed-pages.app';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { type PageRoute, type PageUrlRejection, PageUrls } from './page-urls';
 
@@ -50,22 +50,6 @@ const entry = (address: Address) => ({
   label: 'Вход',
   description: 'Вход тестового приложения.',
   address,
-});
-
-/** Приложение страниц учебного набора с входом на список и входом на карточку. */
-const RoutedAppDef = UiAppDef.define({
-  name: 'routedPages',
-  label: 'Страницы с параметрами пути',
-  description: 'Учебный набор: маршруты с параметрами пути.',
-  set: ExampleUiSetDef,
-  channel: PAGE_CHANNEL,
-  stories: [],
-  entries: {
-    start: entry(TaskListScreenDef.at({ page: 0 })),
-    // Адрес-заглушка: маршрут с параметром пути ведёт на вход, значение
-    // входа берётся только для голого пути.
-    card: entry(TaskCardScreenDef.at({ taskId: TASK_A })),
-  },
 });
 
 const ROUTED: readonly PageRoute[] = [

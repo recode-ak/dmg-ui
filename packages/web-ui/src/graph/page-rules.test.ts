@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test';
+import { UiAppDef } from 'dmg-ui';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import { ExamplePagesAppDef, examplePageViews } from '../../testing';
+import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';
 import { PageGraphProvider } from './page-graph-provider';
 
@@ -27,9 +29,7 @@ const reportOf = (routes: readonly PageRouteDef[]) =>
       [ExamplePagesAppDef],
       [
         new PageGraphProvider({
-          app: ExamplePagesAppDef,
-          views: examplePageViews,
-          routes,
+          apps: [{ app: ExamplePagesAppDef, views: examplePageViews, routes }],
         }),
       ],
     ),
@@ -92,5 +92,54 @@ describe('PG-01 и PG-02: чистая сцена', () => {
     expect(report.code).toBe(0);
     expect(report.rule('PG-01')).toEqual([]);
     expect(report.rule('PG-02')).toEqual([]);
+  });
+});
+
+describe('PG-02: два приложения в одном поставщике', () => {
+  const SecondPagesAppDef = UiAppDef.define({
+    name: 'secondPages',
+    label: 'Второе приложение',
+    description: 'Второе приложение учебного набора.',
+    set: ExampleUiSetDef,
+    channel: PAGE_CHANNEL,
+    stories: [],
+    entries: ExamplePagesAppDef.entries,
+  });
+
+  const twoApps = (second: readonly PageRouteDef[]) =>
+    ArchReport.of(
+      UiScene.appOf(
+        ExampleUiSetDef,
+        [ExamplePagesAppDef, SecondPagesAppDef],
+        [
+          new PageGraphProvider({
+            apps: [
+              {
+                app: ExamplePagesAppDef,
+                views: examplePageViews,
+                routes: [TASKS, ASSIGNED],
+              },
+              {
+                app: SecondPagesAppDef,
+                views: examplePageViews,
+                routes: second,
+              },
+            ],
+          }),
+        ],
+      ),
+    );
+
+  test('у второго приложения вход assigned без маршрута — строка с его именем, у первого её нет', () => {
+    const report = twoApps([TASKS]);
+
+    expect(report.code).toBe(1);
+    expect(report.rule('PG-02')).toEqual([
+      'PG-02: вход приложения secondPages: экран exampleUi/todo/assignedTasks не открыт ни одним маршрутом',
+    ]);
+  });
+
+  test('оба приложения с маршрутами на все входы — PG-02 молчит', () => {
+    expect(twoApps([TASKS, ASSIGNED]).rule('PG-02')).toEqual([]);
   });
 });

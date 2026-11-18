@@ -13,9 +13,13 @@ export const ExamplePagesArch: ArchApp = {
   providers: [
     new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExamplePagesAppDef] }),
     new PageGraphProvider({
-      app: ExamplePagesAppDef,
-      views: examplePageViews,
-      routes: examplePageRoutes,
+      apps: [
+        {
+          app: ExamplePagesAppDef,
+          views: examplePageViews,
+          routes: examplePageRoutes,
+        },
+      ],
     }),
   ],
 };

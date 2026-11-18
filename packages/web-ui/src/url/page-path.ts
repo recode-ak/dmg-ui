@@ -1,3 +1,4 @@
+import { err, ok, type Result } from 'dmg-core';
 import { PAGE_URL_FIXED, PAGE_URL_NAME } from './page-urls.const';
 import type { PagePathPart } from './page-urls.types';
 
@@ -15,27 +16,54 @@ export class PagePath {
     private readonly parts: readonly PagePathPart[],
   ) {}
 
-  /** Шаблон из объявления маршрута; не по синтаксису или повтор параметра — бросок с путём. */
-  static parse(path: string): PagePath {
-    if (path === '/') return new PagePath(path, []);
+  /** Шаблон из объявления маршрута; отказ — первая причина текстом, без броска. */
+  static read(path: string): Result<PagePath, string> {
+    if (path === '/') return ok(new PagePath(path, []));
     if (!path.startsWith('/')) {
-      throw new Error(`PageUrls: шаблон пути «${path}» не начинается с /`);
+      return err(`шаблон пути «${path}» не начинается с /`);
     }
     const parts: PagePathPart[] = [];
     const names = new Set<string>();
     for (const segment of path.slice(1).split('/')) {
       const part = PagePath.part(path, segment);
-      if (part.kind === 'param') {
-        if (names.has(part.name)) {
-          throw new Error(
-            `PageUrls: параметр ${part.name} повторён в шаблоне пути «${path}»`,
+      if (!part.ok) return part;
+      if (part.value.kind === 'param') {
+        if (names.has(part.value.name)) {
+          return err(
+            `параметр ${part.value.name} повторён в шаблоне пути «${path}»`,
           );
         }
-        names.add(part.name);
+        names.add(part.value.name);
       }
-      parts.push(part);
+      parts.push(part.value);
     }
-    return new PagePath(path, parts);
+    return ok(new PagePath(path, parts));
+  }
+
+  /** Шаблон из объявления маршрута; не по синтаксису или повтор параметра — бросок с путём. */
+  static parse(path: string): PagePath {
+    const read = PagePath.read(path);
+    if (!read.ok) throw new Error(`PageUrls: ${read.error}`);
+    return read.value;
+  }
+
+  /**
+   * Общий путь экрана `/<модуль>/<экран>` по id экрана `id`; имя не по форме
+   * (модуль проверяется раньше экрана) — причина текстом.
+   */
+  static common(
+    id: string,
+    module: string,
+    screen: string,
+  ): Result<string, string> {
+    for (const name of [module, screen]) {
+      if (!PAGE_URL_NAME.test(name)) {
+        return err(
+          `имя ${name} не годится для общего пути экрана ${id}: буква, затем буквы и цифры`,
+        );
+      }
+    }
+    return ok(`/${module}/${screen}`);
   }
 
   /** Имена параметров пути по порядку. */
@@ -115,16 +143,19 @@ export class PagePath {
     return path;
   }
 
-  /** Сегмент шаблона: `:имя` — параметр, иначе неизменяемый; не по форме — бросок. */
-  private static part(path: string, segment: string): PagePathPart {
+  /** Сегмент шаблона: `:имя` — параметр, иначе неизменяемый; не по форме — причина. */
+  private static part(
+    path: string,
+    segment: string,
+  ): Result<PagePathPart, string> {
     if (segment.startsWith(':')) {
       const name = segment.slice(1);
-      if (PAGE_URL_NAME.test(name)) return { kind: 'param', name };
+      if (PAGE_URL_NAME.test(name)) return ok({ kind: 'param', name });
     } else if (PAGE_URL_FIXED.test(segment)) {
-      return { kind: 'fixed', text: segment };
+      return ok({ kind: 'fixed', text: segment });
     }
-    throw new Error(
-      `PageUrls: сегмент «${segment}» шаблона пути «${path}» не по форме: [a-z0-9-]+ или :имя`,
+    return err(
+      `сегмент «${segment}» шаблона пути «${path}» не по форме: [a-z0-9-]+ или :имя`,
     );
   }
 }

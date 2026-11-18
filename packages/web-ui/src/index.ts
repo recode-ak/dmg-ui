@@ -35,6 +35,7 @@ export { PageSocketEnd } from './client/page-socket-end';
 export { PageSystemClock } from './client/page-system-clock';
 export { PageText } from './client/page-text';
 export {
+  type PageAppSpec,
   PageGraphProvider,
   type PageGraphSpec,
 } from './graph/page-graph-provider';

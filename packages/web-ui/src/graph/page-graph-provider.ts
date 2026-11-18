@@ -11,32 +11,49 @@ import { UI_EDGE_KINDS } from 'dmg-ui/graph';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
 import type { AnyPageRouteDef } from '../url/page-route-def.types';
 import { EntryRouteRule } from './entry-route.rule';
-import type { PageGraphSpec } from './page-graph-provider.types';
+import type { PageAppSpec, PageGraphSpec } from './page-graph-provider.types';
 import { PAGE_EDGE_KINDS, PAGE_KINDS, PAGE_NODE_KINDS } from './page-kinds';
+import { RouteCommonRule } from './route-common.rule';
 import { RouteEntryRule } from './route-entry.rule';
+import { RouteOverlapRule } from './route-overlap.rule';
+import { RouteParamsRule } from './route-params.rule';
+import { RoutePathRule } from './route-path.rule';
+import { ScreenUrlRule } from './screen-url.rule';
 
-export type { PageGraphSpec } from './page-graph-provider.types';
+export type {
+  PageAppSpec,
+  PageGraphSpec,
+  PagePresentedViews,
+} from './page-graph-provider.types';
 
 /**
- * Второй поставщик графа — страничный канал: узлы маршрутов под приложением
- * UI, ребро `opens` к экрану входа и рёбра `presents` к представлениям.
- * Правила канала — PG-01 и PG-02. Повтор `path` у маршрутов — ошибка сборки.
+ * Поставщик графа страничного канала (D-UI-77) — один на все приложения web:
+ * узлы маршрутов под приложением UI, ребро `opens` к экрану входа, рёбра
+ * `presents` к представлениям. Правила — PG-01…PG-07. Бросок конструктора —
+ * только структура спеки: повтор приложения, реестр чужого набора, разные
+ * наборы UI; остальное (пути, параметры) — правила.
  */
 export class PageGraphProvider implements GraphProvider {
   readonly name = PAGE_CHANNEL;
   readonly version = PAGE_VERSION;
-  private readonly ids: UiIds;
 
   constructor(private readonly spec: PageGraphSpec) {
-    this.ids = new UiIds(spec.app.set);
     const seen = new Set<string>();
-    for (const route of spec.routes) {
-      if (seen.has(route.path)) {
+    for (const { app, views } of spec.apps) {
+      if (seen.has(app.name)) {
         throw new Error(
-          `PageGraphProvider: путь ${route.path} у двух маршрутов приложения ${spec.app.name}`,
+          `PageGraphProvider: приложение ${app.name} указано дважды`,
         );
       }
-      seen.add(route.path);
+      seen.add(app.name);
+      if (views.set !== app.set) {
+        throw new Error(
+          `PageGraphProvider: реестр представлений приложения ${app.name} — не для набора приложения`,
+        );
+      }
+    }
+    if (new Set(spec.apps.map(({ app }) => app.set)).size > 1) {
+      throw new Error('PageGraphProvider: приложения на разных наборах UI');
     }
   }
 
@@ -45,24 +62,36 @@ export class PageGraphProvider implements GraphProvider {
   }
 
   contribute(): GraphContribution {
-    const app = this.ids.app(this.spec.app);
-    return {
-      nodes: this.spec.routes.map((route) => this.node(app, route)),
-      edges: [
-        ...this.spec.routes.flatMap((route) => this.opens(app, route)),
-        ...this.spec.views.presented().map((to) => ({
+    const nodes: GraphNodeInput[] = [];
+    const edges: GraphEdgeInput[] = [];
+    for (const spec of this.spec.apps) {
+      const app = new UiIds(spec.app.set).app(spec.app);
+      nodes.push(...spec.routes.map((route) => this.node(app, route)));
+      edges.push(
+        ...spec.routes.flatMap((route) => this.opens(spec, app, route)),
+      );
+      edges.push(
+        ...spec.views.presented().map((to) => ({
           kind: UI_EDGE_KINDS.presents,
           from: app,
           to,
         })),
-      ],
-    };
+      );
+    }
+    return { nodes, edges };
   }
 
   rules(): readonly GraphRule[] {
     return [
       new RouteEntryRule(),
-      new EntryRouteRule(this.ids.app(this.spec.app)),
+      new EntryRouteRule(
+        this.spec.apps.map(({ app }) => new UiIds(app.set).app(app)),
+      ),
+      new RoutePathRule(),
+      new RouteOverlapRule(),
+      new RouteParamsRule(),
+      new RouteCommonRule(),
+      new ScreenUrlRule(),
     ];
   }
 
@@ -77,15 +106,20 @@ export class PageGraphProvider implements GraphProvider {
     };
   }
 
-  /** Ребро `opens` — только если приложение объявило вход `route.entry`. */
-  private opens(app: string, route: AnyPageRouteDef): GraphEdgeInput[] {
-    const entry = this.spec.app.entries[route.entry];
+  /** Ребро `opens` — только если приложение объявило вход `route.entry` (свой ключ `entries`). */
+  private opens(
+    spec: PageAppSpec,
+    app: string,
+    route: AnyPageRouteDef,
+  ): GraphEdgeInput[] {
+    if (!Object.hasOwn(spec.app.entries, route.entry)) return [];
+    const entry = spec.app.entries[route.entry];
     if (entry === undefined) return [];
     return [
       {
         kind: PAGE_EDGE_KINDS.opens,
         from: `${app}/${route.name}`,
-        to: this.ids.screen(entry.address.screen),
+        to: new UiIds(spec.app.set).screen(entry.address.screen),
       },
     ];
   }

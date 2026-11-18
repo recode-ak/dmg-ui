@@ -10,25 +10,29 @@ import { PAGE_EDGE_KINDS, PAGE_NODE_KINDS } from './page-kinds';
 export class EntryRouteRule implements GraphRule {
   readonly id = 'PG-02';
 
-  /** `appId` — `id` приложения UI канала в графе (`UiIds.app`). */
-  constructor(private readonly appId: string) {}
+  /** `appIds` — `id` приложений UI канала в графе (`UiIds.app`). */
+  constructor(private readonly appIds: readonly string[]) {}
 
   check(graph: Graph): readonly string[] {
+    return this.appIds.flatMap((appId) => EntryRouteRule.missing(graph, appId));
+  }
+
+  private static missing(graph: Graph, appId: string): readonly string[] {
     const opened = new Set(
       graph
-        .children(this.appId)
+        .children(appId)
         .filter((node) => node.kind === PAGE_NODE_KINDS.route)
         .flatMap((route) => graph.outgoing(route.id, PAGE_EDGE_KINDS.opens))
         .map((edge) => edge.to),
     );
     const entries = new Set(
-      graph.outgoing(this.appId, UI_EDGE_KINDS.entry).map((edge) => edge.to),
+      graph.outgoing(appId, UI_EDGE_KINDS.entry).map((edge) => edge.to),
     );
     return [...entries]
       .filter((screen) => !opened.has(screen))
       .map(
         (screen) =>
-          `вход приложения ${this.appId}: экран ${screen} не открыт ни одним маршрутом`,
+          `вход приложения ${appId}: экран ${screen} не открыт ни одним маршрутом`,
       );
   }
 }

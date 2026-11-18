@@ -127,17 +127,12 @@ export class PageUrls {
 
   /** Экран набора: имена модуля и экрана — в общий путь, вид параметров — по схеме. */
   private claimScreen(module: string, def: AnyScreenDef): void {
-    for (const name of [module, def.name]) {
-      if (!PAGE_URL_NAME.test(name)) {
-        throw new Error(
-          `PageUrls: имя ${name} не годится для общего пути экрана: буква, затем буквы и цифры`,
-        );
-      }
-    }
     const id = this.ids.screen(def);
+    const path = PagePath.common(id, module, def.name);
+    if (!path.ok) throw new Error(`PageUrls: ${path.error}`);
     this.screens.set(id, {
       id,
-      path: `/${module}/${def.name}`,
+      path: path.value,
       params: PageParams.of(id, def),
     });
   }
@@ -194,7 +189,7 @@ export class PageUrls {
    * Примеры экрана: URL собран, и разбор вернул тот же адрес, иначе бросок с
    * `id`. Ловит то, чего не видит JSON Schema (`transform`). URL не собрался
    * по данным (`undefined`) или пример не по схеме — пропуск: второе ловит
-   * правило графа UI-20; экран без примеров не проверяется (DEBT-UI-9).
+   * правило графа UI-20; экран без примеров не проверяется (DEBT-UI-34).
    */
   private claimExamples(def: AnyScreenDef): void {
     const screen = this.screen(def);
