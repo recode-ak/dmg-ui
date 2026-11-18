@@ -4,12 +4,13 @@ import type {
   ClientMessage as ClientMsg,
   ServerMessage as ServerMsg,
 } from '../wire/page-messages.types';
-import { MAX_SERVER_TEXT } from '../wire/page-wire.const';
+import { MAX_SERVER_TEXT, PAGE_CLOSE } from '../wire/page-wire.const';
 import type { PageSocket, PageSocketEvents } from './page-socket.types';
 import { PageSocketEnd } from './page-socket-end';
 
 // Клиентский конец провода поверх сокета: первое сообщение — `hello`, иначе
-// отказ соединения; после `hello` — сообщения по схеме обработчику, плохой
+// отказ соединения с видом отказа; после `hello` — сообщения по схеме
+// обработчику (пришедшие до первой подписки — копятся до предела), плохой
 // кадр и закрытие — обрыв ровно один раз. Сокет — подделка узкого порта;
 // события подаются синхронно, как их подаёт сокет браузера.
 
@@ -30,6 +31,8 @@ const NOTIFICATION: ServerMsg = {
   eventId: 'e-1',
 };
 const UNWATCH: ClientMsg = { kind: 'unwatch', watch: 'w1' };
+/** Предел кадров после `hello` до первой подписки `onMessage`. */
+const EARLY_FRAMES = 64;
 
 /** Сокет: отправленные строки, число закрытий, события — от теста. */
 class StubSocket implements PageSocket {
@@ -100,13 +103,27 @@ describe('PageSocketEnd.connect', () => {
     expect(socket.closes).toBe(0);
   });
 
-  test('сокет закрыт до hello — refused', async () => {
+  test('сокет закрыт до hello кодом отказа (4403) — refused', async () => {
     const { socket, result } = connecting();
 
-    socket.closed(4403);
+    socket.closed(PAGE_CLOSE.refused);
 
     expect(await result).toEqual({ ok: false, error: 'refused' });
   });
+
+  test.each([
+    ['1006 — сервер недоступен или отказ ворот', 1006],
+    ['1001 — сервер остановлен', 1001],
+  ] satisfies [string, number][])(
+    'сокет закрыт до hello (%s) — closed',
+    async (_name, code) => {
+      const { socket, result } = connecting();
+
+      socket.closed(code);
+
+      expect(await result).toEqual({ ok: false, error: 'closed' });
+    },
+  );
 
   test.each([
     ['первым не hello', JSON.stringify(RESULT)],
@@ -114,16 +131,86 @@ describe('PageSocketEnd.connect', () => {
     ['hello не по схеме', JSON.stringify({ kind: 'hello', context: {} })],
     ['нестрока', new Uint8Array([1])],
   ] satisfies [string, unknown][])(
-    '%s — refused, сокет закрыт',
+    '%s — malformed, сокет закрыт',
     async (_name, data) => {
       const { socket, result } = connecting();
 
       socket.message(data);
 
-      expect(await result).toEqual({ ok: false, error: 'refused' });
+      expect(await result).toEqual({ ok: false, error: 'malformed' });
       expect(socket.closes).toBe(1);
     },
   );
+});
+
+describe('PageSocketEnd — кадры до первой подписки', () => {
+  /** Конец после `hello`, на который ещё никто не подписан. */
+  const unsubscribed = async () => {
+    const { socket, result } = connecting();
+    socket.message(JSON.stringify(HELLO));
+    const res = await result;
+    if (!res.ok) throw new Error('connect: ожидался конец провода');
+    return { socket, end: res.value };
+  };
+
+  test('hello и два кадра синхронно подряд: первый обработчик получает оба по порядку при подписке, поздний — только следующие', async () => {
+    const { socket, result } = connecting();
+    socket.message(JSON.stringify(HELLO));
+    socket.message(JSON.stringify(WATCH_REFUSED));
+    socket.message(JSON.stringify(RESULT));
+    const res = await result;
+    if (!res.ok) throw new Error('connect: ожидался конец провода');
+    const first: ServerMsg[] = [];
+    const late: ServerMsg[] = [];
+
+    res.value.onMessage((message) => {
+      first.push(message);
+    });
+    expect(first).toStrictEqual([WATCH_REFUSED, RESULT]);
+    res.value.onMessage((message) => {
+      late.push(message);
+    });
+    socket.message(JSON.stringify(NOTIFICATION));
+
+    expect(first).toStrictEqual([WATCH_REFUSED, RESULT, NOTIFICATION]);
+    expect(late).toStrictEqual([NOTIFICATION]);
+  });
+
+  test(`${EARLY_FRAMES} кадра до подписки — доставлены все, сокет открыт`, async () => {
+    const { socket, end } = await unsubscribed();
+    const breaks: Error[] = [];
+    end.onBreak((error) => {
+      breaks.push(error);
+    });
+
+    for (let n = 0; n < EARLY_FRAMES; n += 1) {
+      socket.message(JSON.stringify(RESULT));
+    }
+    const received: ServerMsg[] = [];
+    end.onMessage((message) => {
+      received.push(message);
+    });
+
+    expect(received).toHaveLength(EARLY_FRAMES);
+    expect(socket.closes).toBe(0);
+    expect(breaks).toEqual([]);
+  });
+
+  test(`${EARLY_FRAMES + 1}-й кадр до подписки — сокет закрыт, обрыв один раз`, async () => {
+    const { socket, end } = await unsubscribed();
+    const breaks: Error[] = [];
+    end.onBreak((error) => {
+      breaks.push(error);
+    });
+
+    for (let n = 0; n <= EARLY_FRAMES; n += 1) {
+      socket.message(JSON.stringify(RESULT));
+    }
+    socket.closed(1000);
+
+    expect(socket.closes).toBe(1);
+    expect(breaks).toHaveLength(1);
+  });
 });
 
 describe('PageSocketEnd — после hello', () => {
@@ -209,6 +296,20 @@ describe('PageSocketEnd — после hello', () => {
 
     expect(socket.closes).toBe(1);
     expect(breaks).toHaveLength(1);
+  });
+
+  test('onBreak после обрыва — обработчик вызван сразу, один раз', async () => {
+    const { socket, end } = await opened();
+    socket.closed(1006);
+    const late: Error[] = [];
+
+    end.onBreak((error) => {
+      late.push(error);
+    });
+    socket.closed(1006);
+
+    expect(late).toHaveLength(1);
+    expect(late[0]).toBeInstanceOf(Error);
   });
 
   test('send — ровно JSON.stringify сообщения', async () => {

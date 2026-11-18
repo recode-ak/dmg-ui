@@ -2,6 +2,7 @@ import type { AddressJson, ScreenInstance } from 'dmg-ui';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import type { PageViewState } from '../view/page-view-state.types';
 import type { ViewSource } from '../view/view-source.types';
+import { PAGE_REGIONS } from './page-client.const';
 import type {
   PageRegionName,
   PageSlotJson,
@@ -12,18 +13,18 @@ import type {
 } from './page-client.types';
 import { ViewCell } from './view-cell';
 
-const REGIONS: readonly PageRegionName[] = ['main', 'side'];
-
 /**
  * Две области страницы — `main` и `side` — и политика переходов:
  * `moved` на тот же Def — на месте, на другой — в соседнюю область. В
  * области — один живой экземпляр: открытие закрывает прежний сразу, в
  * область встаёт экземпляр последнего начатого открытия. Каждое изменение —
- * новое значение `PageViewState` в ячейке области (D-UI-70).
+ * новое значение `PageViewState` в ячейке области (D-UI-70). Без связи
+ * непустая область помечена `stale: 'offline'` до перечитывания (D-UI-74).
  */
 export class PageRegions {
   private readonly slots: Readonly<Record<PageRegionName, RegionSlot>>;
   private tickets = 0;
+  private online = true;
 
   /** `onFault` — бросок слушателя ячейки: узел — экран области или канал. */
   constructor(onFault: (node: string, error: unknown) => void) {
@@ -44,6 +45,16 @@ export class PageRegions {
 
   instance(name: PageRegionName): ScreenInstance | undefined {
     return this.slot(name).instance;
+  }
+
+  /** Связь есть: новые данные областей читаются по текущему соединению. */
+  get connected(): boolean {
+    return this.online;
+  }
+
+  /** Данные области — с прежнего соединения или ждут соединения. */
+  behind(name: PageRegionName): boolean {
+    return this.slot(name).behind;
   }
 
   /** Ожидающее подтверждение области. */
@@ -72,12 +83,22 @@ export class PageRegions {
     slot.marks = marks;
     slot.loading = address;
     slot.ticket = this.ticket();
+    slot.behind = !this.online;
     this.publish(slot);
     return slot.ticket;
   }
 
-  /** Экземпляр открытия в область; жетон не последний — экземпляр закрыт, область не тронута. */
-  place(name: PageRegionName, ticket: number, instance: ScreenInstance): void {
+  /**
+   * Экземпляр открытия в область; жетон не последний — экземпляр закрыт,
+   * область не тронута. `behind` — экземпляр открыт с контекстом прежнего
+   * соединения: помечен, как без связи, до перечитывания.
+   */
+  place(
+    name: PageRegionName,
+    ticket: number,
+    instance: ScreenInstance,
+    behind = false,
+  ): void {
     const slot = this.slot(name);
     if (slot.ticket !== ticket) {
       instance.close();
@@ -86,6 +107,7 @@ export class PageRegions {
     slot.loading = undefined;
     slot.instance = instance;
     slot.unlisten = instance.onChange(() => this.changed(slot));
+    slot.behind = behind || !this.online;
     this.publish(slot);
   }
 
@@ -104,6 +126,66 @@ export class PageRegions {
     this.release(slot);
     slot.marks = marks;
     this.publish(slot);
+  }
+
+  /**
+   * Начало восстановления области по новому соединению: новый жетон, прежний
+   * вид на месте с `refreshing`. Возвращает жетон для `replace`.
+   */
+  resyncing(name: PageRegionName): number {
+    const slot = this.slot(name);
+    slot.ticket = this.ticket();
+    slot.resync = slot.ticket;
+    this.publish(slot);
+    return slot.ticket;
+  }
+
+  /**
+   * Восстановленный экземпляр встаёт на место прежнего: прежний закрыт,
+   * отметки сняты. Жетон не последний (переход во время восстановления) —
+   * восстановленный закрыт, область не тронута.
+   */
+  replace(
+    name: PageRegionName,
+    ticket: number,
+    instance: ScreenInstance,
+  ): void {
+    const slot = this.slot(name);
+    if (slot.ticket !== ticket) {
+      instance.close();
+      return;
+    }
+    this.release(slot);
+    slot.marks = {};
+    slot.instance = instance;
+    slot.unlisten = instance.onChange(() => this.changed(slot));
+    slot.behind = !this.online;
+    this.publish(slot);
+  }
+
+  /** Восстановление с жетоном не удалось: область всё ещё его — пуста с отметками. */
+  resyncFailed(name: PageRegionName, ticket: number, marks: RegionMarks): void {
+    const slot = this.slot(name);
+    if (slot.ticket !== ticket) return;
+    this.release(slot);
+    slot.marks = marks;
+    this.publish(slot);
+  }
+
+  /** Связь пропала: каждая непустая область помечена до перечитывания. */
+  disconnect(): void {
+    this.online = false;
+    for (const name of PAGE_REGIONS) {
+      const slot = this.slot(name);
+      if (slot.instance === undefined && slot.loading === undefined) continue;
+      slot.behind = true;
+      this.publish(slot);
+    }
+  }
+
+  /** Связь есть; пометки областей снимает их перечитывание или открытие. */
+  connect(): void {
+    this.online = true;
   }
 
   /** Область пуста: экземпляр закрыт, идущее открытие отменено, остаются отметки. */
@@ -125,14 +207,15 @@ export class PageRegions {
   /**
    * Сигнал перечитывания по адресу: готовая область с этим адресом —
    * `refreshing` до `settled()` экземпляра (D-UI-49). Склеенные сигналы —
-   * один период: признак снимает только последний жетон.
+   * один период: признак снимает только последний жетон. Область с данными
+   * прежнего соединения сигнал пропускает: её перечитает восстановление.
    */
   signalled(address: AddressJson): void {
     const key = JSON.stringify(address);
-    for (const name of REGIONS) {
+    for (const name of PAGE_REGIONS) {
       const slot = this.slot(name);
       const instance = slot.instance;
-      if (instance === undefined) continue;
+      if (instance === undefined || slot.behind) continue;
       const view = instance.view();
       if (view.status !== 'ready' || JSON.stringify(view.address) !== key) {
         continue;
@@ -154,7 +237,7 @@ export class PageRegions {
   /** Снимок областей с экземпляром — в форме JSON (без `state: undefined`). */
   snapshot(): PageSnapshot {
     const slots: Partial<Record<PageRegionName, PageSlotJson>> = {};
-    for (const name of REGIONS) {
+    for (const name of PAGE_REGIONS) {
       const instance = this.slot(name).instance;
       if (instance === undefined) continue;
       const { address, revision, state } = instance.snapshot();
@@ -180,6 +263,8 @@ export class PageRegions {
     slot.unlisten = undefined;
     slot.loading = undefined;
     slot.refresh = undefined;
+    slot.resync = undefined;
+    slot.behind = false;
   }
 
   private publish(slot: RegionSlot): void {
@@ -195,11 +280,16 @@ export class PageRegions {
     return this.slots[name];
   }
 
-  /** Новое значение состояния по слоту: только данные JSON. */
+  /**
+   * Новое значение состояния по слоту: только данные JSON. `offline` — у
+   * непустой области с данными прежнего соединения, важнее `revision`.
+   */
   private static stateOf(slot: RegionSlot): PageViewState {
-    const { note, issues = [], confirm, stale } = slot.marks;
+    const { note, issues = [], confirm } = slot.marks;
+    const empty = slot.instance === undefined && slot.loading === undefined;
+    const stale = slot.behind && !empty ? 'offline' : slot.marks.stale;
     const marks = {
-      refreshing: slot.refresh !== undefined,
+      refreshing: slot.refresh !== undefined || slot.resync !== undefined,
       ...(stale === undefined ? {} : { stale }),
       ...(note === undefined ? {} : { note }),
       issues,
@@ -244,6 +334,8 @@ export class PageRegions {
       loading: undefined,
       ticket: 0,
       refresh: undefined,
+      resync: undefined,
+      behind: false,
     };
   }
 

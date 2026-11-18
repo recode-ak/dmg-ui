@@ -47,7 +47,6 @@ const tab = async (host: PageServerPort, token: string) => {
   const client = new PageClient({
     app: ExamplePagesAppDef,
     codes: exampleCodes(),
-    views: examplePageViews,
     routes: examplePageRoutes,
     end: connected.value,
     observer: new MemoryUiObserver(),
@@ -151,7 +150,6 @@ describe('PageClient — пути отказа через провод', () => {
     const client = new PageClient({
       app: ExamplePagesAppDef,
       codes: exampleCodes(),
-      views: examplePageViews,
       routes: examplePageRoutes,
       end: connected.value,
       observer: new MemoryUiObserver(),

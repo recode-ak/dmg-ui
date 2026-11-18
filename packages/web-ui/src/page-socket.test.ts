@@ -2,10 +2,15 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import {
   AwaitingBus,
   MemoryLogger,
+  testTrace,
   testUuid,
   useTempDir,
 } from 'dmg-core/testing';
-import { ExampleApp } from 'dmg-core/testing/example';
+import {
+  CreateTaskUcDef,
+  ExampleApp,
+  TodoModuleDef,
+} from 'dmg-core/testing/example';
 import type { Place } from 'dmg-ui';
 import {
   ApiAppDispatch,
@@ -24,10 +29,12 @@ import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
-  examplePageViews,
+  ManualPageClock,
 } from '../testing';
 import { PageBrowserSocket } from './client/page-browser-socket';
 import { PageClient } from './client/page-client';
+import { PageReconnector } from './client/page-reconnector';
+import type { PageSocket, PageSocketEvents } from './client/page-socket.types';
 import { PageSocketEnd } from './client/page-socket-end';
 import { PageGate } from './server/page-gate';
 import { PageHost } from './server/page-host';
@@ -41,9 +48,11 @@ import { MAX_CLIENT_TEXT, MAX_SERVER_TEXT } from './wire/page-wire.const';
 
 // Страничный канал на настоящем сокете Bun: ворота до открытия, мост сокета
 // к хосту, конец сокета у клиента и адаптер сокета браузера. Проверяет
-// привязку, личность по пропуску, освобождение на закрытии и пределы, которых
-// не видят тесты в памяти. Сервер — `127.0.0.1` на свободном порту; ожидание —
-// только событиями: источник области, закрытие на сервере, обрыв, кадр.
+// привязку, личность по пропуску, освобождение на закрытии, пределы, которых
+// не видят тесты в памяти, и переподключение после перезапуска сервера на
+// том же порту. Сервер — `127.0.0.1` на свободном порту; ожидание — только
+// событиями: источник области, закрытие на сервере и у клиента, обрыв, кадр;
+// время переподключателя — подставные часы.
 
 const A = testUuid(1);
 const B = testUuid(2);
@@ -84,8 +93,8 @@ class ServerCloses {
   }
 }
 
-/** Приложение, сервер UI, хост, уведомитель, мост, ворота и сервер сокетов. */
-const world = () => {
+/** Приложение — учебное приложение, шина и логгер: переживает перезапуск сервера. */
+const application = () => {
   const bus = new AwaitingBus();
   const logger = new MemoryLogger();
   const context = { bus, logger };
@@ -94,6 +103,25 @@ const world = () => {
     { ...context, clock: () => T0 },
   );
   const dispatch = new ApiAppDispatch(example.api);
+  return { bus, logger, context, example, dispatch };
+};
+
+type App = ReturnType<typeof application>;
+
+/**
+ * Сервер на порту над приложением: сервер UI, хост, уведомитель, мост, ворота
+ * и сервер сокетов. `port` 0 — свободный; перезапуск — `stop()` и новый
+ * сервер на прежнем `port`. Уведомитель остановленного сервера остаётся
+ * подписан на шину и доставляет в пустую доставку.
+ */
+const serving = (
+  app: App,
+  {
+    port = 0,
+    tokens = TOKENS,
+  }: { port?: number; tokens?: Map<string, string> } = {},
+) => {
+  const { context, dispatch, example, logger } = app;
   const server = new UiServer({ set: ExampleUiSetDef, dispatch, context });
   const places: PersonPlaces = {
     place: async (uuid) => {
@@ -105,7 +133,7 @@ const world = () => {
   const host = new PageHost({
     app: ExamplePagesAppDef,
     server,
-    tokens: async (token) => TOKENS.get(token),
+    tokens: async (token) => tokens.get(token),
     callers: example.callers,
     places,
     logger,
@@ -124,7 +152,7 @@ const world = () => {
   const closes = new ServerCloses();
   const bun = Bun.serve<PageAdmission>({
     hostname: '127.0.0.1',
-    port: 0,
+    port,
     fetch: (request, srv) => {
       const admitted = gate.admit(request.headers);
       if (!admitted.ok) return new Response(null, { status: 403 });
@@ -148,14 +176,22 @@ const world = () => {
     },
   });
   stops.push(() => bun.stop(true));
+  const bound = bun.port ?? port;
   return {
-    bus,
-    logger,
     host,
     closes,
+    port: bound,
     stop: () => bun.stop(true),
-    url: `ws://127.0.0.1:${bun.port}`,
+    url: `ws://127.0.0.1:${bound}`,
   };
+};
+
+type Served = ReturnType<typeof serving>;
+
+/** Приложение и сервер на свободном порту. */
+const world = () => {
+  const app = application();
+  return { ...app, ...serving(app) };
 };
 
 type World = ReturnType<typeof world>;
@@ -167,13 +203,13 @@ const headersFor = (token: string, origin = ORIGIN) => ({
 });
 
 /** Клиентский конец поверх настоящего сокета Bun. */
-const endOf = (w: World, headers: Record<string, string>) =>
+const endOf = (w: Served, headers: Record<string, string>) =>
   PageSocketEnd.connect(
     new PageBrowserSocket(new WebSocket(w.url, { headers })),
   );
 
 /** Вкладка личности: клиент на конце сокета; обрыв — журнал и промис первого. */
-const tab = async (w: World, token: string, prefix: string) => {
+const tab = async (w: Served, token: string, prefix: string) => {
   const res = await endOf(w, headersFor(token));
   if (!res.ok) throw new Error(`connect(${token}): отказ`);
   const end = res.value;
@@ -187,7 +223,6 @@ const tab = async (w: World, token: string, prefix: string) => {
   const client = new PageClient({
     app: ExamplePagesAppDef,
     codes: exampleCodes(),
-    views: examplePageViews,
     routes: examplePageRoutes,
     end,
     observer: new MemoryUiObserver(),
@@ -197,6 +232,103 @@ const tab = async (w: World, token: string, prefix: string) => {
     },
   });
   return { end, client, breaks, broken: broken.promise };
+};
+
+/**
+ * Сокеты вкладки поверх настоящего сокета Bun: счёт созданных и ожидание
+ * закрытия n-го — по событию сокета, после реакции конца на него.
+ */
+class TabSockets {
+  count = 0;
+  private closedCount = 0;
+  private readonly waiters: { n: number; resolve: () => void }[] = [];
+
+  constructor(
+    private readonly url: () => string,
+    private readonly headers: Record<string, string>,
+  ) {}
+
+  next(): PageSocket {
+    this.count += 1;
+    const socket = new PageBrowserSocket(
+      new WebSocket(this.url(), { headers: this.headers }),
+    );
+    return {
+      send: (text) => socket.send(text),
+      close: () => socket.close(),
+      listen: (events: PageSocketEvents) =>
+        socket.listen({
+          message: (data) => events.message(data),
+          closed: (code) => {
+            events.closed(code);
+            this.closed();
+          },
+        }),
+    };
+  }
+
+  /** Закрыт n-й по счёту сокет вкладки. */
+  reached(n: number): Promise<void> {
+    if (n <= this.closedCount) return Promise.resolve();
+    return new Promise((resolve) => this.waiters.push({ n, resolve }));
+  }
+
+  private closed(): void {
+    this.closedCount += 1;
+    for (const waiter of this.waiters.filter((w) => w.n <= this.closedCount)) {
+      waiter.resolve();
+    }
+  }
+}
+
+/** Отдаёт микрозадачи без таймеров (TST-04). */
+const flush = async () => {
+  for (let turn = 0; turn < 200; turn += 1) await Promise.resolve();
+};
+
+/**
+ * Вкладка личности через переподключатель: подставные часы, разброс 0;
+ * обрыв — попытки к серверу на прежнем адресе, новый конец — `attach`.
+ */
+const reconnecting = async (w: Served, token: string, prefix: string) => {
+  const clock = new ManualPageClock();
+  const sockets = new TabSockets(() => w.url, headersFor(token));
+  const reconnector = new PageReconnector({
+    sockets: () => sockets.next(),
+    clock,
+    random: () => 0,
+  });
+  stops.push(async () => reconnector.close());
+  const end = await reconnector.connect();
+  let requests = 0;
+  const client = new PageClient({
+    app: ExamplePagesAppDef,
+    codes: exampleCodes(),
+    routes: examplePageRoutes,
+    end,
+    observer: new MemoryUiObserver(),
+    clock,
+    requestIds: () => {
+      requests += 1;
+      return `${prefix}-${requests}`;
+    },
+  });
+  reconnector.follow(end, (next) => client.attach(next));
+  return { client, clock, sockets };
+};
+
+/** Задача A, созданная через приложение, мимо сервера страниц. */
+const createdByA = async (app: App, title: string) => {
+  const caller = await app.example.callers.resolve(A, testTrace());
+  if (!caller.ok) throw new Error('вызывающий A не найден');
+  const result = await app.example.api.dispatch(
+    TodoModuleDef,
+    CreateTaskUcDef.command({ title }),
+    caller.value,
+    testTrace(),
+  );
+  if (!result.ok) throw new Error('createTask: отказ');
+  await app.bus.delivered();
 };
 
 /** Первое состояние источника, для которого `predicate` истинен. */
@@ -293,17 +425,17 @@ describe('страничный канал на сокете — личность
   });
 
   test.each([
-    ['чужой Origin', headersFor('tA', 'http://evil.example')],
-    ['без Origin', { Cookie: `${COOKIE}=tA` }],
-    ['неизвестный токен', headersFor('unknown-token')],
-  ] satisfies [string, Record<string, string>][])(
-    '%s — connect refused, соединений A нет',
-    async (_name, headers) => {
+    ['чужой Origin', 'closed', headersFor('tA', 'http://evil.example')],
+    ['без Origin', 'closed', { Cookie: `${COOKIE}=tA` }],
+    ['неизвестный токен', 'refused', headersFor('unknown-token')],
+  ] satisfies [string, 'closed' | 'refused', Record<string, string>][])(
+    '%s — connect %s, соединений A нет',
+    async (_name, error, headers) => {
       const w = world();
 
       const res = await endOf(w, headers);
 
-      expect(res).toEqual({ ok: false, error: 'refused' });
+      expect(res).toEqual({ ok: false, error });
       expect(w.host.delivery.connections(A)).toBe(0);
     },
   );
@@ -447,5 +579,75 @@ describe('страничный канал на сокете — пределы �
     for (const guard of [guardToken, guardOrigin, ORIGIN, guardInput]) {
       expect(text).not.toContain(guard);
     }
+  });
+});
+
+describe('страничный канал на сокете — перезапуск сервера', () => {
+  test('перезапуск на том же порту: у A пометка «нет связи»; после переподключения список перечитан с задачей, созданной без связи', async () => {
+    const app = application();
+    const first = serving(app);
+    const a = await reconnecting(first, 'tA', 'a');
+    await a.client.route('/');
+    expect(a.client.region('main').view?.revision).toBe(1);
+
+    await first.stop();
+    await until(a.client.source('main'), (s) => s.stale === 'offline');
+    await createdByA(app, 'Сыр');
+    serving(app, { port: first.port });
+    expect(a.clock.pending()).toEqual([250]);
+    a.clock.advance(250);
+    const reread = await until(
+      a.client.source('main'),
+      (s) => s.stale === undefined && s.view?.revision === 2 && shows(s, 'Сыр'),
+    );
+
+    expect(reread).toMatchObject({ status: 'ready', refreshing: false });
+    expect(a.sockets.count).toBe(2);
+  });
+
+  test('подписка на новом сервере: после перезапуска B назначает задачу на A — экран A перечитан по новому соединению', async () => {
+    const app = application();
+    const first = serving(app);
+    const a = await reconnecting(first, 'tA', 'a');
+    await a.client.route('/assigned');
+    await first.stop();
+    await until(a.client.source('main'), (s) => s.stale === 'offline');
+    const second = serving(app, { port: first.port });
+    a.clock.advance(250);
+    await until(
+      a.client.source('main'),
+      (s) => s.stale === undefined && s.view?.revision === 2,
+    );
+
+    const b = await tab(second, 'tB', 'b');
+    await b.client.route('/');
+    await b.client.submit('main', 'create', { title: 'Сыр' });
+    await until(b.client.source('main'), (s) => shows(s, 'Сыр'));
+    await b.client.submit('main', 'open', { taskId: 'Сыр' });
+    await b.client.submit('side', 'assign', { assigneeId: A });
+    const reread = await until(a.client.source('main'), (s) => shows(s, 'Сыр'));
+
+    expect(reread.view?.revision).toBeGreaterThan(2);
+    expect(reread.stale).toBeUndefined();
+  });
+
+  test('новый сервер не знает пропуск A — отказ 4403: одна пауза не меньше 15 000 мс, новых сокетов нет', async () => {
+    const app = application();
+    const first = serving(app);
+    const a = await reconnecting(first, 'tA', 'a');
+    await a.client.route('/');
+    await first.stop();
+    await until(a.client.source('main'), (s) => s.stale === 'offline');
+    serving(app, { port: first.port, tokens: new Map([['tB', B]]) });
+
+    a.clock.advance(250);
+    await a.sockets.reached(2);
+    await flush();
+
+    const pending = a.clock.pending();
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toBeGreaterThanOrEqual(15_000);
+    expect(a.sockets.count).toBe(2);
+    expect(a.client.region('main').stale).toBe('offline');
   });
 });

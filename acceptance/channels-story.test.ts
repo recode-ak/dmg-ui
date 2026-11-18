@@ -36,11 +36,7 @@ import {
 } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { PageClient, PageHost, PageWire } from 'dmg-ui/web-ui';
-import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
-  examplePageViews,
-} from 'dmg-ui/web-ui/testing';
+import { ExamplePagesAppDef, examplePageRoutes } from 'dmg-ui/web-ui/testing';
 
 // Приёмка нейтральности ядра: один сценарий сторис
 // `finishTasks` — создать задачу, открыть карточку, выполнить — на двух
@@ -189,7 +185,6 @@ const onPages = async () => {
   const client = new PageClient({
     app: ExamplePagesAppDef,
     codes,
-    views: examplePageViews,
     routes: examplePageRoutes,
     end: connected.value,
     observer: w.observer,

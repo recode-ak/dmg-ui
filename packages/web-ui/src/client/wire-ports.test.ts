@@ -10,9 +10,9 @@ import type { ClientEnd } from '../wire/page-wire.types';
 import { WirePorts } from './wire-ports';
 
 // Порты исполнителя поверх клиентского конца провода: вызов не по схеме,
-// отказ подписки, отказ сервера по `id` вызова, обрыв провода и отвод
-// сигнала с адресом подписки. Конец провода — заглушка: журнал
-// отправленного, сообщения и обрыв по команде.
+// отказ подписки, отказ сервера по `id` вызова, обрыв провода, работа без
+// связи, смена конца и отвод сигнала с адресом подписки. Конец провода —
+// заглушка: журнал отправленного, сообщения и обрыв по команде.
 
 const CONTEXT = {
   locale: 'ru-RU',
@@ -69,10 +69,8 @@ class StubEnd implements ClientEnd {
   }
 }
 
-/** Порты на заглушке; сообщения сервера — в `receive` портов. */
-const ports = (onSignal?: (address: AddressJson) => void) => {
-  const end = new StubEnd();
-  const wire = new WirePorts(end, onSignal);
+/** Сообщения сервера с конца `end` — в `receive` портов, как их отводит клиент. */
+const route = (end: StubEnd, wire: WirePorts) => {
   end.onMessage((message) => {
     if (
       message.kind === 'result' ||
@@ -83,7 +81,27 @@ const ports = (onSignal?: (address: AddressJson) => void) => {
       wire.receive(message);
     }
   });
+};
+
+/** Порты на заглушке; сообщения сервера — в `receive` портов. */
+const ports = (onSignal?: (address: AddressJson) => void) => {
+  const end = new StubEnd();
+  const wire = new WirePorts(end, onSignal);
+  route(end, wire);
   return { end, wire };
+};
+
+/** Новый конец портам: `attach` и отвод его сообщений. */
+const attached = (wire: WirePorts) => {
+  const end = new StubEnd();
+  wire.attach(end);
+  route(end, wire);
+  return end;
+};
+
+/** Отдаёт микрозадачи без таймеров (TST-04). */
+const flush = async () => {
+  for (let turn = 0; turn < 200; turn += 1) await Promise.resolve();
 };
 
 /** Исход промиса: значение или текст отказа — без ожидания таймером. */
@@ -94,6 +112,10 @@ const outcome = (promise: Promise<unknown>) =>
       error: error instanceof Error ? error.message : String(error),
     }),
   );
+
+/** Исход промиса к концу `flush()`: не разрешённый к этому моменту — `waiting`. */
+const settledSoon = (promise: Promise<unknown>) =>
+  Promise.race([outcome(promise), flush().then(() => 'waiting' as const)]);
 
 describe('WirePorts.call', () => {
   test('вызов не по схеме провода — отказ промиса, на провод не ушёл', async () => {
@@ -159,6 +181,115 @@ describe('WirePorts.call', () => {
 
     expect(await first).toEqual({ error: 'провод оборван' });
     expect(await second).toEqual({ error: 'провод оборван' });
+  });
+});
+
+describe('WirePorts — без связи', () => {
+  test('после обрыва новый call — отказ сразу «нет соединения», на провод не ушёл', async () => {
+    const { end, wire } = ports();
+    const before = outcome(wire.call(CALL));
+    end.fail(new Error('провод оборван'));
+
+    const res = await settledSoon(wire.call({ ...CALL, requestId: 'r-2' }));
+
+    expect(await before).toEqual({ error: 'провод оборван' });
+    expect(res).toEqual({ error: expect.stringContaining('нет соединения') });
+    expect(end.callIds()).toHaveLength(1);
+  });
+
+  test('watch после обрыва — сообщения нет; отписка — без действия', () => {
+    const { end, wire } = ports();
+    end.fail(new Error('провод оборван'));
+
+    const off = wire.watch(ADDRESS, () => {});
+    off();
+
+    expect(end.sent).toEqual([]);
+  });
+
+  test('подписка до обрыва снята обрывом: сигнал по её id не доходит, отписка ничего не шлёт', () => {
+    const taps: AddressJson[] = [];
+    const { end, wire } = ports((address) => {
+      taps.push(address);
+    });
+    const signals: RefreshSignal[] = [];
+    const off = wire.watch(ADDRESS, (signal) => signals.push(signal));
+    const [watch = ''] = end.watchIds();
+
+    end.fail(new Error('провод оборван'));
+    end.emit({ kind: 'signal', watch, signal: SIGNAL });
+    off();
+
+    expect(signals).toEqual([]);
+    expect(taps).toEqual([]);
+    expect(end.sent.map((m) => m.kind)).toEqual(['watch']);
+  });
+});
+
+describe('WirePorts.attach', () => {
+  test('после обрыва и attach(end2) — call уходит по end2, ответ по end2 разрешает', async () => {
+    const { end, wire } = ports();
+    end.fail(new Error('провод оборван'));
+    const end2 = attached(wire);
+
+    const pending = wire.call(CALL);
+    end2.emit({ kind: 'result', id: end2.callIds()[0] ?? '', result: ok(1) });
+
+    expect(await settledSoon(pending)).toEqual({ value: ok(1) });
+    expect(end.callIds()).toEqual([]);
+  });
+
+  test('после attach подписка уходит по end2, сигнал по end2 доходит до слушателя', () => {
+    const { end, wire } = ports();
+    end.fail(new Error('провод оборван'));
+    const end2 = attached(wire);
+    const signals: RefreshSignal[] = [];
+
+    wire.watch(ADDRESS, (signal) => signals.push(signal));
+    const [watch = ''] = end2.watchIds();
+    end2.emit({ kind: 'signal', watch, signal: SIGNAL });
+
+    expect(end2.sent).toStrictEqual([
+      { kind: 'watch', watch, address: ADDRESS },
+    ]);
+    expect(signals).toEqual([SIGNAL]);
+    expect(end.sent).toEqual([]);
+  });
+
+  test('отписка подписки, сделанной до обрыва, после attach по end2 ничего не шлёт', () => {
+    const { end, wire } = ports();
+    const off = wire.watch(ADDRESS, () => {});
+    end.fail(new Error('провод оборван'));
+    const end2 = attached(wire);
+
+    off();
+
+    expect(end2.sent).toEqual([]);
+    expect(end.sent.map((m) => m.kind)).toEqual(['watch']);
+  });
+
+  test('сигнал по прежнему концу после attach — слушатель не зван', () => {
+    const { end, wire } = ports();
+    const signals: RefreshSignal[] = [];
+    wire.watch(ADDRESS, (signal) => signals.push(signal));
+    const [watch = ''] = end.watchIds();
+    end.fail(new Error('провод оборван'));
+    attached(wire);
+
+    end.emit({ kind: 'signal', watch, signal: SIGNAL });
+
+    expect(signals).toEqual([]);
+  });
+
+  test('обрыв прежнего конца после attach вызовы нового не отказывает', async () => {
+    const { end, wire } = ports();
+    const end2 = attached(wire);
+    const pending = wire.call(CALL);
+
+    end.fail(new Error('прежний провод оборван'));
+    end2.emit({ kind: 'result', id: end2.callIds()[0] ?? '', result: ok(2) });
+
+    expect(await settledSoon(pending)).toEqual({ value: ok(2) });
   });
 });
 

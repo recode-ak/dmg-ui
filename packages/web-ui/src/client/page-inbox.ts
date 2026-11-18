@@ -1,52 +1,73 @@
-import type { UiObserver } from 'dmg-ui';
-import type { PageViews } from '../view/page-views';
+import type { UiIds, UiObserver } from 'dmg-ui';
+import * as v from 'valibot';
+import type { ViewSource } from '../view/view-source.types';
 import type { NotificationMessage } from '../wire/page-messages.types';
-import { PAGE_DEFECTS } from './page-client.const';
-import type { PageInboxEntry } from './page-client.types';
+import {
+  INBOX_LIMIT,
+  PAGE_DEFECTS,
+  SEEN_LIMIT,
+  SEEN_TTL_MS,
+} from './page-client.const';
+import type { PageInboxEntry, PageInboxSpec } from './page-client.types';
+import { PageSeenKeys } from './page-seen-keys';
 import type { PageTraces } from './page-traces';
+import { ViewCell } from './view-cell';
 
 /**
- * Входящие вкладки: уведомления сервера текстом представления и ссылками;
- * повтор по `notification` + `eventId` отсеивается (D-UI-24). Области не
- * трогает: ссылку открывает `PageClient.openLink` — в `side`. Допущение:
- * отсеянные ключи и входящие растут без предела.
+ * Входящие вкладки — источник вида: уведомления сервера с данными и ссылками,
+ * до `INBOX_LIMIT` записей, старейшая вытесняется. Повтор по `notification` +
+ * `eventId` отсеивается с пределом и сроком (D-UI-24, D-UI-75). Данные
+ * проверяет схема Def уведомления, текст строит представление. Области не
+ * трогает: ссылку открывает `PageClient.openLink` — в `side`.
  */
 export class PageInbox {
-  private readonly entries: PageInboxEntry[] = [];
-  private readonly seen = new Set<string>();
+  private readonly ids: UiIds;
+  private readonly observer: UiObserver;
+  private readonly traces: PageTraces;
+  private readonly seen: PageSeenKeys;
+  private readonly cell: ViewCell<readonly PageInboxEntry[]>;
 
-  constructor(
-    private readonly views: PageViews,
-    private readonly observer: UiObserver,
-    private readonly traces: PageTraces,
-  ) {}
+  constructor(spec: PageInboxSpec) {
+    this.ids = spec.ids;
+    this.observer = spec.observer;
+    this.traces = spec.traces;
+    this.seen = new PageSeenKeys({
+      limit: SEEN_LIMIT,
+      ttl: SEEN_TTL_MS,
+      clock: spec.clock,
+    });
+    this.cell = new ViewCell<readonly PageInboxEntry[]>([], spec.onFault);
+  }
 
-  get list(): readonly PageInboxEntry[] {
-    return this.entries;
+  get source(): ViewSource<readonly PageInboxEntry[]> {
+    return this.cell;
   }
 
   /**
-   * Уведомление с сервера — внешние данные: неизвестный `id` или бросок
-   * представления (данные не по схеме) — не показано, не бросает (ERR-01),
-   * запись `defect` наблюдателю с фиксированным текстом.
+   * Уведомление с сервера — внешние данные: неизвестный `id` или данные не по
+   * схеме — не показано, не бросает (ERR-01), запись `defect` с фиксированным
+   * текстом. Ключ не по схеме не ставится: верное с тем же ключом покажется.
+   * Во входящие идут данные как пришли, а не выход схемы.
    */
   receive(message: NotificationMessage): void {
     const key = JSON.stringify([message.notification, message.eventId]);
     if (this.seen.has(key)) return;
-    const presenter = this.views.findNotification(message.notification);
-    if (presenter === undefined) {
-      this.defect(message.notification, PAGE_DEFECTS.noView);
+    const def = this.ids.findNotification(message.notification);
+    if (def === undefined) {
+      this.defect(message.notification, PAGE_DEFECTS.unknown);
       return;
     }
-    let text: string;
-    try {
-      text = presenter.text(message.data);
-    } catch {
+    if (!v.safeParse(def.data, message.data).success) {
       this.defect(message.notification, PAGE_DEFECTS.badData);
       return;
     }
     this.seen.add(key);
-    this.entries.push({ text, links: message.links });
+    const entry: PageInboxEntry = {
+      notification: message.notification,
+      data: message.data,
+      links: message.links,
+    };
+    this.cell.set([...this.cell.get(), entry].slice(-INBOX_LIMIT));
   }
 
   /** След — свой на входящий сигнал вкладки, как у прочих сигналов. */

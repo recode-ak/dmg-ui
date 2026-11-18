@@ -13,7 +13,7 @@ import {
   MemoryUiObserver,
 } from 'dmg-ui/testing';
 import { ExampleStubAppDef, T0 } from 'dmg-ui/testing/fixtures';
-import { examplePageRoutes, examplePageViews } from '../testing';
+import { examplePageRoutes } from '../testing';
 import { PageClient } from './client/page-client';
 import { PageHost } from './server/page-host';
 import type { ClientEnd } from './wire/page-wire.types';
@@ -43,7 +43,6 @@ describe('страничный канал — приложение другог�
         new PageClient({
           app: ExampleStubAppDef,
           codes: exampleCodes(),
-          views: examplePageViews,
           routes: examplePageRoutes,
           end,
           observer: new MemoryUiObserver(),

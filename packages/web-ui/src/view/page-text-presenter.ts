@@ -9,10 +9,11 @@ import type { PageViews } from './page-views';
 import type { ViewSource } from './view-source.types';
 
 /**
- * Текстовое представление области поверх источника состояния: заметка, тело
- * по статусу, замечания формы, подтверждение — через пустую строку. Тело:
- * `loading` — «Загрузка…», `ready` и `refused` — вид (при перечитывании —
- * «Обновляется…» перед ним), `empty` — ничего (D-UI-70).
+ * Текстовое представление области поверх источника состояния: пометка «нет
+ * связи» (`stale: 'offline'`, D-UI-74), заметка, тело по статусу, замечания
+ * формы, подтверждение — через пустую строку. Тело: `loading` — «Загрузка…»,
+ * `ready` и `refused` — вид (при перечитывании — «Обновляется…» перед ним),
+ * `empty` — ничего (D-UI-70).
  */
 export class PageTextPresenter implements PageRegionPresenter<PageTextTarget> {
   private readonly renderer: PageRenderer;
@@ -27,8 +28,9 @@ export class PageTextPresenter implements PageRegionPresenter<PageTextTarget> {
 
   /** Текст области по состоянию; пустые части опускаются. */
   private text(state: PageViewState): string {
-    const { note, issues, confirm } = state;
+    const { note, issues, confirm, stale } = state;
     return [
+      stale === 'offline' ? PAGE_TEXTS.offline : undefined,
       note,
       ...this.body(state),
       ...issues.map(PageTextPresenter.issue),

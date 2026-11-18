@@ -17,3 +17,12 @@ export type PageSocket = {
   close(): void;
   listen(events: PageSocketEvents): void;
 };
+
+/**
+ * Отказ соединения до `hello`: `refused` — сервер закрыл кодом отказа (пропуск
+ * неизвестен, предел соединений); `closed` — иное закрытие (сервер недоступен
+ * или ворота отказали — у сокета браузера это неразличимо); `malformed` —
+ * первый кадр не `hello`; `timeout` — `hello` не пришёл в срок (его ставит
+ * переподключатель).
+ */
+export type PageDialFailure = 'refused' | 'closed' | 'malformed' | 'timeout';

@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'bun:test';
 import type {
   PageAdmission,
+  PageClientSpec,
+  PageClock,
+  PageDialFailure,
   PageGateRefusal,
   PageGateSpec,
   PageHeaders,
+  PageInboxEntry,
+  PageReconnectorSpec,
   PageRegionPresenter,
   PageServerSocket,
   PageSocket,
@@ -18,9 +23,10 @@ import type {
 
 // Составы входов страничного пакета: канал, его имя, контракт представления,
 // текстовая страница, сообщения, провод в памяти, мост и конец сокета,
-// ворота соединения — в `dmg-ui/web-ui`;
-// привязка учебного примера к каналу — в `dmg-ui/web-ui/testing`. Внутренние
-// помощники клиента, представлений и сервера наружу не выходят.
+// переподключатель и часы вкладки, ворота соединения — в `dmg-ui/web-ui`;
+// привязка учебного примера к каналу и подставные часы — в
+// `dmg-ui/web-ui/testing`. Внутренние помощники клиента, представлений и
+// сервера наружу не выходят.
 
 const WEB_UI = [
   'ClientMessage',
@@ -32,10 +38,12 @@ const WEB_UI = [
   'PageHost',
   'PageNotePresenter',
   'PagePresenter',
+  'PageReconnector',
   'PageRenderer',
   'PageRouteDef',
   'PageSocketEnd',
   'PageSockets',
+  'PageSystemClock',
   'PageText',
   'PageViews',
   'PageWire',
@@ -43,7 +51,7 @@ const WEB_UI = [
 ];
 
 describe('вход dmg-ui/web-ui', () => {
-  it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, ворота', async () => {
+  it('состав — клиент, представления, рендерер, текстовая страница, граф и маршруты, сервер, сообщения, провод в памяти, мост и конец сокета, переподключатель и часы, ворота', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui')).sort()).toEqual(WEB_UI);
   });
 
@@ -63,6 +71,7 @@ describe('вход dmg-ui/web-ui', () => {
       'PageForms',
       'PageTraces',
       'PageInbox',
+      'PageSeenKeys',
       'ViewCell',
       'PageTextPresenter',
       'PageOutbox',
@@ -118,11 +127,31 @@ export type WebUiSocketTypes = [
   PageGateRefusal,
 ];
 
+/**
+ * Состав типов переподключения, часов и входящих во входе `dmg-ui/web-ui` —
+ * так же через `tsc`: привязка вкладки к сокету и представление входящих
+ * пишутся по ним.
+ */
+export type WebUiReconnectTypes = [
+  PageClock['now'],
+  PageClock['after'],
+  PageReconnectorSpec['sockets'],
+  PageReconnectorSpec['clock'],
+  PageReconnectorSpec['random'],
+  PageReconnectorSpec['faults'],
+  PageDialFailure,
+  PageInboxEntry['notification'],
+  PageInboxEntry['data'],
+  PageInboxEntry['links'],
+  PageClientSpec['clock'],
+];
+
 describe('вход dmg-ui/web-ui/testing', () => {
-  it('состав — привязка учебного примера к страничному каналу', async () => {
+  it('состав — привязка учебного примера к страничному каналу и подставные часы', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui/testing')).sort()).toEqual([
       'ExamplePagesAppDef',
       'ExamplePagesArch',
+      'ManualPageClock',
       'examplePageRoutes',
       'examplePageViews',
     ]);

@@ -2,15 +2,18 @@ import { err, ok, type Result } from 'dmg-core';
 import type { RenderContext } from 'dmg-ui';
 import { serverFrame } from '../wire/page-frames';
 import type { ClientMessage, ServerMessage } from '../wire/page-messages.types';
+import { PAGE_CLOSE } from '../wire/page-wire.const';
 import type { ClientEnd } from '../wire/page-wire.types';
-import type { PageSocket } from './page-socket.types';
+import { EARLY_FRAMES_LIMIT } from './page-socket.const';
+import type { PageDialFailure, PageSocket } from './page-socket.types';
 
 /**
- * Клиентский конец провода поверх сокета (D-UI-71). Первое сообщение сервера —
- * `hello`, иначе соединение отказано (`refused`): так конец отличает отказ до
- * `hello` от обрыва после. Плохой кадр, закрытие сокета и `close()` — обрыв
- * ровно один раз. Промис обработчика сообщения конец не ждёт: порядок задают
- * кадры сокета.
+ * Клиентский конец провода поверх сокета (D-UI-71, D-UI-74). Первое сообщение
+ * сервера — `hello`, иначе соединение отказано с видом отказа. Кадры до первой
+ * подписки `onMessage` копятся (не больше `EARLY_FRAMES_LIMIT`) и отдаются ей
+ * по порядку. Плохой кадр, закрытие сокета и `close()` — обрыв ровно один раз;
+ * опоздавший к обрыву `onBreak` получает его сразу. Промис обработчика конец
+ * не ждёт: порядок задают кадры сокета.
  * @see ./page-socket-end.test.ts
  */
 export class PageSocketEnd implements ClientEnd {
@@ -18,7 +21,10 @@ export class PageSocketEnd implements ClientEnd {
     message: ServerMessage,
   ) => Promise<void> | void)[] = [];
   private readonly breaks: ((error: Error) => void)[] = [];
-  private closed = false;
+  /** Кадры после `hello` до первой подписки `onMessage`. */
+  private early: ServerMessage[] = [];
+  /** Ошибка обрыва; есть — конец закрыт. */
+  private failure: Error | undefined;
 
   private constructor(
     private readonly socket: PageSocket,
@@ -27,14 +33,15 @@ export class PageSocketEnd implements ClientEnd {
 
   /**
    * Соединение по открытому сокету: подписка на события — сразу, конец — после
-   * `hello`. Закрытие до `hello` или другое первое сообщение — `refused`,
-   * сокет закрыт. Кадр доставляется только обработчикам, подписанным к его
-   * приходу: `onMessage` — сразу после `await connect`, без других `await`
-   * между ними, иначе кадр сервера теряется молча.
+   * `hello`. До `hello`: закрытие кодом `PAGE_CLOSE.refused` — `refused`, иное
+   * закрытие — `closed`, другой первый кадр — `malformed` (сокет закрыт).
+   * Срока у ожидания нет — его ставит вызывающий.
    */
-  static connect(socket: PageSocket): Promise<Result<ClientEnd, 'refused'>> {
+  static connect(
+    socket: PageSocket,
+  ): Promise<Result<ClientEnd, PageDialFailure>> {
     const { promise, resolve } =
-      Promise.withResolvers<Result<ClientEnd, 'refused'>>();
+      Promise.withResolvers<Result<ClientEnd, PageDialFailure>>();
     let end: PageSocketEnd | undefined;
     let settled = false;
     socket.listen({
@@ -48,7 +55,7 @@ export class PageSocketEnd implements ClientEnd {
         const hello = PageSocketEnd.hello(data);
         if (hello === undefined) {
           socket.close();
-          resolve(err('refused'));
+          resolve(err('malformed'));
           return;
         }
         end = new PageSocketEnd(socket, hello);
@@ -61,7 +68,7 @@ export class PageSocketEnd implements ClientEnd {
         }
         if (settled) return;
         settled = true;
-        resolve(err('refused'));
+        resolve(err(code === PAGE_CLOSE.refused ? 'refused' : 'closed'));
       },
     });
     return promise;
@@ -69,27 +76,40 @@ export class PageSocketEnd implements ClientEnd {
 
   /** Строка JSON сообщения — в сокет; после закрытия — без действия. */
   send(message: ClientMessage): void {
-    if (!this.closed) this.socket.send(JSON.stringify(message));
+    if (this.failure === undefined) this.socket.send(JSON.stringify(message));
   }
 
+  /** Первый обработчик сразу получает накопленные кадры по порядку. */
   onMessage(handler: (message: ServerMessage) => Promise<void> | void): void {
     this.handlers.push(handler);
+    if (this.handlers.length > 1) return;
+    const early = this.early;
+    this.early = [];
+    for (const message of early) void handler(message);
   }
 
+  /** После обрыва обработчик зовётся сразу той же ошибкой. */
   onBreak(handler: (error: Error) => void): void {
+    if (this.failure !== undefined) {
+      handler(this.failure);
+      return;
+    }
     this.breaks.push(handler);
   }
 
   /** Закрыть сокет; обрыв — один раз, позднее закрытие сокета второго не даёт. */
   close(): void {
-    if (this.closed) return;
+    if (this.failure !== undefined) return;
     this.socket.close();
     this.broken(new Error('PageSocketEnd: соединение закрыто'));
   }
 
-  /** Кадр после `hello`: по схеме — обработчикам синхронно, иначе обрыв. */
+  /**
+   * Кадр после `hello`: по схеме — обработчикам синхронно (до первой
+   * подписки — в накопление), иначе обрыв.
+   */
   private receive(data: unknown): void {
-    if (this.closed) return;
+    if (this.failure !== undefined) return;
     const parsed =
       typeof data === 'string' ? serverFrame(data) : err('malformed');
     if (!parsed.ok) {
@@ -104,14 +124,28 @@ export class PageSocketEnd implements ClientEnd {
       return;
     }
     const message = parsed.value;
+    if (this.handlers.length === 0) {
+      if (this.early.length >= EARLY_FRAMES_LIMIT) {
+        this.socket.close();
+        this.broken(
+          new Error('PageSocketEnd: кадров до подписки больше предела'),
+        );
+        return;
+      }
+      this.early.push(message);
+      return;
+    }
     for (const handler of [...this.handlers]) void handler(message);
   }
 
   /** Обрыв для клиента — один раз: дальше конец ничего не шлёт и не доставляет. */
   private broken(error: Error): void {
-    if (this.closed) return;
-    this.closed = true;
-    for (const handler of [...this.breaks]) handler(error);
+    if (this.failure !== undefined) return;
+    this.failure = error;
+    this.early = [];
+    const handlers = [...this.breaks];
+    this.breaks.length = 0;
+    for (const handler of handlers) handler(error);
   }
 
   /** Контекст из первого кадра, если он — `hello` по схеме. */

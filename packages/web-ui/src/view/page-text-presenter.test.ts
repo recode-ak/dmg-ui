@@ -10,8 +10,9 @@ import type { PageViewState } from './page-view-state.types';
 
 // Текстовое представление области поверх источника состояния: заметка, вид
 // через `PageRenderer.screen`, замечания формы, подтверждение — через пустую
-// строку. «Загрузка…» — вместо вида, «Обновляется…» — перед видом. Цель
-// показа — запись строк; клиент, провод и сервер не нужны.
+// строку. «Загрузка…» — вместо вида, «Обновляется…» — перед видом, пометка
+// «нет связи» — первой строкой. Цель показа — запись строк; клиент, провод и
+// сервер не нужны.
 
 const LIST = { screen: LIST_ID, params: { page: 0 } };
 const CONTEXT = {
@@ -53,6 +54,8 @@ const READY: PageViewState = {
   refreshing: false,
   issues: [],
 };
+
+const OFFLINE = 'Нет связи — переподключаемся';
 
 const renderer = new PageRenderer(examplePageViews);
 
@@ -151,6 +154,52 @@ describe('PageTextPresenter — состояния области', () => {
         '! Форма не прошла проверку',
         'Точно?\nНасовсем.\n  [Подтвердить]',
       ].join('\n\n'),
+    ]);
+  });
+});
+
+describe('PageTextPresenter — нет связи', () => {
+  test('stale: offline — пометка первой строкой, перед заметкой и видом', () => {
+    const { writes } = shown({
+      ...READY,
+      stale: 'offline',
+      note: 'Задача создана',
+    });
+
+    expect(writes).toEqual([
+      [OFFLINE, 'Задача создана', renderer.screen(VIEW)].join('\n\n'),
+    ]);
+  });
+
+  test('offline при перечитывании — обе строки: пометка, затем «Обновляется…» и вид', () => {
+    const { writes } = shown({ ...READY, stale: 'offline', refreshing: true });
+
+    expect(writes).toEqual([
+      [OFFLINE, 'Обновляется…', renderer.screen(VIEW)].join('\n\n'),
+    ]);
+  });
+
+  test('loading без связи — пометка перед «Загрузка…»', () => {
+    const { writes } = shown({
+      status: 'loading',
+      address: LIST,
+      refreshing: false,
+      stale: 'offline',
+      issues: [],
+    });
+
+    expect(writes).toEqual([`${OFFLINE}\n\nЗагрузка…`]);
+  });
+
+  test('stale: revision пометки «нет связи» не даёт', () => {
+    const { writes } = shown({
+      ...READY,
+      stale: 'revision',
+      note: 'Данные обновились',
+    });
+
+    expect(writes).toEqual([
+      ['Данные обновились', renderer.screen(VIEW)].join('\n\n'),
     ]);
   });
 });

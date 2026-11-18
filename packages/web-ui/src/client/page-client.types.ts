@@ -1,5 +1,6 @@
 import type { SerializedResult } from 'dmg-core';
 import type {
+  Address,
   AddressJson,
   AnyUiAppDef,
   CodeLoaders,
@@ -7,6 +8,7 @@ import type {
   RefreshSignal,
   ScreenInstance,
   UiFault,
+  UiIds,
   UiObserver,
 } from 'dmg-ui';
 import type {
@@ -14,7 +16,6 @@ import type {
   PageStaleReason,
   PageViewState,
 } from '../view/page-view-state.types';
-import type { PageViews } from '../view/page-views';
 import type {
   RefusedMessage,
   ResultMessage,
@@ -22,6 +23,8 @@ import type {
   WatchRefusedMessage,
 } from '../wire/page-messages.types';
 import type { ClientEnd } from '../wire/page-wire.types';
+import type { PageClock } from './page-clock.types';
+import type { PageTraces } from './page-traces';
 import type { ViewCell } from './view-cell';
 
 /** Области страницы: основная и соседняя. */
@@ -34,16 +37,18 @@ export type PageRoute = {
 };
 
 /**
- * Сборка вкладки: приложение UI, код экранов, представления, маршруты и
- * клиентский конец провода. `UiServer` клиенту не виден — только провод.
+ * Сборка вкладки: приложение UI, код экранов, маршруты и клиентский конец
+ * провода. `UiServer` клиенту не виден — только провод; представлений клиент
+ * не берёт — текст строит цель показа.
  */
 export type PageClientSpec = {
   readonly app: AnyUiAppDef;
   readonly codes: CodeLoaders;
-  readonly views: PageViews;
   readonly routes: readonly PageRoute[];
   readonly end: ClientEnd;
   readonly observer: UiObserver;
+  /** Часы срока отсева повторов; по умолчанию — `PageSystemClock`. */
+  readonly clock?: PageClock;
   /** Id запросов следа; по умолчанию — `crypto.randomUUID`. */
   readonly requestIds?: () => string;
   /** Сырые броски кода экранов и слушателей вида — для диагностики. */
@@ -69,7 +74,8 @@ export type RegionMarks = {
 
 /**
  * Одна область: ячейка состояния, живой экземпляр и отписка его `onChange`,
- * отметки, адрес идущего открытия и жетоны открытия и перечитывания.
+ * отметки, адрес идущего открытия, жетоны открытия, перечитывания и
+ * восстановления, признак «данные с прежнего соединения».
  */
 export type RegionSlot = {
   readonly cell: ViewCell<PageViewState>;
@@ -80,14 +86,44 @@ export type RegionSlot = {
   loading: AddressJson | undefined;
   /** Жетон последнего начатого открытия или очистки. */
   ticket: number;
-  /** Жетон идущего перечитывания; нет — признака `refreshing` нет. */
+  /** Жетон идущего перечитывания по сигналу. */
   refresh: number | undefined;
+  /** Жетон идущего восстановления по новому соединению. */
+  resync: number | undefined;
+  /**
+   * Данные слота прочитаны по прежнему соединению или ждут соединения:
+   * состояние — `stale: 'offline'`, действия отключены (D-UI-74).
+   */
+  behind: boolean;
 };
 
-/** Уведомление во входящих вкладки: текст и ссылки. */
+/**
+ * Уведомление во входящих вкладки: `id` уведомления, данные — как пришли,
+ * после проверки схемой Def, — и ссылки. Текста нет: его строит представление.
+ */
 export type PageInboxEntry = {
-  readonly text: string;
+  readonly notification: string;
+  readonly data: unknown;
   readonly links: readonly AddressJson[];
+};
+
+/**
+ * Сборка входящих: набор для поиска Def уведомления, наблюдатель и след для
+ * записей `defect`, часы отсева и порт броска слушателя источника.
+ */
+export type PageInboxSpec = {
+  readonly ids: UiIds;
+  readonly observer: UiObserver;
+  readonly traces: PageTraces;
+  readonly clock: PageClock;
+  readonly onFault: (error: unknown) => void;
+};
+
+/** Отсев повторов: предел ключей и срок ключа (мс) по часам вкладки. */
+export type PageSeenKeysSpec = {
+  readonly limit: number;
+  readonly ttl: number;
+  readonly clock: PageClock;
 };
 
 /** Снимок экземпляра области в форме JSON: без поля `state`, если его нет. */
@@ -114,6 +150,17 @@ export type PortMessage =
 export type PortWatch = {
   readonly listener: (signal: RefreshSignal) => void;
   readonly address: AddressJson;
+};
+
+/**
+ * Переход без связи, ждущий соединения: жетон открытия области, адрес и
+ * промис вызывающего.
+ */
+export type DeferredOpen = {
+  readonly ticket: number;
+  readonly address: Address;
+  readonly resolve: () => void;
+  readonly reject: (error: unknown) => void;
 };
 
 /** Вызов UC, ждущий ответа сервера. */

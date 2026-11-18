@@ -15,6 +15,7 @@ export const PAGE_TEXTS = {
   blank: '____',
   loading: 'Загрузка…',
   refreshing: 'Обновляется…',
+  offline: 'Нет связи — переподключаемся',
   confirm: 'Подтвердить',
 } as const;
 

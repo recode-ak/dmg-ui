@@ -16,21 +16,40 @@ import type { PendingCall, PortMessage, PortWatch } from './page-client.types';
 /**
  * Порты исполнителя экранов поверх клиентского конца провода: `call` —
  * сообщение `call` и ожидание `result` (или `refused`) с тем же `id`;
- * `watch` — сообщение `watch` и сигналы по `watchId`. Обрыв провода
- * отказывает все ожидающие вызовы. Подписка уходит раньше `call` загрузки —
- * провод сохраняет порядок (D-UI-33). Отвод `onSignal` узнаёт адрес
- * подписки каждого сигнала — начало перечитывания для состояния области.
+ * `watch` — сообщение `watch` и сигналы по `watchId`. Подписка уходит раньше
+ * `call` загрузки — провод сохраняет порядок (D-UI-33). Отвод `onSignal`
+ * узнаёт адрес подписки каждого сигнала — начало перечитывания для состояния
+ * области. Обрыв текущего конца — «без связи» до `attach` (D-UI-74): команда
+ * повторно не уходит никогда.
+ * @see ./wire-ports.test.ts
  */
 export class WirePorts implements UcPort, RefreshPort {
   private readonly watches = new Map<string, PortWatch>();
   private readonly pending = new Map<string, PendingCall>();
+  /** Текущий живой конец; нет — связи нет. */
+  private end: ClientEnd | undefined;
   private next = 0;
 
   constructor(
-    private readonly end: ClientEnd,
+    end: ClientEnd,
     private readonly onSignal?: (address: AddressJson) => void,
   ) {
-    end.onBreak((error) => this.fail(error));
+    this.attach(end);
+  }
+
+  /**
+   * Новый конец провода. Живой прежний снимается как оборванный: его
+   * ожидающие вызовы отказаны, подписки забыты. Обрыв прежнего конца после
+   * смены ничего не трогает.
+   */
+  attach(end: ClientEnd): void {
+    if (this.end !== undefined) {
+      this.drop(new Error('WirePorts: соединение заменено'));
+    }
+    this.end = end;
+    end.onBreak((error) => {
+      if (this.end === end) this.drop(error);
+    });
   }
 
   /**
@@ -39,6 +58,12 @@ export class WirePorts implements UcPort, RefreshPort {
    * `id`); исполнитель превращает его в отказ экрана.
    */
   call(call: UcCall): Promise<SerializedResult> {
+    const end = this.end;
+    if (end === undefined) {
+      return Promise.reject(
+        new Error(`WirePorts: нет соединения, вызов ${call.uc} не отправлен`),
+      );
+    }
     const id = this.id('c');
     const message: CallMessage = { kind: 'call', id, call };
     if (!v.safeParse(ClientMessage, message).success) {
@@ -53,21 +78,25 @@ export class WirePorts implements UcPort, RefreshPort {
     }
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.end.send(message);
+      end.send(message);
     });
   }
 
+  /** Без связи подписка не регистрируется: экземпляр перечитают по соединению. */
   watch(
     address: AddressJson,
     listener: (signal: RefreshSignal) => void,
   ): () => void {
+    const end = this.end;
+    if (end === undefined) return () => {};
     const watch = this.id('w');
     this.watches.set(watch, { listener, address });
-    this.end.send({ kind: 'watch', watch, address });
+    end.send({ kind: 'watch', watch, address });
     return () => {
-      // Снятую или отказанную сервером подписку снимать на сервере нечего.
+      // Снятую обрывом или отказанную сервером подписку снимать на сервере
+      // нечего; живая подписка — всегда на текущем конце.
       if (this.watches.delete(watch)) {
-        this.end.send({ kind: 'unwatch', watch });
+        end.send({ kind: 'unwatch', watch });
       }
     };
   }
@@ -111,8 +140,13 @@ export class WirePorts implements UcPort, RefreshPort {
     return call;
   }
 
-  /** Обрыв провода: ответов не будет — отказ всех ожидающих. */
-  private fail(error: Error): void {
+  /**
+   * Обрыв текущего конца: ответов не будет — отказ всех ожидающих; подписки
+   * на сервере уже сняты — реестр пуст; дальше — без связи.
+   */
+  private drop(error: Error): void {
+    this.end = undefined;
+    this.watches.clear();
     const calls = [...this.pending.values()];
     this.pending.clear();
     for (const call of calls) call.reject(error);

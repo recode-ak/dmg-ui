@@ -49,6 +49,8 @@ type ServerMsg = v.InferOutput<typeof ServerMessage>;
 const A = testUuid(1);
 const B = testUuid(2);
 const ASSIGNED = { screen: ASSIGNED_ID, params: {} };
+const ASSIGNED_NOTE = 'exampleUi/todo/taskAssigned';
+const COMPLETED_NOTE = 'exampleUi/todo/taskCompleted';
 const tmp = useTempDir('dmg-ui-page-story-');
 const places: PersonPlaces = {
   place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
@@ -63,7 +65,6 @@ const tab = async (host: PageServerPort, token: string, prefix: string) => {
   const client = new PageClient({
     app: ExamplePagesAppDef,
     codes: exampleCodes(),
-    views: examplePageViews,
     routes: examplePageRoutes,
     end: connected.value,
     observer: new MemoryUiObserver(),
@@ -249,10 +250,11 @@ test('сторис на страничном канале: задачи A, по�
   expect(b.client.region('main').view?.data).toMatchObject({
     tasks: [{ title: 'Сыр' }],
   });
-  expect(b.client.inbox).toStrictEqual([
-    { text: 'Вам назначена задача: Сыр', links: [ASSIGNED] },
+  expect(b.client.inbox().get()).toStrictEqual([
+    { notification: ASSIGNED_NOTE, data: { title: 'Сыр' }, links: [ASSIGNED] },
   ]);
-  const link = b.client.inbox[0]?.links[0];
+  expect(b.text.page()).toContain('Входящие\n- Вам назначена задача: Сыр');
+  const link = b.client.inbox().get()[0]?.links[0];
   if (link === undefined) throw new Error('в уведомлении нет ссылки');
   await b.client.openLink(link);
   await settle(w);
@@ -271,8 +273,11 @@ test('сторис на страничном канале: задачи A, по�
   await settle(w);
   expect(a.client.region('side').view?.data).toMatchObject({ status: 'done' });
   expect(a.client.region('main').view?.revision).toBe(before + 1);
-  expect(b.client.inbox).toHaveLength(2);
-  expect(b.client.inbox[1]?.text).toBe('Поручение выполнено: Сыр');
+  expect(b.client.inbox().get()).toHaveLength(2);
+  expect(b.client.inbox().get()[1]?.notification).toBe(COMPLETED_NOTE);
+  expect(b.text.page()).toContain(
+    'Входящие\n- Вам назначена задача: Сыр\n- Поручение выполнено: Сыр',
+  );
 
   // 8. Форма списка по ревизии до перечитывания — stale, вид заново.
   expect(
@@ -377,6 +382,6 @@ test('сторис на страничном канале: задачи A, по�
   expect(assignee.every((r) => r.caller.kind === 'system')).toBe(true);
 
   // Входящие: у A уведомлений нет, у B — ровно два.
-  expect(a.client.inbox).toEqual([]);
-  expect(b.client.inbox).toHaveLength(2);
+  expect(a.client.inbox().get()).toEqual([]);
+  expect(b.client.inbox().get()).toHaveLength(2);
 });

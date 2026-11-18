@@ -4,9 +4,13 @@
 // только источник состояния и цель показа. Провод — в памяти (`PageWire`) или
 // на сокете: мост сокета сервера `PageSockets`, ворота запроса соединения
 // `PageGate` и конец сокета клиента `PageSocketEnd` с адаптером
-// `PageBrowserSocket`. Внутренние `WirePorts`, `PageConnection`, `PageOutbox`,
-// `serverFrame`, `PageRegions`, `PageForms`, `ViewCell`, `PageTextPresenter`
-// наружу не выходят.
+// `PageBrowserSocket`; переподключатель `PageReconnector` даёт вкладке новый
+// конец (`PageClient.attach`). Входящие вкладки — источник вида
+// `PageClient.inbox()`; время вкладки — порт `PageClock` с умолчанием
+// `PageSystemClock`.
+// Внутренние `WirePorts`, `PageConnection`, `PageOutbox`, `serverFrame`,
+// `PageRegions`, `PageForms`, `PageInbox`, `PageSeenKeys`, `ViewCell`,
+// `PageTextPresenter` наружу не выходят.
 
 export { PageBrowserSocket } from './client/page-browser-socket';
 export {
@@ -19,8 +23,16 @@ export {
   type PageSlotJson,
   type PageSnapshot,
 } from './client/page-client';
-export type { PageSocket, PageSocketEvents } from './client/page-socket.types';
+export type { PageClock } from './client/page-clock.types';
+export { PageReconnector } from './client/page-reconnector';
+export type { PageReconnectorSpec } from './client/page-reconnector.types';
+export type {
+  PageDialFailure,
+  PageSocket,
+  PageSocketEvents,
+} from './client/page-socket.types';
 export { PageSocketEnd } from './client/page-socket-end';
+export { PageSystemClock } from './client/page-system-clock';
 export { PageText } from './client/page-text';
 export {
   PageGraphProvider,

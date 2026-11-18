@@ -71,7 +71,6 @@ const page = () => {
   const client = new PageClient({
     app: ExamplePagesAppDef,
     codes: exampleCodes(),
-    views: examplePageViews,
     routes: examplePageRoutes,
     end,
     observer: new MemoryUiObserver(),

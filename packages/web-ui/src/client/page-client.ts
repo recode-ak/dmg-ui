@@ -15,8 +15,15 @@ import { PAGE_CHANNEL } from '../page-channel.const';
 import type { PageViewState } from '../view/page-view-state.types';
 import type { ViewSource } from '../view/view-source.types';
 import type { ServerMessage } from '../wire/page-messages.types';
-import { PAGE_HOME, PAGE_NOTES } from './page-client.const';
+import type { ClientEnd } from '../wire/page-wire.types';
+import {
+  PAGE_FAULTS,
+  PAGE_HOME,
+  PAGE_NOTES,
+  PAGE_REGIONS,
+} from './page-client.const';
 import type {
+  DeferredOpen,
   PageClientSpec,
   PageFormValues,
   PageInboxEntry,
@@ -27,6 +34,7 @@ import type {
 import { PageForms } from './page-forms';
 import { PageInbox } from './page-inbox';
 import { PageRegions } from './page-regions';
+import { PageSystemClock } from './page-system-clock';
 import { PageTraces } from './page-traces';
 import { WirePorts } from './wire-ports';
 
@@ -64,10 +72,17 @@ type Act = {
  * `submit`, `confirm`, `local`, `openLink`, `retry`; исходы — по таблице
  * политик исходов (гайд `channel-package.md`); состояние области — `source`
  * (D-UI-70). Допущения: из двух открытий в область побеждает последнее
- * начатое; контекст рендера — из `hello` на всё соединение (D-UI-33).
+ * начатое; контекст рендера — из `hello` текущего соединения (D-UI-33). Без
+ * связи переход ждёт соединения, действия отключены; после `attach` открытые
+ * экземпляры перечитаны восстановлением из снимка (D-UI-74).
+ * @see ./page-client.test.ts
  */
 export class PageClient {
   private readonly spec: PageClientSpec;
+  /** Текущий конец провода: его контекст — у новых экземпляров. */
+  private end: ClientEnd;
+  /** Переходы без связи — по одному на область, ждут `attach`. */
+  private readonly deferred = new Map<PageRegionName, DeferredOpen>();
   private readonly runtime: ScreenRuntime;
   private readonly ports: WirePorts;
   private readonly traces: PageTraces;
@@ -80,19 +95,14 @@ export class PageClient {
   private readonly start: Address;
 
   /**
-   * Приложение другого канала, представления другого набора, нет входа `start`, маршрут на
-   * необъявленный вход или повтор пути — ошибка сборки, бросок.
+   * Приложение другого канала, нет входа `start`, маршрут на необъявленный
+   * вход или повтор пути — ошибка сборки, бросок.
    */
   constructor(spec: PageClientSpec) {
-    const { app, views, routes } = spec;
+    const { app, routes } = spec;
     if (app.channel !== PAGE_CHANNEL) {
       throw new Error(
         `PageClient: приложение ${app.name} канала ${app.channel}, а не ${PAGE_CHANNEL}`,
-      );
-    }
-    if (views.set !== app.set) {
-      throw new Error(
-        `PageClient: представления набора ${views.set.name}, а приложение — ${app.set.name}`,
       );
     }
     const home = app.entries[PAGE_HOME];
@@ -114,6 +124,7 @@ export class PageClient {
       paths.add(route.path);
     }
     this.spec = spec;
+    this.end = spec.end;
     this.start = home.address;
     this.traces = new PageTraces(
       spec.requestIds ?? (() => crypto.randomUUID()),
@@ -133,13 +144,57 @@ export class PageClient {
     });
     this.codec = new AddressCodec(app.set);
     this.ids = new UiIds(app.set);
-    this.notes = new PageInbox(views, spec.observer, this.traces);
-    spec.end.onMessage((message) => this.receive(message));
+    this.notes = new PageInbox({
+      ids: this.ids,
+      observer: spec.observer,
+      traces: this.traces,
+      clock: spec.clock ?? new PageSystemClock(),
+      onFault: (error) => this.fault(PAGE_CHANNEL, error),
+    });
+    this.listen(spec.end);
   }
 
-  /** Уведомления вкладки по порядку прихода. */
-  get inbox(): readonly PageInboxEntry[] {
-    return this.notes.list;
+  /**
+   * Новый конец провода (переподключение, смена личности). Живой текущий
+   * закрыт первым — вкладка «без связи»; затем отложенные переходы открыты,
+   * области прежнего соединения восстановлены из снимка. Промис — когда все
+   * отработали; не отклоняется. При работающем `PageReconnector` — сначала
+   * `follow(end, …)`, затем `attach`: иначе закрытие прежнего он примет за
+   * обрыв и подменит конец своим.
+   */
+  async attach(end: ClientEnd): Promise<void> {
+    if (this.regions.connected) {
+      const previous = this.end;
+      previous.close();
+      this.disconnected(previous);
+    }
+    this.bind(end);
+    // Новый конец оборвался ещё до подписки — вкладка снова без связи.
+    if (!this.regions.connected) return;
+    const work: Promise<void>[] = [];
+    for (const region of PAGE_REGIONS) {
+      const deferred = this.deferred.get(region);
+      this.deferred.delete(region);
+      if (deferred !== undefined) {
+        work.push(
+          this.load(region, deferred.ticket, deferred.address).then(
+            deferred.resolve,
+            deferred.reject,
+          ),
+        );
+      } else if (this.regions.behind(region)) {
+        work.push(this.resync(region));
+      }
+    }
+    await Promise.allSettled(work);
+  }
+
+  /**
+   * Входящие вкладки — источник вида: уведомления по порядку прихода, один
+   * объект на всю жизнь вкладки; новое уведомление — новый массив.
+   */
+  inbox(): ViewSource<readonly PageInboxEntry[]> {
+    return this.notes.source;
   }
 
   /** Путь страницы → вход маршрута в `main`; неизвестный путь — заметка. */
@@ -148,7 +203,7 @@ export class PageClient {
     const entry =
       route === undefined ? undefined : this.spec.app.entries[route.entry];
     if (entry === undefined) {
-      this.regions.clear('main', { note: PAGE_NOTES.notFound });
+      this.clear('main', { note: PAGE_NOTES.notFound });
       return;
     }
     await this.open('main', entry.address);
@@ -166,6 +221,9 @@ export class PageClient {
   ): Promise<ActionOutcome> {
     const instance = this.regions.instance(region);
     if (instance === undefined) return this.unavailable(region, 'closed');
+    if (this.regions.behind(region)) {
+      return this.unavailable(region, 'disabled');
+    }
     const view = instance.view();
     const fields = view.actions.find((a) => a.name === action)?.fields ?? [];
     return this.act(region, {
@@ -182,7 +240,9 @@ export class PageClient {
     const instance = this.regions.instance(region);
     const pending = this.regions.pending(region);
     if (instance === undefined) return this.unavailable(region, 'closed');
-    if (pending === undefined) return this.unavailable(region, 'disabled');
+    if (pending === undefined || this.regions.behind(region)) {
+      return this.unavailable(region, 'disabled');
+    }
     return this.act(region, {
       instance,
       action: pending.action,
@@ -200,6 +260,9 @@ export class PageClient {
   ): Promise<LocalOutcome> {
     const instance = this.regions.instance(region);
     if (instance === undefined) return this.unavailable(region, 'closed');
+    if (this.regions.behind(region)) {
+      return this.unavailable(region, 'disabled');
+    }
     const fields =
       instance.view().locals.find((l) => l.name === name)?.fields ?? [];
     const outcome = await instance.local({
@@ -254,8 +317,10 @@ export class PageClient {
   /**
    * Восстановление вкладки из снимка (внешние данные): область с
    * декодируемым адресом — `loading` до ответа `restore`; мусор или
-   * невосстановленный адрес `main` — вход `start`; невосстановленная
-   * `side` — пуста.
+   * невосстановленный адрес `main` — вход `start` общим путём перехода (без
+   * связи он ждёт соединения); невосстановленная `side` — пуста. Допущение:
+   * `resume` зовётся на живом конце при старте вкладки — начатый до `attach`
+   * не перечитывается по новому концу.
    */
   async resume(json: unknown): Promise<void> {
     const parsed = v.safeParse(SnapshotJson, json);
@@ -272,7 +337,7 @@ export class PageClient {
       }
       if (side === undefined) return;
       const restoredSide = await this.restore(slots.side);
-      if (restoredSide === undefined) this.regions.clear('side');
+      if (restoredSide === undefined) this.clear('side');
       else this.regions.place('side', side, restoredSide);
     } catch (error) {
       // Отказ — вызывающему; области снимка в `loading` не остаются.
@@ -332,7 +397,13 @@ export class PageClient {
         this.regions.mark(region, { issues: outcome.issues });
         return;
       case 'refused':
-        this.regions.mark(region, { note: outcome.refusal.text });
+        // Отказ из-за обрыва — не ошибка сервера: результат покажет
+        // перечитывание по новому соединению.
+        this.regions.mark(region, {
+          note: this.regions.behind(region)
+            ? PAGE_NOTES.interrupted
+            : outcome.refusal.text,
+        });
         return;
       case 'stale':
         // Вид уже на перечитанных данных — форма заново по нему.
@@ -358,7 +429,7 @@ export class PageClient {
     const def = this.ids.findScreen(instance.view().screen);
     const note = def?.exits[exit]?.label ?? exit;
     if (region === 'main') await this.open('main', this.start, { note });
-    else this.regions.clear(region, { note });
+    else this.clear(region, { note });
   }
 
   /** Адрес из внешних данных (исход, ссылка, «Повторить»): не декодирован — заметка. */
@@ -368,23 +439,46 @@ export class PageClient {
   ): Promise<void> {
     const address = this.codec.decode(json);
     if (!address.ok) {
-      this.regions.clear(region, { note: PAGE_NOTES.notFound });
+      this.clear(region, { note: PAGE_NOTES.notFound });
       return;
     }
     await this.open(region, address.value);
   }
 
-  /** Прежний экземпляр снят до загрузки; опоздавший экземпляр `place` закроет. */
-  private async open(
+  /**
+   * Прежний экземпляр снят до загрузки; опоздавший экземпляр `place` закроет.
+   * Без связи открытие ждёт `attach`: ни кода экрана, ни вызовов.
+   */
+  private open(
     region: PageRegionName,
     address: Address,
     marks?: RegionMarks,
   ): Promise<void> {
+    this.displace(region);
     const ticket = this.regions.opening(
       region,
       this.codec.encode(address),
       marks,
     );
+    if (this.regions.connected) return this.load(region, ticket, address);
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    this.deferred.set(region, { ticket, address, resolve, reject });
+    return promise;
+  }
+
+  /**
+   * Загрузка экземпляра открытия с жетоном `ticket` по текущему соединению.
+   * Конец сменился, пока экземпляр грузился, — экземпляр помечен, как без
+   * связи, и перечитан по текущему. Сравнивается конец, чей контекст взяло
+   * открытие, а не конец чтения: чтение могло уйти уже по новому, но вид и
+   * проверка действий (`readOnly`, заместитель) — с прежнего `hello`.
+   */
+  private async load(
+    region: PageRegionName,
+    ticket: number,
+    address: Address,
+  ): Promise<void> {
+    const end = this.end;
     let instance: ScreenInstance;
     try {
       instance = await this.runtime.open(address, this.options());
@@ -393,7 +487,15 @@ export class PageClient {
       this.regions.failed(region, ticket, { note: PAGE_NOTES.failed });
       throw error;
     }
-    this.regions.place(region, ticket, instance);
+    const outdated = end !== this.end;
+    this.regions.place(region, ticket, instance, outdated);
+    if (
+      outdated &&
+      this.regions.connected &&
+      this.regions.instance(region) === instance
+    ) {
+      await this.resync(region);
+    }
   }
 
   /**
@@ -406,10 +508,78 @@ export class PageClient {
       ? this.codec.decode(slot.output.address)
       : undefined;
     if (address?.ok !== true) {
-      this.regions.clear(region);
+      this.clear(region);
       return undefined;
     }
+    this.displace(region);
     return this.regions.opening(region, this.codec.encode(address.value));
+  }
+
+  /**
+   * Перечитывание области без события: экземпляр восстанавливается из своего
+   * снимка по текущему соединению (ядро подписывается раньше чтения), прежний
+   * вид виден с `refreshing`. Переход во время восстановления побеждает.
+   */
+  private async resync(region: PageRegionName): Promise<void> {
+    const instance = this.regions.instance(region);
+    if (instance === undefined) return;
+    const snapshot = instance.snapshot();
+    const ticket = this.regions.resyncing(region);
+    let restored: ScreenInstance | undefined;
+    try {
+      restored = await this.restore(snapshot);
+    } catch {
+      // Код экрана не загрузился — как отказ открытия (D-UI-70).
+      restored = undefined;
+    }
+    if (restored === undefined) {
+      // В диагностику — без данных: бросок мог нести снимок экземпляра.
+      this.fault(PAGE_CHANNEL, new Error(PAGE_FAULTS.resync));
+      this.regions.resyncFailed(region, ticket, { note: PAGE_NOTES.failed });
+    } else {
+      this.regions.replace(region, ticket, restored);
+    }
+  }
+
+  /** Отложенный переход области вытеснен новым открытием или очисткой — его промис разрешён. */
+  private displace(region: PageRegionName): void {
+    const deferred = this.deferred.get(region);
+    this.deferred.delete(region);
+    deferred?.resolve();
+  }
+
+  /** Область пуста с отметками; отложенный переход в неё вытеснен. */
+  private clear(region: PageRegionName, marks?: RegionMarks): void {
+    this.displace(region);
+    this.regions.clear(region, marks);
+  }
+
+  /**
+   * Конец провода — текущим: порты на него, связь есть, сообщения и обрыв
+   * сверяются с текущим концом. Порядок: порты раньше клиента — обрыв
+   * отказывает вызовы до пометки областей.
+   */
+  private bind(end: ClientEnd): void {
+    this.end = end;
+    this.ports.attach(end);
+    this.regions.connect();
+    this.listen(end);
+  }
+
+  /** Подписка на сообщения и обрыв конца: прежний конец после смены — без действия. */
+  private listen(end: ClientEnd): void {
+    end.onMessage((message) =>
+      end === this.end && this.regions.connected
+        ? this.receive(message)
+        : Promise.resolve(),
+    );
+    end.onBreak(() => this.disconnected(end));
+  }
+
+  /** Обрыв текущего конца: области — «без связи»; повтор и прежний конец — без действия. */
+  private disconnected(end: ClientEnd): void {
+    if (end !== this.end || !this.regions.connected) return;
+    this.regions.disconnect();
   }
 
   private async restore(json: unknown): Promise<ScreenInstance | undefined> {
@@ -474,7 +644,7 @@ export class PageClient {
   }
 
   private options(): OpenOptions {
-    return { context: this.spec.end.context, trace: this.traces.next() };
+    return { context: this.end.context, trace: this.traces.next() };
   }
 
   private static note(reason: UnavailableReason): string {
