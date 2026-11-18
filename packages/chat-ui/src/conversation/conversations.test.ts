@@ -45,6 +45,8 @@ import {
   MAX_PERSON_LENGTH,
 } from './conversation.const';
 import type {
+  ConversationExit,
+  ConversationExits,
   ConversationSignal,
   ConversationSnapshot,
   ConversationsSpec,
@@ -133,6 +135,7 @@ type NodeOptions = {
   readonly places?: PersonPlaces;
   readonly callers?: ConversationsSpec<ExampleUser>['callers'];
   readonly epochs?: () => string;
+  readonly exits?: ConversationExits;
 };
 
 const world = () => {
@@ -185,6 +188,7 @@ const world = () => {
       ...(options.home === undefined ? {} : { home: options.home }),
       ...(options.limit === undefined ? {} : { limit: options.limit }),
       epochs: options.epochs ?? epochs,
+      ...(options.exits === undefined ? {} : { exits: options.exits }),
     });
     return { conversations, messenger, logger };
   };
@@ -1669,5 +1673,62 @@ describe('Conversations — снимок экрана не восстановл�
       screen: 'exampleUi/todo/taskList',
       params: { page: 0 },
     });
+  });
+});
+
+describe('Conversations — выход сторис приёмнику', () => {
+  /** Узел с приёмником, принимающим каждый выход; создана задача «Хлеб» — выход `created`. */
+  const exited = async () => {
+    const w = world();
+    const taken: ConversationExit[] = [];
+    const exits: ConversationExits = {
+      accept: async (exit) => {
+        taken.push(exit);
+        return true;
+      },
+    };
+    const first = w.node({ exits });
+    await first.conversations.receive(w.signals.enter('start'));
+    const create = refOf(first.messenger, 'Создать задачу');
+    await first.conversations.receive(w.signals.text('Хлеб'));
+    await w.bus.delivered();
+    await first.conversations.settled();
+    return { w, first, taken, create };
+  };
+
+  test('порт узла получает выход с данными', async () => {
+    const { taken } = await exited();
+
+    expect(taken).toEqual([
+      {
+        peer: WHO_A.peer,
+        person: A,
+        screen: 'exampleUi/todo/taskList',
+        exit: 'created',
+        data: { taskId: expect.any(String) },
+      },
+    ]);
+  });
+
+  test('снимок без экрана; после пересборки узла прежняя ссылка — «Экран уже закрыт.»', async () => {
+    const { w, first, taken, create } = await exited();
+    expect((await snapshotOf(w.store)).screen).toBeUndefined();
+    await first.conversations.close();
+
+    const second = w.node();
+    await second.conversations.receive(w.signals.press(create, 'p-old'));
+
+    expect(
+      second.messenger.journal.filter((entry) => entry.op === 'answered'),
+    ).toEqual([
+      {
+        op: 'answered',
+        peer: WHO_A.peer,
+        press: 'p-old',
+        text: 'Экран уже закрыт.',
+      },
+    ]);
+    expect(sent(second.messenger)).toEqual([]);
+    expect(taken).toHaveLength(1);
   });
 });

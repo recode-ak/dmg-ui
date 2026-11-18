@@ -33,6 +33,7 @@ import { ConversationPath } from './conversation-path';
 import { ConversationQueue } from './conversation-queue';
 import { ConversationReplies } from './conversation-replies';
 import { ConversationScreens } from './conversation-screens';
+import { ExitHandoff } from './exit-handoff';
 import { OptionLayout } from './option-layout';
 import { RefTable } from './ref-table';
 import { SeenIds } from './seen-ids';
@@ -131,6 +132,12 @@ export class Conversation {
       output: this.output,
       composer,
       input: this.input,
+      handoff: new ExitHandoff({
+        ...(spec.exits === undefined ? {} : { exits: spec.exits }),
+        peer: spec.peer,
+        person: spec.person,
+        log: this.log,
+      }),
     });
   }
 

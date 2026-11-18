@@ -21,6 +21,8 @@ export type {
 export type {
   Attachment,
   AttachmentKind,
+  ConversationExit,
+  ConversationExits,
   ConversationSignal,
   ConversationSnapshot,
   ConversationsSpec,

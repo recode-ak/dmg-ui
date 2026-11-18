@@ -45,7 +45,12 @@ import type { Delivery } from '../messenger/messenger.types';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
-import type { ConversationSnapshot, RefEntry } from './conversation.types';
+import type {
+  ConversationExit,
+  ConversationExits,
+  ConversationSnapshot,
+  RefEntry,
+} from './conversation.types';
 
 // Таблица исходов беседы (гайд «Пакет канала», §4): по тесту на строку —
 // исход действия ядра (`ActionOutcome`, у `unavailable` — каждая причина) и
@@ -59,6 +64,7 @@ import type { ConversationSnapshot, RefEntry } from './conversation.types';
 const A = testUuid(1);
 const PEER = 'peer-a';
 const LOBBY = 'outUi/out/lobby';
+const DESK = 'outUi/out/desk';
 const BROKEN = 'outUi/out/broken';
 const MISSING = testUuid(9);
 
@@ -565,8 +571,22 @@ const sceneOf = (options: {
   readonly messenger: AnsweringMessenger;
   readonly snapshot?: ConversationSnapshot;
   readonly context?: RenderContext;
+  /** Приёмник выхода: ответ порта или бросок; журнал вызовов — в `taken`. */
+  readonly exits?: 'accept' | 'refuse' | 'throw';
 }) => {
   const world = worldOf();
+  const logger = new MemoryLogger();
+  const taken: ConversationExit[] = [];
+  const exits: ConversationExits | undefined =
+    options.exits === undefined
+      ? undefined
+      : {
+          accept: async (exit) => {
+            taken.push(exit);
+            if (options.exits === 'throw') throw new Error('exit-mark-q7');
+            return options.exits === 'accept';
+          },
+        };
   const { messenger } = options;
   const codes = CodeLoaders.of(OutSetDef, [
     CodeLoader.screen(LobbyScreenDef, async () => new LobbyCode()),
@@ -598,10 +618,11 @@ const sceneOf = (options: {
       }),
       views,
       messenger,
-      logger: new MemoryLogger(),
+      logger,
       peer: PEER,
       person: A,
       home: 'start',
+      ...(exits === undefined ? {} : { exits }),
       epochs: () => {
         epochs += 1;
         return `ep${String(epochs).padStart(3, '0')}`;
@@ -626,6 +647,8 @@ const sceneOf = (options: {
     world,
     messenger,
     conversation,
+    logger,
+    taken,
     enter: async (name: string) => {
       await conversation.receive({ ...head(), kind: 'enter', entry: name });
     },
@@ -723,6 +746,94 @@ describe.each(MESSENGERS)(
         'Работа завершена\n\nРабота за столом окончена.\n\nЛобби',
       );
       expect(s.conversation.screen()?.address.screen).toBe(LOBBY);
+    });
+
+    describe('выход сторис приёмнику вне набора UI', () => {
+      test('выход принят — порт вызван один раз, вход не открыт, прежнее сообщение погашено с нажатым', async () => {
+        const s = sceneOf({ messenger: make(), exits: 'accept' });
+        await s.enter('desk');
+        const finish = refOf(s.messenger, 'Завершить');
+        const from = s.messenger.journal.length;
+        const answers = s.messenger.answers.length;
+
+        const press = await s.pressRef(finish);
+
+        // Строго: у выхода без данных поля `data` нет.
+        expect(s.taken).toStrictEqual([
+          { peer: PEER, person: A, screen: DESK, exit: 'done' },
+        ]);
+        expect(s.conversation.screen()).toBeUndefined();
+        expect(s.messenger.chat(PEER)).toHaveLength(1);
+        expect(s.messenger.answers.slice(answers)).toStrictEqual([{ press }]);
+        expect(opsOf(s.messenger, from)).toEqual(
+          editing ? ['retire m1', 'answer'] : [],
+        );
+        if (editing) {
+          expect(s.messenger.journal[from]).toMatchObject({ chosen: finish });
+        }
+      });
+
+      test('выход не принят — порт вызван, открыт вход «в начало»', async () => {
+        const s = sceneOf({ messenger: make(), exits: 'refuse' });
+        await s.enter('desk');
+
+        await s.press('Завершить');
+
+        expect(s.taken).toHaveLength(1);
+        expect(s.conversation.screen()?.address.screen).toBe(LOBBY);
+      });
+
+      test('ссылка погашенного экрана — «Экран уже закрыт.», порт и ядро больше не вызваны', async () => {
+        const s = sceneOf({ messenger: make(), exits: 'accept' });
+        await s.enter('desk');
+        const stay = refOf(s.messenger, 'Остаться');
+        await s.press('Завершить');
+        const records = s.kit.observer.records.length;
+        const from = s.messenger.journal.length;
+
+        const press = await s.pressRef(stay);
+
+        reacted(s, from, press, 'Экран уже закрыт.');
+        expect(s.taken).toHaveLength(1);
+        expect(s.world.calls).toEqual([]);
+        expect(s.kit.observer.records).toHaveLength(records);
+      });
+
+      test('бросок порта — error с operation: exit и именем без текста, открыт вход «в начало»', async () => {
+        const s = sceneOf({ messenger: make(), exits: 'throw' });
+        await s.enter('desk');
+
+        await s.press('Завершить');
+
+        const errors = s.logger.records.filter((r) => r.level === 'error');
+        expect(errors.map((r) => r.meta)).toEqual([
+          {
+            messenger: s.messenger.capabilities.name,
+            operation: 'exit',
+            name: 'Error',
+          },
+        ]);
+        expect(JSON.stringify(s.logger.records)).not.toContain('mark-q7');
+        expect(s.conversation.screen()?.address.screen).toBe(LOBBY);
+      });
+
+      test('вход после принятого выхода — новое сообщение, погашенное не правится', async () => {
+        const s = sceneOf({ messenger: make(), exits: 'accept' });
+        await s.enter('desk');
+        await s.press('Завершить');
+        const from = s.messenger.journal.length;
+
+        await s.enter('desk');
+
+        const chat = s.messenger.chat(PEER);
+        expect(chat).toHaveLength(2);
+        expect(chat[0]?.edits).toBe(0);
+        expect(textOf(chat[1]?.message as Message)).toBe('Стол: 2');
+        expect(
+          s.messenger.journal.slice(from).some((r) => r.op === 'edited'),
+        ).toBe(false);
+        expect(s.conversation.screen()?.address.screen).toBe(DESK);
+      });
     });
 
     test('confirm — вопрос «подпись, описание» с «Да» и «Нет» в живом месте: «Нет» — вид снова, «Да» — исполнение', async () => {

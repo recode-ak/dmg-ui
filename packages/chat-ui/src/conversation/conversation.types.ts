@@ -304,6 +304,30 @@ export type SignalTraces = {
   next(): Trace;
 };
 
+/** Выход сторис, отданный приёмнику вне набора UI (D-UI-90). */
+export type ConversationExit = {
+  /** Собеседник беседы. */
+  readonly peer: string;
+  /** uuid владельца беседы. */
+  readonly person: string;
+  /** Id экрана, с которого вышли (`InstanceView.screen`). */
+  readonly screen: string;
+  /** Имя выхода. */
+  readonly exit: string;
+  /** Данные выхода: ядро уже проверило их схемой выхода; нет данных — поля нет. */
+  readonly data?: unknown;
+};
+
+/**
+ * Порт проекта: приёмник выходов сторис вне набора UI (D-UI-90). `true` —
+ * принял и сам показал своё, новым сообщением; `false` — не принял, беседа
+ * открывает вход «в начало». Исполняется в очереди собеседника: не зовёт
+ * узел бесед того же собеседника и не медлит — ответ на нажатие ждёт его.
+ */
+export type ConversationExits = {
+  accept(exit: ConversationExit, trace: Trace): Promise<boolean>;
+};
+
 /** Контекст рендера личности беседы на сигнал. */
 export type ConversationContexts = {
   context(trace: Trace): Promise<RenderContext>;
@@ -329,6 +353,8 @@ export type ConversationSpec = {
   readonly epochs: () => string;
   /** Проактивный показ отработал: узел бесед пишет снимок; без обработчика беседа живёт без узла. */
   readonly shown?: () => void;
+  /** Приёмник выходов сторис; нет — выход ведёт во вход «в начало». */
+  readonly exits?: ConversationExits;
 };
 
 /** Узел бесед одного приложения мессенджера. */
@@ -357,4 +383,6 @@ export type ConversationsSpec<U extends Identified> = {
   readonly requestIds?: () => string;
   /** Эпохи ссылок; по умолчанию — случайные. */
   readonly epochs?: () => string;
+  /** Приёмник выходов сторис вне набора UI (D-UI-90); нет — выход ведёт во вход «в начало». */
+  readonly exits?: ConversationExits;
 };

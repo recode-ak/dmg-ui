@@ -118,6 +118,20 @@ export class ConversationOutput {
     await this.note(text);
   }
 
+  /**
+   * Место освобождено: живой экран отдан приёмнику вне беседы (D-UI-90).
+   * Прежнее последнее сообщение уходит с нажатым; положение сбито — следующий
+   * показ идёт новым сообщением под показом приёмника, погашенное не правится.
+   */
+  async release(): Promise<void> {
+    await this.retire();
+    this.handles = [];
+    this.message = undefined;
+    this.history = undefined;
+    this.owner = undefined;
+    this.latest = false;
+  }
+
   /** Положение сбито извне (уведомление). */
   knock(): void {
     this.latest = false;

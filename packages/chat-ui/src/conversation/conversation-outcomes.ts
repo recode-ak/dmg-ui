@@ -12,6 +12,7 @@ import type { ConversationInput } from './conversation-input';
 import type { ConversationOutput } from './conversation-output';
 import type { ConversationReplies } from './conversation-replies';
 import type { ConversationScreens } from './conversation-screens';
+import type { ExitHandoff } from './exit-handoff';
 import type { InputDraft } from './input-draft';
 
 /** Живой экран, на котором исполняется действие. */
@@ -38,14 +39,14 @@ type OutcomeParts = {
   readonly composer: ScreenComposer;
   /** Черновик беседы — для повтора поля по отвергнутому входу. */
   readonly input: ConversationInput;
+  /** Приёмник выхода сторис вне набора UI: спрашивается до любого показа. */
+  readonly handoff: ExitHandoff;
 };
 
 /**
- * Исполнение действия живого экрана и политика по исходу ядра (D-UI-54):
- * переход, вид снова, выход во вход «в начало» с текстом выхода перед видом,
- * подтверждение шагом в место, отказ, отвергнутый вход с повтором поля
- * черновика, недоступное — реакцией на нажатие; таблица — гайд
- * `channel-package.md`. Неизвестный исход — дефект беседы, бросок (ERR-06).
+ * Исполнение действия живого экрана и политика по исходу ядра (D-UI-54,
+ * D-UI-90); таблица исходов — гайд `channel-package.md`, §4. Неизвестный
+ * исход — дефект беседы, бросок (ERR-06).
  */
 export class ConversationOutcomes {
   constructor(private readonly parts: OutcomeParts) {}
@@ -138,9 +139,13 @@ export class ConversationOutcomes {
       case 'stayed':
         await screens.show();
         return;
-      case 'exited':
-        await screens.home(trace, replies.exit(instance.view(), outcome.exit));
+      case 'exited': {
+        const view = instance.view();
+        if (await this.parts.handoff.take(view.screen, outcome, trace)) {
+          await screens.release();
+        } else await screens.home(trace, replies.exit(view, outcome.exit));
         return;
+      }
       case 'confirm':
         await output.step(
           replies.confirm(outcome.label, outcome.description, {

@@ -201,6 +201,16 @@ export class ConversationScreens {
     await this.open(entry.address, trace, lead);
   }
 
+  /**
+   * Выход принят приёмником вне набора UI (D-UI-90): живого экрана нет, путь
+   * сброшен, место освобождено. Дальше беседа — как до первого входа.
+   */
+  async release(): Promise<void> {
+    this.parts.path.reset();
+    this.detach();
+    await this.parts.output.release();
+  }
+
   /** Новый живой экран по адресу; путь не трогает — это дело вызывающего. */
   private async open(
     address: Address,

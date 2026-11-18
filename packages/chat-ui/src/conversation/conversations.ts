@@ -296,6 +296,7 @@ export class Conversations<U extends Identified>
         home: this.home,
         epochs: this.epochs,
         shown: () => this.shown(peer, conversation),
+        ...(this.spec.exits === undefined ? {} : { exits: this.spec.exits }),
       },
       snapshot,
     );

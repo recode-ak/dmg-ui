@@ -82,11 +82,11 @@ export class ConversationLog {
     });
   }
 
-  /** Дефект беседы на сигнале, проактивном показе или уведомлении: имя ошибки без её текста. */
+  /** Дефект беседы на сигнале, проактивном показе, уведомлении или в приёмнике выхода: имя ошибки без её текста. */
   defect(
     cause:
       | { readonly kind: ConversationSignal['kind'] }
-      | { readonly operation: 'refresh' | 'notify' },
+      | { readonly operation: 'refresh' | 'notify' | 'exit' },
     error: unknown,
   ): void {
     this.logger.error(LOG_SOURCE, CONVERSATION_TEXTS.defect, {
