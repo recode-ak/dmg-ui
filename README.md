@@ -30,7 +30,7 @@
 ```sh
 bun add valibot @valibot/to-json-schema \
   git+ssh://git@github.com/recode-ak/dmg-core.git#v0.6.2 \
-  git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.0
+  git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.1
 ```
 
 Почему одной. `dmg-core` у `dmg-ui` — peer-зависимость, а Bun ищет peer в реестре npm и получает 404. Если `dmg-core` назван в той же команде, Bun берёт его из git и peer удовлетворён. `@valibot/to-json-schema` — peer самого `dmg-core`.
@@ -89,7 +89,7 @@ bun install
 bun run check
 ```
 
-`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.0`), сверяет их с `exports` установленного пакета, импортирует одиннадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
+`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.1`), сверяет их с `exports` установленного пакета, импортирует одиннадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
 Запускаемый пример на живом Telegram — [`examples/tg-bot`](examples/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
 
@@ -97,7 +97,7 @@ bun run check
 
 ## Статус
 
-Версия `0.3.0` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
+Версия `0.3.1` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
 
 ## Лицензия
 
