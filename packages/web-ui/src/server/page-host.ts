@@ -1,9 +1,14 @@
 import { err, type Identified, ok, type Result, Trace } from 'dmg-core';
-import type { RenderContext, ViewContext } from 'dmg-ui';
-import { type CallerSource, RenderContexts } from 'dmg-ui/server';
+import type { ViewContext } from 'dmg-ui';
+import {
+  type CallerContext,
+  type CallerSource,
+  RenderContexts,
+} from 'dmg-ui/server';
 import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageId } from '../wire/page-messages';
+import type { HelloContext } from '../wire/page-messages.types';
 import type { PageServerPort, ServerLink } from '../wire/page-wire.types';
 import { PageConnection } from './page-connection';
 import { PageDelivery } from './page-delivery';
@@ -39,8 +44,9 @@ export class PageHost<U extends Identified> implements PageServerPort {
    * Соединение по токену; сообщения клиенту — через `PageOutbox`, строкой с
    * пределом длины (D-UI-71). Токен не по схеме или неизвестен, сбой порта
    * личности или места, у личности уже `CONNECTION_LIMIT` соединений —
-   * `refused`, клиенту ничего не отправлено. После пуша `hello` — без
-   * `await`: связь отдаётся сразу.
+   * `refused`, клиенту ничего не отправлено. Контекст `hello` с переводом
+   * субъекта собирается до `attach`: бросок перевода соединения не занимает.
+   * После пуша `hello` — без `await`: связь отдаётся сразу.
    */
   async connect(
     token: string,
@@ -51,6 +57,7 @@ export class PageHost<U extends Identified> implements PageServerPort {
     if (uuid === undefined) return err('refused');
     const context = await this.context(uuid);
     if (context === undefined) return err('refused');
+    const hello = this.wired(context);
     // Проверка — после последнего `await`: до `attach` соединений не прибудет.
     if (this.delivery.connections(uuid) >= CONNECTION_LIMIT) {
       return err('refused');
@@ -67,7 +74,7 @@ export class PageHost<U extends Identified> implements PageServerPort {
       source: PAGE_CHANNEL,
     });
     this.delivery.attach(uuid, connection);
-    outbox.push({ kind: 'hello', context: this.wired(context) });
+    outbox.push({ kind: 'hello', context: hello });
     return ok({
       receive: (raw) => connection.receive(raw),
       close: () => {
@@ -100,28 +107,30 @@ export class PageHost<U extends Identified> implements PageServerPort {
   }
 
   /**
-   * Контекст `hello`: место и признаки; субъект — только в форме
-   * `subjectToWire` проекта (D-UI-98). Без перевода или без субъекта поля
-   * нет: объект субъекта на провод не уходит.
+   * Контекст `hello` (D-UI-99): место и признаки; субъект — только в форме
+   * `subjectToWire` проекта. Без перевода или без субъекта поля нет: объект
+   * субъекта на провод не уходит. Бросок перевода — `error` без текста
+   * броска (ERR-07) и `hello` без субъекта: действия по правам код экрана
+   * скроет, сервер проверяет каждый вызов сам.
    */
-  private wired(
-    context: ViewContext & { readonly subject?: U },
-  ): RenderContext {
+  private wired(context: CallerContext<U>): HelloContext {
     const { locale, timeZone, delegate, readOnly, subject } = context;
     const view: ViewContext = { locale, timeZone, delegate, readOnly };
     const toWire = this.spec.subjectToWire;
-    return toWire === undefined || subject === undefined
-      ? view
-      : { ...view, subject: toWire(subject) };
+    if (toWire === undefined || subject === undefined) return view;
+    try {
+      return { ...view, subject: toWire(subject) };
+    } catch {
+      this.spec.logger.error(PAGE_CHANNEL, HOST_LOGS.subject);
+      return view;
+    }
   }
 
   /**
    * Контекст рендера соединения — `RenderContexts` по `uuid` токена. Сбой
    * порта места или вызывающего — `error` без текста броска и `undefined`.
    */
-  private async context(
-    uuid: string,
-  ): Promise<(ViewContext & { readonly subject?: U }) | undefined> {
+  private async context(uuid: string): Promise<CallerContext<U> | undefined> {
     // Id запроса соединения создаёт сервер: признак `generated` честен,
     // предупреждать не о чем.
     const trace = Trace.fromRequest(

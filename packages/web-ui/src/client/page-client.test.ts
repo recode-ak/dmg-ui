@@ -20,6 +20,7 @@ import {
 import {
   type ActionSteps,
   type AnyScreenDef,
+  type AnyUiSetDef,
   CodeLoader,
   CodeLoaders,
   type InstanceView,
@@ -5857,13 +5858,73 @@ describe('PageClient — отрезанная ветка приложения', 
     const actions = (await client()).region('main').view?.actions;
     const names = actions?.map((action) => action.name);
 
-    expect(names).toContain('close');
-    expect(names).not.toContain('openAssignee');
+    expect(names).toEqual(['completeSelected', 'close']);
   });
 
   test('сигнал по отрезанному действию — unavailable/unknown', async () => {
     const outcome = await (await client()).submit('main', 'openAssignee', {});
 
     expect(outcome).toEqual({ kind: 'unavailable', reason: 'unknown' });
+  });
+});
+
+// Причина отключённого действия — в форме области: вид решает, форма области
+// несёт текст отказа как `reason`; доступное действие причины не имеет.
+
+const forms = (client: PageClient, set: AnyUiSetDef = ExampleUiSetDef) =>
+  new PageFormModel(set).of(client.region('main')).forms;
+
+const formOn = (
+  client: PageClient,
+  name: string,
+  set: AnyUiSetDef = ExampleUiSetDef,
+) => {
+  const form = forms(client, set).find((candidate) => candidate.name === name);
+  if (form === undefined) throw new Error(`нет формы ${name}`);
+  return form;
+};
+
+describe('PageClient — причина отключённого действия в форме', () => {
+  test('«Выполнить выбранные»: до выделения available false и reason, после toggle — доступна без reason', async () => {
+    const { client } = await listed();
+
+    expect(formOn(client, 'completeSelected')).toMatchObject({
+      available: false,
+      reason: 'Отметьте открытые задачи',
+    });
+    await client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    expect(formOn(client, 'completeSelected').available).toBe(true);
+    expect(formOn(client, 'completeSelected')).not.toHaveProperty('reason');
+  });
+
+  test('три открытые задачи: форма «Создать» — available false, reason — текст правила', async () => {
+    const open = TASKS.map((task) => ({ ...task, status: 'open' }));
+    const end = answered().answer('listTasks', ok(open));
+    const { client } = await listed(end);
+
+    expect(formOn(client, 'create')).toMatchObject({
+      available: false,
+      reason: 'Слишком много открытых задач',
+    });
+  });
+
+  test('две открытые задачи: форма «Создать» доступна, reason нет', async () => {
+    const { client } = await listed();
+
+    expect(formOn(client, 'create').available).toBe(true);
+    expect(formOn(client, 'create')).not.toHaveProperty('reason');
+  });
+
+  test('условие кода экрана: все задачи доски выполнены — форма available false, reason — текст кода', async () => {
+    const done = TASKS.map((task) => ({ ...task, status: 'done' }));
+    const { client } = await boarded(
+      new StubEnd().answer('listTasks', ok(done)),
+    );
+
+    expect(formOn(client, 'finish', BoardSetDef)).toMatchObject({
+      available: false,
+      reason: 'Открытых задач нет',
+    });
   });
 });

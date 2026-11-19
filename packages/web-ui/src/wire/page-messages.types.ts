@@ -1,8 +1,9 @@
 import type { SerializedResult } from 'dmg-core';
-import type { AddressJson, RefreshSignal, RenderContext, UcCall } from 'dmg-ui';
+import type { AddressJson, RefreshSignal, UcCall, ViewContext } from 'dmg-ui';
 
-// Полный перечень сообщений страничного канала через границу JSON. Другого между половинами нет: ни `Caller`, ни `uuid` личности,
-// ни payload события, ни следа доставки уведомления.
+// Полный перечень сообщений страничного канала через границу JSON. Другого между половинами нет: ни `Caller`,
+// ни payload события, ни следа доставки уведомления; `uuid` личности — только внутри `hello.context.subject`,
+// если проект его переводит (D-UI-99).
 
 /** Клиент → сервер: простая команда вызова UC; `id` — для ответа `result`. */
 export type CallMessage = {
@@ -33,7 +34,15 @@ export type ClientMessage = CallMessage | WatchMessage | UnwatchMessage;
  */
 export type HelloMessage = {
   readonly kind: 'hello';
-  readonly context: RenderContext;
+  readonly context: HelloContext;
+};
+
+/**
+ * Контекст `hello` на проводе (D-UI-99): контекст вида и субъект в форме
+ * JSON проекта; объектом субъекта он становится только после `reviveSubject`.
+ */
+export type HelloContext = ViewContext & {
+  readonly subject?: unknown;
 };
 
 /** Сервер → клиент: ответ на `call` с тем же `id`. */

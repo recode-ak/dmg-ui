@@ -10,10 +10,10 @@ const AVAILABLE: Availability = { kind: 'available' };
 const HIDDEN: Availability = { kind: 'hidden' };
 
 /**
- * Помощники ответа о действии для карты `availability` кода экрана. Решение
- * берётся из тех же объектов, что исполняет UC: Policy (`policy`) и доменные
- * правила (`rule`) над `ReadonlyAr` из state; копий правил в UI нет. Ответ —
- * только показ: сервер перепроверяет каждый вызов (D-UI-29).
+ * Помощники ответа о действии для карты `availability` кода экрана (D-UI-98,
+ * D-UI-29). Решение берётся из тех же объектов, что исполняет UC: Policy
+ * (`policy`) и доменные правила (`rule`) над `ReadonlyAr` из state; копий
+ * правил в UI нет. Ответ — только показ: сервер перепроверяет каждый вызов.
  */
 export const Availability = {
   /** Доступно. */
@@ -47,13 +47,14 @@ export const Availability = {
 
   /**
    * Доменное правило над состоянием: отказ — отключено с главной строкой
-   * текста ошибки (`ErrorText`), без payload.
+   * текста ошибки (`ErrorText`), без payload. Ошибка вида `access` — это
+   * «нет прав», а не «сейчас нельзя»: скрыто, текст ошибки не показывается.
    */
   rule<C>(domainRule: DomainRuleDef<C>, ctx: C): Availability {
     const checked = domainRule.check(ctx);
-    return checked.ok
-      ? AVAILABLE
-      : { kind: 'disabled', text: ErrorText.of(checked.error).summary };
+    if (checked.ok) return AVAILABLE;
+    if (checked.error.kind === 'access') return HIDDEN;
+    return { kind: 'disabled', text: ErrorText.of(checked.error).summary };
   },
 
   /**

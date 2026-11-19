@@ -7,6 +7,7 @@ export { ModuleApiDispatch } from './module-api-dispatch';
 export { RenderContexts } from './render-contexts';
 export { RenderFlags } from './render-flags';
 export type {
+  CallerContext,
   CallerSource,
   ChannelNode,
   DeliveredNotification,

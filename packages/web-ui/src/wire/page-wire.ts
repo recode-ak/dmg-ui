@@ -1,8 +1,8 @@
 import { err, ok, type Result } from 'dmg-core';
-import type { RenderContext } from 'dmg-ui';
 import { serverFrame } from './page-frames';
 import type {
   ClientMessage,
+  HelloContext,
   ServerMessage as ServerMessageType,
 } from './page-messages.types';
 import type { ClientEnd, PageServerPort, ServerLink } from './page-wire.types';
@@ -28,7 +28,7 @@ export class PageWire {
   private started = false;
   private closed = false;
   /** Контекст из `hello`, пока соединение устанавливается. */
-  private hello: RenderContext | undefined;
+  private hello: HelloContext | undefined;
   private open = false;
 
   constructor(private readonly server: PageServerPort) {}

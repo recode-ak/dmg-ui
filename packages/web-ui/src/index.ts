@@ -114,6 +114,7 @@ export type { ViewSource } from './view/view-source.types';
 export { ClientMessage, ServerMessage } from './wire/page-messages';
 export type {
   CallMessage,
+  HelloContext,
   HelloMessage,
   NotificationMessage,
   PageRefusal,

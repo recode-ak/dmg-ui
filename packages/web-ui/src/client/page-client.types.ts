@@ -75,8 +75,9 @@ export type PageClientSpec = {
   readonly history?: PageHistoryPort;
   /**
    * Субъект проекта из JSON `hello.context.subject` (пара `subjectToWire`
-   * сервера, D-46): зовётся один раз на соединение. Бросок — субъекта нет
-   * (Policy скрывает), запись в `faults`. Без порта субъекта у кода нет.
+   * сервера, D-46, D-UI-99): зовётся один раз на соединение. Бросок —
+   * субъекта нет (действия по правам кода экрана скрыты), запись в `faults`.
+   * Без порта субъекта у кода нет.
    */
   readonly reviveSubject?: ReviveSubject<unknown>;
 };

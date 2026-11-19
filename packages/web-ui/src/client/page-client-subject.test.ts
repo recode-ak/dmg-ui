@@ -153,6 +153,7 @@ const tabOf = async (
 ) => {
   const code = new ProbeCode();
   const faults: UiFault[] = [];
+  const observer = new MemoryUiObserver();
   const client = new PageClient({
     app: ProbeAppDef,
     codes: CodeLoaders.of(ProbeSetDef, [
@@ -160,13 +161,13 @@ const tabOf = async (
     ]),
     routes: [],
     end,
-    observer: new MemoryUiObserver(),
+    observer,
     clock: new ManualPageClock(),
     reviveSubject,
     faults: (fault) => faults.push(fault),
   });
   await client.route('/checks/probe');
-  return { client, code, faults };
+  return { client, code, faults, observer };
 };
 
 const manageOf = (client: PageClient) =>
@@ -259,5 +260,19 @@ describe('PageClient — субъект из hello', () => {
     expect(revived).toBe(2);
     expect(code.seen.at(-1)).toMatchObject({ uuid: ADMIN_ID });
     expect(manageOf(client)).toEqual({ kind: 'available' });
+  });
+
+  test('субъект не попадает в снимок вкладки и записи наблюдателя', async () => {
+    const { client, code, observer } = await tabOf(
+      new StubEnd({ uuid: SECRET, roles: ['admin'] }),
+    );
+
+    await client.submit('main', 'manage', {});
+    await flush();
+
+    expect(code.seen[0]).toMatchObject({ uuid: SECRET });
+    expect(JSON.stringify(client.snapshot())).not.toContain(SECRET);
+    expect(observer.records.length).toBeGreaterThan(0);
+    expect(JSON.stringify(observer.records)).not.toContain(SECRET);
   });
 });

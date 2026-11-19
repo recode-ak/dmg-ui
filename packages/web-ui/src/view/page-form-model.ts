@@ -3,6 +3,7 @@ import {
   type AnyUiSetDef,
   type FieldIssue,
   UiIds,
+  type ViewAvailability,
 } from 'dmg-ui';
 import type { PageForm, PageFormField, PageFormSet } from './page-form.types';
 import type { PageEntered, PageViewState } from './page-view-state.types';
@@ -37,8 +38,7 @@ export class PageFormModel {
           label: def?.actions[action.name]?.label ?? action.name,
           description: def?.actions[action.name]?.description ?? '',
           primary: view.primary === action.name,
-          available:
-            action.availability.kind === 'available' && !offline && !expecting,
+          ...this.availability(action.availability, offline || expecting),
           ...(action.confirm === undefined ? {} : { confirm: action.confirm }),
         }),
       ),
@@ -47,7 +47,7 @@ export class PageFormModel {
           label: def?.locals[local.name]?.label ?? local.name,
           description: def?.locals[local.name]?.description ?? '',
           primary: false,
-          available: local.availability.kind === 'available' && !offline,
+          ...this.availability(local.availability, offline),
         }),
       ),
     ];
@@ -65,7 +65,7 @@ export class PageFormModel {
     fields: readonly ActionField[],
     head: Pick<
       PageForm,
-      'label' | 'description' | 'primary' | 'available' | 'confirm'
+      'label' | 'description' | 'primary' | 'available' | 'reason' | 'confirm'
     >,
   ): PageForm {
     const entered = this.named(state.entered, { kind, name })
@@ -101,6 +101,20 @@ export class PageFormModel {
       value: typed ?? this.initial(field),
       issues: issues.filter((i) => i.field === field.name).map((i) => i.text),
     };
+  }
+
+  /**
+   * Доступность формы (D-UI-79, D-UI-98): вид решает, `offline` и ожидание
+   * итога только гасят `available`. Причина — текст отключённого из вида;
+   * у доступного её нет, своей причины канал не придумывает.
+   */
+  private availability(
+    view: ViewAvailability,
+    paused: boolean,
+  ): Pick<PageForm, 'available' | 'reason'> {
+    if (view.kind === 'disabled')
+      return { available: false, reason: view.text };
+    return { available: !paused };
   }
 
   /** Начальное значение: подпись варианта с этим значением, иначе строка из скаляра. */

@@ -270,6 +270,24 @@ describe('экран «Мои задачи» — модель', () => {
     expect(action(after.actions, 'completeSelected').enabled).toBe(true);
   });
 
+  test('три открытые задачи: форма «Создать» отключена, enabled false, поле остаётся', async () => {
+    const w = exampleWorld(tmp().path);
+    const a = await openTab(w, TOKEN_ANNA, 'a');
+    await a.client.route('/');
+    for (const title of ['Хлеб', 'Молоко', 'Сыр']) {
+      await a.client.submit('main', 'create', { title });
+    }
+    await settle(w, a);
+
+    const { forms } = bodyOf(
+      new RegionFrame().next(a.client.region('main')),
+      'list',
+    );
+
+    expect(form(forms, 'create').enabled).toBe(false);
+    expect(form(forms, 'create').fields).toHaveLength(1);
+  });
+
   test('действия без полей — кнопки; открытие и отметка — жесты строк, в кнопки и формы не идут', async () => {
     const { a, frame } = await listed();
 

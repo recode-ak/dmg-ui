@@ -23,6 +23,8 @@ export type PageForm = {
   readonly description: string;
   readonly primary: boolean;
   readonly available: boolean;
+  /** Текст отключения из вида; у доступного действия ключа нет (`offline` и ожидание итога причины не дают). */
+  readonly reason?: string;
   /** Подтверждение — свойство действия. */
   readonly confirm?: ItemTexts;
   readonly fields: readonly PageFormField[];

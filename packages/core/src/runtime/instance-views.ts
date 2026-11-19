@@ -6,11 +6,11 @@ import type { InstanceLoad } from './screen-instance.types';
 import type { AnyScreenUnit, ScreenFrame } from './screen-unit.types';
 
 /**
- * Сборка вида экземпляра экрана — одно место для экземпляра и
+ * Сборка вида экземпляра экрана (D-UI-98) — одно место для экземпляра и
  * `ScreenPreview`: шапка (экран, адрес, контекст, основное действие) и
  * загруженное — данные, состояние, действия или отказ. Действия, отрезанные
  * составом приложения UI (`AppReach`) и скрытые кодом экрана, в вид не
- * попадают; субъекта в контексте вида нет (D-UI-98).
+ * попадают; субъекта в контексте вида нет.
  */
 export class InstanceViews {
   private readonly unit: AnyScreenUnit;

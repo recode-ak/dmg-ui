@@ -93,6 +93,21 @@ describe('экран assignedTasks: openAssignee', () => {
   });
 });
 
+describe('экран assignedTasks: openAssignee без субъекта', () => {
+  test('субъекта нет — «Карточка исполнителя» скрыта, нажатие — unavailable без дефекта', async () => {
+    const { kit, instance } = await open([assigned()], { subject: undefined });
+
+    expect(answerOf(instance.view(), 'openAssignee')).toEqual({
+      kind: 'hidden',
+    });
+    expect(
+      await instance.act({ action: 'openAssignee', revision: 1, trace }),
+    ).toEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(kit.faults).toEqual([]);
+    expect(kit.observer.kinds()).not.toContain('defect');
+  });
+});
+
 describe('экран assignedTasks: выделение и выполнение выбранных', () => {
   test('toggle — локальное действие: сервер не зовётся, выбор в состоянии', async () => {
     const { kit, instance } = await open([assigned()]);

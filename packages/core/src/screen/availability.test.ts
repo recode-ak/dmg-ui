@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { DomainRuleDef, ErrorDef, ok } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
 import {
   type ExampleUser,
@@ -147,6 +148,27 @@ describe('Availability.rule — домен на клиенте, правило �
     });
 
     expect(answer).toEqual(AVAILABLE);
+  });
+
+  test('ошибка вида access — скрыто: это «нет прав», текст ошибки не уходит', () => {
+    const ShelfErrors = ErrorDef.define('SHELF', {
+      LOCKED: {
+        kind: 'access',
+        label: 'Полка чужая',
+        description: 'Ставить книги может только хозяин полки.',
+      },
+    });
+    const own = DomainRuleDef.define({
+      name: 'ownShelf',
+      label: 'Своя полка',
+      description: 'Книгу ставит хозяин полки.',
+      error: ShelfErrors.LOCKED,
+      check: (ctx: { readonly mine: boolean }) =>
+        ctx.mine ? ok() : ShelfErrors.LOCKED.err(),
+    });
+
+    expect(Availability.rule(own, { mine: false })).toStrictEqual(HIDDEN);
+    expect(Availability.rule(own, { mine: true })).toEqual(AVAILABLE);
   });
 });
 

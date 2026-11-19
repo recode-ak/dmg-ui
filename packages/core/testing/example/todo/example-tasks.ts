@@ -53,12 +53,15 @@ export const exampleTask = (
     : { assignment: { assigneeId: owner.assigneeId, assignedAt: EXAMPLE_AT } }),
 });
 
-/** Строки экрана из выхода query UC задач: архивные отбрасываются. */
+/**
+ * Строки экрана из выхода query UC задач: архивные отбрасываются вопросом Ar
+ * (`isArchived`), а не сравнением статуса — копий вопросов Ar нет (D-UI-93).
+ */
 export class TaskRows {
   readonly all: readonly TaskRow[];
 
   constructor(tasks: readonly TaskRow[]) {
-    this.all = tasks.filter((task) => task.status !== 'archived');
+    this.all = tasks.filter((task) => !TaskAr.readonly(task).isArchived());
   }
 
   /** Строка задачи по `uuid`; нет — `undefined`. */
@@ -87,10 +90,12 @@ export class TaskSelection {
       : [...this.selected, taskId];
   }
 
-  /** Выбранные задачи, которые ещё открыты, — в порядке выбора. */
+  /** Выбранные задачи, которые ещё открыты (вопрос Ar `isOpen`), — в порядке выбора. */
   openIds(): string[] {
     const open = new Set(
-      this.rows.filter((row) => row.status === 'open').map((row) => row.uuid),
+      this.rows
+        .filter((row) => TaskAr.readonly(row).isOpen())
+        .map((row) => row.uuid),
     );
     return this.selected.filter((id) => open.has(id));
   }

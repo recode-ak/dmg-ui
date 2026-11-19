@@ -474,6 +474,77 @@ describe('сторис на Telegram', () => {
   });
 });
 
+describe('сторис на Telegram — недоступное не кнопка', () => {
+  const LIMIT = 'Слишком много открытых задач';
+
+  /** Три открытые задачи A свободным текстом: предел открытых достигнут. */
+  const limited = async (w: World) => {
+    await w.a.say('/start');
+    for (const title of ['Хлеб', 'Молоко', 'Сыр']) await w.a.say(title);
+    await w.settle();
+  };
+
+  test('отключённое: до выбора «Выполнить выбранные» среди кнопок нет, «Отметить задачу» есть', async () => {
+    const w = world();
+    await w.a.say('/start');
+    await w.a.say('Хлеб');
+    await w.settle();
+
+    expect(labelsOf(w.a.place())).toContain('Отметить задачу');
+    expect(labelsOf(w.a.place())).not.toContain('Выполнить выбранные');
+  });
+
+  test('скрытое: исполнитель-не-владелец выбрал поручение — «Выполнить выбранные» среди кнопок нет', async () => {
+    const w = world();
+    w.notifications();
+    await w.a.say('/start');
+    await w.a.say('Хлеб');
+    await w.settle();
+    await w.a.press('Открыть задачу');
+    await w.a.press('Хлеб');
+    await w.a.press('Назначить');
+    await w.a.say(B);
+    await w.settle();
+    await w.b.say('/assigned');
+
+    await w.b.press('Отметить задачу');
+    await w.b.press('Хлеб');
+
+    expect(labelsOf(w.b.place())).toContain('Отметить задачу');
+    expect(labelsOf(w.b.place())).not.toContain('Выполнить выбранные');
+  });
+
+  test('предел открытых: у владельца трёх открытых «Создать задачу» среди кнопок нет', async () => {
+    const w = world();
+    await w.a.say('/start');
+    await w.a.say('Хлеб');
+    await w.a.say('Молоко');
+    await w.settle();
+    const two = labelsOf(w.a.place());
+
+    await w.a.say('Сыр');
+    await w.settle();
+
+    expect(two).toContain('Создать задачу');
+    expect(labelsOf(w.a.place())).not.toContain('Создать задачу');
+  });
+
+  test('предел открытых: свободный текст отвечает причиной вместо «Выберите вариант.», новой задачи нет', async () => {
+    const w = world();
+    await limited(w);
+
+    await w.a.say('Яйца');
+
+    const said = w.a
+      .calls()
+      .flatMap((call) => (call.method === 'sendMessage' ? [call.params] : []))
+      .map((params) => params.text);
+    expect(said.at(-1)).toContain(LIMIT);
+    expect(said.at(-1)).not.toContain('Выберите вариант');
+    expect(w.a.lines().some((l) => l.text.includes('Яйца'))).toBe(false);
+  });
+});
+
 describe('сторис на Telegram — перезапуск', () => {
   test('после перезапуска нажатие на прежнем экране исполнено, сообщение поправлено на месте, ссылки новые', async () => {
     const w = world();

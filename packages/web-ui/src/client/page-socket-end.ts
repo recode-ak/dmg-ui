@@ -1,7 +1,10 @@
 import { err, ok, type Result } from 'dmg-core';
-import type { RenderContext } from 'dmg-ui';
 import { serverFrame } from '../wire/page-frames';
-import type { ClientMessage, ServerMessage } from '../wire/page-messages.types';
+import type {
+  ClientMessage,
+  HelloContext,
+  ServerMessage,
+} from '../wire/page-messages.types';
 import { PAGE_CLOSE } from '../wire/page-wire.const';
 import type { ClientEnd } from '../wire/page-wire.types';
 import { EARLY_FRAMES_LIMIT } from './page-socket.const';
@@ -28,7 +31,7 @@ export class PageSocketEnd implements ClientEnd {
 
   private constructor(
     private readonly socket: PageSocket,
-    readonly context: RenderContext,
+    readonly context: HelloContext,
   ) {}
 
   /**
@@ -149,7 +152,7 @@ export class PageSocketEnd implements ClientEnd {
   }
 
   /** Контекст из первого кадра, если он — `hello` по схеме. */
-  private static hello(data: unknown): RenderContext | undefined {
+  private static hello(data: unknown): HelloContext | undefined {
     if (typeof data !== 'string') return undefined;
     const parsed = serverFrame(data);
     return parsed.ok && parsed.value.kind === 'hello'

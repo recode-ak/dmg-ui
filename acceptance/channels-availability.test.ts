@@ -48,11 +48,17 @@ import {
   MemoryUiObserver,
 } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
+import { PageClient, PageFormModel, PageHost, PageWire } from 'dmg-ui/web-ui';
+import {
+  ExamplePagesAppDef,
+  examplePageRoutes,
+  exampleSubjectWire,
+} from 'dmg-ui/web-ui/testing';
 
-// Приёмка доступности на беседе: один код экранов и один сервер, три человека —
-// владелец `A`, исполнитель `B` и администратор `C` (подставной `callers`
-// поверх `example.callers`). Вид решает доступность по субъекту и данным,
-// сервер перепроверяет каждый вызов: ложное «доступно» отказывает сам UC.
+// Приёмка доступности на беседе и на странице: один код экранов и один сервер,
+// три человека — владелец `A`, исполнитель `B` и администратор `C` (подставной
+// `callers` поверх `example.callers`). Вид решает доступность по субъекту и
+// данным, сервер перепроверяет каждый вызов: ложное «доступно» отказывает сам UC.
 
 const A = testUuid(1);
 const B = testUuid(2);
@@ -110,11 +116,12 @@ const worldOf = (name: string, codes = exampleCodes()) => {
   };
   const observer = new MemoryUiObserver();
   const messenger = MemoryMessenger.editing();
+  const server = new UiServer({ set: ExampleUiSetDef, dispatch, context });
   let requests = 0;
   const conversations = new Conversations({
     app: ExampleDialogAppDef,
     codes,
-    server: new UiServer({ set: ExampleUiSetDef, dispatch, context }),
+    server,
     views: exampleDialogViews,
     observer,
     messenger,
@@ -132,7 +139,10 @@ const worldOf = (name: string, codes = exampleCodes()) => {
   });
   return {
     bus,
+    context,
     example,
+    server,
+    callers,
     calls,
     administrators,
     observer,
@@ -337,6 +347,7 @@ describe('приёмка доступности: беседа', () => {
     const a = personOf(w, A);
     await a.enter('start');
 
+    expect(a.labels()).toContain('Создать задачу');
     await a.say('Сыр');
     await a.settle();
 
@@ -418,5 +429,184 @@ describe('приёмка доступности: сервер перепрове
       'Управлять набором задач может владелец каждой из них или администратор.',
     );
     expect(await tasksOfA(w)).toEqual([{ title: 'Хлеб', status: 'open' }]);
+  });
+});
+
+// Страница: тот же мир и те же трое людей; вкладка — клиент на проводе в
+// памяти. Доступность видна как форма области: `available` и причина `reason`.
+
+const TOKENS: Readonly<Record<string, string>> = { tA: A, tB: B, tC: C };
+
+/** Хост страниц мира и вкладки людей; id запросов — одна последовательность на мир. */
+const pagesOf = (w: World, codes = exampleCodes()) => {
+  const host = new PageHost({
+    app: ExamplePagesAppDef,
+    server: w.server,
+    tokens: async (token) => TOKENS[token],
+    callers: w.callers,
+    places,
+    logger: w.context.logger,
+    subjectToWire: exampleSubjectWire.toWire,
+  });
+  let requests = 0;
+  return {
+    host,
+    /** Новое соединение человека по пропуску и клиент вкладки на нём. */
+    tab: async (token: string) => {
+      const wire = new PageWire(host);
+      const connected = await wire.connect(token);
+      if (!connected.ok) throw new Error(`connect(${token}): отказ`);
+      const client = new PageClient({
+        app: ExamplePagesAppDef,
+        codes,
+        routes: examplePageRoutes,
+        end: connected.value,
+        observer: w.observer,
+        reviveSubject: exampleSubjectWire.revive,
+        requestIds: () => {
+          requests += 1;
+          return `p-${requests}`;
+        },
+      });
+      return { wire, client };
+    },
+  };
+};
+
+type Tab = Awaited<ReturnType<ReturnType<typeof pagesOf>['tab']>>;
+
+/** Формы основной области вкладки. */
+const formsOf = (tab: Tab) =>
+  new PageFormModel(ExampleUiSetDef).of(tab.client.region('main')).forms;
+
+const formOf = (tab: Tab, name: string) =>
+  formsOf(tab).find((form) => form.name === name);
+
+/** Прямой вызов UC по проводу страницы, минуя клиент: сообщения сервера в ответ. */
+const directCall = async (
+  host: PageHost<ExampleUser>,
+  token: string,
+  call: { readonly uc: string; readonly input: unknown },
+) => {
+  const wire = new PageWire(host);
+  const connected = await wire.connect(token);
+  if (!connected.ok) throw new Error(`connect(${token}): отказ`);
+  const received: unknown[] = [];
+  connected.value.onMessage((message) => {
+    received.push(message);
+  });
+  connected.value.send({
+    kind: 'call',
+    id: 'c1',
+    call: { module: 'todo', requestId: 'r-direct', ...call },
+  });
+  await wire.settled();
+  return received;
+};
+
+describe('приёмка доступности: страница', () => {
+  test('выделение: форма «Выполнить выбранные» — available false с причиной до выделения, true после, UC не вызывается', async () => {
+    const w = worldOf('page-select');
+    await createTask(w, A, 'Хлеб');
+    const a = await pagesOf(w).tab('tA');
+    await a.client.route('/');
+    const before = w.calls.length;
+    const off = formOf(a, 'completeSelected');
+
+    await a.client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    expect(off?.available).toBe(false);
+    expect(formOf(a, 'completeSelected')?.available).toBe(true);
+    expect(formOf(a, 'completeSelected')).not.toHaveProperty('reason');
+    expect(w.calls).toHaveLength(before);
+    expect(off?.reason).toBe('Отметьте открытые задачи');
+  });
+
+  test('роль и право: исполнитель-не-владелец выбрал поручение — формы выполнения нет', async () => {
+    const w = worldOf('page-roles-b');
+    await assignedToBAndC(w);
+    const b = await pagesOf(w).tab('tB');
+    await b.client.route('/assigned');
+
+    await b.client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    expect(formOf(b, 'completeSelected')).toBeUndefined();
+  });
+
+  test('роль и право: администратор выбрал поручение — форма доступна, выполнение проходит', async () => {
+    const w = worldOf('page-roles-c');
+    await assignedToBAndC(w);
+    const c = await pagesOf(w).tab('tC');
+    await c.client.route('/assigned');
+
+    await c.client.local('main', 'toggle', { taskId: 'Молоко' });
+    const selected = formOf(c, 'completeSelected');
+    const asked = await c.client.submit('main', 'completeSelected', {});
+    const done = await c.client.confirm('main');
+    await w.bus.delivered();
+    await c.wire.settled();
+
+    expect(selected?.available).toBe(true);
+    expect(asked).toMatchObject({ kind: 'confirm' });
+    expect(done).toMatchObject({ kind: 'stayed' });
+    expect(await tasksOfA(w)).toEqual([
+      { title: 'Хлеб', status: 'open' },
+      { title: 'Молоко', status: 'done' },
+    ]);
+  });
+
+  test('предел открытых: у владельца трёх открытых форма «Создать» — available false с причиной, отправка — unavailable disabled, UC не вызван', async () => {
+    const w = worldOf('page-limit');
+    for (const title of ['Хлеб', 'Молоко', 'Сыр']) {
+      await createTask(w, A, title);
+    }
+    const a = await pagesOf(w).tab('tA');
+    await a.client.route('/');
+
+    const outcome = await a.client.submit('main', 'create', { title: 'Яйца' });
+
+    expect(formOf(a, 'create')?.available).toBe(false);
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(w.calls).not.toContain('createTask');
+    expect(await tasksOfA(w)).toHaveLength(3);
+    expect(formOf(a, 'create')?.reason).toBe(LIMIT_TEXT);
+  });
+
+  test('ложное «доступно»: прямой call completeTasks через провод страницы от исполнителя — ACCESS_DENIED, статусы прежние', async () => {
+    const w = worldOf('page-direct');
+    const task = await createTask(w, A, 'Хлеб');
+    await assignTask(w, task, B);
+
+    const received = await directCall(pagesOf(w).host, 'tB', {
+      uc: 'completeTasks',
+      input: { taskIds: [task] },
+    });
+
+    expect(received).toContainEqual({
+      kind: 'result',
+      id: 'c1',
+      result: expect.objectContaining({
+        ok: false,
+        error: expect.objectContaining({ code: 'ACCESS_DENIED' }),
+      }),
+    });
+    expect(await tasksOfA(w)).toEqual([{ title: 'Хлеб', status: 'open' }]);
+  });
+
+  test('смена роли: новое соединение исполнителя, ставшего администратором, — форма выполнения доступна', async () => {
+    const w = worldOf('page-role-change');
+    await assignedToBAndC(w);
+    const pages = pagesOf(w);
+    const before = await pages.tab('tB');
+    await before.client.route('/assigned');
+    await before.client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    w.administrators.add(B);
+    const after = await pages.tab('tB');
+    await after.client.route('/assigned');
+    await after.client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    expect(formOf(before, 'completeSelected')).toBeUndefined();
+    expect(formOf(after, 'completeSelected')?.available).toBe(true);
   });
 });

@@ -19,6 +19,7 @@ import { exampleUser, T0 } from 'dmg-ui/testing/fixtures';
 import { ExamplePagesAppDef, exampleSubjectWire } from '../../testing';
 import type { ServerMessage as ServerMsg } from '../wire/page-messages.types';
 import { PageHost } from './page-host';
+import { HOST_LOGS } from './page-server.const';
 
 // Субъект в `hello`: `subjectToWire` проекта переводит субъекта вызывающего
 // в JSON, учебная привязка кладёт только `{ uuid, roles }`; у заместителя
@@ -51,8 +52,9 @@ const callersOf = (
 const hostOf = (
   callers: Callers | undefined,
   subjectToWire?: (subject: ExampleUser) => unknown,
+  logger = new MemoryLogger(),
 ) => {
-  const context = { bus: new AwaitingBus(), logger: new MemoryLogger() };
+  const context = { bus: new AwaitingBus(), logger };
   const example = new ExampleApp(
     { mode: 'test', dataDir: tmp().path, users: [A, B] },
     { ...context, clock: () => T0 },
@@ -156,5 +158,25 @@ describe('PageHost — субъект в hello', () => {
     await host.connect('tA', (text) => lines.push(text));
 
     expect(lines[0]).not.toContain(A);
+  });
+
+  test('бросок subjectToWire — hello без subject, соединение одно, в логе фиксированный текст без броска', async () => {
+    const logger = new MemoryLogger();
+    const host = hostOf(
+      undefined,
+      () => {
+        throw new Error('страж-перевода');
+      },
+      logger,
+    );
+
+    const context = await helloOf(host);
+
+    expect('subject' in context).toBe(false);
+    expect(host.delivery.connections(A)).toBe(1);
+    expect(logger.records.filter((r) => r.level === 'error')).toMatchObject([
+      { message: HOST_LOGS.subject },
+    ]);
+    expect(JSON.stringify(logger.records)).not.toContain('страж');
   });
 });

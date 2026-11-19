@@ -1,6 +1,9 @@
 import type { Result } from 'dmg-core';
-import type { RenderContext } from 'dmg-ui';
-import type { ClientMessage, ServerMessage } from './page-messages.types';
+import type {
+  ClientMessage,
+  HelloContext,
+  ServerMessage,
+} from './page-messages.types';
 
 /**
  * Серверный конец одного соединения: строки JSON клиента по порядку.
@@ -34,7 +37,7 @@ export type PageServerPort = {
  * (`PageWire.settled()`), конец сокета — нет.
  */
 export type ClientEnd = {
-  readonly context: RenderContext;
+  readonly context: HelloContext;
   send(message: ClientMessage): void;
   onMessage(handler: (message: ServerMessage) => Promise<void> | void): void;
   onBreak(handler: (error: Error) => void): void;

@@ -20,9 +20,15 @@ describe('ServerMessage — hello', () => {
     const parsed = parse(CONTEXT);
 
     expect(parsed.success).toBe(true);
-    expect(parsed.success && 'subject' in (parsed.output as any).context).toBe(
-      false,
-    );
+    expect(parsed.success && parsed.output).toEqual({
+      kind: 'hello',
+      context: CONTEXT,
+    });
+    expect(
+      parsed.success &&
+        parsed.output.kind === 'hello' &&
+        'subject' in parsed.output.context,
+    ).toBe(false);
   });
 
   test.each([
@@ -37,9 +43,11 @@ describe('ServerMessage — hello', () => {
       const parsed = parse({ ...CONTEXT, subject });
 
       expect(parsed.success).toBe(true);
-      expect(parsed.success && (parsed.output as any).context.subject).toEqual(
-        subject,
-      );
+      expect(
+        parsed.success && parsed.output.kind === 'hello'
+          ? parsed.output.context.subject
+          : 'не hello',
+      ).toEqual(subject);
     },
   );
 

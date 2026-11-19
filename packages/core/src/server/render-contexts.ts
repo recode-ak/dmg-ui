@@ -1,7 +1,10 @@
 import type { Identified, Trace } from 'dmg-core';
-import type { ViewContext } from '../runtime/context.types';
 import { RenderFlags } from './render-flags';
-import type { PersonPlaces, RecipientCallers } from './server.types';
+import type {
+  CallerContext,
+  PersonPlaces,
+  RecipientCallers,
+} from './server.types';
 
 /**
  * Контекст рендера личности (D-UI-41): место — из порта по uuid того, кто
@@ -19,10 +22,7 @@ export class RenderContexts<U extends Identified> {
    * Вызывающий не разрешился — признаков и субъекта нет: вызов UC сервер
    * всё равно отклонит.
    */
-  async of(
-    uuid: string,
-    trace: Trace,
-  ): Promise<ViewContext & { readonly subject?: U }> {
+  async of(uuid: string, trace: Trace): Promise<CallerContext<U>> {
     const [place, caller] = await Promise.all([
       this.places.place(uuid, trace),
       this.callers.resolve(uuid, trace),

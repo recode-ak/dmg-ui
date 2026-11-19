@@ -18,6 +18,7 @@ import type { PageEntered, PageViewState } from './page-view-state.types';
 const model = () => new PageFormModel(ExampleUiSetDef);
 
 const AT = Date.UTC(2026, 0, 1);
+const LIMIT_TEXT = 'Слишком много открытых задач';
 
 /** Открытая задача как строка выхода query UC — state целиком. */
 const stateRow = (uuid: string, title: string) => ({
@@ -347,10 +348,10 @@ describe('PageFormModel.of — доступность и подтвержден�
     expect(formOf(off, 'toggle').available).toBe(false);
   });
 
-  test('скрытое действие — формы нет: чужому «Выполнить выбранные» не показано, владельцу — есть', async () => {
-    const foreign = await listed(new RuntimeKit(), { subject: undefined });
+  test('скрытое действие — формы нет: без субъекта «Выполнить выбранные» не показано, владельцу — есть', async () => {
+    const nobody = await listed(new RuntimeKit(), { subject: undefined });
     const own = await listed(new RuntimeKit());
-    for (const { instance } of [foreign, own]) {
+    for (const { instance } of [nobody, own]) {
       await instance.local({ name: 'toggle', input: { taskId: TASK_A } });
     }
 
@@ -359,8 +360,86 @@ describe('PageFormModel.of — доступность и подтвержден�
         .of(ready(instance))
         .forms.map((form) => form.name);
 
-    expect(names(foreign.instance)).not.toContain('completeSelected');
+    expect(names(nobody.instance)).not.toContain('completeSelected');
     expect(names(own.instance)).toContain('completeSelected');
+  });
+
+  test('причина: отключённое действие — available false и reason с текстом из вида', async () => {
+    const { state } = await listed();
+    const off = { kind: 'disabled', text: LIMIT_TEXT } as const;
+
+    const form = formOf(withAction(state, 'create', off), 'create');
+
+    expect(form.available).toBe(false);
+    expect(form.reason).toBe(LIMIT_TEXT);
+  });
+
+  test('причина: отключённое локальное действие — reason с текстом из вида', async () => {
+    const { state } = await listed();
+    const view = state.view;
+    if (view === undefined) throw new Error('нет вида');
+    const off: PageViewState = {
+      ...state,
+      view: {
+        ...view,
+        locals: view.locals.map((local) => ({
+          ...local,
+          availability: { kind: 'disabled', text: 'Пока нельзя' } as const,
+        })),
+      },
+    };
+
+    expect(formOf(off, 'toggle')).toMatchObject({
+      available: false,
+      reason: 'Пока нельзя',
+    });
+  });
+
+  test('причина: «Выполнить выбранные» без выбора — текст отключения кода экрана', async () => {
+    const { state } = await listed();
+
+    expect(formOf(state, 'completeSelected')).toMatchObject({
+      available: false,
+      reason: 'Отметьте открытые задачи',
+    });
+  });
+
+  test('доступные действие и локальное действие — без reason', async () => {
+    const { state } = await listed();
+
+    expect(formOf(state, 'create').available).toBe(true);
+    expect(formOf(state, 'create')).not.toHaveProperty('reason');
+    expect(formOf(state, 'toggle')).not.toHaveProperty('reason');
+  });
+
+  test('причина: offline гасит available, но reason у доступного не появляется', async () => {
+    const { state } = await listed();
+
+    const form = formOf({ ...state, stale: 'offline' }, 'create');
+
+    expect(form.available).toBe(false);
+    expect(form).not.toHaveProperty('reason');
+  });
+
+  test('причина: expecting гасит available, но reason у доступного не появляется', async () => {
+    const { state } = await listed();
+
+    const form = formOf({ ...state, expected: true }, 'create');
+
+    expect(form.available).toBe(false);
+    expect(form).not.toHaveProperty('reason');
+  });
+
+  test('причина: у отключённого при offline и expecting reason — текст вида', async () => {
+    const { state } = await listed();
+    const off = { kind: 'disabled', text: LIMIT_TEXT } as const;
+    const disabled = withAction(state, 'create', off);
+
+    const offline = formOf({ ...disabled, stale: 'offline' }, 'create');
+    const expecting = formOf({ ...disabled, expected: true }, 'create');
+
+    expect(offline.reason).toBe(LIMIT_TEXT);
+    expect(expecting.reason).toBe(LIMIT_TEXT);
   });
 
   test('подтверждение — свойство действия: тексты Def у completeSelected, у прочих нет', async () => {

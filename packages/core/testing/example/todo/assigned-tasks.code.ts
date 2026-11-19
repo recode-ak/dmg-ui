@@ -51,7 +51,8 @@ export class AssignedTasksScreenCode extends ScreenCode<Assigned, ExampleUser> {
     },
     openAssignee: {
       done: ({ context }) => {
-        // Без субъекта поручений не прочитать: исполнитель — тот, кто смотрит.
+        // Без субъекта действие скрыто доступностью, исполнитель шага не
+        // зовёт; бросок — дефект кода, а не штатный путь.
         if (context.subject === undefined) {
           throw new Error('openAssignee без субъекта');
         }
@@ -73,8 +74,11 @@ export class AssignedTasksScreenCode extends ScreenCode<Assigned, ExampleUser> {
             tasks,
           }),
       ),
-    openAssignee: ({ data }) =>
-      Availability.when(data.tasks.length > 0, 'Поручений нет'),
+    // Исполнитель — тот, кто смотрит: без субъекта карточки нет — скрыто.
+    openAssignee: ({ data, subject }) =>
+      subject === undefined
+        ? Availability.hidden()
+        : Availability.when(data.tasks.length > 0, 'Поручений нет'),
     toggle: ({ data }) =>
       Availability.when(data.tasks.length > 0, 'Поручений нет'),
   };

@@ -28,16 +28,18 @@ import {
   TaskListScreenDef,
 } from 'dmg-ui/testing';
 import { TELEGRAM_CAPABILITIES, TelegramGraphProvider } from 'dmg-ui/tg-bot';
+import { EXAMPLE_CONTEXT } from './example/example-telegram.const';
 
 // Сцены графа Telegram для тестов правил TG и поставщика (в `index.ts` не
 // экспортируются): домен примера, поставщик `dmg-ui`, общая часть
 // мессенджеров `ChatGraphProvider` и `TelegramGraphProvider`; приложение —
 // `exampleDialog` на возможностях Telegram.
 
-/** Примеры учебного набора для CH-01: собираются до графа (`await` на верхнем уровне). */
+/** Примеры учебного набора для CH-01 с субъектом примеров (D-UI-99): собираются до графа (`await` на верхнем уровне). */
 const EXAMPLES = await ChatExamples.collect({
   set: ExampleUiSetDef,
   codes: exampleCodes(),
+  context: EXAMPLE_CONTEXT,
 });
 
 /** Сцена графа Telegram. */

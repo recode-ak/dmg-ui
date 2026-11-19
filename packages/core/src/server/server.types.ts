@@ -14,6 +14,7 @@ import type { AddressJson } from '../address/address-codec.types';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import type { CodeLoaders } from '../runtime/code-loaders';
+import type { ViewContext } from '../runtime/context.types';
 import type { UiObserver } from '../runtime/ui-observer.types';
 import type { Place } from '../screen/action-context.types';
 import type { UcDispatch } from './ucs-dispatch.types';
@@ -27,6 +28,14 @@ export type CallerSource<U extends Identified> = {
   readonly subjectId: string | undefined;
   readonly channel?: TraceChannel;
   resolve(trace: Trace): Promise<Result<Caller<U>, DomainError>>;
+};
+
+/**
+ * Контекст личности на сервере (D-UI-98): контекст вида и субъект вызывающего
+ * в типе проекта — до провода, где субъект становится JSON (D-UI-99).
+ */
+export type CallerContext<U extends Identified> = ViewContext & {
+  readonly subject?: U;
 };
 
 /** Вызывающий получателя уведомления по его `uuid` и следу события. */

@@ -39,6 +39,7 @@ import { ScreenCode } from '../screen/screen-code';
 import type { ActionSteps, LoadContext } from '../screen/screen-code.types';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 import type { ViewChange } from './outcome.types';
+import { ScreenUnit } from './screen-unit';
 
 // Действия экземпляра экрана: порядок шагов `act`, проверка перехода,
 // подтверждение, отказы, ревизия и очередь, локальные действия.
@@ -423,7 +424,7 @@ describe('ScreenInstance.act — только чтение', () => {
 
     expect(actions.find((a) => a.name === 'create')?.availability).toEqual({
       kind: 'disabled',
-      text: expect.stringMatching(/\S/),
+      text: ScreenUnit.READ_ONLY_TEXT,
     });
     expect(actions.find((a) => a.name === 'open')?.availability).toEqual({
       kind: 'available',
@@ -537,6 +538,20 @@ describe('ScreenInstance — контекст', () => {
 
     const { subject } = testRenderContext;
     expect(spy.judged).toEqual([subject, subject]);
+  });
+
+  test('субъект не попадает в снимок экземпляра и записи наблюдателя', async () => {
+    const secret = 'секрет-субъекта-экземпляра';
+    const kit = new RuntimeKit();
+    const list = await kit.openList({
+      subject: { uuid: secret, hasRole: () => true },
+    });
+
+    await list.act({ action: 'close', revision: 1, trace });
+
+    expect(JSON.stringify(list.snapshot())).not.toContain(secret);
+    expect(kit.observer.records.length).toBeGreaterThan(0);
+    expect(JSON.stringify(kit.observer.records)).not.toContain(secret);
   });
 
   test('вид не несёт субъекта: контекст вида — место и признаки', async () => {
