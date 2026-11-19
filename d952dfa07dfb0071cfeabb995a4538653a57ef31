@@ -1,0 +1,4 @@
+Ф1 трека u7-school dmg-ui-stories-core_20261119 (разведка: домен на клиенте).
+Задачи: тест сборки под браузер, прототип «домен на клиенте», аудит, решение D-UI-93, ревью и правки.
+Файлы: examples/web/src/server/client-domain.test.ts (новый), packages/core/testing/client-domain.test.ts (новый), examples/web/src/server/client-bundle.const.ts и .test.ts (сегменты example/app, example/runner), docs/decisions.md (D-UI-93; пометки у D-UI-11, 72, 88), debt.md (DEBT-UI-44 частично), discussion.md (п. 1–2 решены).
+Причина: ответить на открытые п. 1–2 обсуждения и выяснить, что нужно от dmg-core. check: 4379 pass, 20 снимков.
