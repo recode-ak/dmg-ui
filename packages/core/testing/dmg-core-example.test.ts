@@ -79,18 +79,19 @@ describe('опора на dmg-core/testing/example', () => {
     expect(oplogOps(tmp().path)).toContain('createTask');
   });
 
-  it('граф учебного приложения: шесть UC todo с visible: true (0.6.1, D-103)', () => {
+  it('граф учебного приложения: семь UC с visible: true: шесть todo и getUser (0.6.3, D-103, D-104)', () => {
     const graph = new AppGraph(ExampleGraph).build();
 
     for (const uc of [
-      'createTask',
-      'completeTask',
-      'listTasks',
-      'assignTask',
-      'completeTasks',
-      'listAssignedTasks',
+      'todo/createTask',
+      'todo/completeTask',
+      'todo/listTasks',
+      'todo/assignTask',
+      'todo/completeTasks',
+      'todo/listAssignedTasks',
+      'users/getUser',
     ]) {
-      expect(graph.node(`example/todo/${uc}`)?.visible).toBe(true);
+      expect(graph.node(`example/${uc}`)?.visible).toBe(true);
     }
   });
 

@@ -101,11 +101,12 @@ describe('PageUrls — каждый пример каждого экрана н�
     ),
   );
 
-  test('экранов в наборе ровно три, у каждого есть пример: проверка не вхолостую', () => {
+  test('экранов в наборе ровно четыре, у каждого есть пример: проверка не вхолостую', () => {
     expect(screens.map((def) => def.name).sort()).toEqual([
       'assignedTasks',
       'taskCard',
       'taskList',
+      'userCard',
     ]);
     for (const def of screens) {
       expect(Object.keys(def.examples ?? {}).length).toBeGreaterThan(0);

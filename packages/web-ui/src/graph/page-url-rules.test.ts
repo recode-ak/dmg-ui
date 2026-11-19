@@ -564,6 +564,7 @@ describe('PG-06: маршрут не пересекается с общим пу
       'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/assignedTasks (/todo/assignedTasks)',
       'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/taskCard (/todo/taskCard)',
       'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/taskList (/todo/taskList)',
+      'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/users/userCard (/users/userCard)',
     ]);
   });
 

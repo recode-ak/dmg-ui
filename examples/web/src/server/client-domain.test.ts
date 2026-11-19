@@ -3,9 +3,8 @@ import { join, resolve } from 'node:path';
 import { ClientBundle } from './client-bundle';
 
 // Домен на клиенте (D-UI-93): домен учебного модуля (Ar, Policy, Rules) и коды
-// экранов собираются под браузер без кода сервера. Глубокий путь
-// `dmg-core/testing/example/todo/index`: Ar, Policy и Rules нет на стабильном
-// входе.
+// экранов собираются под браузер без кода сервера. Ar, Policy и Rules берутся
+// со стабильного входа `dmg-core/testing/example`.
 
 const ROOT = resolve(import.meta.dir, '../../../..');
 
@@ -16,7 +15,7 @@ const virtual = (name: string, text: string) => {
 };
 
 const DOMAIN = `
-import { TaskAr, TaskPolicy, TaskRules } from 'dmg-core/testing/example/todo/index';
+import { TaskAr, TaskPolicy, TaskRules } from 'dmg-core/testing/example';
 import { exampleCodes } from 'dmg-ui/testing';
 export const domain = { TaskAr, TaskPolicy, TaskRules, exampleCodes };
 `;

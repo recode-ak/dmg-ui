@@ -48,7 +48,7 @@ const edgeProps = (kind: string, from: string, to: string) =>
     ?.props;
 
 describe('UiGraphProvider: узлы', () => {
-  test('21 узел набора и приложения UI в каноническом порядке', () => {
+  test('25 узлов набора и приложения UI в каноническом порядке', () => {
     expect(own.map((node) => node.id)).toEqual([
       'exampleStub',
       'exampleUi',
@@ -71,6 +71,10 @@ describe('UiGraphProvider: узлы', () => {
       `${SCREEN}/next`,
       `${SCREEN}/open`,
       `${SCREEN}/prev`,
+      'exampleUi/users',
+      'exampleUi/users/userCard',
+      'exampleUi/users/userCard/close',
+      'exampleUi/users/viewUser',
     ]);
   });
 
@@ -84,8 +88,8 @@ describe('UiGraphProvider: узлы', () => {
           count(k),
         ]),
       ),
-    ).toEqual({ uiSet: 1, uiModule: 1, screen: 3, story: 3, notification: 2 });
-    expect(count('action')).toBe(10);
+    ).toEqual({ uiSet: 1, uiModule: 2, screen: 4, story: 4, notification: 2 });
+    expect(count('action')).toBe(11);
     expect(count('uiApp')).toBe(1);
   });
 
@@ -285,16 +289,16 @@ describe('UiGraphProvider: свойства узлов', () => {
 });
 
 describe('UiGraphProvider: рёбра', () => {
-  test('рёбра поставщика: 33 штуки, по видам', () => {
+  test('рёбра поставщика: 35 штук, по видам', () => {
     const counts: Record<string, number> = {};
     for (const edge of ownEdges)
       counts[edge.kind] = (counts[edge.kind] ?? 0) + 1;
 
-    expect(ownEdges).toHaveLength(33);
+    expect(ownEdges).toHaveLength(35);
     expect(counts).toEqual({
-      includes: 9,
+      includes: 10,
       entry: 2,
-      reads: 5,
+      reads: 6,
       invokes: 4,
       leadsTo: 2,
       refreshedBy: 5,
@@ -316,6 +320,7 @@ describe('UiGraphProvider: рёбра', () => {
       `exampleUi/todo/finishTasks -> ${SCREEN}`,
       `exampleUi/todo/followAssigned -> ${ASSIGNED}`,
       `exampleUi/todo/planTasks -> ${SCREEN}`,
+      'exampleUi/users/viewUser -> exampleUi/users/userCard',
     ]);
   });
 
@@ -333,6 +338,7 @@ describe('UiGraphProvider: рёбра', () => {
       `${CARD} -> example/todo/listTasks`,
       `${COMPLETED} -> example/todo/listAssignedTasks`,
       `${SCREEN} -> example/todo/listTasks`,
+      'exampleUi/users/userCard -> example/users/getUser',
     ]);
     expect(graph.externals()).toEqual([]);
   });
@@ -472,7 +478,7 @@ describe('UiGraphProvider: действия в графе', () => {
     const json = appGraph().document(UI_VERSION).toJSON();
     const create = json.nodes.find((n) => n.id === `${SCREEN}/create`);
 
-    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(10);
+    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(11);
     expect(create).toMatchObject({
       kind: 'action',
       label: 'Создать задачу',

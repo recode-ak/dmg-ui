@@ -24,3 +24,6 @@ export { TaskCardScreenDef } from './todo/task-card.screen';
 export { TaskCompletedNotificationDef } from './todo/task-completed.notification';
 export { TaskListScreenDef } from './todo/task-list.screen';
 export { TodoUiModuleDef } from './todo/todo.ui-module';
+export { UserCardScreenDef } from './users/user-card.screen';
+export { UsersUiModuleDef } from './users/users.ui-module';
+export { ViewUserStoryDef } from './users/view-user.story';

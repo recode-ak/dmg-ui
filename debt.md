@@ -46,7 +46,7 @@
 - **Погашает:** вынос помощника во вход, доступный обеим привязкам (с разрешением этого входа в зонах привязок в `CoreImportScanner`).
 
 ### DEBT-UI-14: лишний тест (TST-08) в опоре на `dmg-core`
-- **Место:** `packages/core/testing/dmg-core-example.test.ts:82-102` — проверки `visible` у шести UC модуля todo и `getTaskAssignee`.
+- **Место:** `packages/core/testing/dmg-core-example.test.ts:82-102` — проверки `visible` у семи UC (шесть модуля todo и `getUser`) и `getTaskAssignee`.
 - **Суть:** то же самое проверяет тест графа учебного приложения в `dmg-core` (`app-graph.test.ts`). Тест оставлен как опора на внешний пакет: он падает, если в среде окажется версия платформы без нужного признака `visible`.
 - **Триггер:** следующая чистка тестов.
 

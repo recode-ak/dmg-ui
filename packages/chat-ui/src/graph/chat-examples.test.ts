@@ -195,6 +195,7 @@ describe('ChatExamples.collect — примеры набора', () => {
       `${CARD} open`,
       `${LIST} empty`,
       `${LIST} full`,
+      'exampleUi/users/userCard active',
     ]);
     for (const { id, view } of screens) {
       expect(view.screen).toBe(id);
@@ -243,7 +244,7 @@ describe('ChatExamples.collect — примеры набора', () => {
 
     const examples = await collectExample(context);
 
-    expect(examples.screens()).toHaveLength(5);
+    expect(examples.screens()).toHaveLength(6);
     for (const { view } of examples.screens()) {
       expect(view.context).toEqual(context);
     }

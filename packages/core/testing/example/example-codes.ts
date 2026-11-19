@@ -6,6 +6,7 @@ import { TaskAssignedNotificationDef } from './todo/task-assigned.notification';
 import { TaskCardScreenDef } from './todo/task-card.screen';
 import { TaskCompletedNotificationDef } from './todo/task-completed.notification';
 import { TaskListScreenDef } from './todo/task-list.screen';
+import { UserCardScreenDef } from './users/user-card.screen';
 
 export type { ExampleCodeOverrides } from './example-codes.types';
 
@@ -34,6 +35,12 @@ export const exampleCodes = (over: ExampleCodeOverrides = {}): CodeLoaders =>
         new (
           await import('./todo/assigned-tasks.code')
         ).AssignedTasksScreenCode(),
+    ),
+    CodeLoader.screen(
+      UserCardScreenDef,
+      async () =>
+        over.user ??
+        new (await import('./users/user-card.code')).UserCardScreenCode(),
     ),
     CodeLoader.notification(
       TaskAssignedNotificationDef,

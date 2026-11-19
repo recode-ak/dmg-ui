@@ -7,12 +7,14 @@ import {
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
+  UserCardScreenDef,
 } from '../../testing/example';
 import { AssignedTasksScreenCode } from '../../testing/example/todo/assigned-tasks.code';
 import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.code';
 import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
 import { TaskCompletedNotificationCode } from '../../testing/example/todo/task-completed.code';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { UserCardScreenCode } from '../../testing/example/users/user-card.code';
 import { RuntimeKit } from '../../testing/ui-runtime-fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { CodeLoader, CodeLoaders } from './code-loaders';
@@ -24,6 +26,7 @@ const others = [
     AssignedTasksScreenDef,
     async () => new AssignedTasksScreenCode(),
   ),
+  CodeLoader.screen(UserCardScreenDef, async () => new UserCardScreenCode()),
   CodeLoader.notification(
     TaskAssignedNotificationDef,
     async () => new TaskAssignedNotificationCode(),

@@ -10,7 +10,7 @@ describe('UiSetDef', () => {
       description: 'Набор UI-модулей поверх учебного приложения.',
       visible: false,
       app: 'example',
-      modules: ['todo'],
+      modules: ['todo', 'users'],
     });
   });
 });

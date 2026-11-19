@@ -22,20 +22,18 @@ import {
   type ExampleUser,
   GetTaskUcDef,
   ListTasksUcDef,
-  TodoModuleDef,
-} from 'dmg-core/testing/example';
-import {
   OPEN_TASKS_LIMIT,
   TaskAr,
   TaskPolicy,
   TaskRules,
-} from 'dmg-core/testing/example/todo/index';
+  TodoModuleDef,
+} from 'dmg-core/testing/example';
 
 // Прототип «домен на клиенте» (D-UI-93, D-72): сервер отдаёт state, «провод»
 // (JSON) его не меняет, клиент собирает Ar и сам считает Policy и правила.
 // Тест платформы, а не кода пакета: осознанное отклонение от TST-09, как в
-// `dmg-core-example.test.ts`. Глубокий путь Ar/Policy/Rules: их нет на
-// стабильном входе `dmg-core/testing/example`.
+// `dmg-core-example.test.ts`. Ar, Policy и Rules приходят со стабильного входа
+// `dmg-core/testing/example`.
 
 const OWNER = testUuid(1);
 const OTHER = testUuid(2);
@@ -79,18 +77,11 @@ async function scene() {
   return { app, call, ids };
 }
 
-/** Состояние задач, как оно уходит по сети: строка после JSON (шаги 1–2). */
+/** Выход `listTasks` владельца, как он уходит по сети: строка после JSON (шаги 1–2). */
 async function rowsOnWire() {
-  const { app, call, ids } = await scene();
-  const owner = expectOk(await app.callers.resolve(OWNER, testTrace()));
-  const rows = [];
-  for (const taskId of ids) {
-    const query = GetTaskUcDef.command({ taskId });
-    const state = expectOk(
-      await app.api.dispatch(TodoModuleDef, query, system(owner), testTrace()),
-    );
-    rows.push(JSON.parse(JSON.stringify(state)));
-  }
+  const { call, ids } = await scene();
+  const list = expectOk(await call(OWNER, ListTasksUcDef.command({})));
+  const rows = list.map((row) => JSON.parse(JSON.stringify(row)));
   return { rows, call, ids };
 }
 
@@ -143,18 +134,17 @@ describe('домен на клиенте: сервер → провод → кл
     expect(canManage.evaluate(asAdmin, ctx).allowed).toBe(true);
   });
 
-  it('строка выхода listTasks (3 поля) — не state: Ar.readonly бросает', async () => {
-    const { call } = await scene();
-    const list = expectOk(await call(OWNER, ListTasksUcDef.command({})));
+  it('строка выхода listTasks — state: Ar.readonly её восстанавливает', async () => {
+    const { rows } = await rowsOnWire();
+    const task = TaskAr.readonly(rows[0]);
 
-    expect(Object.keys(list[0] ?? {}).sort()).toEqual([
-      'status',
-      'title',
-      'uuid',
+    expect(task.isOwnedBy(OWNER)).toBe(true);
+    expect(task.isOpen()).toBe(true);
+    expect(rows.map((row) => row.title).sort()).toEqual([
+      'Молоко',
+      'Сыр',
+      'Хлеб',
     ]);
-    expect(() =>
-      TaskAr.readonly(JSON.parse(JSON.stringify(list[0]))),
-    ).toThrow();
   });
 
   it('сервер перепроверяет: completeTask от чужого — ACCESS_DENIED', async () => {

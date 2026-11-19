@@ -8,13 +8,13 @@
         "@biomejs/biome": "2.5.13",
         "@types/bun": "latest",
         "@valibot/to-json-schema": "^1.7.1",
-        "dmg-core": "git+ssh://git@github.com/recode-ak/dmg-core.git#v0.6.2",
+        "dmg-core": "git+ssh://git@github.com/recode-ak/dmg-core.git#v0.6.3",
         "grammy": "1.46.0",
         "typescript": "^7.0.2",
         "valibot": "^1.5.0",
       },
       "peerDependencies": {
-        "dmg-core": "^0.6.1",
+        "dmg-core": "^0.6.3",
         "valibot": "^1.5.0",
       },
     },
@@ -92,7 +92,7 @@
 
     "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" }, "peerDependencies": { "supports-color": "*" }, "optionalPeers": ["supports-color"] }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
 
-    "dmg-core": ["dmg-core@git+ssh://git@github.com/recode-ak/dmg-core.git#cdeca9700af871abecfde5e8247a9d217cb9f381", { "peerDependencies": { "@valibot/to-json-schema": "^1.7.1", "valibot": "^1.5.0" }, "bin": { "dmg-core": "src/cli/main.ts" } }, "cdeca9700af871abecfde5e8247a9d217cb9f381"],
+    "dmg-core": ["dmg-core@git+ssh://git@github.com/recode-ak/dmg-core.git#de7bb18d3c030c7166125b6d75c377fc3ff1dde9", { "peerDependencies": { "@valibot/to-json-schema": "^1.7.1", "valibot": "^1.5.0" }, "bin": { "dmg-core": "src/cli/main.ts" } }, "de7bb18d3c030c7166125b6d75c377fc3ff1dde9"],
 
     "event-target-shim": ["event-target-shim@5.0.1", "", {}, "sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ=="],
 
