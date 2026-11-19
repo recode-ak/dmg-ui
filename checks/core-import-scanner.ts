@@ -43,6 +43,8 @@ const CHANNEL_DIRS = ['src', 'testing'];
 const ROOT = resolve(import.meta.dir, '..');
 /** Приёмочные тесты монорепо: поверх нескольких пакетов, импорт по именам входов. */
 const ACCEPTANCE = 'acceptance';
+/** Браузерные тесты и клиент DevTools: среда и тестовые входы разрешены, код примера — только сервер. */
+const BROWSER = 'browser';
 
 /** Проверка импортов ядра по набору зон: `node:`, `bun:`, встроенные модули и тестовые входы `dmg-core` запрещены. */
 export class CoreImportScanner {
@@ -425,6 +427,16 @@ export class CoreImportScanner {
           'dmg-ui/tg-bot',
         ],
         allowedPaths: [TG_BOT_TESTING],
+      },
+      {
+        include: [`${BROWSER}/`],
+        exclude: [],
+        // Клиент DevTools и сценарии: среда, `bun:test`, тестовый вход `dmg-core`
+        // и публичные входы пакета; сторонних библиотек нет. Из примера — только
+        // сервер (клиент примера — код для DOM), код пакетов — по именам входов.
+        forbidden: [],
+        allowed: ['node:*', 'bun:*', 'dmg-core/testing', 'dmg-ui/*'],
+        allowedPaths: [BROWSER, `${WEB_EXAMPLE}/server`],
       },
       {
         include: [`${ACCEPTANCE}/`],

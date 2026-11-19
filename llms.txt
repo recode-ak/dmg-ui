@@ -14,6 +14,7 @@
 - [Telegram](docs/guides/telegram.md): подключение `dmg-ui/tg-bot` — сборка, апдейты и подлинность, тексты и кнопки, меню, сообщество, возможности, отказы Bot API, что не проверено на живом Telegram, чеклист проекта
 - [Пример Telegram-бота](examples/tg-bot/README.md): запускаемый пример `examples/tg-bot` на `grammy` (`bun run example:tg`, проба `bun run example:tg:probe <chat_id>`), окружение, трасса вызовов, чек-лист ручной проверки на тестовом боте, «Что пример не проверяет» (D-UI-68)
 - [Пример web-канала](examples/web/README.md): запускаемый пример `examples/web` (вход `dmg-ui/web-ui`, гайд [Web-канал](docs/guides/web-channel.md); `bun run example:web`): сервер на `Bun.serve`, страница на DOM без фреймворка, два человека, «медленный сервер», окружение, чек-лист ручной проверки в браузере, «Что пример не проверяет» (D-UI-85)
+- [Браузерные тесты](docs/guides/web-channel.md#15-как-тестировать): `browser/` — клиент DevTools поверх Chrome без окна, сценарии `*.browser.test.ts`, `bun run browser` (вне `check`), когда писать браузерный тест (D-UI-103)
 
 ## Правила
 

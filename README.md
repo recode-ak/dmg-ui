@@ -25,7 +25,7 @@
 
 ## Установка
 
-Нужны Bun ≥ 1.3.1 и ssh-доступ к репозиториям `recode-ak/dmg-core` и `recode-ak/dmg-ui`. В реестре npm пакетов нет, ставятся они из git по тегу и одной командой:
+Нужны Bun ≥ 1.4.4 и ssh-доступ к репозиториям `recode-ak/dmg-core` и `recode-ak/dmg-ui`. В реестре npm пакетов нет, ставятся они из git по тегу и одной командой:
 
 ```sh
 bun add valibot @valibot/to-json-schema \
@@ -90,7 +90,7 @@ bun install
 bun run check
 ```
 
-`check` запускает biome, `tsc --noEmit` и `bun test`. Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.2`), сверяет их с `exports` установленного пакета, импортирует одиннадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
+`check` запускает biome, `tsc --noEmit` и `bun test` (файлы `*.browser.test.ts` обычный `bun test` пропускает). Отдельно `bun run browser` гонит браузерные тесты на настоящем Chrome без окна — клиент DevTools из каталога `browser/`, нужен Chrome (`CHROME_BIN` или `google-chrome` в `PATH`), в `check` не входит ([D-UI-103](docs/decisions.md)). Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.2`), сверяет их с `exports` установленного пакета, импортирует одиннадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
 Запускаемый пример на живом Telegram — [`examples/tg-bot`](examples/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
 

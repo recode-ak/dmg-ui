@@ -282,3 +282,49 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
     });
   }
 });
+
+describe('CoreImportScanner — browser/ (клиент DevTools и раннер)', () => {
+  const BROWSER = 'browser/browser-page.ts';
+
+  it('node:, bun: и подпути dmg-ui разрешены', () => {
+    const text = [
+      "import { mkdtempSync } from 'node:fs';",
+      "import { test } from 'bun:test';",
+      "import { PageClient } from 'dmg-ui/web-ui';",
+      "import { useTempDir } from 'dmg-core/testing';",
+      "import { Chrome } from './chrome-process';",
+    ].join('\n');
+
+    expect(scan(text, BROWSER)).toEqual([]);
+  });
+
+  it('относительный импорт сервера примера разрешён', () => {
+    const text =
+      "import { ExampleWebServer } from '../examples/web/src/server/example-web-server';";
+
+    expect(scan(text, BROWSER)).toEqual([]);
+  });
+
+  it('относительный импорт клиента примера — нарушение: DOM-код не нужен', () => {
+    const text = "import { a } from '../examples/web/src/client/main';";
+
+    expect(scan(text, BROWSER)).toHaveLength(1);
+  });
+
+  it('относительный импорт кода пакетов — нарушение: только публичные входы', () => {
+    const text = "import { a } from '../packages/core/src/index';";
+
+    expect(scan(text, BROWSER)).toHaveLength(1);
+  });
+
+  it('сторонний пакет — нарушение', () => {
+    expect(scan("import React from 'react';", BROWSER)).toHaveLength(1);
+  });
+
+  it('на реальном browser — ноль нарушений', () => {
+    const files = SourceTree.read(ROOT, 'browser');
+
+    expect(files.length).toBeGreaterThan(0);
+    expect(CoreImportScanner.standard().scan(files)).toEqual([]);
+  });
+});

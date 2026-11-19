@@ -49,7 +49,7 @@
       }
     },
     {
-      "includes": ["packages/**", "checks/**", "!**/*.test.ts"],
+      "includes": ["packages/**", "checks/**", "browser/**", "!**/*.test.ts"],
       "plugins": [
         "./node_modules/dmg-core/biome-plugins/code-02-class-members.grit"
       ]

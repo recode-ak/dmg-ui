@@ -1,0 +1,4 @@
+# Браузерные тесты (`*.browser.test.ts`) нужны Chrome и запускаются только
+# командой `bun run browser` (D-UI-103); обычный `bun test` и `check` их пропускают.
+[test]
+pathIgnorePatterns = ["**/*.browser.test.ts"]

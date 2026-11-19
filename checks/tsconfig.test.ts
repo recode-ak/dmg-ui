@@ -82,3 +82,17 @@ describe('examples/web/tsconfig.json — программа клиента с DO
     expect(include.filter((path) => path.includes('server'))).toEqual([]);
   });
 });
+
+describe('общий tsconfig.json — браузерный клиент DevTools', () => {
+  it('include содержит browser: клиент и раннер проверяются tsc', () => {
+    expect(config('tsconfig.json').include ?? []).toContain('browser');
+  });
+
+  it('include по-прежнему содержит packages, checks, acceptance и examples', () => {
+    const include = config('tsconfig.json').include ?? [];
+
+    for (const path of ['packages', 'checks', 'acceptance', 'examples']) {
+      expect(include).toContain(path);
+    }
+  });
+});
