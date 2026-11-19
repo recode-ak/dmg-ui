@@ -103,8 +103,9 @@ export const TaskListScreenDef = ScreenDef.define({
       label: 'Дальше',
       description: 'Следующая часть списка.',
     },
+    // D-UI-108: подпись не «Назад» — так называется автокнопка пути.
     prev: {
-      label: 'Назад',
+      label: 'Предыдущая страница',
       description: 'Предыдущая часть списка.',
     },
     close: {

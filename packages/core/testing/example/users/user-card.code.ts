@@ -6,6 +6,7 @@ import {
   type LoadContext,
   ScreenCode,
 } from 'dmg-ui';
+import { TaskListScreenDef } from '../todo/task-list.screen';
 import { UserCardScreenDef } from './user-card.screen';
 
 type Card = typeof UserCardScreenDef;
@@ -13,6 +14,7 @@ type Card = typeof UserCardScreenDef;
 /** Код карточки пользователя: данные — ответ `getUser` по `params.userId`. */
 export class UserCardScreenCode extends ScreenCode<Card> {
   override readonly actions: Partial<ActionSteps<Card>> = {
+    tasks: { done: () => TaskListScreenDef.at({ page: 0 }) },
     close: { done: () => UserCardScreenDef.exits.closed.with() },
   };
 

@@ -26,6 +26,7 @@ import {
   MemoryUiObserver,
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
+  TaskListScreenDef,
 } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
@@ -350,8 +351,8 @@ describe.each(MESSENGERS)('сторис на беседе (%s)', (name, make) =>
     await a.pressRef(next);
     expect(a.reaction()).toContain('Эта кнопка устарела');
 
-    // 5. «Назад» — первая страница.
-    await a.press('Назад');
+    // 5. Листание назад — первая страница.
+    await a.press(TaskListScreenDef.actions.prev.label);
     expect((await a.screen()).address).toEqual({
       screen: LIST,
       params: { page: 0 },

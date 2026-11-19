@@ -58,7 +58,7 @@ const edgeProps = (kind: string, from: string, to: string) =>
     ?.props;
 
 describe('UiGraphProvider: узлы', () => {
-  test('34 узла набора и приложения UI в каноническом порядке', () => {
+  test('35 узлов набора и приложения UI в каноническом порядке', () => {
     expect(own.map((node) => node.id)).toEqual([
       'exampleStub',
       'exampleUi',
@@ -93,6 +93,7 @@ describe('UiGraphProvider: узлы', () => {
       'exampleUi/users',
       'exampleUi/users/userCard',
       'exampleUi/users/userCard/close',
+      'exampleUi/users/userCard/tasks',
       'exampleUi/users/viewUser',
     ]);
   });
@@ -108,7 +109,7 @@ describe('UiGraphProvider: узлы', () => {
         ]),
       ),
     ).toEqual({ uiSet: 1, uiModule: 2, screen: 5, story: 5, notification: 2 });
-    expect(count('action')).toBe(18);
+    expect(count('action')).toBe(19);
     expect(count('uiApp')).toBe(1);
   });
 
@@ -423,20 +424,20 @@ describe('UiGraphProvider: подсказки в графе', () => {
 });
 
 describe('UiGraphProvider: рёбра', () => {
-  test('рёбра поставщика: 48 штук, по видам', () => {
+  test('рёбра поставщика: 50 штук, по видам', () => {
     const counts: Record<string, number> = {};
     for (const edge of ownEdges)
       counts[edge.kind] = (counts[edge.kind] ?? 0) + 1;
 
-    expect(ownEdges).toHaveLength(48);
+    expect(ownEdges).toHaveLength(50);
     expect(counts).toEqual({
       includes: 11,
-      leads: 4,
+      leads: 5,
       requires: 1,
       entry: 2,
       reads: 6,
       invokes: 5,
-      leadsTo: 5,
+      leadsTo: 6,
       refreshedBy: 5,
       notifiedBy: 2,
       links: 2,
@@ -469,6 +470,7 @@ describe('UiGraphProvider: рёбра', () => {
       'exampleUi/todo/startWork -> exampleUi/todo/finishTasks',
       'exampleUi/todo/startWork -> exampleUi/todo/followAssigned',
       'exampleUi/todo/startWork -> exampleUi/todo/planTasks',
+      'exampleUi/users/viewUser -> exampleUi/todo/planTasks',
     ]);
     expect(pairs('requires')).toEqual([
       'exampleUi/todo/planTasks -> example/todo/task/withinOpenLimit',
@@ -520,6 +522,7 @@ describe('UiGraphProvider: рёбра', () => {
       `${MENU}/tasks -> ${SCREEN}`,
       `${CARD}/back -> ${SCREEN}`,
       `${SCREEN}/open -> ${CARD}`,
+      `exampleUi/users/userCard/tasks -> ${SCREEN}`,
     ]);
   });
 
@@ -643,7 +646,7 @@ describe('UiGraphProvider: действия в графе', () => {
     const json = appGraph().document(UI_VERSION).toJSON();
     const create = json.nodes.find((n) => n.id === `${SCREEN}/create`);
 
-    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(18);
+    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(19);
     expect(create).toMatchObject({
       kind: 'action',
       label: 'Создать задачу',

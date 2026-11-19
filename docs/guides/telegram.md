@@ -160,8 +160,9 @@ const telegram = new TelegramUpdates({ conversations, messenger, logger, entryPo
 
 - **`MemoryBotApi`** (`dmg-ui/tg-bot/testing`) — `BotApi` в памяти с журналом вызовов; ведёт себя как Bot API: правка неизвестного сообщения — 400, правка тем же — 400 «message is not modified». `failNext`, `throwNext`, `failOn(метод, отказ)` — отказ или бросок следующего вызова; `holdOn(метод)` держит вызов до `release` — очередь сообщества без таймеров. `chat(chatId)` — сообщения глазами собеседника. Операции группы и `setMyCommands` — запись в журнал и `ok`, модели членства нет (D-UI-63).
 - **`TestUpdates`** — построитель апдейтов: `text`, `press`, `groupText`, `joined`, `left`, `botAdded`, `botRemoved`, `joinRequest`.
-- **Сцены:** [telegram-story.test.ts](../../packages/tg-bot/testing/telegram-story.test.ts) — диалог, уведомление и меню; [telegram-community.story.test.ts](../../packages/tg-bot/testing/telegram-community.story.test.ts) — сообщество.
+- **Сцены:** [telegram-story.test.ts](../../packages/tg-bot/testing/telegram-story.test.ts) — диалог, уведомление и меню; [telegram-back.story.test.ts](../../packages/tg-bot/testing/telegram-back.story.test.ts) — «Назад», `/back` и подписи без повторов; [telegram-community.story.test.ts](../../packages/tg-bot/testing/telegram-community.story.test.ts) — сообщество.
 - **Адаптер на loopback.** Тест адаптера и опроса идёт на `127.0.0.1` с поддельным сервером Bot API: проверяется тело запроса на проводе, отказы, сбой транспорта без токена; внешней сети нет (D-UI-68).
+- **Что показывает пример** (D-UI-105, D-UI-106, D-UI-107, D-UI-108): отключённое действие с тостом, подсказку поля, `/help` отдельным сообщением, автокнопку «Назад» и `/back`, «К моим задачам». С одним аккаунтом «К моим задачам» достижимо самоназначением: «Хлеб» → «Назначить» → свой uuid → `/assigned` → «Карточка исполнителя». Тест «подписи без повторов» — в приёмке и `telegram-back.story.test.ts`.
 - **Пример `examples/tg-bot`** запускается на живом Telegram: запуск, переменные, чек-лист ручной проверки, проба `bun run example:tg:probe <chat_id>` — в [README примера](../../examples/tg-bot/README.md). Консоль при обычной работе молчит (в ней только `warn` и `error`, ERR-07); что уходит в Telegram, показывает трасса `EXAMPLE_TG_TRACE` — файл JSON-строк по вызову, в нём тексты и id людей, в git он не попадает. `.env.development` Bun читает без настроек.
 
 ## 11. Что не проверено на живом Telegram
@@ -178,7 +179,8 @@ const telegram = new TelegramUpdates({ conversations, messenger, logger, entryPo
   - Синхронность часов сервера (срок бана 300 с).
   - Миграция группы в супергруппу (DEBT-UI-27).
 - **Поручение между двумя аккаунтами.** Назначенному человеку приходит «Вам назначена задача», исполнителю — «Поручение выполнено»; чужой аккаунт получает тишину и ответ без текста на нажатие. На одном аккаунте проверена только блокировка бота: `warn` 403, без падения, доставка возобновляется после разблокировки.
-- **Отключённое действие.** Замечают ли тост `answerCallbackQuery` без `show_alert` и как старые клиенты показывают `🚫` в подписи (D-UI-105).
+- **Отключённое действие.** Замечают ли тост `answerCallbackQuery` без `show_alert` и как клиенты показывают `🚫` в подписи, в том числе «🚫 Предыдущая страница» (D-UI-105, D-UI-108; пункты Ж1, Ж2 README примера).
+- **Справка и меню команд.** `/help` работает, но в меню не публикуется; ждёт ли его клиент в списке (D-UI-107; пункт Ж5).
 - **Не доходит и до учебных экранов.** Вебхук и хранилище бесед на диске (пример — `getUpdates` и память).
 
 ## 12. Чеклист проекта

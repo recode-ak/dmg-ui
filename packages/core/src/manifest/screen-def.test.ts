@@ -83,7 +83,7 @@ describe('ScreenDef — форма', () => {
         },
         {
           name: 'prev',
-          label: 'Назад',
+          label: list.actions.prev.label,
           description: 'Предыдущая часть списка.',
           visible: false,
           input: undefined,

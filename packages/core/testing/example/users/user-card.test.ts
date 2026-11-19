@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { ErrorDef, err, ok } from 'dmg-core';
 import { GetUserUcDef, UserErrors } from 'dmg-core/testing/example';
-import { RuntimeKit } from '../../ui-runtime-fixture';
-import { OWNER } from '../todo/example-tasks';
+import { RuntimeKit, requestTrace } from '../../ui-runtime-fixture';
+import { LIST_ID, OWNER } from '../todo/example-tasks';
 import { UserCardScreenDef } from './user-card.screen';
 
 // Карточка пользователя: загрузка `getUser` по параметру и отказ.
@@ -44,5 +44,25 @@ describe('экран userCard', () => {
     const instance = await open(kit);
 
     expect(instance.view()).toMatchObject({ status: 'refused' });
+  });
+
+  test('действие tasks — шаг на первую страницу списка без вызова UC', async () => {
+    const kit = new RuntimeKit();
+    kit.ucs.answer(GetUserUcDef, ok({ userId: OWNER, active: true }));
+    const instance = await open(kit);
+    const before = kit.ucs.names();
+
+    const outcome = await instance.act({
+      action: 'tasks',
+      input: undefined,
+      revision: 1,
+      trace: requestTrace('r-tasks'),
+    });
+
+    expect(outcome).toEqual({
+      kind: 'moved',
+      address: { screen: LIST_ID, params: { page: 0 } },
+    });
+    expect(kit.ucs.names()).toEqual(before);
   });
 });

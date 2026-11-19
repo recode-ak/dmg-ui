@@ -11,7 +11,7 @@
 | Вопрос | Запись | Раздел гайда |
 |---|---|---|
 | Адрес в URL: параметры строкой, маршрут — точка входа | [D-UI-76](../decisions.md), граф — [D-UI-77](../decisions.md) | 6, 11 |
-| «Назад», в том числе в экран другого UI-модуля | [D-UI-81](../decisions.md), [D-UI-82](../decisions.md), [D-UI-83](../decisions.md), шаг и замена — [D-UI-97](../decisions.md), гонки «Назад» и правило шага приложения — [D-UI-104](../decisions.md) | 8 |
+| «Назад», в том числе в экран другого UI-модуля | [D-UI-81](../decisions.md), [D-UI-82](../decisions.md), [D-UI-83](../decisions.md), шаг и замена — [D-UI-97](../decisions.md) (соответствие беседе — [D-UI-108](../decisions.md)), гонки «Назад» и правило шага приложения — [D-UI-104](../decisions.md) | 8 |
 | Субъект на странице: «кто смотрит» в коде экрана | [D-UI-98](../decisions.md), провод — [D-UI-99](../decisions.md) | 4, 12 |
 | Где исполняется код экрана | [D-UI-16](../decisions.md), [D-UI-33](../decisions.md), [D-UI-89](../decisions.md), сборка клиента — [D-UI-85](../decisions.md) | 4, 5, 14 |
 | Вызов UC из браузера и что уйдёт в `dmg-core` | [D-UI-73](../decisions.md), провод — [D-UI-71](../decisions.md) | 4.7 |

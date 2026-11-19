@@ -1,4 +1,5 @@
-import { StoryDef } from 'dmg-ui';
+import { type AnyStoryDef, StoryDef } from 'dmg-ui';
+import { PlanTasksStoryDef } from '../todo/plan-tasks.story';
 import { UserCardScreenDef } from './user-card.screen';
 
 /** Сторис «Карточка пользователя»: человек смотрит учётную запись. */
@@ -11,6 +12,8 @@ export const ViewUserStoryDef = StoryDef.define({
   goal: 'чтобы увидеть, активна ли учётная запись',
   start: UserCardScreenDef,
   screens: [UserCardScreenDef],
+  // D-UI-108: переход карточки на список задач разрешён связью со сторис списка.
+  leads: (): readonly AnyStoryDef[] => [PlanTasksStoryDef],
   outcomes: {
     done: {
       label: 'Карточка просмотрена',

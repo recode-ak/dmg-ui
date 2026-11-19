@@ -23,6 +23,7 @@ import {
   MemoryUiObserver,
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
+  TaskListScreenDef,
 } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import {
@@ -62,6 +63,8 @@ const ENTRY_POINTS = [
 ];
 const TITLE = 'Сыр *острый* _[1](x)_ <b>&';
 const CLOSED = 'Эта кнопка устарела.';
+/** Подпись листания назад — из Def; «Назад» без пути — только автокнопка. */
+const PREV = TaskListScreenDef.actions.prev.label;
 const tmp = useTempDir('dmg-ui-telegram-story-');
 
 const places: PersonPlaces = {
@@ -265,7 +268,7 @@ const world = () => {
 
 type World = ReturnType<typeof world>;
 
-/** Шаги 0–5 учебной сторис: два списка B, три задачи A, «Дальше» и «Назад». */
+/** Шаги 0–5 учебной сторис: два списка B, три задачи A, «Дальше» и листание назад. */
 const firstSteps = async (w: World) => {
   const { a, b } = w;
   // 0. B открывает свой список — пусто.
@@ -319,8 +322,8 @@ describe('сторис на Telegram', () => {
       text: CLOSED,
     });
 
-    // 5–7. «Назад», выбор двух задач, «Выполнить выбранные» и «Да».
-    await a.press('Назад');
+    // 5–7. Листание назад, выбор двух задач, «Выполнить выбранные» и «Да».
+    await a.press(PREV);
     await a.press('Отметить задачу');
     await a.press('Хлеб');
     await a.press('Отметить задачу');
@@ -425,7 +428,7 @@ describe('сторис на Telegram', () => {
     expect(a.place().text).toContain(TITLE);
   });
 
-  test('ушедший экран после нажатия: прежний текст и строка «Вы выбрали: Назад», клавиатура снята; новый экран — клавиатура с callback_data', async () => {
+  test('ушедший экран после нажатия: прежний текст и строка «Вы выбрали: <подпись листания>», клавиатура снята; новый экран — клавиатура с callback_data', async () => {
     const w = world();
     const { a } = w;
     await firstSteps(w);
@@ -438,12 +441,12 @@ describe('сторис на Telegram', () => {
       error_code: 400,
       description: "Bad Request: message can't be edited",
     });
-    await a.press('Назад');
+    await a.press(PREV);
 
     const retired = a
       .lines()
       .find((line) => line.message_id === page.message_id);
-    expect(retired?.text).toBe(`${page.text}\n-----\nВы выбрали: Назад`);
+    expect(retired?.text).toBe(`${page.text}\n-----\nВы выбрали: ${PREV}`);
     expect(retired?.entities).toEqual(page.entities);
     expect(retired?.keyboard).toEqual([]);
     expect(a.place().message_id).toBeGreaterThan(page.message_id);
@@ -460,12 +463,12 @@ describe('сторис на Telegram', () => {
     await firstSteps(w);
     await a.press('Дальше');
     const page = a.place();
-    const back = a.find('Назад');
+    const back = a.find(PREV);
     w.api.failNext({
       error_code: 400,
       description: "Bad Request: message can't be edited",
     });
-    await a.press('Назад');
+    await a.press(PREV);
 
     // Старая ссылка нажатого экрана — устаревшая (прежнее поведение).
     await a.pressData(back.data, page.message_id);
@@ -503,7 +506,7 @@ describe('сторис на Telegram — перезапуск', () => {
     const before = texts(w.api.journal).flatMap((call) =>
       dataOf(call.params.reply_markup),
     );
-    const back = a.find('Назад');
+    const back = a.find(PREV);
     const journal = w.api.journal.length;
 
     await w.restart();

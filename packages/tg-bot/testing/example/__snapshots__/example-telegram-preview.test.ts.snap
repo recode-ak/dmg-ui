@@ -47,7 +47,7 @@ exports[`снимки запросов Telegram taskList empty 1`] = `
       [
         {
           "callback_data": "7",
-          "text": "🚫 Назад",
+          "text": "🚫 Предыдущая страница",
         },
       ],
       [
@@ -119,7 +119,7 @@ exports[`снимки запросов Telegram taskList full 1`] = `
       [
         {
           "callback_data": "8",
-          "text": "🚫 Назад",
+          "text": "🚫 Предыдущая страница",
         },
       ],
     ],

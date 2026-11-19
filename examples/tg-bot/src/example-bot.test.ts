@@ -1,10 +1,18 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { AwaitingBus, MemoryLogger, useTempDir } from 'dmg-core/testing';
 import { ExampleDialogAppDef } from 'dmg-ui/chat-ui/testing';
-import { TaskAssignedNotificationDef } from 'dmg-ui/testing';
+import {
+  TaskAssignedNotificationDef,
+  TaskListScreenDef,
+  UserCardScreenDef,
+} from 'dmg-ui/testing';
 import { MemoryBotApi, TestUpdates } from 'dmg-ui/tg-bot/testing';
 import { ExampleBot } from './example-bot';
-import { ENTRY_POINTS, EXAMPLE_USER_B } from './example-bot.const';
+import {
+  ENTRY_POINTS,
+  EXAMPLE_USER_A,
+  EXAMPLE_USER_B,
+} from './example-bot.const';
 
 // Сборка примера на подставном порту: без токена, без сети, без grammy
 // (`grammy` в `example-bot.ts` запрещает `ExampleZoneScanner`). Проверяется
@@ -113,7 +121,7 @@ describe('ExampleBot — вход допущенного человека', () =
       '🚫 Открыть задачу',
       '🚫 Выполнить выбранные',
       '🚫 Дальше',
-      '🚫 Назад',
+      `🚫 ${TaskListScreenDef.actions.prev.label}`,
       '🚫 Отметить задачу',
     ]);
     expect(w.sendMessages(B)).toEqual([]);
@@ -321,5 +329,156 @@ describe('ExampleBot — границы приёма', () => {
           call.method !== 'answerCallbackQuery',
       ),
     ).toEqual([]);
+  });
+});
+
+describe('ExampleBot — что показывает пример: отключённое, поле, справка, «Назад», «К моим задачам»', () => {
+  /** Автокнопка канала: подпись «Назад» задаёт канал, а не Def экрана. */
+  const BACK = 'Назад';
+  /** Причина отключённого «Открыть задачу» в пустом списке: её даёт код экрана примера. */
+  const NO_TASKS = 'Задач нет';
+
+  /** Узел, нажатие кнопки живого места по подписи и текст в чат A. */
+  const session = async () => {
+    const w = await world();
+    const { bot, settle } = await w.launch();
+    return {
+      ...w,
+      bot,
+      press: async (label: string) => {
+        const { data, messageId } = w.find(A, label);
+        const update = w.updates.press(A, data, messageId);
+        await bot.receive(update);
+        await settle();
+        return update.callback_query.id;
+      },
+      say: async (text: string) => {
+        await bot.receive(w.updates.text(A, text));
+        await settle();
+      },
+      labels: () =>
+        w
+          .place(A)
+          .keyboard.flat()
+          .map((button) => button.text),
+    };
+  };
+
+  /** Текст последнего показа: новое сообщение или правка на месте. */
+  const shownText = (s: Awaited<ReturnType<typeof session>>): string =>
+    s.api.journal
+      .findLast(
+        (call) =>
+          call.method === 'sendMessage' || call.method === 'editMessageText',
+      )
+      ?.params.text.toString() ?? '';
+
+  /** Список → задача «Хлеб» → карточка. */
+  const openCard = async (s: Awaited<ReturnType<typeof session>>) => {
+    await s.say('/start');
+    await s.say('Хлеб');
+    await s.press('Открыть задачу');
+    await s.press('Хлеб');
+  };
+
+  test('отключённое: нажатие «🚫 Открыть задачу» в пустом списке — один ответ с причиной, без show_alert; сообщений не прибавилось', async () => {
+    const s = await session();
+    await s.say('/start');
+    const journal = s.api.journal.length;
+
+    const id = await s.press(`🚫 ${TaskListScreenDef.actions.open.label}`);
+
+    const after = s.api.journal.slice(journal);
+    expect(after).toEqual([
+      {
+        method: 'answerCallbackQuery',
+        params: { callback_query_id: id, text: NO_TASKS },
+      },
+    ]);
+    expect(after[0]?.params).not.toHaveProperty('show_alert');
+  });
+
+  test('подсказка поля: «К части» спрашивает с подсказкой, примером и пределами; ввод 0 — отказ текстом поля', async () => {
+    const s = await session();
+    await s.say('/start');
+
+    await s.press(TaskListScreenDef.actions.jumpTo.label);
+
+    // Подсказка, пример и пределы поля `part` — как в Def списка задач.
+    const question = shownText(s);
+    expect(question).toContain('Введите: Часть');
+    expect(question).toContain('Номер части списка, с первой');
+    expect(question).toContain('Пример: 2');
+    expect(question).toContain('Пределы: от 1 до 99, целое');
+    await s.say('0');
+    expect(shownText(s)).toContain('Части начинаются с первой');
+  });
+
+  test('/help: одно сообщение «Справка: Мои задачи …», правок нет; меню команд — start, menu, assigned без help', async () => {
+    const s = await session();
+    await s.say('/start');
+    const journal = s.api.journal.length;
+
+    await s.say('/help');
+
+    const after = s.api.journal.slice(journal);
+    expect(after.map((call) => call.method)).toEqual(['sendMessage']);
+    expect(s.sendMessages(A).at(-1)?.text).toStartWith(
+      `Справка: ${TaskListScreenDef.label}`,
+    );
+    const published = s.api.journal.flatMap((call) =>
+      call.method === 'setMyCommands' ? call.params.commands : [],
+    );
+    expect(published.map((command) => command.command)).toEqual([
+      'start',
+      'menu',
+      'assigned',
+    ]);
+  });
+
+  test('«Назад» в карточке: последняя кнопка, нажатие возвращает список', async () => {
+    const s = await session();
+    await openCard(s);
+    expect(s.labels().at(-1)).toBe(BACK);
+
+    await s.press(BACK);
+
+    expect(s.place(A).text).toStartWith('Мои задачи');
+  });
+
+  test('/back в карточке: список новым сообщением', async () => {
+    const s = await session();
+    await openCard(s);
+
+    await s.say('/back');
+
+    expect(s.place(A).text).toStartWith('Мои задачи');
+  });
+
+  test('/back сразу после /start (путь пуст): прежнее сообщение теряет клавиатуру, экран — новым сообщением, без ошибки', async () => {
+    const s = await session();
+    await s.say('/start');
+    const journal = s.api.journal.length;
+
+    await s.say('/back');
+
+    expect(s.api.journal.slice(journal).map((call) => call.method)).toEqual([
+      'editMessageReplyMarkup',
+      'sendMessage',
+    ]);
+    expect(s.place(A).text).toStartWith('Мои задачи');
+  });
+
+  test('«К моим задачам»: после самоназначения и /assigned открывает «Мои задачи»', async () => {
+    const s = await session();
+    await openCard(s);
+    await s.press('Назначить');
+    await s.say(EXAMPLE_USER_A);
+    await s.say('/assigned');
+    await s.press('Карточка исполнителя');
+
+    await s.press(UserCardScreenDef.actions.tasks.label);
+
+    expect(s.place(A).text).toStartWith('Мои задачи');
   });
 });

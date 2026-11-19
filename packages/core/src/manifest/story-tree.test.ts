@@ -103,6 +103,7 @@ describe('StoryTree: полный состав учебного примера',
       'exampleUi/todo/finishTasks',
       'exampleUi/todo/followAssigned',
       'exampleUi/users/viewUser',
+      'exampleUi/todo/planTasks',
     ]);
   });
 
@@ -119,8 +120,15 @@ describe('StoryTree: полный состав учебного примера',
     expect(plan?.rules).not.toEqual([]);
   });
 
-  test('again: false у всех узлов, отрезанного нет', () => {
-    expect(flatten(full.roots()).every((b) => b.again === false)).toBe(true);
+  test('again: только повтор planTasks под viewUser (связь leads), остальные узлы полные; отрезанного нет', () => {
+    const nodes = flatten(full.roots());
+
+    expect(nodes.filter((b) => b.again).map((b) => b.id)).toEqual([
+      'exampleUi/todo/planTasks',
+    ]);
+    const view = nodes.find((b) => b.name === 'viewUser');
+    expect(ids(view?.children ?? [])).toEqual(['exampleUi/todo/planTasks']);
+    expect(view?.children[0]?.again).toBe(true);
     expect(full.omitted()).toEqual([]);
   });
 });

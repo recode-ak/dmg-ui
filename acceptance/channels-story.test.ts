@@ -12,6 +12,7 @@ import {
 } from 'dmg-ui/chat-ui/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
 import {
+  ASSIGNED_ID,
   ExampleUiSetDef,
   exampleCodes,
   FollowAssignedStoryDef,
@@ -19,6 +20,7 @@ import {
   MainMenuScreenDef,
   type MemoryUiObserver,
   TaskListScreenDef,
+  UserCardScreenDef,
   ViewUserStoryDef,
 } from 'dmg-ui/testing';
 import { oplogRecords } from 'dmg-ui/testing/fixtures';
@@ -47,11 +49,11 @@ import type { PageTab } from './support/page-tab';
 // | сценарий источника                                 | сценарий набора                                              | describe     |
 // |----------------------------------------------------|--------------------------------------------------------------|--------------|
 // | 1 менторы: действия разным людям, сразу при выделении | «Выполнить выбранные» по роли и праву над выделенным, без запроса | сценарий 1   |
-// | 2 школа → менторы → карточка ментора → карточка пользователя → обратно | «Назначенные мне» → карточка исполнителя → обратно тем же путём | сценарий 2   |
+// | 2 школа → менторы → карточка ментора → карточка пользователя → обратно | «Назначенные мне» → карточка исполнителя → обратно тем же путём; «К моим задачам» — шаг, «Назад» по пути | сценарий 2   |
 // | 3 в боте нет управления ценностями                 | беседа без `viewUser`, экран тот же                          | сценарий 3   |
 // | 4 «Менторы» без менторов: видно, но закрыто        | `createTask` закрыт правилом лимита, с текстом отказа        | сценарий 4   |
 // | 5 поле email с пояснением                          | `jumpTo.part` (число 1…99), `create.title` (строка с подсказкой и примером) | сценарий 5   |
-// | 6 мастерская → окно → действия → закрыл → «Назад» в школу | меню → «Мои задачи» → окно над списком → «Назад»      | сценарий 6   |
+// | 6 мастерская → окно → действия → закрыл → «Назад» в школу | меню → «Мои задачи» → окно над списком → «Назад»; листание — замена, «Назад» возвращает пройденный экран | сценарий 6   |
 // | 7 справка по живому экрану                         | `/help`: одно содержание в беседе и на странице, скрытого нет, `/help` не вызывает UC | сценарий 7   |
 // | нейтральность: один код экранов                    | исходы и состояние равны, общий набор, порт выхода           | нейтральность |
 //
@@ -76,6 +78,12 @@ const CARD = 'Карточка исполнителя';
 const USER_CARD = 'exampleUi/users/userCard';
 const MENU_ID = 'exampleUi/todo/mainMenu';
 const MENU_LABELS = ['Мои задачи', 'Назначенные мне', 'Закрыть'];
+/** Подписи из Def: листание назад и переход «К моим задачам»; «Назад» — автокнопка канала, не действие экрана. */
+const PREV = TaskListScreenDef.actions.prev.label;
+const toTasks = () => UserCardScreenDef.actions.tasks.label;
+const BACK = 'Назад';
+/** Подпись без пометки отключённого («🚫 »): для сравнения подписей на живом экране. */
+const bare = (label: string) => label.replace(/^🚫 /, '');
 
 /** Метки записи истории: сколько своих записей позади и положена ли она открытием слоя. */
 const Marks = v.object({
@@ -450,6 +458,59 @@ describe('сценарий 2 — «Назначенные мне» → карт�
     await a.press('Назад');
     expect(a.labels().slice(0, 3)).toEqual(MENU_LABELS);
     expect(a.labels()).not.toContain('Назад');
+  });
+
+  /** Меню → «Назначенные мне» → «Карточка исполнителя» (у A одно поручение). */
+  const cardFromMenu = async (name: string) => {
+    const w = worldOf(name);
+    const a = w.person(A);
+    await w.assignToA();
+    await a.enter('menu');
+    await a.press('Назначенные мне');
+    await a.press(CARD);
+    return a;
+  };
+
+  test('беседа, карточка исполнителя: варианты «К моим задачам», «Закрыть» и автокнопка «Назад» последней', async () => {
+    const a = await cardFromMenu('dialog-tasks-labels');
+
+    expect(a.labels()).toEqual([toTasks(), 'Закрыть', BACK]);
+  });
+
+  test('беседа, «К моим задачам»: «Мои задачи» с «Назад» в конце; три «Назад» подряд — карточка, «Назначенные мне», меню', async () => {
+    const a = await cardFromMenu('dialog-tasks-chain');
+
+    await a.press(toTasks());
+
+    expect(a.liveText()).toStartWith('Мои задачи');
+    expect(a.labels().at(-1)).toBe(BACK);
+    await a.press(BACK);
+    expect(a.liveText()).toContain('Учётная запись активна');
+    expect(a.labels()).toContain(toTasks());
+    await a.press(BACK);
+    expect(a.labels()).toContain(CARD);
+    expect(a.labels()).toContain(BACK);
+    await a.press(BACK);
+    expect(a.labels().slice(0, 3)).toEqual(MENU_LABELS);
+    expect(a.labels()).not.toContain(BACK);
+  });
+
+  test('страница, «К моим задачам» в панели карточки: исход moved на список в main, панель остаётся; «Назад» браузера — «Назначенные мне» с панелью, ещё «Назад» — без панели', async () => {
+    const p = await cardOnPage();
+
+    const outcome = await p.tab.client.submit('side', 'tasks', {});
+    await p.tab.wire.settled();
+    await p.history.settled();
+
+    expect(outcome).toMatchObject({ kind: 'moved' });
+    expect(p.tab.client.region('main').view?.screen).toBe(LIST_ID);
+    expect(p.tab.client.region('side').view?.screen).toBe(USER_CARD);
+    await p.history.back();
+    expect(p.tab.client.region('main').view?.screen).toBe(ASSIGNED_ID);
+    expect(p.tab.client.region('side').view?.screen).toBe(USER_CARD);
+    await p.history.back();
+    expect(p.tab.client.region('main').view?.screen).toBe(ASSIGNED_ID);
+    expect(p.tab.client.region('side').status).toBe('empty');
   });
 });
 
@@ -1079,6 +1140,28 @@ describe('сценарий 6 — меню → «Мои задачи» → окн
     await p.history.back();
     expectMenuOnly(p.tab);
   });
+
+  test('страница, листание — замена записи истории: «Дальше» и «Предыдущая страница» записей не прибавляют', async () => {
+    const history = new MemoryPageHistory('/');
+    const w = worldOf('pages-paging');
+    for (const title of [TITLE, SECOND, 'Сыр']) await w.createTask(A, title);
+    const tab = await w.tab(A, { history });
+    await tab.client.boot();
+    const pushes = history.pushes;
+    const entries = history.entries().length;
+
+    await tab.client.submit('main', 'next', {});
+    await tab.wire.settled();
+    await history.settled();
+    expect(history.pushes).toBe(pushes);
+    expect(history.entries()).toHaveLength(entries);
+
+    await tab.client.submit('main', 'prev', {});
+    await tab.wire.settled();
+    await history.settled();
+    expect(history.pushes).toBe(pushes);
+    expect(history.entries()).toHaveLength(entries);
+  });
 });
 
 describe('сценарий 7 — справка по живому экрану: одно содержание на двух каналах, скрытого нет', () => {
@@ -1379,6 +1462,67 @@ function getUserResults(world: AcceptanceWorld): boolean[] {
     )
     .map((record) => record.result.ok);
 }
+
+describe('подписи вариантов на живых экранах беседы — одноимённых нет', () => {
+  /** Подписи без пометки «🚫» повторов не дают: «🚫 Назад» и «Назад» — одно слово для человека. */
+  const expectDistinct = (labels: readonly string[]) => {
+    const names = labels.map(bare);
+    expect(names.filter((name, i) => names.indexOf(name) !== i)).toEqual([]);
+  };
+
+  test('меню', async () => {
+    const w = worldOf('labels-menu');
+    const a = w.person(A);
+    await a.enter('menu');
+
+    expectDistinct(a.labels());
+  });
+
+  test('список при пустом пути (вход start), пустой и со страницами', async () => {
+    const w = worldOf('labels-list-root');
+    const a = w.person(A);
+    await a.enter('start');
+    expectDistinct(a.labels());
+    for (const title of [TITLE, SECOND, 'Сыр']) await w.createTask(A, title);
+    await a.enter('start');
+    expectDistinct(a.labels());
+    await a.press('Дальше');
+    expectDistinct(a.labels());
+  });
+
+  test('список при непустом пути (меню → «Мои задачи»): листание и «Назад» различимы', async () => {
+    const w = worldOf('labels-list-path');
+    const a = w.person(A);
+    await a.enter('menu');
+    await a.press('Мои задачи');
+    expect(a.labels()).toContain(BACK);
+    expectDistinct(a.labels());
+
+    for (const title of [TITLE, SECOND, 'Сыр']) await a.say(title);
+    await a.settle();
+    expectDistinct(a.labels());
+    await a.press('Дальше');
+    expectDistinct(a.labels());
+  });
+
+  test('карточка задачи, «Назначенные мне» и карточка исполнителя', async () => {
+    const w = worldOf('labels-cards');
+    const a = w.person(A);
+    await a.enter('menu');
+    await a.press('Мои задачи');
+    await a.say(TITLE);
+    await a.press('Открыть задачу');
+    await a.press(TITLE);
+    expectDistinct(a.labels());
+
+    await w.assignToA(SECOND);
+    await a.enter('menu');
+    await a.press('Назначенные мне');
+    expectDistinct(a.labels());
+    await a.press(CARD);
+    expectDistinct(a.labels());
+  });
+});
 
 describe('состав приёмки', () => {
   const ROOT = import.meta.dir;

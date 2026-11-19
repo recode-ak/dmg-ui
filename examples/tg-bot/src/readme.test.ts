@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { TaskListScreenDef, UserCardScreenDef } from 'dmg-ui/testing';
 import { EXAMPLE_USER_A, EXAMPLE_USER_B } from './example-bot.const';
 import { EXAMPLE_VARIABLES } from './example-env.const';
 import { PROBE_CASES } from './example-probe.const';
@@ -61,5 +62,57 @@ describe('README примера и .env.example', () => {
     const onlyTenth = `| ${tenth?.id}. ${tenth?.look} | ${tenth?.expected} | x | |`;
     expect(hasRow(onlyTenth, tenth as ProbeCase)).toBe(true);
     expect(hasRow(onlyTenth, first as ProbeCase)).toBe(false);
+  });
+});
+
+/** Пункты группы «Ж. Отключённое, поля, справка, „Назад“» (буква — кириллица). */
+const GROUP_Ж = ['Ж1', 'Ж2', 'Ж3', 'Ж4', 'Ж5', 'Ж6', 'Ж7', 'Ж8'];
+
+/** Ячейки строки таблицы README, чья первая ячейка начинается с `<id>.`; нет строки — `undefined`. */
+const rowOf = (id: string): string[] | undefined => {
+  const line = readme.split('\n').find((text) => text.startsWith(`| ${id}.`));
+  return line
+    ?.split('|')
+    .slice(1, -1)
+    .map((cell) => cell.trim());
+};
+
+describe('README примера — группа Ж и подписи из Def', () => {
+  test('есть заголовок группы «### Ж. »', () => {
+    expect(readme).toMatch(/^### Ж\. /m);
+  });
+
+  test.each(GROUP_Ж)(
+    'пункт %s — строка таблицы из четырёх ячеек, «Итог» пуста',
+    (id) => {
+      const cells = rowOf(id);
+
+      expect(cells).toHaveLength(4);
+      expect(cells?.[0]).toStartWith(`${id}. `);
+      expect(cells?.[1]).not.toBe('');
+      expect(cells?.[3]).toBe('');
+    },
+  );
+
+  test('подписи из Def: «Предыдущая страница» и «К моим задачам» названы в README', () => {
+    expect(readme).toContain(TaskListScreenDef.actions.prev.label);
+    expect(readme).toContain(UserCardScreenDef.actions.tasks.label);
+  });
+
+  test('Ж4 называет /help, Ж1 — ответ на нажатие без show_alert', () => {
+    expect(rowOf('Ж4')?.[0]).toContain('/help');
+    expect(rowOf('Ж1')?.[1]).toContain('show_alert');
+  });
+
+  test('Б1: «Итог» сброшена', () => {
+    expect(rowOf('Б1')?.[3]).toBe('');
+  });
+
+  test('Б3 называет листание подписью из Def, а не «Назад»; «Итог» сброшена', () => {
+    const cells = rowOf('Б3');
+
+    expect(cells?.[0]).toContain(TaskListScreenDef.actions.prev.label);
+    expect(cells?.[0]).not.toContain('«Назад»');
+    expect(cells?.[3]).toBe('');
   });
 });
