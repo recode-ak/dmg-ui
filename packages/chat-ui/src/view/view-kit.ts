@@ -11,7 +11,9 @@ import type { ViewMessage, ViewOption } from './view.types';
 export class ViewKit {
   /**
    * @param options доступные действия, затем локальные (подписи из Def),
-   *   затем «Назад», если путь не пуст.
+   *   затем отключённые (`disabled`, подпись с пометкой; действия, затем
+   *   локальные), затем «Назад», если путь не пуст. Представление вправе
+   *   скрыть, переставить или переподписать любой из них.
    */
   constructor(
     readonly capabilities: MessengerCapabilities,

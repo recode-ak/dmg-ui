@@ -26,6 +26,16 @@ export type ViewOption =
       readonly label: string;
       readonly accent?: Accent;
     }
+  /**
+   * Отключённое действие или локальное действие (D-UI-105): имя уникально на
+   * экране, подпись уже с пометкой; причины нет — её отвечает беседа на
+   * нажатие по живому виду.
+   */
+  | {
+      readonly kind: 'disabled';
+      readonly name: string;
+      readonly label: string;
+    }
   | { readonly kind: 'back'; readonly label: string }
   | { readonly kind: 'retry'; readonly label: string }
   | { readonly kind: 'home'; readonly label: string };

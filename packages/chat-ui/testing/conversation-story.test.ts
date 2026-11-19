@@ -374,7 +374,9 @@ describe.each(MESSENGERS)('сторис на беседе (%s)', (name, make) =>
     expect(records('completeTasks')).toMatchObject([
       { result: { ok: true }, events: [{}, {}] },
     ]);
-    expect(await a.everyLabel()).not.toContain('Выполнить выбранные');
+    const afterAll = await a.everyLabel();
+    expect(afterAll).not.toContain('Выполнить выбранные');
+    expect(afterAll).toContain('🚫 Выполнить выбранные');
 
     // 8. Карточка «Сыр»; «Назначить» — текстовый ввод исполнителя B.
     await a.press('Открыть задачу');
@@ -408,7 +410,9 @@ describe.each(MESSENGERS)('сторис на беседе (%s)', (name, make) =>
     // получил «Поручение выполнено» (получатель — из `getTaskAssignee`).
     await a.press('Выполнить');
     await w.settle();
-    expect(await a.everyLabel()).not.toContain('Выполнить');
+    const afterDone = await a.everyLabel();
+    expect(afterDone).not.toContain('Выполнить');
+    expect(afterDone).toContain('🚫 Выполнить');
     expect(b.notices().map((n) => textOf(n))).toEqual([
       `${TaskAssignedNotificationDef.label}: Сыр`,
       `${TaskCompletedNotificationDef.label}: Сыр`,

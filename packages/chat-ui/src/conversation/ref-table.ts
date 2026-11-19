@@ -84,6 +84,7 @@ export class RefTable {
       case 'skip':
       case 'page':
       case 'open':
+      case 'disabled':
       case 'back':
       case 'home':
         return entry;

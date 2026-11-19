@@ -330,6 +330,7 @@ describe('сторис на Telegram', () => {
     await a.press('Да');
     await w.settle();
     expect(labelsOf(a.place())).not.toContain('Выполнить выбранные');
+    expect(labelsOf(a.place())).toContain('🚫 Выполнить выбранные');
 
     // 8. Карточка задачи со знаками разметки; «Назначить» — исполнитель B.
     await a.press('Открыть задачу');
@@ -361,6 +362,7 @@ describe('сторис на Telegram', () => {
     await a.press('Выполнить');
     await w.settle();
     expect(labelsOf(a.place())).not.toContain('Выполнить');
+    expect(labelsOf(a.place())).toContain('🚫 Выполнить');
     expect(noticesOfB().map((notice) => notice.text)).toEqual([
       `${TaskAssignedNotificationDef.label}: ${TITLE}`,
       `${TaskCompletedNotificationDef.label}: ${TITLE}`,
@@ -474,8 +476,8 @@ describe('сторис на Telegram', () => {
   });
 });
 
-describe('сторис на Telegram — недоступное не кнопка', () => {
-  test('предел открытых: у владельца трёх открытых «Создать задачу» среди кнопок нет', async () => {
+describe('сторис на Telegram — недоступное — кнопка с пометкой', () => {
+  test('предел открытых: у владельца трёх открытых «Создать задачу» среди кнопок только помеченная', async () => {
     const w = world();
     await w.a.say('/start');
     await w.a.say('Хлеб');
@@ -488,6 +490,7 @@ describe('сторис на Telegram — недоступное не кнопк�
 
     expect(two).toContain('Создать задачу');
     expect(labelsOf(w.a.place())).not.toContain('Создать задачу');
+    expect(labelsOf(w.a.place())).toContain('🚫 Создать задачу');
   });
 });
 

@@ -25,9 +25,9 @@ import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
 
 // Свободный текст при недоступном основном действии: отключённое — заметка с
-// причиной, скрытое и отсутствующее — прежнее «Выберите вариант.»; отключённое
-// и скрытое в вариантах не показываются; смена субъекта между показами —
-// следующий показ с новым ответом.
+// причиной, скрытое и отсутствующее — прежнее «Выберите вариант.»; в вариантах
+// отключённое — только помеченное `🚫`, скрытое — ни обычного, ни помеченного;
+// смена субъекта между показами — следующий показ с новым ответом.
 
 const REASON = 'Приём закрыт до утра';
 
@@ -256,14 +256,16 @@ describe('Conversation — свободный текст при недоступ
 });
 
 describe('Conversation — варианты по ответам доступности', () => {
-  test('отключённое основное и скрытое — не варианты; причина в вариантах не показана', async () => {
+  test('отключённое основное — только помеченный вариант, скрытое — ни обычного, ни помеченного; причина в вариантах не показана', async () => {
     const disabled = sceneOf('disabled');
     const hidden = sceneOf('hidden');
     await disabled.enter('start');
     await hidden.enter('start');
 
     expect(disabled.labels()).not.toContain('Заполнить');
+    expect(disabled.labels()).toContain('🚫 Заполнить');
     expect(hidden.labels()).not.toContain('Заполнить');
+    expect(hidden.labels()).not.toContain('🚫 Заполнить');
     expect(disabled.labels().join()).not.toContain(REASON);
   });
 

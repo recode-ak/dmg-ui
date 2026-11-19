@@ -27,7 +27,7 @@ export const WINDOWED_CAPABILITIES: MessengerCapabilities = {
   edit: false,
   text: { max: 4096, unit: 'codePoint' },
   textWithOptions: { max: 1024, unit: 'codePoint' },
-  options: { max: 3, label: { max: 20, unit: 'grapheme' }, ref: 256 },
+  options: { max: 3, label: { max: 24, unit: 'grapheme' }, ref: 256 },
   form: false,
   initiative: { kind: 'window', ms: DAY_MS },
   community: { signals: [], operations: [] },

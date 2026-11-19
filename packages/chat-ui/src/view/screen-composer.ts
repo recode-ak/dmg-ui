@@ -1,6 +1,8 @@
 import {
+  type ActionView,
   type AnyScreenDef,
   type InstanceView,
+  type LocalView,
   type Refusal,
   UiIds,
 } from 'dmg-ui';
@@ -28,7 +30,8 @@ type ScreenLabels = {
 /**
  * Сборщик показа (D-UI-50): вид → сообщения представления без беседы,
  * ссылок и сервера. Варианты по умолчанию — доступные действия, затем
- * локальные (подписи из Def), «Назад» последним при непустом пути; вид в
+ * локальные (подписи из Def), затем отключённые — вариант `disabled` с
+ * пометкой в подписи (D-UI-105), «Назад» последним при непустом пути; вид в
  * отказе — текст отказа, «Повторить», «Назад», «В начало»; шапка — первым
  * абзацем первого сообщения. Вывод не по правилам — дефект представления.
  * @see screen-composer.test.ts
@@ -96,28 +99,45 @@ export class ScreenComposer {
     return { kind: 'text', text: TextBuilder.of(text), options };
   }
 
-  /** Варианты по умолчанию: доступные действия, затем доступные локальные (отключённое — не вариант), «Назад» при `back`. */
+  /**
+   * Варианты по умолчанию: доступные действия, доступные локальные, затем
+   * отключённые (действия, затем локальные) с пометкой в подписи, «Назад»
+   * при `back`. Причина в вариант не идёт.
+   */
   private options(view: InstanceView, back: boolean): readonly ViewOption[] {
     const labels = this.labelsOf(view.screen);
+    const actionLabel = (name: string) => labels.actions.get(name) ?? name;
+    const localLabel = (name: string) => labels.locals.get(name) ?? name;
+    const available = (item: ActionView | LocalView) =>
+      item.availability.kind === 'available';
+    const disabled = (item: ActionView | LocalView) =>
+      item.availability.kind === 'disabled';
+    const marked = (name: string, label: string): ViewOption => ({
+      kind: 'disabled',
+      name,
+      label: `${VIEW_TEXTS.disabledMark} ${label}`,
+    });
     return [
+      ...view.actions.filter(available).map(
+        (action): ViewOption => ({
+          kind: 'action',
+          name: action.name,
+          label: actionLabel(action.name),
+        }),
+      ),
+      ...view.locals.filter(available).map(
+        (local): ViewOption => ({
+          kind: 'local',
+          name: local.name,
+          label: localLabel(local.name),
+        }),
+      ),
       ...view.actions
-        .filter((action) => action.availability.kind === 'available')
-        .map(
-          (action): ViewOption => ({
-            kind: 'action',
-            name: action.name,
-            label: labels.actions.get(action.name) ?? action.name,
-          }),
-        ),
+        .filter(disabled)
+        .map((action) => marked(action.name, actionLabel(action.name))),
       ...view.locals
-        .filter((local) => local.availability.kind === 'available')
-        .map(
-          (local): ViewOption => ({
-            kind: 'local',
-            name: local.name,
-            label: labels.locals.get(local.name) ?? local.name,
-          }),
-        ),
+        .filter(disabled)
+        .map((local) => marked(local.name, localLabel(local.name))),
       ...(back ? [{ kind: 'back', label: VIEW_TEXTS.back } as const] : []),
     ];
   }
@@ -156,6 +176,7 @@ export class ScreenComposer {
     switch (option.kind) {
       case 'action':
       case 'local':
+      case 'disabled':
         return option.name;
       case 'back':
       case 'retry':
@@ -170,14 +191,14 @@ export class ScreenComposer {
     }
   }
 
-  /** Акцент варианта (D-UI-66): есть только у `action` и `local`, у остальных видов — `undefined`. */
+  /** Акцент варианта (D-UI-66): есть только у `action` и `local`, у остальных видов (и у `disabled`) — `undefined`. */
   static accent(option: ViewOption): Accent | undefined {
     return option.kind === 'action' || option.kind === 'local'
       ? option.accent
       : undefined;
   }
 
-  /** Сверка варианта: вид и имя цели; подпись не входит. */
+  /** Сверка варианта: вид и имя цели (`disabled:<имя>`); подпись не входит. */
   private static key(option: ViewOption): string {
     const target = ScreenComposer.target(option);
     return target === undefined ? option.kind : `${option.kind}:${target}`;

@@ -78,7 +78,7 @@ describe('ExamplePreview через DialogRenderer — снимки пример
     ).toMatchSnapshot();
   });
 
-  test('заместитель с readOnly — шапка и без действий с uc', async () => {
+  test('заместитель с readOnly — шапка, действия с uc помечены отключёнными', async () => {
     const own = await previewOf().screen(TaskListScreenDef, 'full');
     const delegate = await previewOf(true, true).screen(
       TaskListScreenDef,
@@ -86,8 +86,9 @@ describe('ExamplePreview через DialogRenderer — снимки пример
     );
 
     expect(delegate).toMatchSnapshot();
-    expect(own).toContain('Выполнить выбранные');
-    expect(delegate).not.toContain('Выполнить выбранные');
+    expect(own).toContain('[Выполнить выбранные]');
+    expect(delegate).toContain('[🚫 Выполнить выбранные]');
+    expect(delegate).not.toContain('[Выполнить выбранные]');
     expect(delegate).not.toEqual(own);
   });
 });

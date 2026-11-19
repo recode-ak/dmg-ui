@@ -90,8 +90,14 @@ const BACK: ViewOption = { kind: 'back', label: 'Назад' };
 const RETRY: ViewOption = { kind: 'retry', label: 'Повторить' };
 const HOME: ViewOption = { kind: 'home', label: 'В начало' };
 
-/** Доступные действия по порядку, затем доступные локальные; подписи из Def. */
-const DEFAULTS: readonly ViewOption[] = [SAVE, LEAVE, TICK];
+/** Доступные действия по порядку, доступные локальные, затем отключённые (действия, локальные) с пометкой; подписи из Def. */
+const DEFAULTS: readonly ViewOption[] = [
+  SAVE,
+  LEAVE,
+  TICK,
+  { kind: 'disabled', name: 'archive', label: '🚫 В архив' },
+  { kind: 'disabled', name: 'fold', label: '🚫 Свернуть' },
+];
 
 const LOCKED: Refusal = {
   code: 'panel.locked',
@@ -162,7 +168,7 @@ const thrown = (run: () => unknown): string => {
 };
 
 describe('ScreenComposer', () => {
-  test('варианты по умолчанию — доступные действия, затем локальные, подписи из Def', () => {
+  test('варианты по умолчанию — доступные действия, доступные локальные, затем отключённые; подписи из Def', () => {
     const seen: (readonly ViewOption[])[] = [];
     const composer = rendering((_, kit) => {
       seen.push(kit.options);
@@ -175,22 +181,6 @@ describe('ScreenComposer', () => {
     expect(composed.messages.map((message) => message.options)).toEqual([
       DEFAULTS,
     ]);
-  });
-
-  test('отключённое с текстом не вариант: ни действие, ни локальное, текст причины в варианты не идёт', () => {
-    const seen: (readonly ViewOption[])[] = [];
-    const composer = rendering((_, kit) => {
-      seen.push(kit.options);
-      return kit.message('Панель');
-    });
-
-    composer.compose(ready(), false);
-
-    const names = seen[0]?.flatMap((option) =>
-      'name' in option ? [option.name] : [],
-    );
-    expect(names).toEqual(['save', 'leave', 'tick']);
-    expect(JSON.stringify(seen)).not.toContain(DISABLED.text);
   });
 
   test('путь не пуст — «Назад» последним; пуст — нет', () => {

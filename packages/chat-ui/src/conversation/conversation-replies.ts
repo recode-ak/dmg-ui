@@ -212,6 +212,13 @@ export class ConversationReplies {
           local: option.name,
           label: option.label,
         };
+      case 'disabled':
+        return {
+          kind: 'disabled',
+          screen,
+          name: option.name,
+          label: option.label,
+        };
       case 'retry':
         return { kind: 'open', address: view.address, label: option.label };
       case 'home':

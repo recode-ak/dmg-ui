@@ -147,10 +147,16 @@ describe('Telegram: перекрытые экраны — ключевые по�
     }
   });
 
-  test('taskList empty: без выбора «Выполнить выбранные» нет, цвета нет совсем', async () => {
+  test('taskList empty: без выбора кнопка помечена «🚫 Выполнить выбранные» (callback_data, без disabled), обычной нет, цвета нет совсем', async () => {
     const request = await preview().screen(TaskListScreenDef, 'empty');
     const all = buttons(request.reply_markup);
+    const marked = all.filter(
+      (button) => button.text === '🚫 Выполнить выбранные',
+    );
 
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveProperty('callback_data');
+    expect(marked[0]).not.toHaveProperty('disabled');
     expect(all.map((button) => button.text)).not.toContain(
       'Выполнить выбранные',
     );
@@ -188,10 +194,14 @@ describe('Telegram: перекрытые экраны — ключевые по�
     ]);
   });
 
-  test('taskCard done: кнопки «Выполнить» нет — нет и цвета', async () => {
+  test('taskCard done: кнопка помечена «🚫 Выполнить» (callback_data, без disabled), обычной нет — цвета нет', async () => {
     const request = await preview().screen(TaskCardScreenDef, 'done');
     const all = buttons(request.reply_markup);
+    const marked = all.filter((button) => button.text === '🚫 Выполнить');
 
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveProperty('callback_data');
+    expect(marked[0]).not.toHaveProperty('disabled');
     expect(all.map((button) => button.text)).not.toContain('Выполнить');
     for (const button of all) {
       expect(button).not.toHaveProperty('style');

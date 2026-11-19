@@ -141,7 +141,7 @@ describe('LimitedMessenger', () => {
           operation: 'show',
           limit: 'label',
           unit: 'grapheme',
-          max: 20,
+          max: 24,
           length: 25,
           index: 1,
         },

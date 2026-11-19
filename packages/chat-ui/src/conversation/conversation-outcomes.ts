@@ -122,6 +122,41 @@ export class ConversationOutcomes {
     }
   }
 
+  /**
+   * Нажатие по отключённому варианту (D-UI-105): ответ по живому виду в
+   * момент нажатия, ядро не вызывается. Всё ещё отключено — причина реакцией
+   * на нажатие; стало доступно — вид заново с «Экран обновился.» (исполнять
+   * по прежней ссылке нельзя); скрыто или пропало — «Действие сейчас
+   * недоступно.», прежняя причина не раскрывается.
+   */
+  async disabled(on: OnScreen, name: string): Promise<void> {
+    const { screens, output } = this.parts;
+    const view = on.instance.view();
+    // Имена действий и локальных на экране не пересекаются — правило графа UI-21.
+    const item =
+      view.actions.find((action) => action.name === name) ??
+      view.locals.find((local) => local.name === name);
+    if (item === undefined) {
+      await output.react(CONVERSATION_TEXTS.unavailable);
+      return;
+    }
+    const { availability } = item;
+    switch (availability.kind) {
+      case 'disabled':
+        await output.react(availability.text);
+        return;
+      case 'available':
+        await screens.show(CONVERSATION_TEXTS.stale);
+        return;
+      default: {
+        const unknownKind: never = availability;
+        throw new Error(
+          `Conversation: неизвестный ответ доступности ${(unknownKind as { readonly kind: string }).kind}`,
+        );
+      }
+    }
+  }
+
   /** Политика по исходу действия. */
   private async settle(
     on: OnScreen,

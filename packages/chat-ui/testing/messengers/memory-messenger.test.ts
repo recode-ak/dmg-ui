@@ -79,7 +79,7 @@ describe('MemoryMessenger — наборы возможностей', () => {
       edit: false,
       text: { max: 4096, unit: 'codePoint' },
       textWithOptions: { max: 1024, unit: 'codePoint' },
-      options: { max: 3, label: { max: 20, unit: 'grapheme' }, ref: 256 },
+      options: { max: 3, label: { max: 24, unit: 'grapheme' }, ref: 256 },
       form: false,
       initiative: { kind: 'window', ms: DAY },
       community: { signals: [], operations: [] },
@@ -365,8 +365,8 @@ describe('MemoryMessenger — строгость к лимитам', () => {
     ['текст с вариантами длиннее 1024', message('a'.repeat(1025), [option(1)])],
     ['текст без вариантов длиннее 4096', message('a'.repeat(4097))],
     [
-      'подпись длиннее 20 графем',
-      message('Выбери', [option(1, 'д'.repeat(21))]),
+      'подпись длиннее 24 графем',
+      message('Выбери', [option(1, 'д'.repeat(25))]),
     ],
     [
       'ссылка длиннее 256',
@@ -386,7 +386,7 @@ describe('MemoryMessenger — строгость к лимитам', () => {
   test('ровно на пределах — доставлено', async () => {
     const port = MemoryMessenger.windowed(() => T0);
     const edge = message('a'.repeat(1024), [
-      { ref: 'r'.repeat(256), label: 'д'.repeat(20) },
+      { ref: 'r'.repeat(256), label: 'д'.repeat(24) },
       option(2),
       option(3),
     ]);

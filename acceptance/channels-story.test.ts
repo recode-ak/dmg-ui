@@ -62,8 +62,11 @@ const worldOf = (name: string, options: Omit<WorldOptions, 'dataDir'> = {}) =>
 const TITLE = 'Хлеб';
 const SECOND = 'Молоко';
 const COMPLETE_ALL = 'Выполнить выбранные';
+const COMPLETE_ALL_OFF = '🚫 Выполнить выбранные';
 const TOGGLE = 'Отметить задачу';
 const LIMIT_TEXT = 'Слишком много открытых задач';
+const CREATE = 'Создать задачу';
+const CREATE_OFF = '🚫 Создать задачу';
 const CARD = 'Карточка исполнителя';
 const USER_CARD = 'exampleUi/users/userCard';
 const MENU_ID = 'exampleUi/todo/mainMenu';
@@ -90,23 +93,25 @@ const Draft = v.object({
 
 describe('сценарий 1 — «Выполнить выбранные» по роли и праву над выделенным, без запроса', () => {
   describe('беседа', () => {
-    test('выделение: «Выполнить выбранные» появляется после «Отметить задачу», UC при выделении не вызывается', async () => {
+    test('выделение: «Выполнить выбранные» до «Отметить задачу» помечено, после — обычное; UC при выделении не вызывается', async () => {
       const w = worldOf('select');
       await w.createTask(A, 'Хлеб');
       const a = w.person(A);
       await a.enter('start');
       const before = w.calls.length;
-      const hidden = a.labels();
+      const disabled = a.labels();
 
       await a.press(TOGGLE);
       await a.press('Хлеб');
 
-      expect(hidden).not.toContain(COMPLETE_ALL);
+      expect(disabled).not.toContain(COMPLETE_ALL);
+      expect(disabled).toContain(COMPLETE_ALL_OFF);
       expect(a.labels()).toContain(COMPLETE_ALL);
+      expect(a.labels()).not.toContain(COMPLETE_ALL_OFF);
       expect(w.calls).toHaveLength(before);
     });
 
-    test('роль и право: исполнитель-не-владелец выбрал поручение — «Выполнить выбранные» нет', async () => {
+    test('роль и право: исполнитель-не-владелец выбрал поручение — «Выполнить выбранные» скрыто: ни обычного, ни помеченного', async () => {
       const w = worldOf('roles-b');
       await w.assignedToBAndC();
       const b = w.person(B);
@@ -115,6 +120,7 @@ describe('сценарий 1 — «Выполнить выбранные» по 
       await b.select('Хлеб');
 
       expect(b.labels()).not.toContain(COMPLETE_ALL);
+      expect(b.labels()).not.toContain(COMPLETE_ALL_OFF);
     });
 
     test('роль и право: администратор выбрал поручение — «Выполнить выбранные» есть, выполнение проходит', async () => {
@@ -147,6 +153,7 @@ describe('сценарий 1 — «Выполнить выбранные» по 
       await b.select('Хлеб');
 
       expect(before).not.toContain(COMPLETE_ALL);
+      expect(before).not.toContain(COMPLETE_ALL_OFF);
       expect(b.labels()).toContain(COMPLETE_ALL);
     });
 
@@ -483,7 +490,8 @@ describe('сценарий 4 — createTask закрыт правилом лим
 
       await a.say('Яйца');
 
-      expect(a.labels()).not.toContain('Создать задачу');
+      expect(a.labels()).not.toContain(CREATE);
+      expect(a.labels()).toContain(CREATE_OFF);
       expect(a.text()).toContain(LIMIT_TEXT);
       expect(a.text()).not.toContain('Выберите вариант');
       expect(w.calls).not.toContain('createTask');
@@ -496,7 +504,8 @@ describe('сценарий 4 — createTask закрыт правилом лим
       const a = w.person(A);
       await a.enter('start');
 
-      expect(a.labels()).toContain('Создать задачу');
+      expect(a.labels()).toContain(CREATE);
+      expect(a.labels()).not.toContain(CREATE_OFF);
       await a.say('Сыр');
       await a.settle();
 
@@ -518,8 +527,33 @@ describe('сценарий 4 — createTask закрыт правилом лим
       await a.settle();
       await a.press('К списку');
 
-      expect(before).not.toContain('Создать задачу');
-      expect(a.labels()).toContain('Создать задачу');
+      expect(before).not.toContain(CREATE);
+      expect(before).toContain(CREATE_OFF);
+      expect(a.labels()).toContain(CREATE);
+      expect(a.labels()).not.toContain(CREATE_OFF);
+    });
+
+    test('нажатие помеченного «Создать задачу» при трёх открытых — ответ с причиной, UC не вызван, задач по-прежнему три, подписи прежние', async () => {
+      const w = worldOf('limit-press');
+      for (const title of ['Хлеб', 'Молоко', 'Сыр']) {
+        await w.createTask(A, title);
+      }
+      const a = w.person(A);
+      await a.enter('start');
+      const labels = a.labels();
+      const calls = w.calls.length;
+
+      await a.press(CREATE_OFF);
+      await a.settle();
+
+      const answers = w.messenger.journal.filter((r) => r.op === 'answered');
+      expect(answers).toEqual([
+        expect.objectContaining({ peer: 'peer-a', text: LIMIT_TEXT }),
+      ]);
+      expect(w.calls).toHaveLength(calls);
+      expect(w.calls).not.toContain('createTask');
+      expect(await w.tasksOf()).toHaveLength(3);
+      expect(a.labels()).toEqual(labels);
     });
   });
 

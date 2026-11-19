@@ -311,9 +311,16 @@ export class Conversation {
       await this.output.unknownRef();
       return;
     }
-    // Шаг черновика — его дело; любой другой вариант черновик сбрасывает.
+    // Шаг черновика — его дело; отключённый вариант черновик не трогает,
+    // любой другой — сбрасывает.
     if (ConversationInput.steps(entry)) {
       await this.input.step(entry, trace);
+      return;
+    }
+    // Отключённый вариант ничего не меняет: ни черновик, ни экземпляр (D-UI-105).
+    if (entry.kind === 'disabled') {
+      const on = await this.screens.onScreen(entry.screen);
+      if (on !== undefined) await this.outcomes.disabled(on, entry.name);
       return;
     }
     this.input.drop();

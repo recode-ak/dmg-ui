@@ -119,6 +119,13 @@ const RefEntrySchema = v.variant('kind', [
     address: Address,
     label: Label,
   }),
+  v.object({
+    ref: Ref,
+    kind: v.literal('disabled'),
+    screen: Count,
+    name: Name,
+    label: Label,
+  }),
   v.object({ ref: Ref, kind: v.literal('back'), screen: Count, label: Label }),
   v.object({ ref: Ref, kind: v.literal('home'), label: Label }),
 ]);

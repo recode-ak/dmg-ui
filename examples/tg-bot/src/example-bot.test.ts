@@ -106,7 +106,16 @@ describe('ExampleBot — вход допущенного человека', () =
     const labels = sent[0]?.reply_markup?.inline_keyboard
       .flat()
       .map((button) => button.text);
-    expect(labels).toEqual(['Создать задачу', 'К части', 'Закрыть']);
+    expect(labels).toEqual([
+      'Создать задачу',
+      'К части',
+      'Закрыть',
+      '🚫 Открыть задачу',
+      '🚫 Выполнить выбранные',
+      '🚫 Дальше',
+      '🚫 Назад',
+      '🚫 Отметить задачу',
+    ]);
     expect(w.sendMessages(B)).toEqual([]);
   });
 

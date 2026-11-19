@@ -26,6 +26,36 @@ exports[`снимки запросов Telegram taskList empty 1`] = `
           "text": "Закрыть",
         },
       ],
+      [
+        {
+          "callback_data": "4",
+          "text": "🚫 Открыть задачу",
+        },
+      ],
+      [
+        {
+          "callback_data": "5",
+          "text": "🚫 Выполнить выбранные",
+        },
+      ],
+      [
+        {
+          "callback_data": "6",
+          "text": "🚫 Дальше",
+        },
+      ],
+      [
+        {
+          "callback_data": "7",
+          "text": "🚫 Назад",
+        },
+      ],
+      [
+        {
+          "callback_data": "8",
+          "text": "🚫 Отметить задачу",
+        },
+      ],
     ],
   },
   "text": 
@@ -86,6 +116,12 @@ exports[`снимки запросов Telegram taskList full 1`] = `
           "text": "Отметить задачу",
         },
       ],
+      [
+        {
+          "callback_data": "8",
+          "text": "🚫 Назад",
+        },
+      ],
     ],
   },
   "text": 
@@ -114,6 +150,12 @@ exports[`снимки запросов Telegram taskCard done 1`] = `
         {
           "callback_data": "2",
           "text": "Назначить",
+        },
+      ],
+      [
+        {
+          "callback_data": "3",
+          "text": "🚫 Выполнить",
         },
       ],
     ],
@@ -195,6 +237,12 @@ exports[`снимки запросов Telegram assignedTasks two — общее
         {
           "callback_data": "3",
           "text": "Отметить задачу",
+        },
+      ],
+      [
+        {
+          "callback_data": "4",
+          "text": "🚫 Выполнить выбранные",
         },
       ],
     ],

@@ -133,6 +133,18 @@ export type RefEntry =
       readonly address: AddressJson;
       readonly label: string;
     }
+  /**
+   * Отключённое действие или локальное действие живого экрана `screen`
+   * (D-UI-105): без ревизии и без причины — причину на нажатие беседа берёт
+   * из живого вида.
+   */
+  | {
+      readonly ref: string;
+      readonly kind: 'disabled';
+      readonly screen: Serial;
+      readonly name: string;
+      readonly label: string;
+    }
   /** «Назад» живого экрана `screen`: с другого экрана — «Эта кнопка устарела.». */
   | {
       readonly ref: string;
@@ -216,6 +228,12 @@ export type RefTarget =
   | {
       readonly kind: 'open';
       readonly address: AddressJson;
+      readonly label: string;
+    }
+  | {
+      readonly kind: 'disabled';
+      readonly screen: Serial;
+      readonly name: string;
       readonly label: string;
     }
   | { readonly kind: 'back'; readonly screen: Serial; readonly label: string }
