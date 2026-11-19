@@ -10,12 +10,14 @@ import {
   TASK_A,
   TASK_B,
   TaskAssignedNotificationDef,
+  TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
 import { UiScene } from '../../testing/ui-arch';
 import { testRenderContext } from '../../testing/ui-runtime-fixture';
 import { ScreenDef } from '../manifest/screen-def';
+import { fieldHint } from '../schema/field-hint';
 import { CodeDefect } from '../screen/code-defect';
 import { ScreenCode } from '../screen/screen-code';
 import type { LoadContext } from '../screen/screen-code.types';
@@ -177,6 +179,7 @@ describe('ScreenPreview.screen — вид по примеру', () => {
     expect(view.actions.map((action: ActionView) => action.name)).toEqual([
       'open',
       'create',
+      'jumpTo',
       'next',
       'prev',
       'close',
@@ -228,6 +231,7 @@ describe('ScreenPreview.screen — вид по примеру', () => {
       open: 'available',
       create: 'disabled',
       completeSelected: 'disabled',
+      jumpTo: 'available',
       next: 'available',
       prev: 'disabled',
       close: 'available',
@@ -303,5 +307,128 @@ describe('ScreenPreview — сборка', () => {
     const { set } = new UiScene({ screens: [DraftScreenDef] });
 
     expect(() => new ScreenPreview({ set, codes: exampleCodes() })).toThrow();
+  });
+});
+
+/** Экран с подсказкой у себя, действия, локального действия и поля действия. */
+const HintedScreenDef = ScreenDef.define({
+  name: 'hinted',
+  label: 'С подсказками',
+  description: 'Экран с подсказками в виде.',
+  hint: 'Подсказка экрана',
+  reads: [ListTasksUcDef],
+  data: v.object({}),
+  state: v.strictObject({ picked: v.array(v.string()) }),
+  actions: {
+    go: {
+      label: 'Вперёд',
+      description: 'Действие с подсказкой.',
+      hint: 'Подсказка действия',
+      input: v.object({
+        qty: v.pipe(v.number(), v.minValue(1), fieldHint('Сколько штук')),
+      }),
+    },
+    stop: { label: 'Стоп', description: 'Действие без подсказки.' },
+  },
+  locals: {
+    pick: {
+      label: 'Выбрать',
+      description: 'Локальное с подсказкой.',
+      hint: 'Подсказка локального',
+    },
+    drop: { label: 'Сбросить', description: 'Локальное без подсказки.' },
+  },
+  examples: {
+    only: {
+      label: 'Пример',
+      description: 'Пример.',
+      params: {},
+      data: {},
+      state: { picked: [] },
+    },
+  },
+});
+
+class HintedScreenCode extends ScreenCode<typeof HintedScreenDef> {
+  override readonly locals = {
+    pick: (state: { picked: string[] }) => state,
+    drop: (state: { picked: string[] }) => state,
+  };
+  override readonly actions = {
+    go: { done: () => HintedScreenDef.at({}) },
+    stop: { done: () => HintedScreenDef.at({}) },
+  };
+
+  override async load() {
+    return ok({});
+  }
+
+  override initialState() {
+    return { picked: [] };
+  }
+}
+
+describe('ScreenPreview.screen — подсказка в виде', () => {
+  const hintedView = async () => {
+    const { set } = new UiScene({ screens: [HintedScreenDef] });
+    const codes = CodeLoaders.of(set, [
+      CodeLoader.screen(HintedScreenDef, async () => new HintedScreenCode()),
+    ]);
+    return new ScreenPreview({ set, codes }).screen(
+      HintedScreenDef,
+      'only',
+      testRenderContext,
+    );
+  };
+
+  test('InstanceView.hint — подсказка экрана', async () => {
+    expect((await hintedView()).hint).toBe('Подсказка экрана');
+  });
+
+  test('ActionView.hint — подсказка действия; у действия без неё ключа нет', async () => {
+    const view = await hintedView();
+    const action = (name: string) => view.actions.find((a) => a.name === name);
+
+    expect(action('go')?.hint).toBe('Подсказка действия');
+    expect(action('stop')).not.toHaveProperty('hint');
+  });
+
+  test('LocalView.hint — подсказка локального; у локального без неё ключа нет', async () => {
+    const view = await hintedView();
+    const local = (name: string) => view.locals.find((l) => l.name === name);
+
+    expect(local('pick')?.hint).toBe('Подсказка локального');
+    expect(local('drop')).not.toHaveProperty('hint');
+  });
+
+  test('ActionField действия — вид, подсказка и пределы поля', async () => {
+    const view = await hintedView();
+
+    expect(view.actions.find((a) => a.name === 'go')?.fields).toStrictEqual([
+      {
+        name: 'qty',
+        label: 'qty',
+        kind: 'number',
+        optional: false,
+        hint: 'Сколько штук',
+        limits: { min: 1 },
+      },
+    ]);
+  });
+
+  test('экран без подсказки — в виде нет ключа hint', async () => {
+    const view = await preview().screen(
+      TaskListScreenDef,
+      'empty',
+      testRenderContext,
+    );
+
+    expect(view.hint).toBe(TaskListScreenDef.hint!);
+    const card = await preview().screen(
+      TaskCardScreenDef,
+      'open',
+      testRenderContext,
+    );
+    expect(card).not.toHaveProperty('hint');
   });
 });

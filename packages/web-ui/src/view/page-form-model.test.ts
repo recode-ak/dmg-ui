@@ -150,6 +150,7 @@ describe('PageFormModel.of — формы вида экземпляра', () => 
       ['action', 'open'],
       ['action', 'create'],
       ['action', 'completeSelected'],
+      ['action', 'jumpTo'],
       ['action', 'next'],
       ['action', 'prev'],
       ['action', 'close'],

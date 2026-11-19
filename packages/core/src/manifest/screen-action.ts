@@ -8,7 +8,7 @@ import type {
 } from './screen-def.types';
 
 /**
- * Действие экрана: тексты, вход, вызов command UC, переходы и подтверждение.
+ * Действие экрана: тексты, подсказка, вход, вызов command UC, переходы и подтверждение.
  * Узел графа под экраном; имя — ключ в `actions` спеки. `U` — Def UC
  * действия: по нему типизируются шаги кода (`ActionStep`).
  */
@@ -20,6 +20,7 @@ export class ScreenAction<
   readonly label: string;
   readonly description: string;
   readonly visible: boolean;
+  readonly hint: string | undefined;
   readonly input: I;
   readonly uc: U;
   readonly confirm: ItemTexts | undefined;
@@ -30,6 +31,7 @@ export class ScreenAction<
     this.label = spec.label;
     this.description = spec.description;
     this.visible = spec.visible ?? false;
+    this.hint = spec.hint;
     // Без `input` в спеке `I` — `undefined` (`InputSchemaOf`), то есть ровно
     // `spec.input`; TS не связывает отсутствие ключа с параметром типа.
     this.input = spec.input as I;
@@ -50,6 +52,7 @@ export class ScreenAction<
       label: this.label,
       description: this.description,
       visible: this.visible,
+      ...(this.hint === undefined ? {} : { hint: this.hint }),
       input: this.input === undefined ? undefined : toJsonSchema(this.input),
       uc: this.uc?.name,
       to: this.targets().map((screen) => screen.name),

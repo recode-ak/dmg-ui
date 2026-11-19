@@ -154,3 +154,26 @@ describe('StoryDef: цель исхода', () => {
     ]);
   });
 });
+
+describe('StoryDef: подсказка', () => {
+  const screen = UiScene.screen('a');
+
+  test('hint сторис — свойство Def и поле normalize', () => {
+    const story = UiScene.story('s', [screen], { hint: 'Подсказка сторис' });
+
+    expect(story.hint).toBe('Подсказка сторис');
+    expect(story.normalize().hint).toBe('Подсказка сторис');
+  });
+
+  test('без подсказки — свойство не задано, ключа hint в normalize нет', () => {
+    const story = UiScene.story('s', [screen]);
+
+    expect(story.hint).toBeUndefined();
+    expect(story.normalize()).not.toHaveProperty('hint');
+  });
+
+  test('сторис «Начать работу» учебного набора несёт подсказку', () => {
+    expect(StartWorkStoryDef.hint).toBeString();
+    expect(StartWorkStoryDef.normalize().hint).toBe(StartWorkStoryDef.hint!);
+  });
+});

@@ -39,24 +39,35 @@ export type ItemTexts = {
 };
 
 /**
+ * Подсказка человеку: необязательный текст о том, как пользоваться
+ * сторис, экраном, действием или локальным действием. Нет подсказки — ключа
+ * нет ни в виде, ни в графе.
+ */
+export type HintText = {
+  readonly hint?: string;
+};
+
+/**
  * Действие экрана. Без `uc` — действие-переход (меню, листание). `to` — thunk: взаимные
  * ссылки экранов иначе падают при импорте. Свой экран в `to` не
  * объявляется — переход на него разрешён неявно.
  */
-export type ActionSpec = ItemTexts & {
-  readonly visible?: boolean;
-  readonly input?: InputSchema;
-  /** Command UC действия; что он command — правило графа. */
-  readonly uc?: AnyUseCaseDef;
-  readonly to?: () => readonly AnyScreenDef[];
-  /** Подтверждение; тексты статичны, данные рисует представление. */
-  readonly confirm?: ItemTexts;
-};
+export type ActionSpec = ItemTexts &
+  HintText & {
+    readonly visible?: boolean;
+    readonly input?: InputSchema;
+    /** Command UC действия; что он command — правило графа. */
+    readonly uc?: AnyUseCaseDef;
+    readonly to?: () => readonly AnyScreenDef[];
+    /** Подтверждение; тексты статичны, данные рисует представление. */
+    readonly confirm?: ItemTexts;
+  };
 
 /** Локальное действие: меняет состояние экрана, UC не вызывает. */
-export type LocalSpec = ItemTexts & {
-  readonly input?: InputSchema;
-};
+export type LocalSpec = ItemTexts &
+  HintText & {
+    readonly input?: InputSchema;
+  };
 
 /** Выход экрана; выходы объявляет экран, а не действие: любое действие вправе вернуть любой выход. */
 export type ExitSpec = ItemTexts & {
@@ -83,22 +94,23 @@ export type ScreenExampleSpec = ItemTexts & {
 };
 
 /** Спека экрана. Без `params` — пустой объект, без `state` — состояния нет. */
-export type ScreenSpec = DefSpec & {
-  readonly params?: StrictSchema;
-  /** Query UC загрузки; что они query — правило графа. */
-  readonly reads: readonly AnyUseCaseDef[];
-  readonly data: v.GenericSchema;
-  readonly state?: StrictSchema;
-  readonly actions?: Readonly<Record<string, ActionSpec>>;
-  readonly locals?: Readonly<Record<string, LocalSpec>>;
-  /** Имя основного действия; что оно есть в `actions` — правило графа. */
-  readonly primary?: string;
-  readonly exits?: Readonly<Record<string, ExitSpec>>;
-  readonly refresh?: readonly RefreshSpec[];
-  /** Коды отказа, у которых на экране свой ответ; объявляются на экране, а не на действии. */
-  readonly catches?: readonly AnyErrorDef[];
-  readonly examples?: Readonly<Record<string, ScreenExampleSpec>>;
-};
+export type ScreenSpec = DefSpec &
+  HintText & {
+    readonly params?: StrictSchema;
+    /** Query UC загрузки; что они query — правило графа. */
+    readonly reads: readonly AnyUseCaseDef[];
+    readonly data: v.GenericSchema;
+    readonly state?: StrictSchema;
+    readonly actions?: Readonly<Record<string, ActionSpec>>;
+    readonly locals?: Readonly<Record<string, LocalSpec>>;
+    /** Имя основного действия; что оно есть в `actions` — правило графа. */
+    readonly primary?: string;
+    readonly exits?: Readonly<Record<string, ExitSpec>>;
+    readonly refresh?: readonly RefreshSpec[];
+    /** Коды отказа, у которых на экране свой ответ; объявляются на экране, а не на действии. */
+    readonly catches?: readonly AnyErrorDef[];
+    readonly examples?: Readonly<Record<string, ScreenExampleSpec>>;
+  };
 
 /** Схема параметров по спеке: объявленная или пустой объект. */
 export type ParamsSchemaOf<S extends ScreenSpec> = S extends {
@@ -178,18 +190,20 @@ export type StateOf<D extends AnyScreenDef> = D['state'] extends v.GenericSchema
   : undefined;
 
 /** Сериализуемая форма действия; переходы — именами экранов. */
-export type NormalizedAction = DefTexts & {
-  readonly visible: boolean;
-  readonly input: NormalizedSchema | undefined;
-  readonly uc: string | undefined;
-  readonly to: readonly string[];
-  readonly confirm: ItemTexts | undefined;
-};
+export type NormalizedAction = DefTexts &
+  HintText & {
+    readonly visible: boolean;
+    readonly input: NormalizedSchema | undefined;
+    readonly uc: string | undefined;
+    readonly to: readonly string[];
+    readonly confirm: ItemTexts | undefined;
+  };
 
 /** Сериализуемая форма локального действия. */
-export type NormalizedLocal = DefTexts & {
-  readonly input: NormalizedSchema | undefined;
-};
+export type NormalizedLocal = DefTexts &
+  HintText & {
+    readonly input: NormalizedSchema | undefined;
+  };
 
 /** Сериализуемая форма выхода. */
 export type NormalizedExit = DefTexts & {
@@ -205,20 +219,21 @@ export type NormalizedRefresh = {
 };
 
 /** Сериализуемая форма экрана: схемы — JSON Schema, ссылки — именами. */
-export type NormalizedScreen = DefTexts & {
-  readonly dmg: 'screen';
-  readonly visible: boolean;
-  readonly params: NormalizedSchema;
-  readonly reads: readonly string[];
-  readonly data: NormalizedSchema;
-  readonly state: NormalizedSchema | undefined;
-  readonly actions: readonly NormalizedAction[];
-  readonly locals: readonly NormalizedLocal[];
-  readonly primary: string | undefined;
-  readonly exits: readonly NormalizedExit[];
-  readonly refresh: readonly NormalizedRefresh[];
-  /** Коды ошибок. */
-  readonly catches: readonly string[];
-  /** Имена примеров. */
-  readonly examples: readonly string[];
-};
+export type NormalizedScreen = DefTexts &
+  HintText & {
+    readonly dmg: 'screen';
+    readonly visible: boolean;
+    readonly params: NormalizedSchema;
+    readonly reads: readonly string[];
+    readonly data: NormalizedSchema;
+    readonly state: NormalizedSchema | undefined;
+    readonly actions: readonly NormalizedAction[];
+    readonly locals: readonly NormalizedLocal[];
+    readonly primary: string | undefined;
+    readonly exits: readonly NormalizedExit[];
+    readonly refresh: readonly NormalizedRefresh[];
+    /** Коды ошибок. */
+    readonly catches: readonly string[];
+    /** Имена примеров. */
+    readonly examples: readonly string[];
+  };

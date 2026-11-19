@@ -81,6 +81,10 @@ describe('PackageManifest', () => {
         'CodeLoader',
         'CodeLoaders',
         'ExitTargets',
+        'FIELD_HINT_KEY',
+        'FIELD_KINDS',
+        'FieldDescription',
+        'FieldInput',
         'NotificationCode',
         'NotificationDef',
         'RefreshOn',
@@ -97,6 +101,7 @@ describe('PackageManifest', () => {
         'UiIds',
         'UiModuleDef',
         'UiSetDef',
+        'fieldHint',
       ]);
     });
 

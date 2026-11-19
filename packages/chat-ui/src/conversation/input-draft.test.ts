@@ -43,7 +43,7 @@ const started = () => InputDraft.start(3, 2, TARGET, fields());
 /** Черновик одного обязательного поля с вариантами `choices`. */
 const picking = (choices: ActionField['choices']) =>
   InputDraft.start(1, 1, TARGET, [
-    { name: 'pick', label: 'Выбор', optional: false, choices },
+    { name: 'pick', label: 'Выбор', kind: 'choice', optional: false, choices },
   ]);
 
 const names = (draft: InputDraft) => draft.current()?.name;

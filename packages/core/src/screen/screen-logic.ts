@@ -116,9 +116,9 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
   }
 
   /**
-   * Поля входа действия или локального действия: подпись и признак из
-   * схемы, варианты и начальные значения — из кода. Начальное значение не
-   * по схеме поля — бросок.
+   * Поля входа действия или локального действия: описание поля — из схемы,
+   * варианты и начальные значения — из кода; поле с вариантами кода — вида
+   * `choice`. Начальное значение не по схеме поля — бросок.
    */
   fields(
     name: ActionName<D> | LocalName<D>,
@@ -143,7 +143,9 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
       const variants = choices[field.name];
       return {
         ...field,
-        ...(variants === undefined ? {} : { choices: variants }),
+        ...(variants === undefined
+          ? {}
+          : { kind: 'choice' as const, choices: variants }),
         ...(field.name in defaults.value
           ? { initial: defaults.value[field.name] }
           : {}),

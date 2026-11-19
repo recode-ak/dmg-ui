@@ -26,6 +26,7 @@ export {
   type DataOf,
   type EmptyParams,
   type ExitSpec,
+  type HintText,
   type InputSchema,
   type InputSchemaOf,
   type ItemTexts,
@@ -123,6 +124,16 @@ export type {
   UiObserver,
   UiRecord,
 } from './runtime/ui-observer.types';
+export { FieldDescription } from './schema/field-description';
+export { FIELD_KINDS } from './schema/field-description.const';
+export type {
+  FieldExample,
+  FieldKind,
+  FieldLimits,
+  FieldShape,
+} from './schema/field-description.types';
+export { FIELD_HINT_KEY, fieldHint } from './schema/field-hint';
+export { FieldInput } from './schema/field-input';
 export type { FieldIssue } from './schema/schema-check';
 export type { ActionContext, Place } from './screen/action-context.types';
 export {

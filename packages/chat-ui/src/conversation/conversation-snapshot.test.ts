@@ -104,10 +104,11 @@ const SNAPSHOT: ConversationSnapshot = {
     screen: 2,
     target: { kind: 'action', action: 'add', revision: 4 },
     fields: [
-      { name: 'title', label: 'Название', optional: false },
+      { name: 'title', label: 'Название', kind: 'string', optional: false },
       {
         name: 'priority',
         label: 'Приоритет',
+        kind: 'choice',
         optional: true,
         choices: [
           { value: 1, label: 'Низкий' },
@@ -540,5 +541,118 @@ describe('ConversationSnapshotSchema', () => {
     ],
   ])('сообщение места с недопустимым полем не по схеме: %s', (_, message) => {
     expect(valid(withMessage(message))).toBe(false);
+  });
+});
+
+/** Снимок, у которого единственное поле черновика — `field`. */
+const withField = (field: unknown) => ({
+  ...SNAPSHOT,
+  draft: { ...SNAPSHOT.draft, fields: [field] },
+});
+
+const PAGE_FIELD = {
+  name: 'page',
+  label: 'Страница',
+  kind: 'number',
+  optional: false,
+  hint: 'Номер страницы списка, с первой',
+  example: 2,
+  limits: { min: 1, max: 99, integer: true },
+};
+
+describe('ConversationSnapshotSchema: поле черновика — вид, подсказка, пример, пределы', () => {
+  test('поле с kind, hint, example и limits проходит круг JSON и схему без потерь', () => {
+    const value = withField(PAGE_FIELD);
+    const round = JSON.parse(JSON.stringify(value));
+
+    expect<unknown>(v.parse(ConversationSnapshotSchema, round)).toStrictEqual(
+      value,
+    );
+  });
+
+  test.each(['string', 'number', 'boolean', 'date', 'choice'])(
+    'вид %s проходит схему',
+    (kind) => {
+      const value = withField({ ...PAGE_FIELD, kind });
+
+      expect(valid(value)).toBe(true);
+    },
+  );
+
+  test.each([
+    ['строка', 'Купить хлеб'],
+    ['число', 2],
+    ['булево', false],
+  ])('пример — %s проходит круг без потерь', (_, example) => {
+    const value = withField({ ...PAGE_FIELD, example });
+
+    expect<unknown>(
+      v.parse(ConversationSnapshotSchema, JSON.parse(JSON.stringify(value))),
+    ).toStrictEqual(value);
+  });
+
+  test('пределы длины строки проходят круг без потерь', () => {
+    const field = {
+      name: 'title',
+      label: 'Название',
+      kind: 'string',
+      optional: false,
+      limits: { minLength: 1, maxLength: 80 },
+    };
+    const value = withField(field);
+
+    expect<unknown>(v.parse(ConversationSnapshotSchema, value)).toStrictEqual(
+      value,
+    );
+  });
+
+  test('старый снимок без kind читается: kind получает умолчание string', () => {
+    const old = { name: 'title', label: 'Название', optional: false };
+
+    const parsed = v.parse(ConversationSnapshotSchema, withField(old));
+
+    expect(parsed.draft?.fields[0]).toStrictEqual({ ...old, kind: 'string' });
+  });
+
+  test('старый снимок без hint, example и limits — ключей в прочитанном поле нет', () => {
+    const parsed = v.parse(
+      ConversationSnapshotSchema,
+      withField({ name: 'a', label: 'А', optional: true }),
+    );
+    const field = parsed.draft?.fields[0];
+
+    expect(field).not.toHaveProperty('hint');
+    expect(field).not.toHaveProperty('example');
+    expect(field).not.toHaveProperty('limits');
+  });
+
+  test('hint и example длиной MAX_LABEL_LENGTH проходят схему', () => {
+    const long = 'а'.repeat(MAX_LABEL_LENGTH);
+
+    expect(valid(withField({ ...PAGE_FIELD, hint: long }))).toBe(true);
+    expect(valid(withField({ ...PAGE_FIELD, example: long }))).toBe(true);
+  });
+
+  test.each([
+    ['вид вне перечня', { ...PAGE_FIELD, kind: 'weird' }],
+    [
+      'hint длиннее MAX_LABEL_LENGTH',
+      { ...PAGE_FIELD, hint: 'а'.repeat(MAX_LABEL_LENGTH + 1) },
+    ],
+    [
+      'example-строка длиннее MAX_LABEL_LENGTH',
+      { ...PAGE_FIELD, example: 'а'.repeat(MAX_LABEL_LENGTH + 1) },
+    ],
+    ['hint не строка', { ...PAGE_FIELD, hint: 1 }],
+    ['example — массив', { ...PAGE_FIELD, example: [1] }],
+    ['example — null', { ...PAGE_FIELD, example: null }],
+    ['limits.min не число', { ...PAGE_FIELD, limits: { min: '1' } }],
+    ['limits.integer не булево', { ...PAGE_FIELD, limits: { integer: 1 } }],
+    [
+      'limits.maxLength не число',
+      { ...PAGE_FIELD, limits: { maxLength: 'a' } },
+    ],
+  ])('мусор — %s — не по схеме', (_, field) => {
+    expect(valid(withField(field))).toBe(false);
   });
 });

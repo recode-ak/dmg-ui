@@ -7,7 +7,7 @@ import type { AnyScreenUnit, ScreenFrame } from './screen-unit.types';
 
 /**
  * Сборка вида экземпляра экрана (D-UI-98) — одно место для экземпляра и
- * `ScreenPreview`: шапка (экран, адрес, контекст, основное действие) и
+ * `ScreenPreview`: шапка (экран, адрес, контекст, подсказка, основное действие) и
  * загруженное — данные, состояние, действия или отказ. Действия, отрезанные
  * составом приложения UI (`AppReach`) и скрытые кодом экрана, в вид не
  * попадают; субъекта в контексте вида нет.
@@ -55,11 +55,13 @@ export class InstanceViews {
   /** Вид при ревизии; у отказа нет данных и действий. */
   view(revision: number, loaded: InstanceLoad): InstanceView {
     const primary = this.primary(loaded);
+    const { hint } = this.unit.def;
     const base = {
       screen: this.screen,
       address: this.address,
       revision,
       context: this.viewContext(),
+      ...(hint === undefined ? {} : { hint }),
       ...(primary === undefined ? {} : { primary }),
     };
     if (loaded.status === 'refused') {

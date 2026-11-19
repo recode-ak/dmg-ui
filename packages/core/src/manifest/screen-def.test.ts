@@ -7,6 +7,7 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
+import { UiScene } from '../../testing/ui-arch';
 import { type AnyScreenDef, ScreenDef } from './screen-def';
 
 const list = TaskListScreenDef;
@@ -20,6 +21,7 @@ describe('ScreenDef — форма', () => {
       label: 'Мои задачи',
       description: 'Список задач вызывающего с выбором для выполнения.',
       visible: false,
+      hint: list.hint,
       params: json(list.params),
       reads: ['listTasks'],
       data: json(list.data),
@@ -57,6 +59,17 @@ describe('ScreenDef — форма', () => {
             label: 'Выполнить выбранные задачи?',
             description: 'Выполненную задачу нельзя вернуть в работу.',
           },
+        },
+        {
+          name: 'jumpTo',
+          label: 'К части',
+          description: 'Переход к части списка по её номеру.',
+          hint: 'Укажите номер части списка, чтобы не листать по одной',
+          visible: false,
+          input: json(list.actions.jumpTo.input!),
+          uc: undefined,
+          to: [],
+          confirm: undefined,
         },
         {
           name: 'next',
@@ -194,6 +207,7 @@ describe('ScreenDef — форма', () => {
       'state',
       'action.open.input',
       'action.create.input',
+      'action.jumpTo.input',
       'local.toggle.input',
       'exit.created.data',
     ]);
@@ -232,5 +246,89 @@ describe('ScreenDef — типы и адрес', () => {
   test('at() с параметрами не того типа — ошибка типа', () => {
     // @ts-expect-error — taskId не число (TST-10)
     expect(() => TaskCardScreenDef.at({ taskId: 42 })).toThrow('taskCard');
+  });
+});
+
+describe('ScreenDef — подсказка', () => {
+  const hinted = ScreenDef.define({
+    name: 'hinted',
+    label: 'С подсказками',
+    description: 'Экран с подсказкой у себя, действия и локального действия.',
+    reads: [],
+    data: v.object({}),
+    hint: 'Подсказка экрана',
+    actions: {
+      go: {
+        label: 'Вперёд',
+        description: 'Переход.',
+        hint: 'Подсказка действия',
+      },
+      stop: { label: 'Стоп', description: 'Без подсказки.' },
+    },
+    locals: {
+      pick: {
+        label: 'Выбрать',
+        description: 'Локальное.',
+        hint: 'Подсказка локального',
+      },
+      plain: { label: 'Простое', description: 'Без подсказки.' },
+    },
+  });
+
+  test('hint экрана, действия и локального — свойства Def', () => {
+    expect(hinted.hint).toBe('Подсказка экрана');
+    expect(hinted.actions.go.hint).toBe('Подсказка действия');
+    expect(hinted.locals.pick.hint).toBe('Подсказка локального');
+  });
+
+  test('нет подсказки — свойство hint не задано', () => {
+    expect(hinted.actions.stop.hint).toBeUndefined();
+    expect(hinted.locals.plain.hint).toBeUndefined();
+    expect(UiScene.screen('plain').hint).toBeUndefined();
+  });
+
+  test('normalize кладёт hint экрана, действия и локального', () => {
+    const normalized = hinted.normalize();
+
+    expect(normalized.hint).toBe('Подсказка экрана');
+    expect(normalized.actions.find((a) => a.name === 'go')?.hint).toBe(
+      'Подсказка действия',
+    );
+    expect(normalized.locals.find((l) => l.name === 'pick')?.hint).toBe(
+      'Подсказка локального',
+    );
+  });
+
+  test('normalize без подсказки — ключа hint нет (экран, действие, локальное)', () => {
+    const normalized = hinted.normalize();
+
+    expect(
+      normalized.actions.find((a) => a.name === 'stop'),
+    ).not.toHaveProperty('hint');
+    expect(
+      normalized.locals.find((l) => l.name === 'plain'),
+    ).not.toHaveProperty('hint');
+    expect(UiScene.screen('plain').normalize()).not.toHaveProperty('hint');
+  });
+
+  test('учебный набор: подсказки у экрана taskList и действия jumpTo', () => {
+    const normalized = list.normalize();
+
+    expect(normalized.hint).toBeString();
+    expect(normalized.hint).not.toBe('');
+    expect(
+      normalized.actions.find((a) => a.name === 'jumpTo')?.hint,
+    ).toBeString();
+  });
+
+  test('jumpTo — действие списка без UC, с входом part', () => {
+    const jumpTo = list.normalize().actions.find((a) => a.name === 'jumpTo');
+
+    expect(jumpTo).toMatchObject({
+      name: 'jumpTo',
+      uc: undefined,
+      to: [],
+      input: json(list.actions.jumpTo.input!),
+    });
   });
 });

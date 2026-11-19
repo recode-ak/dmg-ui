@@ -17,6 +17,12 @@ exports[`снимки запросов Telegram taskList empty 1`] = `
       [
         {
           "callback_data": "2",
+          "text": "К части",
+        },
+      ],
+      [
+        {
+          "callback_data": "3",
           "text": "Закрыть",
         },
       ],
@@ -59,18 +65,24 @@ exports[`снимки запросов Telegram taskList full 1`] = `
       [
         {
           "callback_data": "4",
-          "text": "Дальше",
+          "text": "К части",
         },
       ],
       [
         {
           "callback_data": "5",
-          "text": "Закрыть",
+          "text": "Дальше",
         },
       ],
       [
         {
           "callback_data": "6",
+          "text": "Закрыть",
+        },
+      ],
+      [
+        {
+          "callback_data": "7",
           "text": "Отметить задачу",
         },
       ],

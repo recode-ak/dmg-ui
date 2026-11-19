@@ -240,6 +240,7 @@ describe('ScreenLogic.fields и checkInput', () => {
       {
         name: 'taskId',
         label: 'Идентификатор задачи',
+        kind: 'choice',
         optional: false,
         choices: [
           { value: TASK_A, label: 'Хлеб' },
@@ -254,7 +255,11 @@ describe('ScreenLogic.fields и checkInput', () => {
       {
         name: 'title',
         label: 'Название задачи',
+        kind: 'string',
         optional: false,
+        hint: 'Коротко: что нужно сделать',
+        example: 'Купить хлеб',
+        limits: { minLength: 1 },
         initial: 'Новая задача',
       },
     ]);
@@ -263,10 +268,23 @@ describe('ScreenLogic.fields и checkInput', () => {
   test('без choices и defaults в коде — у полей нет вариантов и начальных значений', () => {
     const logic = new ScreenLogic(TaskListScreenDef, new BareListCode());
     expect(logic.fields('open', data, { selected: [] })).toEqual([
-      { name: 'taskId', label: 'Идентификатор задачи', optional: false },
+      {
+        name: 'taskId',
+        label: 'Идентификатор задачи',
+        kind: 'string',
+        optional: false,
+      },
     ]);
     expect(logic.fields('create', data, { selected: [] })).toEqual([
-      { name: 'title', label: 'Название задачи', optional: false },
+      {
+        name: 'title',
+        label: 'Название задачи',
+        kind: 'string',
+        optional: false,
+        hint: 'Коротко: что нужно сделать',
+        example: 'Купить хлеб',
+        limits: { minLength: 1 },
+      },
     ]);
   });
 
@@ -287,6 +305,7 @@ describe('ScreenLogic.fields и checkInput', () => {
       {
         name: 'taskId',
         label: 'Идентификатор задачи',
+        kind: 'choice',
         optional: false,
         choices: [
           { value: TASK_A, label: 'Хлеб' },
@@ -300,6 +319,84 @@ describe('ScreenLogic.fields и checkInput', () => {
     expect(logicOf().checkInput('create', { title: 'Хлеб' })).toEqual({
       ok: true,
       value: { title: 'Хлеб' },
+    });
+  });
+});
+
+describe('ScreenLogic.fields — вид, подсказка и пределы поля', () => {
+  test('choices кода повышают вид поля до choice', () => {
+    const [field] = logicOf().fields('open', data, { selected: [] });
+
+    expect(field).toMatchObject({ name: 'taskId', kind: 'choice' });
+  });
+
+  test('choices кода у строкового поля — вид choice, прочие части описания остаются', () => {
+    class TitleChoices extends TaskListScreenCode {
+      override choices(name: string) {
+        return name === 'create'
+          ? { title: [{ value: 'Хлеб', label: 'Хлеб' }] }
+          : {};
+      }
+    }
+
+    const [field] = logicOf(new TitleChoices()).fields('create', data, {
+      selected: [],
+    });
+
+    expect(field).toMatchObject({
+      name: 'title',
+      kind: 'choice',
+      hint: 'Коротко: что нужно сделать',
+      example: 'Купить хлеб',
+    });
+  });
+
+  test('поле со строкой без choices — вид string, подсказка, пример и предел длины из схемы', () => {
+    const [field] = logicOf().fields('create', data, { selected: [] });
+
+    expect(field).toStrictEqual({
+      name: 'title',
+      label: 'Название задачи',
+      kind: 'string',
+      optional: false,
+      hint: 'Коротко: что нужно сделать',
+      example: 'Купить хлеб',
+      limits: { minLength: 1 },
+      initial: 'Новая задача',
+    });
+  });
+
+  test('jumpTo: нестроковое поле — вид number, подсказка, пример, пределы', () => {
+    expect(logicOf().fields('jumpTo', data, { selected: [] })).toStrictEqual([
+      {
+        name: 'part',
+        label: 'Часть',
+        kind: 'number',
+        optional: false,
+        hint: 'Номер части списка, с первой',
+        example: 2,
+        limits: { min: 1, max: 99, integer: true },
+      },
+    ]);
+  });
+
+  test('checkInput jumpTo: номер вне пределов — замечание схемы её текстом', () => {
+    expect(logicOf().checkInput('jumpTo', { part: 0 })).toEqual({
+      ok: false,
+      error: {
+        issues: [{ field: 'part', text: 'Части начинаются с первой' }],
+      },
+    });
+    expect(logicOf().checkInput('jumpTo', { part: 100 })).toEqual({
+      ok: false,
+      error: { issues: [{ field: 'part', text: 'Не больше 99' }] },
+    });
+  });
+
+  test('checkInput jumpTo: строка вместо числа — замечание схемы', () => {
+    expect(logicOf().checkInput('jumpTo', { part: 'abc' })).toEqual({
+      ok: false,
+      error: { issues: [{ field: 'part', text: 'Введите номер части' }] },
     });
   });
 });

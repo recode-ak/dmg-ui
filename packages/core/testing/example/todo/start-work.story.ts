@@ -9,6 +9,7 @@ export const StartWorkStoryDef = StoryDef.define({
   name: 'startWork',
   label: 'Начать работу',
   description: 'Пользователь выбирает, с чем работать.',
+  hint: 'Выберите, с чем работать: со своими задачами или с поручениями',
   callers: ['user'],
   goal: 'чтобы перейти к своим задачам или поручениям',
   start: MainMenuScreenDef,

@@ -704,7 +704,13 @@ describe('ScreenInstance — доступность в виде', () => {
 
     const names = list.view().actions.map((action) => action.name);
 
-    expect(names).toEqual(['open', 'completeSelected', 'next', 'prev']);
+    expect(names).toEqual([
+      'open',
+      'completeSelected',
+      'jumpTo',
+      'next',
+      'prev',
+    ]);
   });
 
   test('скрытое локальное действие — нет в locals', async () => {

@@ -58,6 +58,9 @@ export class TaskListScreenCode extends ScreenCode<List, ExampleUser> {
       }),
       done: ({ params }) => TaskListScreenDef.at(params),
     },
+    jumpTo: {
+      done: ({ input }) => TaskListScreenDef.at({ page: input.part - 1 }),
+    },
     next: {
       done: ({ params }) => TaskListScreenDef.at({ page: params.page + 1 }),
     },

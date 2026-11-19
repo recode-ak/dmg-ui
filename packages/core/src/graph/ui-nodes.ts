@@ -79,6 +79,7 @@ export class UiNodes {
 
   private storyNode(story: AnyStoryDef): GraphNodeInput {
     const props: UiStoryProps = {
+      ...(story.hint === undefined ? {} : { hint: story.hint }),
       callers: story.callers,
       goal: story.goal,
       start: this.ids.target(story.start),
@@ -108,6 +109,7 @@ export class UiNodes {
 
   private screenNode(screen: AnyScreenDef): GraphNodeInput {
     const props: UiScreenProps = {
+      ...(screen.hint === undefined ? {} : { hint: screen.hint }),
       params: toJsonSchema(screen.params),
       ...(screen.state === undefined
         ? {}
@@ -134,6 +136,7 @@ export class UiNodes {
   private actionNodes(screen: AnyScreenDef): GraphNodeInput[] {
     return Object.values<ScreenAction>(screen.actions).map((action) => {
       const props: UiActionProps = {
+        ...(action.hint === undefined ? {} : { hint: action.hint }),
         ...(action.input === undefined
           ? {}
           : { input: toJsonSchema(action.input) }),
@@ -199,6 +202,7 @@ export class UiNodes {
       name: local.name,
       label: local.label,
       description: local.description,
+      ...(local.hint === undefined ? {} : { hint: local.hint }),
       ...(local.input === undefined
         ? {}
         : { input: toJsonSchema(local.input) }),

@@ -20,6 +20,7 @@ const outcome = v.strictObject({
 const local = v.strictObject({
   name: v.string(),
   ...item,
+  hint: v.optional(v.string()),
   input: v.optional(nested),
 });
 
@@ -44,6 +45,7 @@ export const UI_PROPS = {
   uiSet: v.strictObject({ app: v.string() }),
   uiModule: v.strictObject({}),
   story: v.strictObject({
+    hint: v.optional(v.string()),
     callers: v.array(v.string()),
     goal: v.string(),
     start: v.string(),
@@ -51,6 +53,7 @@ export const UI_PROPS = {
     access: v.optional(nested),
   }),
   screen: v.strictObject({
+    hint: v.optional(v.string()),
     params: nested,
     state: v.optional(nested),
     primary: v.optional(v.string()),
@@ -59,6 +62,7 @@ export const UI_PROPS = {
     examples: v.array(v.string()),
   }),
   action: v.strictObject({
+    hint: v.optional(v.string()),
     input: v.optional(nested),
     confirm: v.optional(v.strictObject(item)),
   }),

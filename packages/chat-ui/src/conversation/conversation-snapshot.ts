@@ -1,3 +1,4 @@
+import { FIELD_KINDS } from 'dmg-ui';
 import * as v from 'valibot';
 import { ACCENTS, MOMENT_SHOWS, TEXT_STYLES } from '../message/message.const';
 import {
@@ -167,10 +168,25 @@ const LiveScreen = v.object({
   message: v.optional(PlaceMessageSchema),
 });
 
+// Вид поля старого снимка не записан — читается как строка. Подсказка и
+// пример строкой — до `MAX_LABEL_LENGTH`: длинное не отвергает снимок
+// целиком, а не проходит схему так же, как длинная подпись.
+const FieldLimits = v.object({
+  min: v.optional(v.number()),
+  max: v.optional(v.number()),
+  integer: v.optional(v.boolean()),
+  minLength: v.optional(Count),
+  maxLength: v.optional(Count),
+});
+
 const Field = v.object({
   name: Name,
   label: Label,
+  kind: v.optional(v.picklist(FIELD_KINDS), 'string'),
   optional: v.boolean(),
+  hint: v.optional(Label),
+  example: v.optional(v.union([Label, v.number(), v.boolean()])),
+  limits: v.optional(FieldLimits),
   choices: v.optional(
     v.pipe(
       v.array(v.object({ value: ChoiceValue, label: Label })),

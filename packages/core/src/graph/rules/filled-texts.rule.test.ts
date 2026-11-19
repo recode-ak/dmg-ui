@@ -114,6 +114,64 @@ describe('UI-13: тексты узлов и элементов заполнен�
     expect(line).toContain('start');
   });
 
+  test('нарушение: пустая подсказка экрана', () => {
+    const [line, ...rest] = run({ hint: '' }).rule('UI-13');
+
+    expect(rest).toEqual([]);
+    expect(line).toStartWith('UI-13: miniUi/todo/a: ');
+    expect(line).toContain('hint');
+    expect(line).toContain('экрана');
+  });
+
+  test('нарушение: пустая подсказка сторис', () => {
+    const [line, ...rest] = run({}, { hint: '' }).rule('UI-13');
+
+    expect(rest).toEqual([]);
+    expect(line).toStartWith('UI-13: miniUi/todo/s: ');
+    expect(line).toContain('hint');
+  });
+
+  test('нарушение: подсказка действия из одних пробелов — узел действия', () => {
+    const action = { ...TEXTS, hint: '  ', uc: CreateTaskUcDef };
+
+    const [line, ...rest] = run({ actions: { go: action } }).rule('UI-13');
+
+    expect(rest).toEqual([]);
+    expect(line).toStartWith('UI-13: miniUi/todo/a/go: ');
+    expect(line).toContain('hint');
+  });
+
+  test('нарушение: пустая подсказка локального действия', () => {
+    const [line, ...rest] = run({
+      locals: { pick: { ...TEXTS, hint: '' } },
+    }).rule('UI-13');
+
+    expect(rest).toEqual([]);
+    expect(line).toStartWith('UI-13: miniUi/todo/a: ');
+    expect(line).toContain('hint');
+    expect(line).toContain('pick');
+  });
+
+  test('нарушение: подсказка начинается с TODO', () => {
+    const [line] = run({ hint: 'TODO: написать' }).rule('UI-13');
+
+    expect(line).toContain('hint');
+  });
+
+  test('без нарушения: подсказка заполнена или её нет', () => {
+    const action = { ...TEXTS, hint: 'Совет', uc: CreateTaskUcDef };
+    const report = run(
+      {
+        hint: 'Совет',
+        actions: { go: action, stop: { ...TEXTS } },
+        locals: { pick: { ...TEXTS, hint: 'Совет' } },
+      },
+      { hint: 'Совет' },
+    );
+
+    expect(report.rule('UI-13')).toEqual([]);
+  });
+
   test('без нарушения: TODO не в начале текста', () => {
     const report = run({ description: 'Список дел (TODO-лист) пользователя.' });
 

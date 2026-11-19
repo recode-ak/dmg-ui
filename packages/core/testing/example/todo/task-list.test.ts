@@ -4,8 +4,8 @@ import { testUuid } from 'dmg-core/testing';
 import { ListTasksUcDef } from 'dmg-core/testing/example';
 import type { InstanceView } from 'dmg-ui';
 import { type TaskStateRow, taskState } from '../../task-state';
-import { RuntimeKit } from '../../ui-runtime-fixture';
-import { TASK_A, TASK_B } from './example-tasks';
+import { RuntimeKit, requestTrace } from '../../ui-runtime-fixture';
+import { LIST_ID, TASK_A, TASK_B } from './example-tasks';
 import { TaskListScreenDef } from './task-list.screen';
 
 // Список задач: доступность действий решает код экрана — правило домена
@@ -176,5 +176,121 @@ describe('экран taskList: выделение и страницы', () => {
     });
     expect(answerOf(second.list.view(), 'prev').kind).toBe('available');
     expect(answerOf(second.list.view(), 'next').kind).toBe('disabled');
+  });
+});
+
+describe('экран taskList: jumpTo — переход к части списка по номеру', () => {
+  const trace = requestTrace('r-go');
+  const go = (
+    list: Awaited<ReturnType<typeof listOf>>['list'],
+    part: unknown,
+  ) => list.act({ action: 'jumpTo', input: { part }, revision: 1, trace });
+  const rows = [open(TASK_A), open(TASK_B), done(TASK_C), open(TASK_D)];
+
+  test('действие доступно всегда, UC не вызывается', async () => {
+    const { kit, list } = await listOf(rows);
+    const before = kit.ucs.names();
+
+    expect(answerOf(list.view(), 'jumpTo')).toEqual({ kind: 'available' });
+    await go(list, 2);
+
+    expect(kit.ucs.names()).toEqual(before);
+  });
+
+  test('номер 2 — переход на страницу с индексом 1 (at({ page: input.part - 1 }))', async () => {
+    const { list } = await listOf(rows);
+
+    expect(await go(list, 2)).toEqual({
+      kind: 'moved',
+      address: { screen: LIST_ID, params: { page: 1 } },
+    });
+  });
+
+  test('номер 1 — адрес первой страницы', async () => {
+    const { list } = await listOf(rows, {}, 1);
+
+    expect(await go(list, 1)).toEqual({
+      kind: 'moved',
+      address: { screen: LIST_ID, params: { page: 0 } },
+    });
+  });
+
+  test.each([
+    [0, 'Части начинаются с первой'],
+    [100, 'Не больше 99'],
+    ['abc', 'Введите номер части'],
+  ])('номер %p — rejected с текстом схемы у поля part', async (part, text) => {
+    const { list } = await listOf(rows);
+
+    expect(await go(list, part)).toEqual({
+      kind: 'rejected',
+      issues: [{ field: 'part', text }],
+    });
+  });
+
+  test('дробный номер — rejected (поле целое)', async () => {
+    const { list } = await listOf(rows);
+
+    expect(await go(list, 1.5)).toMatchObject({
+      kind: 'rejected',
+      issues: [{ field: 'part' }],
+    });
+  });
+});
+
+describe('экран taskList: подсказки и поля в виде', () => {
+  const field = (view: InstanceView, action: string, name: string) =>
+    view.actions
+      .find((item) => item.name === action)
+      ?.fields.find((item) => item.name === name);
+
+  test('подсказка экрана — InstanceView.hint из Def', async () => {
+    const { list } = await listOf([open(TASK_A)]);
+
+    expect(list.view().hint).toBe(TaskListScreenDef.hint!);
+    expect(TaskListScreenDef.hint).toBeString();
+  });
+
+  test('create.title — поле строки с подсказкой, примером и пределом длины', async () => {
+    const { list } = await listOf([open(TASK_A)]);
+
+    expect(field(list.view(), 'create', 'title')).toMatchObject({
+      label: 'Название задачи',
+      kind: 'string',
+      hint: 'Коротко: что нужно сделать',
+      example: 'Купить хлеб',
+      limits: { minLength: 1 },
+      initial: 'Новая задача',
+    });
+  });
+
+  test('jumpTo.part — нестроковое поле: вид, подпись, подсказка, пример, пределы', async () => {
+    const { list } = await listOf([open(TASK_A)]);
+
+    expect(field(list.view(), 'jumpTo', 'part')).toStrictEqual({
+      name: 'part',
+      label: 'Часть',
+      kind: 'number',
+      optional: false,
+      hint: 'Номер части списка, с первой',
+      example: 2,
+      limits: { min: 1, max: 99, integer: true },
+    });
+  });
+
+  test('действие jumpTo в виде несёт подсказку действия', async () => {
+    const { list } = await listOf([open(TASK_A)]);
+    const action = list.view().actions.find((item) => item.name === 'jumpTo');
+
+    expect(action?.hint).toBe(TaskListScreenDef.actions.jumpTo.hint!);
+    expect(action?.hint).toBeString();
+  });
+
+  test('open.taskId — поле выбора (варианты из кода), подсказки нет', async () => {
+    const { list } = await listOf([open(TASK_A)]);
+    const taskId = field(list.view(), 'open', 'taskId');
+
+    expect(taskId).toMatchObject({ kind: 'choice' });
+    expect(taskId).not.toHaveProperty('hint');
   });
 });

@@ -47,10 +47,11 @@ export type LocalOutcome =
 
 /**
  * Действие в виде экземпляра: доступность (доступно или отключено с
- * причиной; скрытого в виде нет), поля входа, подтверждение.
+ * причиной; скрытого в виде нет), подсказка, поля входа, подтверждение.
  */
 export type ActionView = {
   readonly name: string;
+  readonly hint?: string;
   readonly availability: ViewAvailability;
   readonly fields: readonly ActionField[];
   readonly confirm?: ItemTexts;
@@ -59,6 +60,7 @@ export type ActionView = {
 /** Локальное действие в виде экземпляра; скрытого в виде нет. */
 export type LocalView = {
   readonly name: string;
+  readonly hint?: string;
   readonly availability: ViewAvailability;
   readonly fields: readonly ActionField[];
 };
@@ -72,6 +74,7 @@ export type InstanceView = {
   readonly address: AddressJson;
   readonly revision: number;
   readonly status: 'ready' | 'refused';
+  readonly hint?: string;
   readonly data?: unknown;
   readonly state?: unknown;
   readonly refusal?: Refusal;

@@ -299,7 +299,7 @@ describe('экран «Мои задачи» — модель', () => {
       'next',
       'prev',
     ]);
-    expect(names(body.forms)).toEqual(['create']);
+    expect(names(body.forms)).toEqual(['create', 'jumpTo']);
   });
 
   test('форма «Создать»: поле «title» с начальным значением «Новая задача»', async () => {

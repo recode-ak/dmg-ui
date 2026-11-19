@@ -6,6 +6,7 @@ import type {
   ParamsOf,
   StateOf,
 } from '../manifest/screen-def.types';
+import type { ScreenLocal } from '../manifest/screen-local';
 import { SchemaCheck } from '../schema/schema-check';
 import type { ActionContext } from '../screen/action-context.types';
 import type { InputRejection } from '../screen/action-input.types';
@@ -202,18 +203,20 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
       if (answer.kind === 'hidden') continue;
       actions.push({
         name: action.name,
+        ...(action.hint === undefined ? {} : { hint: action.hint }),
         availability: answer,
         fields: this.logic.fields(name, data, state),
         ...(action.confirm === undefined ? {} : { confirm: action.confirm }),
       });
     }
     const locals: LocalView[] = [];
-    for (const local of Object.keys(this.def.locals)) {
-      const name = this.localName(local);
+    for (const local of Object.values<ScreenLocal>(this.def.locals)) {
+      const name = this.localName(local.name);
       const answer = this.logic.availability(name, ctx);
       if (answer.kind === 'hidden') continue;
       locals.push({
-        name: local,
+        name: local.name,
+        ...(local.hint === undefined ? {} : { hint: local.hint }),
         availability: answer,
         fields: this.logic.fields(name, data, state),
       });

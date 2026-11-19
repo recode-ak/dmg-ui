@@ -1,15 +1,14 @@
-import type * as v from 'valibot';
+import type { FieldShape } from '../schema/field-description.types';
 import type { FieldIssue } from '../schema/schema-check.types';
 import type { Choice } from './screen-code.types';
 
 /**
- * Поле входа действия: имя, подпись из схемы, признак «необязательное»,
- * варианты и начальное значение из кода экрана.
+ * Поле входа действия: описание по схеме (подпись, вид, признак
+ * «необязательное», подсказка, пример, пределы), варианты и начальное
+ * значение. Варианты `picklist` схемы уходят в `choices`, поэтому `options`
+ * в поле нет.
  */
-export type ActionField = {
-  readonly name: string;
-  readonly label: string;
-  readonly optional: boolean;
+export type ActionField = Omit<FieldShape, 'options'> & {
   readonly choices?: readonly Choice[];
   readonly initial?: unknown;
 };
@@ -18,6 +17,3 @@ export type ActionField = {
 export type InputRejection = {
   readonly issues: readonly FieldIssue[];
 };
-
-/** Схема одного поля объекта входа. */
-export type EntrySchema = v.ObjectEntries[string];

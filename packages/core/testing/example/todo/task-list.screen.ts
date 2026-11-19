@@ -6,7 +6,7 @@ import {
   TaskErrors,
   TaskEvents,
 } from 'dmg-core/testing/example';
-import { type AnyScreenDef, ScreenDef } from 'dmg-ui';
+import { type AnyScreenDef, fieldHint, ScreenDef } from 'dmg-ui';
 import * as v from 'valibot';
 import { exampleTask, TASK_A, TASK_B, taskRow } from './example-tasks';
 import { TaskCardScreenDef } from './task-card.screen';
@@ -23,6 +23,7 @@ export const TaskListScreenDef = ScreenDef.define({
   name: 'taskList',
   label: 'Мои задачи',
   description: 'Список задач вызывающего с выбором для выполнения.',
+  hint: 'Отметьте задачи и выполните их разом или откройте одну',
   params: v.strictObject({
     page: v.pipe(
       v.number(),
@@ -64,7 +65,10 @@ export const TaskListScreenDef = ScreenDef.define({
         title: v.pipe(
           v.string(),
           v.nonEmpty('Название не может быть пустым'),
-          v.description('Название задачи'),
+          v.title('Название задачи'),
+          fieldHint('Коротко: что нужно сделать'),
+          v.examples(['Купить хлеб']),
+          v.description('Название новой задачи'),
         ),
       }),
       uc: CreateTaskUcDef,
@@ -77,6 +81,23 @@ export const TaskListScreenDef = ScreenDef.define({
         label: 'Выполнить выбранные задачи?',
         description: 'Выполненную задачу нельзя вернуть в работу.',
       },
+    },
+    jumpTo: {
+      label: 'К части',
+      description: 'Переход к части списка по её номеру.',
+      hint: 'Укажите номер части списка, чтобы не листать по одной',
+      input: v.object({
+        part: v.pipe(
+          v.number('Введите номер части'),
+          v.integer(),
+          v.minValue(1, 'Части начинаются с первой'),
+          v.maxValue(99, 'Не больше 99'),
+          v.title('Часть'),
+          v.examples([2]),
+          fieldHint('Номер части списка, с первой'),
+          v.description('Номер части списка, с первой'),
+        ),
+      }),
     },
     next: {
       label: 'Дальше',

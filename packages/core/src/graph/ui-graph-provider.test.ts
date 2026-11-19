@@ -16,6 +16,7 @@ import * as v from 'valibot';
 import {
   ExampleUiSetDef,
   LIST_START,
+  StartWorkStoryDef,
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
@@ -51,7 +52,7 @@ const edgeProps = (kind: string, from: string, to: string) =>
     ?.props;
 
 describe('UiGraphProvider: узлы', () => {
-  test('32 узла набора и приложения UI в каноническом порядке', () => {
+  test('33 узла набора и приложения UI в каноническом порядке', () => {
     expect(own.map((node) => node.id)).toEqual([
       'exampleStub',
       'exampleUi',
@@ -78,6 +79,7 @@ describe('UiGraphProvider: узлы', () => {
       `${SCREEN}/close`,
       `${SCREEN}/completeSelected`,
       `${SCREEN}/create`,
+      `${SCREEN}/jumpTo`,
       `${SCREEN}/next`,
       `${SCREEN}/open`,
       `${SCREEN}/prev`,
@@ -99,7 +101,7 @@ describe('UiGraphProvider: узлы', () => {
         ]),
       ),
     ).toEqual({ uiSet: 1, uiModule: 2, screen: 5, story: 5, notification: 2 });
-    expect(count('action')).toBe(16);
+    expect(count('action')).toBe(17);
     expect(count('uiApp')).toBe(1);
   });
 
@@ -174,6 +176,7 @@ describe('UiGraphProvider: узлы', () => {
 describe('UiGraphProvider: свойства узлов', () => {
   test('экран taskList: схемы, основное действие, локальные, выходы, примеры', () => {
     expect(props(SCREEN)).toEqual({
+      hint: TaskListScreenDef.hint,
       params: toJsonSchema(TaskListScreenDef.params),
       state: toJsonSchema(TaskListScreenDef.state),
       primary: 'create',
@@ -204,6 +207,7 @@ describe('UiGraphProvider: свойства узлов', () => {
 
   test('порядок ключей props экрана фиксирован', () => {
     expect(Object.keys(props(SCREEN) ?? {})).toEqual([
+      'hint',
       'params',
       'state',
       'primary',
@@ -315,6 +319,94 @@ describe('UiGraphProvider: свойства узлов', () => {
       },
       examples: ['sample'],
     });
+  });
+});
+
+describe('UiGraphProvider: подсказки в графе', () => {
+  type InputProps = {
+    input: {
+      properties: Record<string, Record<string, unknown>>;
+    };
+  };
+  const inputOf = (id: string) => (props(id) as unknown as InputProps).input;
+
+  test('props.hint у сторис, экрана и действия — из Def', () => {
+    expect(props('exampleUi/todo/startWork')?.hint).toBe(
+      StartWorkStoryDef.hint!,
+    );
+    expect(props(SCREEN)?.hint).toBe(TaskListScreenDef.hint!);
+    expect(props(`${SCREEN}/jumpTo`)?.hint).toBe(
+      TaskListScreenDef.actions.jumpTo.hint!,
+    );
+    expect(StartWorkStoryDef.hint).toBeString();
+  });
+
+  test('props.hint у локального действия экрана — в записи locals', () => {
+    const hinted = ScreenDef.define({
+      name: 'hinted',
+      label: 'С подсказками',
+      description: 'Экран с локальным действием с подсказкой.',
+      reads: [],
+      data: v.object({}),
+      state: v.strictObject({}),
+      locals: {
+        pick: {
+          label: 'Выбрать',
+          description: 'Локальное.',
+          hint: 'Подсказка локального',
+        },
+        drop: { label: 'Сбросить', description: 'Без подсказки.' },
+      },
+    });
+    const scene = new UiScene({ screens: [hinted] });
+    const built = new AppGraph({
+      def: ExampleAppDef,
+      providers: [new UiGraphProvider({ set: scene.set, apps: [scene.app] })],
+    }).build();
+
+    const locals = built.node('miniUi/todo/hinted')?.props.locals as {
+      name: string;
+      hint?: string;
+    }[];
+
+    expect(locals.find((l) => l.name === 'pick')?.hint).toBe(
+      'Подсказка локального',
+    );
+    expect(locals.find((l) => l.name === 'drop')).not.toHaveProperty('hint');
+  });
+
+  test('без подсказки в Def — в props нет ключа hint', () => {
+    expect(props(CARD)).not.toHaveProperty('hint');
+    expect(props(`${SCREEN}/next`)).not.toHaveProperty('hint');
+    expect(props('exampleUi/todo/planTasks')).not.toHaveProperty('hint');
+  });
+
+  test('props.input.properties.<поле> несёт hint, title и example из схемы поля', () => {
+    const title = inputOf(`${SCREEN}/create`).properties.title;
+
+    expect(title).toMatchObject({
+      title: 'Название задачи',
+      hint: 'Коротко: что нужно сделать',
+      examples: ['Купить хлеб'],
+      minLength: 1,
+    });
+  });
+
+  test('jumpTo: title, hint, minimum и maximum поля part в props входа', () => {
+    expect(inputOf(`${SCREEN}/jumpTo`).properties.part).toMatchObject({
+      type: 'integer',
+      title: 'Часть',
+      hint: 'Номер части списка, с первой',
+      minimum: 1,
+      maximum: 99,
+      examples: [2],
+    });
+  });
+
+  test('поле без подсказки — в схеме входа нет ключа hint', () => {
+    expect(inputOf(`${SCREEN}/open`).properties.taskId).not.toHaveProperty(
+      'hint',
+    );
   });
 });
 
@@ -528,6 +620,7 @@ describe('UiGraphProvider: действия в графе', () => {
       `${SCREEN}/close`,
       `${SCREEN}/completeSelected`,
       `${SCREEN}/create`,
+      `${SCREEN}/jumpTo`,
       `${SCREEN}/next`,
       `${SCREEN}/open`,
       `${SCREEN}/prev`,
@@ -538,7 +631,7 @@ describe('UiGraphProvider: действия в графе', () => {
     const json = appGraph().document(UI_VERSION).toJSON();
     const create = json.nodes.find((n) => n.id === `${SCREEN}/create`);
 
-    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(16);
+    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(17);
     expect(create).toMatchObject({
       kind: 'action',
       label: 'Создать задачу',

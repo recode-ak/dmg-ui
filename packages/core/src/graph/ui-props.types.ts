@@ -28,6 +28,8 @@ export type UiOutcomeProps = UiItemProps & {
 
 export type UiLocalProps = UiItemProps & {
   readonly name: string;
+  /** Подсказка; без неё ключа нет. */
+  readonly hint?: string;
   readonly input?: NormalizedSchema;
 };
 
@@ -50,6 +52,8 @@ export type UiSetProps = {
 
 /** `props` узла `story`. */
 export type UiStoryProps = {
+  /** Подсказка; без неё ключа нет. */
+  readonly hint?: string;
   readonly callers: readonly string[];
   readonly goal: string;
   /** `id` экрана старта. */
@@ -61,6 +65,8 @@ export type UiStoryProps = {
 
 /** `props` узла `screen`; порядок ключей фиксирован. */
 export type UiScreenProps = {
+  /** Подсказка; без неё ключа нет. */
+  readonly hint?: string;
   readonly params: NormalizedSchema;
   readonly state?: NormalizedSchema;
   readonly primary?: string;
@@ -71,6 +77,8 @@ export type UiScreenProps = {
 
 /** `props` узла `action`. */
 export type UiActionProps = {
+  /** Подсказка; без неё ключа нет. */
+  readonly hint?: string;
   readonly input?: NormalizedSchema;
   readonly confirm?: UiItemProps;
 };

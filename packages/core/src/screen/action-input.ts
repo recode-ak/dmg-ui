@@ -1,14 +1,12 @@
 import { err, ok, type Result } from 'dmg-core';
-import * as v from 'valibot';
+import type * as v from 'valibot';
 import type { InputSchema } from '../manifest/screen-def.types';
+import { FieldDescription } from '../schema/field-description';
+import type { FieldKind } from '../schema/field-description.types';
 import { SchemaCheck } from '../schema/schema-check';
 import type { FieldIssue } from '../schema/schema-check.types';
-import type {
-  ActionField,
-  EntrySchema,
-  InputRejection,
-} from './action-input.types';
-import type { FieldValues } from './screen-code.types';
+import type { ActionField, InputRejection } from './action-input.types';
+import type { Choice, FieldValues } from './screen-code.types';
 
 export type { ActionField, InputRejection } from './action-input.types';
 
@@ -24,17 +22,18 @@ export class ActionInput<S extends InputSchema = InputSchema> {
   }
 
   /**
-   * Поля входа в порядке схемы. Подпись — `v.description` самого поля,
-   * затем обёрнутой схемы необязательного поля, затем имя поля.
+   * Поля входа в порядке схемы — описание `FieldDescription`. Варианты, если
+   * их не задал код экрана: у булева — `Да` и `Нет`, у `picklist` — его
+   * значения.
    */
   fields(): readonly ActionField[] {
     return Object.entries(this.schema.entries).map(([name, entry]) => {
-      const wrapped = this.wrappedOf(entry);
-      const label =
-        v.getDescription(entry) ??
-        (wrapped === undefined ? undefined : v.getDescription(wrapped)) ??
-        name;
-      return { name, label, optional: wrapped !== undefined };
+      const { options, ...field } = new FieldDescription(
+        name,
+        entry,
+      ).describe();
+      const choices = ActionInput.implicitChoices(field.kind, options);
+      return choices === undefined ? field : { ...field, choices };
     });
   }
 
@@ -64,15 +63,16 @@ export class ActionInput<S extends InputSchema = InputSchema> {
     return issues.length === 0 ? ok(out) : err({ issues });
   }
 
-  /** Обёрнутая схема необязательного поля; у обязательного — `undefined`. */
-  private wrappedOf(entry: EntrySchema): v.GenericSchema | undefined {
-    if (
-      v.isOfType('optional', entry) ||
-      v.isOfType('exact_optional', entry) ||
-      v.isOfType('nullish', entry)
-    ) {
-      return entry.wrapped;
+  private static implicitChoices(
+    kind: FieldKind,
+    options: readonly string[] | undefined,
+  ): readonly Choice[] | undefined {
+    if (kind === 'boolean') {
+      return [
+        { value: true, label: 'Да' },
+        { value: false, label: 'Нет' },
+      ];
     }
-    return undefined;
+    return options?.map((option) => ({ value: option, label: option }));
   }
 }

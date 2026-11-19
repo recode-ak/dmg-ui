@@ -22,6 +22,7 @@ export type {
   DataOf,
   EmptyParams,
   ExitSpec,
+  HintText,
   InputSchema,
   InputSchemaOf,
   ItemTexts,
@@ -54,6 +55,7 @@ export class ScreenDef<const S extends ScreenSpec = ScreenSpec> extends Def<
   S['name']
 > {
   readonly dmg = 'screen';
+  readonly hint: string | undefined;
   readonly params: ParamsSchemaOf<S>;
   readonly reads: S['reads'];
   readonly data: S['data'];
@@ -68,6 +70,7 @@ export class ScreenDef<const S extends ScreenSpec = ScreenSpec> extends Def<
 
   constructor(spec: S) {
     super(spec);
+    this.hint = spec.hint;
     // Ветки условных `ParamsSchemaOf`/`StateSchemaOf` выбирает наличие ключа
     // в спеке — ровно то, что проверяет `??`; TS этой связи не видит.
     this.params = (spec.params ?? v.strictObject({})) as ParamsSchemaOf<S>;
@@ -149,6 +152,7 @@ export class ScreenDef<const S extends ScreenSpec = ScreenSpec> extends Def<
       dmg: this.dmg,
       ...this.texts(),
       visible: this.visible,
+      ...(this.hint === undefined ? {} : { hint: this.hint }),
       params: toJsonSchema(this.params),
       reads: this.reads.map((uc) => uc.name),
       data: toJsonSchema(this.data),

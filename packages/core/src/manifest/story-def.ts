@@ -30,6 +30,7 @@ export type {
  */
 export class StoryDef<N extends string = string> extends Def<N> {
   readonly dmg = 'story';
+  readonly hint: string | undefined;
   readonly callers: readonly [DeclaredCaller, ...DeclaredCaller[]];
   readonly goal: string;
   readonly start: AnyScreenDef;
@@ -42,6 +43,7 @@ export class StoryDef<N extends string = string> extends Def<N> {
 
   constructor(spec: StorySpec<N>) {
     super(spec);
+    this.hint = spec.hint;
     this.callers = spec.callers;
     this.goal = spec.goal;
     this.start = spec.start;
@@ -61,6 +63,7 @@ export class StoryDef<N extends string = string> extends Def<N> {
       dmg: this.dmg,
       ...this.texts(),
       visible: this.visible,
+      ...(this.hint === undefined ? {} : { hint: this.hint }),
       callers: this.callers,
       goal: this.goal,
       start: this.start.name,
