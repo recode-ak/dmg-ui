@@ -1,14 +1,16 @@
 import type { Trace } from 'dmg-core';
-import type {
-  ActionField,
-  ActionView,
-  AnyUiAppDef,
-  InstanceJson,
-  LocalView,
-  ScreenInstance,
+import {
+  type ActionField,
+  type ActionView,
+  type AnyUiAppDef,
+  type InstanceJson,
+  type LocalView,
+  ScreenHelp,
+  type ScreenInstance,
 } from 'dmg-ui';
 import type { DeliveredNotification } from 'dmg-ui/server';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
+import { HelpText } from '../view/help-text';
 import { ScreenComposer } from '../view/screen-composer';
 import {
   CONVERSATION_TEXTS,
@@ -39,11 +41,12 @@ import { RefTable } from './ref-table';
 import { SeenIds } from './seen-ids';
 
 /**
- * Беседа одного собеседника (D-UI-43): сигналы мессенджера и проактивные
- * показы идут по одному через очередь, повтор id отсеивается, нажатие
- * разбирается по записи таблицы ссылок, вход действия с полями собирает
- * черновик, исходы ядра — по таблице политик (гайд `channel-package.md`),
- * «Назад» — по пути переходов беседы.
+ * Беседа одного собеседника (D-UI-43, D-UI-107): сигналы мессенджера и
+ * проактивные показы идут по одному через очередь, повтор id отсеивается,
+ * нажатие разбирается по записи таблицы ссылок, вход действия с полями
+ * собирает черновик, исходы ядра — по таблице политик (гайд
+ * `channel-package.md`), «Назад» — по пути переходов беседы, справка —
+ * заметкой по виду живого экрана.
  *
  * @see conversation.test.ts
  */
@@ -60,12 +63,14 @@ export class Conversation {
   private readonly screens: ConversationScreens;
   private readonly input: ConversationInput;
   private readonly outcomes: ConversationOutcomes;
+  private readonly help: ScreenHelp;
   private closed = false;
 
   /** Возможности не годятся (`options.max < 3`, `options.ref < 16`) или нет входа home — бросок. */
   constructor(spec: ConversationSpec, snapshot?: ConversationSnapshot) {
     Conversation.assertFits(spec.app, spec.home, spec.messenger.capabilities);
     this.spec = spec;
+    this.help = new ScreenHelp(spec.app);
     this.refs = new RefTable(spec.epochs(), snapshot?.refs);
     this.seen = new SeenIds(snapshot?.seen);
     this.path = new ConversationPath(snapshot?.path);
@@ -284,6 +289,9 @@ export class Conversation {
         this.input.drop();
         await this.screens.back(trace);
         return;
+      case 'help':
+        await this.output.note(this.helpText());
+        return;
       default: {
         const unknownKind: never = signal;
         throw new Error(
@@ -291,6 +299,17 @@ export class Conversation {
         );
       }
     }
+  }
+
+  /**
+   * Текст справки: по виду живого экрана, без него (до входа, после выхода)
+   * — общая. Экземпляр, ссылки, путь и черновик не трогаются, UC не зовётся.
+   */
+  private helpText(): string {
+    const live = this.screens.current();
+    return live === undefined
+      ? HelpText.general(this.help.general())
+      : HelpText.of(this.help.of(live.instance.view()));
   }
 
   private async enter(name: string, trace: Trace): Promise<void> {

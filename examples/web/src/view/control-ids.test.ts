@@ -78,3 +78,32 @@ describe('ControlIds.help', () => {
     );
   });
 });
+
+describe('ControlIds.sheet', () => {
+  test('формат: sheet-<область>', () => {
+    expect(ControlIds.sheet('main')).toBe('sheet-main');
+  });
+
+  test('три области — три разных идентификатора', () => {
+    const ids = REGIONS.map((region) => ControlIds.sheet(region));
+
+    expect(new Set(ids).size).toBe(REGIONS.length);
+  });
+
+  test('идентификатор допустим для разметки', () => {
+    for (const region of REGIONS) {
+      expect(ControlIds.sheet(region)).toMatch(VALID_ID);
+    }
+  });
+
+  test('не совпадает ни с «причиной», ни с «подсказкой» поля той же области', () => {
+    for (const region of REGIONS) {
+      expect(ControlIds.sheet(region)).not.toBe(
+        ControlIds.reason(region, 'sheet'),
+      );
+      expect(ControlIds.sheet(region)).not.toBe(
+        ControlIds.help(region, 'sheet', 'sheet'),
+      );
+    }
+  });
+});

@@ -11,6 +11,7 @@ export const MainMenuScreenDef = ScreenDef.define({
   name: 'mainMenu',
   label: 'Начать работу',
   description: 'Меню: свои задачи и поручения.',
+  hint: 'Отсюда начинается работа: выберите раздел',
   reads: [],
   data: v.object({}),
   actions: {

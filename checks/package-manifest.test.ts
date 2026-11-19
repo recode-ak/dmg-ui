@@ -92,6 +92,7 @@ describe('PackageManifest', () => {
         'ScreenCode',
         'ScreenDef',
         'ScreenExit',
+        'ScreenHelp',
         'ScreenLocal',
         'ScreenLogic',
         'ScreenPreview',

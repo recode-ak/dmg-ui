@@ -2,6 +2,7 @@ import { type AnyUseCaseDef, ok, type SerializedResult, Trace } from 'dmg-core';
 import { ListTasksUcDef } from 'dmg-core/testing/example';
 import {
   type AddressJson,
+  type AnyUiAppDef,
   type AnyUiSetDef,
   type CodeLoaders,
   type RefreshPort,
@@ -144,7 +145,8 @@ export const jsonPorts = (
 
 /**
  * Исполнитель на заглушках: `listTasks` отвечает `TASKS`, остальные UC —
- * по `ucs.answer` теста.
+ * по `ucs.answer` теста. С приложением `app` — его состав (отрезанное и
+ * подсказки дверей); без него — исполнитель без приложения.
  */
 export class RuntimeKit {
   readonly ucs = new StubUcPort().answer(ListTasksUcDef, ok([...TASKS]));
@@ -157,10 +159,12 @@ export class RuntimeKit {
   constructor(
     codes: CodeLoaders = exampleCodes(),
     set: AnyUiSetDef = ExampleUiSetDef,
+    app?: AnyUiAppDef,
   ) {
     this.runtime = new ScreenRuntime({
       set,
       codes,
+      ...(app === undefined ? {} : { app }),
       ucs: this.ucs,
       refresh: this.refresh,
       observer: this.observer,

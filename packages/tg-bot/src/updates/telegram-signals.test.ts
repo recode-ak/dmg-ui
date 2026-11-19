@@ -1125,3 +1125,58 @@ describe('TelegramSignals — сборка и недоверенный ввод'
     expect(JSON.stringify(outcome)).not.toContain(String(OTHER));
   });
 });
+
+// `/help` — третье имя беседы после `cancel` и `back`: приём отдаёт его
+// беседе раньше таблицы точек входа (резерв TG-04), в личном чате.
+
+const HELP = {
+  kind: 'signal' as const,
+  signal: { ...HEAD, kind: 'help' as const },
+};
+
+describe('TelegramSignals — /help: сигнал беседы раньше таблицы', () => {
+  test('/help → help; суффикс бота отброшен; регистр не важен', () => {
+    const of = withTable([START]);
+
+    expect(of(command('/help'))).toStrictEqual(HELP);
+    expect(of(command('/help@u7_bot'))).toStrictEqual(HELP);
+    expect(of(command('/Help'))).toStrictEqual(HELP);
+  });
+
+  test('точки command и menu с ключом help не побеждают: /help — сигнал беседы', () => {
+    const of = withTable([
+      START,
+      point('start', 'command', 'help'),
+      point('assigned', 'menu', 'help'),
+    ]);
+
+    expect(of(command('/help'))).toStrictEqual(HELP);
+  });
+
+  test('/start help — параметр ссылки, не справка: вход точки link, а без неё — вход /start', () => {
+    const linked = withTable([START, point('assigned', 'link', 'help')]);
+    const plain = withTable([START]);
+
+    expect(linked(command('/start help'))).toStrictEqual(entered('assigned'));
+    expect(plain(command('/start help'))).toStrictEqual(entered('start'));
+  });
+
+  test('/help с текстом после команды — всё равно справка, текст в сигнал не идёт', () => {
+    const outcome = withTable([START])(command('/help что делать'));
+
+    expect(outcome).toStrictEqual(HELP);
+    expect(JSON.stringify(outcome)).not.toContain('что делать');
+  });
+
+  test('/help в группе — ничего', () => {
+    const update = message(
+      {
+        text: '/help',
+        entities: [{ type: 'bot_command', offset: 0, length: 5 }],
+      },
+      group,
+    );
+
+    expect(withTable([START])(update)).toEqual({ kind: 'ignored' });
+  });
+});

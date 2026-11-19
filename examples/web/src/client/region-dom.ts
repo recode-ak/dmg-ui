@@ -3,7 +3,9 @@ import type {
   PageViewState,
   ViewSource,
 } from 'dmg-ui/web-ui';
-import type { RegionModel } from '../view/region-model.types';
+import { ControlIds } from '../view/control-ids';
+import type { HelpModel, RegionModel } from '../view/region-model.types';
+import { HELP_TEXTS } from '../view/view-texts.const';
 import { BodyDom } from './body-dom';
 import { CLIENT_TEXTS } from './client-texts.const';
 import { h } from './dom-element';
@@ -13,12 +15,15 @@ import type { RegionDomSpec } from './region-dom.types';
 /**
  * Показ одной области: на каждое состояние модель считает `RegionFrame`, тело
  * области пересоздаётся целиком. Ввод в полях хранят черновики, фокус
- * возвращается по ключу. Цель — любой элемент.
+ * возвращается по ключу. Цель — любой элемент. Справка: кнопка в шапке и блок
+ * из модели; «открыто» решает кадр (`toggleHelp`), а область после щелчка
+ * заново считает модель из последнего состояния — старую не рисует.
  */
 export class RegionDom implements PageRegionPresenter<HTMLElement> {
   private readonly body: BodyDom;
   private readonly focus = new FocusKeeper();
   private target: HTMLElement | undefined;
+  private state: PageViewState | undefined;
   private last: RegionModel | undefined;
 
   constructor(private readonly spec: RegionDomSpec) {
@@ -34,10 +39,23 @@ export class RegionDom implements PageRegionPresenter<HTMLElement> {
   show(source: ViewSource<PageViewState>, target: HTMLElement): () => void {
     this.target = target;
     return source.subscribe((state) => {
-      this.last = this.spec.frame.next(state);
-      this.draw();
-      this.spec.onModel?.(this.last);
+      this.state = state;
+      this.refresh(state);
     });
+  }
+
+  /** Новая модель из состояния: показать и сообщить. */
+  private refresh(state: PageViewState): void {
+    const model = this.spec.frame.next(state);
+    this.last = model;
+    this.draw();
+    this.spec.onModel?.(model);
+  }
+
+  /** Щелчок «Справка»: решает кадр, модель — заново из последнего состояния. */
+  private toggleHelp(): void {
+    this.spec.frame.toggleHelp();
+    if (this.state !== undefined) this.refresh(this.state);
   }
 
   /** Перерисовать последнюю модель (например, после «забыть черновики»). */
@@ -66,6 +84,7 @@ export class RegionDom implements PageRegionPresenter<HTMLElement> {
     return [
       h('div', { class: 'region-head' }, [
         h('h2', { text: model.title }),
+        this.helpButton(model.help),
         close === undefined
           ? undefined
           : h('button', {
@@ -131,7 +150,43 @@ export class RegionDom implements PageRegionPresenter<HTMLElement> {
             }),
           ]
         : []),
+      ...(model.help?.open === true ? [this.helpBlock(model.help)] : []),
       ...this.body.build(model),
     ];
+  }
+
+  /** Кнопка «Справка»; у модели без справки — нет. */
+  private helpButton(help: HelpModel | undefined): HTMLElement | undefined {
+    if (help === undefined) return undefined;
+    return h('button', {
+      type: 'button',
+      text: HELP_TEXTS.button,
+      data: { 'focus-key': 'help' },
+      aria: {
+        expanded: String(help.open),
+        ...(help.open ? { controls: ControlIds.sheet(this.spec.name) } : {}),
+      },
+      click: () => this.toggleHelp(),
+    });
+  }
+
+  /** Блок справки: заголовок и подсказка абзацами, разделы — списками. */
+  private helpBlock(help: HelpModel): HTMLElement {
+    return h(
+      'section',
+      { class: 'help', id: ControlIds.sheet(this.spec.name) },
+      [
+        h('p', { class: 'help-title', text: help.title }),
+        ...(help.hint === undefined ? [] : [h('p', { text: help.hint })]),
+        ...help.sections.flatMap((section) => [
+          h('h3', { text: section.heading }),
+          h(
+            'ul',
+            {},
+            section.lines.map((line) => h('li', { text: line })),
+          ),
+        ]),
+      ],
+    );
   }
 }

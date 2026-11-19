@@ -7,6 +7,7 @@ export const FollowAssignedStoryDef = StoryDef.define({
   name: 'followAssigned',
   label: 'Поручения',
   description: 'Пользователь смотрит задачи, которые ему поручили.',
+  hint: 'Смотрите, что вам поручили, и выполняйте поручения',
   callers: ['user'],
   goal: 'чтобы видеть, что поручили мне',
   start: AssignedTasksScreenDef,

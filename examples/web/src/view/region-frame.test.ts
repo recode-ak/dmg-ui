@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import { testUuid, useTempDir } from 'dmg-core/testing';
-import { ASSIGNED_ID, CARD_ID, LIST_ID } from 'dmg-ui/testing';
+import {
+  ASSIGNED_ID,
+  CARD_ID,
+  FollowAssignedStoryDef,
+  LIST_ID,
+  MainMenuScreenDef,
+  TaskListScreenDef,
+} from 'dmg-ui/testing';
 import type { PageViewState } from 'dmg-ui/web-ui';
 import {
   exampleWorld,
@@ -12,6 +19,7 @@ import {
 } from '../testing/example-world';
 import { RegionFrame } from './region-frame';
 import type { RegionModel } from './region-model.types';
+import { HELP_TEXTS } from './view-texts.const';
 
 // Модель области — то, что видит человек: пометки, приглушение, строки,
 // формы, «держать прежний показ при переходе». Чистая функция состояния
@@ -512,5 +520,162 @@ describe('RegionFrame — приглушённая область хранит �
 
     expect(create?.enabled).toBe(false);
     expect(create).not.toHaveProperty('reason');
+  });
+});
+
+describe('RegionFrame — справка области', () => {
+  const missing = { screen: CARD_ID, params: { taskId: testUuid(9) } };
+  const toCard = (id: string): PageViewState => ({
+    status: 'loading',
+    address: { screen: CARD_ID, params: { taskId: id } },
+    refreshing: false,
+    issues: [],
+  });
+  /** Строки раздела `heading` справки; раздела нет — пусто. */
+  const linesOf = (model: RegionModel, heading: string): readonly string[] =>
+    model.help?.sections.find((section) => section.heading === heading)
+      ?.lines ?? [];
+
+  test('готовый вид: справка закрыта, заголовок — подпись экрана, подсказка — из Def, разделы не пусты', async () => {
+    const { a, frame } = await world();
+
+    const model = frame.next(a.client.region('main'));
+
+    expect(model.help).toMatchObject({
+      open: false,
+      title: TaskListScreenDef.label,
+      hint: TaskListScreenDef.hint!,
+    });
+    expect(model.help?.sections.length).toBeGreaterThan(0);
+  });
+
+  test('справка называет отключённое с причиной из вида; подписи — из Def', async () => {
+    const { a, frame } = await world();
+    const { actions } = TaskListScreenDef;
+
+    const model = frame.next(a.client.region('main'));
+
+    const lines = linesOf(model, HELP_TEXTS.items);
+    expect(lines).toContain(
+      `${actions.completeSelected.label} (${HELP_TEXTS.unavailable}: Отметьте открытые задачи)`,
+    );
+    expect(lines).toContain(
+      `${actions.prev.label} (${HELP_TEXTS.unavailable}: Это первая страница)`,
+    );
+    expect(lines).toContain(`${actions.jumpTo.label} — ${actions.jumpTo.hint}`);
+  });
+
+  test('справка меню: двери по подписям Def, подсказка «Назначенные мне» — из сторис; у «Мои задачи» (две сторис) подсказки нет', async () => {
+    const { a, frame } = await world();
+    await a.client.route('/menu');
+    const { actions } = MainMenuScreenDef;
+
+    const model = frame.next(a.client.region('main'));
+
+    expect(model.help?.title).toBe(MainMenuScreenDef.label);
+    const leads = linesOf(model, HELP_TEXTS.leads);
+    expect(leads).toContain(
+      `${actions.assigned.label} — ${FollowAssignedStoryDef.hint}`,
+    );
+    expect(leads).toContain(actions.tasks.label);
+    expect(linesOf(model, HELP_TEXTS.items)).toEqual([actions.close.label]);
+  });
+
+  test('справки нет у пустой области и у отказа', async () => {
+    const { a, frame } = await world();
+    await a.client.openLink(missing);
+
+    expect(frame.next(empty).help).toBeUndefined();
+    expect(frame.next(a.client.region('side')).status).toBe('refused');
+    expect(frame.next(a.client.region('side')).help).toBeUndefined();
+  });
+
+  test('первая загрузка — справки нет; загрузка с удерживаемым телом — прежняя справка той же области', async () => {
+    const { a, frame } = await world();
+    expect(frame.next(toCard(testUuid(5))).help).toBeUndefined();
+    const before = frame.next(a.client.region('main'));
+
+    const model = frame.next(toCard(testUuid(5)));
+
+    expect(model.status).toBe('loading');
+    expect(model.help?.title).toBe(before.help?.title);
+    expect(model.help?.sections).toEqual(before.help?.sections ?? []);
+  });
+
+  test('toggleHelp открывает справку и закрывает её повторно', async () => {
+    const { a, frame } = await world();
+    const state = a.client.region('main');
+    frame.next(state);
+
+    frame.toggleHelp();
+    expect(frame.next(state).help?.open).toBe(true);
+
+    frame.toggleHelp();
+    expect(frame.next(state).help?.open).toBe(false);
+  });
+
+  test('открытая справка остаётся открытой, а разделы прежними при перерисовке того же экрана: перечитывание, новая ревизия, нет связи, ожидаемый итог', async () => {
+    const { a, frame } = await world();
+    const ready = frame.next(a.client.region('main'));
+    frame.toggleHelp();
+
+    const refreshed = frame.next({
+      ...a.client.region('main'),
+      refreshing: true,
+    });
+    await a.client.local('main', 'toggle', { taskId: 'Хлеб' });
+    const changed = frame.next(a.client.region('main'));
+    const offline = frame.next({
+      ...a.client.region('main'),
+      stale: 'offline',
+    });
+    const expecting = frame.next({
+      ...a.client.region('main'),
+      expected: true,
+    });
+
+    for (const model of [refreshed, changed, offline, expecting]) {
+      expect(model.help?.open).toBe(true);
+    }
+    expect(refreshed.help?.sections).toEqual(ready.help?.sections ?? []);
+    expect(offline.help?.sections).toEqual(changed.help?.sections ?? []);
+    expect(expecting.help?.sections).toEqual(changed.help?.sections ?? []);
+    expect(offline.busy).toBe(true);
+    expect(expecting.busy).toBe(true);
+  });
+
+  test('открытая справка закрывается при смене экрана области; новый экран открывается закрытым', async () => {
+    const { a, frame } = await world();
+    frame.next(a.client.region('main'));
+    frame.toggleHelp();
+    expect(frame.next(a.client.region('main')).help?.open).toBe(true);
+
+    const next = frame.next(a.client.region('side'));
+
+    expect(next.screen).toBe(CARD_ID);
+    expect(next.help?.open).toBe(false);
+    expect(frame.next(a.client.region('main')).help?.open).toBe(false);
+  });
+
+  test('toggleHelp до первого состояния — ничего не ломает', async () => {
+    const { a } = await world();
+    const frame = new RegionFrame();
+
+    frame.toggleHelp();
+
+    expect(frame.next(a.client.region('main')).help?.open).toBe(false);
+  });
+
+  test('у каждой области свой кадр: открытая справка одной не открывает справку другой', async () => {
+    const { a } = await world();
+    const main = new RegionFrame();
+    const side = new RegionFrame();
+    main.next(a.client.region('main'));
+    side.next(a.client.region('side'));
+
+    main.toggleHelp();
+
+    expect(main.next(a.client.region('main')).help?.open).toBe(true);
+    expect(side.next(a.client.region('side')).help?.open).toBe(false);
   });
 });

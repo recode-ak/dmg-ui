@@ -1,25 +1,58 @@
+import { type AnyUiAppDef, type HelpSheet, ScreenHelp } from 'dmg-ui';
 import {
   PageFormModel,
   type PageFormSet,
   type PageViewState,
 } from 'dmg-ui/web-ui';
+import { ExamplePagesAppDef } from 'dmg-ui/web-ui/testing';
 import { BodyFreeze } from './body-freeze';
 import { exampleWebViews } from './example-views';
+import { HelpLines } from './help-lines';
 import { RegionControls } from './region-controls';
 import type { RegionMark, RegionModel, ScreenBody } from './region-model.types';
 import { GESTURE_ACTIONS, MARK_TEXTS } from './view-texts.const';
+
+/** Прежний показ: тело, ревизия и лист справки того же вида. */
+type Shown = {
+  readonly body: ScreenBody;
+  readonly revision: number | undefined;
+  readonly sheet: HelpSheet;
+};
 
 /**
  * Кадр одной области: из состояния области — её модель. Хранит последнее
  * тело готового вида, чтобы при переходе держать прежний показ: приглушённый,
  * без управления, с пометкой «Загрузка…». Пустая область и отказ прежний
- * показ сбрасывают. Чистый: ни DOM, ни среды.
+ * показ сбрасывают. Справка — тоже решение кадра: лист по виду (`ScreenHelp`),
+ * «открыта или закрыта» помнит кадр: открытая остаётся при перерисовке того же
+ * экрана и закрывается при смене экрана. Чистый: ни DOM, ни среды.
  */
 export class RegionFrame {
   private readonly forms = new PageFormModel(exampleWebViews.set);
   private readonly controls = new RegionControls(GESTURE_ACTIONS);
   private readonly freezer = new BodyFreeze();
-  private held: { body: ScreenBody; revision: number | undefined } | undefined;
+  private readonly help: ScreenHelp;
+  private held: Shown | undefined;
+  private helpOpen = false;
+  /** Экран, для которого справка открывалась или показана последний раз. */
+  private helpScreen: string | undefined;
+
+  /**
+   * `app` — приложение, по которому строится справка (то же, что получил
+   * `PageClient`), или готовый `ScreenHelp`; по умолчанию — учебное.
+   */
+  constructor(app: AnyUiAppDef | ScreenHelp = ExamplePagesAppDef) {
+    this.help = app instanceof ScreenHelp ? app : new ScreenHelp(app);
+  }
+
+  /**
+   * Открыть справку области или закрыть. Показанной справки нет (пустая
+   * область, отказ, первая загрузка) — ничего: открывать нечего.
+   */
+  toggleHelp(): void {
+    if (this.held === undefined) return;
+    this.helpOpen = !this.helpOpen;
+  }
 
   next(state: PageViewState): RegionModel {
     const screen = RegionFrame.screenOf(state);
@@ -45,15 +78,15 @@ export class RegionFrame {
       ...(shown?.revision === undefined ? {} : { revision: shown.revision }),
       ...(shown === undefined
         ? {}
-        : { body: busy ? this.freezer.freeze(shown.body) : shown.body }),
+        : {
+            body: busy ? this.freezer.freeze(shown.body) : shown.body,
+            help: HelpLines.of(shown.sheet, this.helpOpen),
+          }),
     };
   }
 
   /** Тело и ревизия для показа; обновляет прежний показ по статусу. */
-  private shown(
-    state: PageViewState,
-    forms: PageFormSet,
-  ): { body: ScreenBody; revision: number | undefined } | undefined {
+  private shown(state: PageViewState, forms: PageFormSet): Shown | undefined {
     const view = state.view;
     if (state.status === 'ready' && view !== undefined) {
       const screen = exampleWebViews.findScreen(view.screen);
@@ -63,12 +96,21 @@ export class RegionFrame {
           : {
               body: screen.body(view, this.controls.of(forms)),
               revision: view.revision,
+              sheet: this.help.of(view),
             };
+      this.keepHelp(this.held === undefined ? undefined : view.screen);
       return this.held;
     }
     if (state.status === 'loading') return this.held;
     this.held = undefined;
+    this.keepHelp(undefined);
     return undefined;
+  }
+
+  /** Справка открыта только на том экране, где её открыли: смена экрана закрывает. */
+  private keepHelp(screen: string | undefined): void {
+    if (screen !== this.helpScreen) this.helpOpen = false;
+    this.helpScreen = screen;
   }
 
   /** Экран области: готовый вид — по виду, загрузка — по адресу цели. */

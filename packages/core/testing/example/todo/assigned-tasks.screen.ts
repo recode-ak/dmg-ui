@@ -27,6 +27,7 @@ export const AssignedTasksScreenDef = ScreenDef.define({
   name: 'assignedTasks',
   label: 'Назначенные мне',
   description: 'Задачи других владельцев, назначенные вызывающему.',
+  hint: 'Отметьте поручения и выполните их разом',
   reads: [ListAssignedTasksUcDef],
   data: v.object({
     tasks: v.pipe(v.array(taskRow), v.description('Назначенные задачи')),

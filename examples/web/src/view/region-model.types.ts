@@ -125,6 +125,23 @@ export type ScreenBody =
   | UserBody
   | MenuBody;
 
+/** Раздел справки: заголовок и строки. */
+export type HelpSection = {
+  readonly heading: string;
+  readonly lines: readonly string[];
+};
+
+/**
+ * Справка области: открыта ли, заголовок экрана, его подсказка и разделы
+ * строк. Строки готовы — DOM только кладёт их текстом.
+ */
+export type HelpModel = {
+  readonly open: boolean;
+  readonly title: string;
+  readonly hint?: string;
+  readonly sections: readonly HelpSection[];
+};
+
 /**
  * Модель области — то, что видит человек; данные JSON. `busy` — область
  * приглушена, всё управление отключено.
@@ -142,4 +159,6 @@ export type RegionModel = {
   readonly refusal?: string;
   readonly revision?: number;
   readonly body?: ScreenBody;
+  /** Справка: у готового вида и у удерживаемого при переходе; у пустой области и отказа ключа нет. */
+  readonly help?: HelpModel;
 };

@@ -1,4 +1,11 @@
-import { type DomainError, ok, type Result, Trace, UserCaller } from 'dmg-core';
+import {
+  DelegateCaller,
+  type DomainError,
+  ok,
+  type Result,
+  Trace,
+  UserCaller,
+} from 'dmg-core';
 import {
   AwaitingBus,
   MemoryLogger,
@@ -114,6 +121,8 @@ export class AcceptanceWorld {
   readonly calls: string[] = [];
   /** Кто из людей сейчас администратор; смена — между показами. */
   readonly administrators = new Set<string>([C]);
+  /** Кто из людей сейчас работает заместителем «только чтение»; смена — между показами. */
+  readonly deputies = new Set<string>();
   readonly callers: RecipientCallers<ExampleUser>;
   readonly conversations: Conversations<ExampleUser>;
   private readonly inner: ApiAppDispatch<ExampleUser>;
@@ -140,10 +149,20 @@ export class AcceptanceWorld {
       },
     };
     this.callers = {
-      resolve: async (uuid, trace) =>
-        this.administrators.has(uuid)
-          ? ok(new UserCaller({ uuid, hasRole: (role) => role === 'admin' }))
-          : this.example.callers.resolve(uuid, trace),
+      resolve: async (uuid, trace) => {
+        if (this.administrators.has(uuid)) {
+          return ok(
+            new UserCaller({ uuid, hasRole: (role) => role === 'admin' }),
+          );
+        }
+        const caller = await this.example.callers.resolve(uuid, trace);
+        if (!caller.ok || !this.deputies.has(uuid)) return caller;
+        const subject = caller.value.subject();
+        if (subject === undefined) return caller;
+        return ok(
+          new DelegateCaller<ExampleUser>(subject, subject, `d-${uuid}`, true),
+        );
+      },
     };
     this.server = new UiServer({
       set: ExampleUiSetDef,

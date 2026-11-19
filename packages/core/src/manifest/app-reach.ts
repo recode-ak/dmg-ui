@@ -1,22 +1,28 @@
 import type { ScreenAction } from './screen-action';
 import type { AnyScreenDef } from './screen-def.types';
 import type { AnyStoryDef } from './story-def.types';
+import { StoryDoors } from './story-doors';
 import type { AnyUiAppDef } from './ui-app-def.types';
 
 /**
- * Состав приложения UI (D-UI-95): какие сторис из связей его сторис в него не
- * вошли и какое действие ведёт только в них. Одно решение для графа (ребро
- * `omits`) и исполнителя (вид и `act`); канал его не принимает. Без
- * приложения (превью, исполнитель без приложения) ничего не отрезано.
+ * Состав приложения UI (D-UI-95, D-UI-107): какие сторис из связей его
+ * сторис в него не вошли, какое действие ведёт только в них и какие действия
+ * — двери (`doors`). Одно решение для графа (ребро `omits`) и исполнителя
+ * (вид и `act`); канал его не принимает. Без приложения (превью, исполнитель
+ * без приложения) ничего не отрезано и дверей нет.
  */
 export class AppReach {
   private constructor(
     private readonly left: readonly AnyStoryDef[],
     private readonly cutScreens: ReadonlySet<AnyScreenDef>,
+    /** Двери экранов приложения: подсказка двери в виде экземпляра. */
+    readonly doors: StoryDoors,
   ) {}
 
   static of(app: AnyUiAppDef | undefined): AppReach {
-    if (app === undefined) return new AppReach([], new Set());
+    if (app === undefined) {
+      return new AppReach([], new Set(), StoryDoors.of(undefined));
+    }
     const inside = new Set(app.stories);
     const left = new Set<AnyStoryDef>();
     for (const story of app.stories) {
@@ -28,7 +34,7 @@ export class AppReach {
     const cut = [...left]
       .flatMap((story) => story.screens)
       .filter((screen) => !screens.has(screen));
-    return new AppReach([...left], new Set(cut));
+    return new AppReach([...left], new Set(cut), StoryDoors.of(app));
   }
 
   /**

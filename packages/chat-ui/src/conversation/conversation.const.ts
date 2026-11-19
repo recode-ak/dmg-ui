@@ -85,6 +85,18 @@ export const CONVERSATION_HOME = 'start';
 export const CONVERSATION_LIMIT = 1000;
 
 /**
+ * Тексты справки беседы (`HelpText`): заголовок, разделы, пометка
+ * недоступного; `nothing` — общая справка без корней.
+ */
+export const HELP_TEXTS = {
+  title: 'Справка',
+  items: 'Что можно сделать:',
+  leads: 'Куда можно пойти:',
+  unavailable: 'недоступно',
+  nothing: 'Справки пока нет.',
+} as const;
+
+/**
  * Тексты беседы: собеседнику и записям лога (в записях — без данных
  * собеседника). `closed` и `unknownRef` собеседнику приложение может
  * заменить (`ConversationsSpec.texts`).

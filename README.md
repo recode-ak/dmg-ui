@@ -62,7 +62,7 @@ bun add valibot @valibot/to-json-schema \
 - [`packages/tg-bot/`](packages/tg-bot/testing/telegram-story.test.ts) — канал Telegram: сторис на подставном порте Bot API; подробно — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md).
 - [`packages/web-ui/src/`](packages/web-ui/src/server/page-host.ts) — страничный канал: несколько областей, между клиентом и сервером только JSON; подключение — гайд [Web-канал](docs/guides/web-channel.md).
 
-Оба канала проводят одну и ту же сторис при общем коде экранов; так проверяется нейтральность ядра ([D-UI-31](docs/decisions.md)). Сквозная проверка лежит на уровне монорепо, в [`acceptance/`](acceptance/channels-story.test.ts): один файл, шесть сценариев на двух каналах и общем мире (`acceptance/support/`), плюс проверки нейтральности и состава; `tg-bot` проверяется своими тестами ([D-UI-102](docs/decisions.md)).
+Оба канала проводят одну и ту же сторис при общем коде экранов; так проверяется нейтральность ядра ([D-UI-31](docs/decisions.md)). Сквозная проверка лежит на уровне монорепо, в [`acceptance/`](acceptance/channels-story.test.ts): один файл, семь сценариев на двух каналах и общем мире (`acceptance/support/`), плюс проверки нейтральности и состава; `tg-bot` проверяется своими тестами ([D-UI-102](docs/decisions.md)).
 
 ## Документы
 

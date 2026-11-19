@@ -113,6 +113,11 @@ export type {
   UcCall,
   UcPort,
 } from './runtime/ports.types';
+export {
+  type HelpItem,
+  type HelpSheet,
+  ScreenHelp,
+} from './runtime/screen-help';
 export type { ScreenInstance } from './runtime/screen-instance';
 export {
   type NotificationPreview,

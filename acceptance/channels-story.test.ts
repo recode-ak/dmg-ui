@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { AppGraph } from 'dmg-core/graph';
 import { useTempDir } from 'dmg-core/testing';
 import { ExampleAppDef } from 'dmg-core/testing/example';
+import { type HelpSheet, ScreenHelp } from 'dmg-ui';
 import type { ConversationExit } from 'dmg-ui/chat-ui';
 import {
   ExampleDialogAppDef,
@@ -13,9 +14,12 @@ import { UiGraphProvider } from 'dmg-ui/graph';
 import {
   ExampleUiSetDef,
   exampleCodes,
+  FollowAssignedStoryDef,
   LIST_ID,
+  MainMenuScreenDef,
   type MemoryUiObserver,
   TaskListScreenDef,
+  ViewUserStoryDef,
 } from 'dmg-ui/testing';
 import { oplogRecords } from 'dmg-ui/testing/fixtures';
 import type { PageHistoryEntry, PagePlacement } from 'dmg-ui/web-ui';
@@ -35,7 +39,7 @@ import {
 import { LiarAssignedCode } from './support/liar-assigned.code';
 import type { PageTab } from './support/page-tab';
 
-// Приёмка шести сценариев и нейтральности ядра на двух каналах — беседе
+// Приёмка семи сценариев и нейтральности ядра на двух каналах — беседе
 // (подставной мессенджер) и странице (клиент на проводе в памяти) — над одним
 // кодом экранов, одними экранами и сторис. Общий мир, люди и вкладки — в
 // `support/`; здесь только сценарии.
@@ -48,6 +52,7 @@ import type { PageTab } from './support/page-tab';
 // | 4 «Менторы» без менторов: видно, но закрыто        | `createTask` закрыт правилом лимита, с текстом отказа        | сценарий 4   |
 // | 5 поле email с пояснением                          | `jumpTo.part` (число 1…99), `create.title` (строка с подсказкой и примером) | сценарий 5   |
 // | 6 мастерская → окно → действия → закрыл → «Назад» в школу | меню → «Мои задачи» → окно над списком → «Назад»      | сценарий 6   |
+// | 7 справка по живому экрану                         | `/help`: одно содержание в беседе и на странице, скрытого нет, `/help` не вызывает UC | сценарий 7   |
 // | нейтральность: один код экранов                    | исходы и состояние равны, общий набор, порт выхода           | нейтральность |
 //
 // Лог операций между каналами не сравнивается: страничный канал держит
@@ -1073,6 +1078,188 @@ describe('сценарий 6 — меню → «Мои задачи» → окн
     expect(p.tab.client.region('main').view?.screen).toBe(LIST_ID);
     await p.history.back();
     expectMenuOnly(p.tab);
+  });
+});
+
+describe('сценарий 7 — справка по живому экрану: одно содержание на двух каналах, скрытого нет', () => {
+  const READ_ONLY_TEXT = 'Только чтение: изменения недоступны';
+  const SELECT_REASON = 'Отметьте открытые задачи';
+  const { actions: menuActions } = MainMenuScreenDef;
+  const { actions: listActions } = TaskListScreenDef;
+
+  /** Вид основной области вкладки; нет вида — ошибка сцены. */
+  const mainView = (tab: PageTab) => {
+    const view = tab.client.region('main').view;
+    if (view === undefined) throw new Error('в основной области нет вида');
+    return view;
+  };
+
+  /** Строки справки беседы: каждый пункт листа — своей строкой «• …». */
+  const bullets = (text: string) =>
+    text.split('\n').filter((line) => line.startsWith('• '));
+
+  /** Текст беседы называет заголовок, а у каждого пункта листа — подпись, подсказку и причину. */
+  const expectText = (text: string, sheet: HelpSheet) => {
+    const items = [...sheet.items, ...sheet.leads];
+    expect(text).toContain(`Справка: ${sheet.title}`);
+    if (sheet.hint !== undefined) expect(text).toContain(sheet.hint);
+    expect(bullets(text)).toHaveLength(items.length);
+    for (const item of items) {
+      const line = bullets(text).find((one) => one.includes(item.label));
+      expect(line).toBeDefined();
+      if (item.hint !== undefined) expect(line).toContain(item.hint);
+      if (item.disabled !== undefined) expect(line).toContain(item.disabled);
+    }
+  };
+
+  test.each([
+    ['меню', 'menu', '/menu'],
+    ['«Мои задачи»', 'start', '/'],
+  ])(
+    '%s: лист справки на одном виде равен для приложений обоих каналов; текст беседы называет те же подписи, подсказки и причины',
+    async (_, entry, route) => {
+      const w = worldOf(`help-same-${entry}`);
+      const a = w.person(A);
+      const tab = await w.tab(A);
+      await tab.client.route(route);
+      const view = mainView(tab);
+      const page = new ScreenHelp(ExamplePagesAppDef).of(view);
+      const dialog = new ScreenHelp(ExampleDialogAppDef).of(view);
+
+      await a.enter(entry);
+      await a.help();
+
+      expect(dialog).toEqual(page);
+      expect(page.items.length + page.leads.length).toBeGreaterThan(0);
+      expectText(a.text(), page);
+    },
+  );
+
+  test('беседа, меню: справка показывает подсказку сторис followAssigned у «Назначенные мне»; в самом меню та же строка', async () => {
+    const w = worldOf('help-menu-door');
+    const a = w.person(A);
+    await a.enter('menu');
+    const line = `${menuActions.assigned.label} — ${FollowAssignedStoryDef.hint}`;
+    expect(a.liveText().split('\n')).toContain(line);
+
+    await a.help();
+
+    expect(a.text().split('\n')).toContain(`• ${line}`);
+    expect(a.text()).not.toContain(`${menuActions.tasks.label} —`);
+  });
+
+  test('беседа, «Мои задачи»: «Назад» называется по Def, причины отключённого — из вида', async () => {
+    const w = worldOf('help-list-reasons');
+    const a = w.person(A);
+    await a.enter('start');
+
+    await a.help();
+
+    const lines = a.text().split('\n');
+    expect(lines).toContain(
+      `• ${listActions.prev.label} (недоступно: Это первая страница)`,
+    );
+    expect(lines).toContain(
+      `• ${listActions.completeSelected.label} (недоступно: ${SELECT_REASON})`,
+    );
+  });
+
+  test('скрытого нет: исполнитель-не-владелец выбрал поручение — «Выполнить выбранные» ни в справке беседы, ни в тексте, ни в листе страницы', async () => {
+    const w = worldOf('help-hidden');
+    await w.assignedToBAndC();
+    const b = w.person(B);
+    const tab = await w.tab(B);
+    await b.enter('assigned');
+    await b.select('Хлеб');
+    await tab.client.route('/assigned');
+    await tab.client.local('main', 'toggle', { taskId: 'Хлеб' });
+
+    await b.help();
+
+    const sheet = new ScreenHelp(ExamplePagesAppDef).of(mainView(tab));
+    const names = [...sheet.items, ...sheet.leads].map((item) => item.name);
+    expect(b.text()).toContain('Справка: Назначенные мне');
+    expect(b.text()).not.toContain(COMPLETE_ALL);
+    expect(names).not.toContain('completeSelected');
+    expect(JSON.stringify(sheet)).not.toContain(COMPLETE_ALL);
+    expectText(b.text(), sheet);
+  });
+
+  test('скрытого нет, но видно положенное: администратор выбрал поручение — «Выполнить выбранные» названо', async () => {
+    const w = worldOf('help-admin');
+    await w.assignedToBAndC();
+    const c = w.person(C);
+    await c.enter('assigned');
+    await c.select('Молоко');
+
+    await c.help();
+
+    expect(c.text()).toContain(COMPLETE_ALL);
+    expect(c.text()).not.toContain('недоступно: Отметьте');
+  });
+
+  test('заместитель «только чтение»: действия с UC названы отключёнными с текстом ядра — в беседе и в листе страницы', async () => {
+    const w = worldOf('help-deputy');
+    await w.ownTask();
+    w.deputies.add(A);
+    const a = w.person(A);
+    const tab = await w.tab(A);
+    await tab.client.route('/');
+    await a.enter('start');
+
+    await a.help();
+
+    const sheet = new ScreenHelp(ExamplePagesAppDef).of(mainView(tab));
+    const reasons = sheet.items.filter(
+      (item) => item.disabled === READ_ONLY_TEXT,
+    );
+    expect(reasons.map((item) => item.name)).toEqual(
+      expect.arrayContaining(['create', 'completeSelected']),
+    );
+    expect(a.text()).toContain(
+      `• ${listActions.create.label} (недоступно: ${READ_ONLY_TEXT})`,
+    );
+    expectText(a.text(), sheet);
+  });
+
+  test('отрезанное составом: в приложении без viewUser «Карточка исполнителя» не названа, в основном — названа с подсказкой сторис', async () => {
+    const trimmed = worldOf('help-trimmed', {
+      dialogApp: ExampleTrimmedDialogAppDef,
+    });
+    const full = worldOf('help-full');
+    const t = trimmed.person(A);
+    const f = full.person(A);
+    await t.enter('assigned');
+    await f.enter('assigned');
+
+    await t.help();
+    await f.help();
+
+    expect(t.text()).not.toContain(CARD);
+    expect(f.text()).toContain(`• ${CARD} — ${ViewUserStoryDef.hint}`);
+  });
+
+  test('/help не вызывает UC и не меняет экран: вызовы и записи действий прежние, подписи и текст живого места те же, кнопки живы', async () => {
+    const w = worldOf('help-untouched');
+    await w.ownTask();
+    const a = w.person(A);
+    await a.enter('start');
+    const calls = [...w.calls];
+    const acted = w.observer.records.filter((r) => r.kind === 'acted').length;
+    const labels = a.labels();
+    const live = a.liveText();
+
+    await a.help();
+    await a.help();
+
+    expect(w.calls).toEqual(calls);
+    expect(w.observer.records.filter((r) => r.kind === 'acted')).toHaveLength(
+      acted,
+    );
+    expect(a.labels()).toEqual(labels);
+    expect(a.liveText()).toBe(live);
+    await a.press(TOGGLE);
+    expect(a.labels()).not.toEqual(labels);
   });
 });
 

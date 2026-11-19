@@ -25,8 +25,8 @@ export const LINK_KEY = /^[A-Za-z0-9_-]{1,64}$/;
 /** Формат ключа ссылки — для текста нарушения TG-02. */
 export const LINK_KEY_FORMAT = '[A-Za-z0-9_-]{1,64}';
 
-/** Команды, которые приём отдаёт беседе раньше таблицы. */
-export const RESERVED_COMMANDS = ['cancel', 'back'] as const;
+/** Команды, которые приём отдаёт беседе раньше таблицы (TG-04): отмена, «Назад», справка. */
+export const RESERVED_COMMANDS = ['cancel', 'back', 'help'] as const;
 
 /** Команда `/start` — вход новичка (кнопка «Запустить» в пустом чате). */
 export const START_COMMAND = 'start';

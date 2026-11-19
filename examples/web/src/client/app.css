@@ -94,6 +94,11 @@ body {
   font-size: 1.15rem;
 }
 
+/* Кнопки шапки — справа: заголовок занимает остаток строки. */
+.region-head h2 {
+  margin-right: auto;
+}
+
 .marks {
   display: flex;
   flex-wrap: wrap;
@@ -405,4 +410,36 @@ select:focus-visible {
 
 .example-choice button {
   width: 100%;
+}
+
+/* Блок справки области: не наследует приглушённый мелкий вид подсказки поля
+   (`.help`), переносит длинные строки на узком экране. */
+section.help {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  color: var(--fg);
+  font-size: 0.95rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+section.help p {
+  margin: 0 0 6px;
+}
+
+section.help .help-title {
+  font-weight: 600;
+}
+
+section.help h3 {
+  margin: 8px 0 4px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+section.help ul {
+  margin: 0;
+  padding-left: 20px;
 }

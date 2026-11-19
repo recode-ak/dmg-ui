@@ -6,6 +6,7 @@ export const ViewUserStoryDef = StoryDef.define({
   name: 'viewUser',
   label: 'Карточка пользователя',
   description: 'Пользователь смотрит карточку учётной записи.',
+  hint: 'Посмотрите, активна ли учётная запись',
   callers: ['user'],
   goal: 'чтобы увидеть, активна ли учётная запись',
   start: UserCardScreenDef,

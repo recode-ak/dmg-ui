@@ -39,6 +39,9 @@ export class ExamplePage {
   /** Последние модели областей — для решений вне области (приём перетаскивания). */
   private readonly models = new Map<ExampleRegion, RegionModel>();
 
+  /** Приложение страницы: одно для клиента и для справки областей. */
+  private readonly app = ExamplePagesAppDef;
+
   constructor(private readonly env: ExamplePageEnv) {}
 
   async start(): Promise<void> {
@@ -59,7 +62,7 @@ export class ExamplePage {
     const end = await reconnector.connect().catch(() => undefined);
     if (end === undefined) return;
     const client = new PageClient({
-      app: ExamplePagesAppDef,
+      app: this.app,
       codes: exampleCodes(),
       routes: examplePageRoutes,
       end,
@@ -96,13 +99,13 @@ export class ExamplePage {
     new RegionDom({
       ...common,
       name: 'main',
-      frame: new RegionFrame(),
+      frame: new RegionFrame(this.app),
       onModel: remember('main'),
     }).show(client.source('main'), layout.main);
     new RegionDom({
       ...common,
       name: 'side',
-      frame: new RegionFrame(),
+      frame: new RegionFrame(this.app),
       close: () => gestures.closeRegion('side'),
       placeholder: CLIENT_TEXTS.sidePlaceholder,
       onModel: remember('side'),
@@ -111,7 +114,7 @@ export class ExamplePage {
     new RegionDom({
       ...common,
       name: 'modal',
-      frame: new RegionFrame(),
+      frame: new RegionFrame(this.app),
       close: () => gestures.closeRegion('modal'),
       onModel: (model) => {
         modal(model);

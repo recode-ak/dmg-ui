@@ -35,3 +35,11 @@ export const FIELD_TEXTS = {
   example: 'Пример',
   limits: 'Пределы',
 } as const;
+
+/** Тексты справки области: подпись кнопки, заголовки разделов, слово «недоступно». */
+export const HELP_TEXTS = {
+  button: 'Справка',
+  items: 'Что можно сделать',
+  leads: 'Куда можно пойти',
+  unavailable: 'недоступно',
+} as const;

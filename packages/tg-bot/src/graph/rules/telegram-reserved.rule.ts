@@ -8,9 +8,9 @@ import { TelegramApps } from '../telegram-apps';
 const RESERVED: readonly string[] = RESERVED_COMMANDS;
 
 /**
- * TG-04 (D-UI-64): команда не занимает имя беседы. `cancel` и `back` приём
- * отдаёт беседе раньше таблицы, точка `command`/`menu` с таким ключом
- * недостижима; `check` не бросает.
+ * TG-04 (D-UI-64, D-UI-107): команда не занимает имя беседы. `cancel`,
+ * `back` и `help` приём отдаёт беседе раньше таблицы, точка `command`/`menu`
+ * с таким ключом недостижима; `check` не бросает.
  */
 export class TelegramReservedRule implements GraphRule {
   readonly id = 'TG-04';

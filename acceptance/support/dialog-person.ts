@@ -51,6 +51,11 @@ export class DialogPerson {
     return this.conversations.receive({ ...this.head(), kind: 'enter', entry });
   }
 
+  /** Справка: сигнал `help` — команда мессенджера, переведённая в сигнал беседы. */
+  help(): Promise<void> {
+    return this.conversations.receive({ ...this.head(), kind: 'help' });
+  }
+
   say(text: string): Promise<void> {
     return this.conversations.receive({ ...this.head(), kind: 'text', text });
   }

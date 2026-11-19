@@ -136,11 +136,11 @@ export class TelegramSignals {
 
   /**
    * Текст, начинающийся сущностью `bot_command`. Имя — в нижнем регистре;
-   * `cancel` и `back` — раньше таблицы. `/start <параметр>`: параметр в
-   * формате и среди ключей `link` — вход той точки, иначе — как `/start`.
-   * Прочее — вход точки `command`/`menu` с этим именем, нет такой —
-   * заглушка (скажет беседа). Параметр в сигнал не идёт. Иначе `undefined` —
-   * обычный текст.
+   * `cancel`, `back` и `help` — сигналы беседы раньше таблицы (TG-04).
+   * `/start <параметр>`: параметр в формате и среди ключей `link` — вход той
+   * точки, иначе — как `/start`. Прочее — вход точки `command`/`menu` с этим
+   * именем, нет такой — заглушка (скажет беседа). Параметр в сигнал не идёт.
+   * Иначе `undefined` — обычный текст.
    */
   private command(
     head: SignalHead,
@@ -158,6 +158,8 @@ export class TelegramSignals {
         return { ...head, kind: 'cancel' };
       case 'back':
         return { ...head, kind: 'back' };
+      case 'help':
+        return { ...head, kind: 'help' };
       default:
         return {
           ...head,
