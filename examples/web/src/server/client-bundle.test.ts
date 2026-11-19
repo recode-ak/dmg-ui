@@ -39,6 +39,14 @@ describe('ClientBundle.violations — синтетический метафай�
     ['dmg-core/src/graph/', 'node_modules/dmg-core/src/graph/app-graph.ts'],
     ['dmg-core/src/cli', 'node_modules/dmg-core/src/cli/main.ts'],
     ['dmg-core/src/gen', 'node_modules/dmg-core/src/gen/scaffold.ts'],
+    [
+      'dmg-core/src/testing/example/app/',
+      'node_modules/dmg-core/src/testing/example/app/example-app.ts',
+    ],
+    [
+      'dmg-core/src/testing/example/runner/',
+      'node_modules/dmg-core/src/testing/example/runner/main.ts',
+    ],
     ['core/src/server/', 'packages/core/src/server/ui-server.ts'],
     ['core/src/graph/', 'packages/core/src/graph/ui-graph-provider.ts'],
     ['web-ui/src/server/', 'packages/web-ui/src/server/page-host.ts'],

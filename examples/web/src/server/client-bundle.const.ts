@@ -14,6 +14,8 @@ export const FORBIDDEN_SEGMENTS: readonly string[] = [
   'dmg-core/src/graph/',
   'dmg-core/src/cli',
   'dmg-core/src/gen',
+  'dmg-core/src/testing/example/app/',
+  'dmg-core/src/testing/example/runner/',
   'core/src/server/',
   'core/src/graph/',
   'web-ui/src/server/',

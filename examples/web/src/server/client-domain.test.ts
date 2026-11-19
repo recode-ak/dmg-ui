@@ -1,0 +1,65 @@
+import { describe, expect, test } from 'bun:test';
+import { join, resolve } from 'node:path';
+import { ClientBundle } from './client-bundle';
+
+// Домен на клиенте (D-UI-93): домен учебного модуля (Ar, Policy, Rules) и коды
+// экранов собираются под браузер без кода сервера. Глубокий путь
+// `dmg-core/testing/example/todo/index`: Ar, Policy и Rules нет на стабильном
+// входе.
+
+const ROOT = resolve(import.meta.dir, '../../../..');
+
+/** Виртуальный вход внутри репо: ни один файл на диск не пишется. */
+const virtual = (name: string, text: string) => {
+  const entry = join(ROOT, 'examples/web/src', `__virtual_${name}.ts`);
+  return { entry, files: { [entry]: text } };
+};
+
+const DOMAIN = `
+import { TaskAr, TaskPolicy, TaskRules } from 'dmg-core/testing/example/todo/index';
+import { exampleCodes } from 'dmg-ui/testing';
+export const domain = { TaskAr, TaskPolicy, TaskRules, exampleCodes };
+`;
+
+describe('ClientBundle — домен на клиенте', () => {
+  test('Ar, Policy, Rules и коды экранов — сборка без нарушений и без кода сервера', async () => {
+    const bundle = await ClientBundle.build(virtual('domain', DOMAIN));
+
+    expect(ClientBundle.violations(bundle)).toEqual([]);
+    for (const name of ['task.policy.ts', 'task.rules.ts', 'task.ar.ts']) {
+      expect(bundle.inputs.some((input) => input.endsWith(name))).toBe(true);
+    }
+    const has = (part: string) => bundle.inputs.some((i) => i.includes(part));
+    expect(has('dmg-core/src/app/')).toBe(false);
+    expect(has('testing/example/app/')).toBe(false);
+    expect(has('testing/example/runner/')).toBe(false);
+    expect(bundle.outputs).toBe(1);
+  });
+
+  test("тот же вход + import 'node:fs' — нарушение называет node:fs", async () => {
+    const bundle = await ClientBundle.build(
+      virtual(
+        'domain-fs',
+        `${DOMAIN}import { readFileSync } from 'node:fs'; export const f = readFileSync;`,
+      ),
+    );
+
+    expect(ClientBundle.violations(bundle).join('\n')).toContain('node:fs');
+  });
+
+  test('использованный ExampleApp — app/, node:*, Bun./process. в нарушениях', async () => {
+    const bundle = await ClientBundle.build(
+      virtual(
+        'domain-app',
+        "import { ExampleApp } from 'dmg-core/testing/example'; export const a = ExampleApp;",
+      ),
+    );
+    const found = ClientBundle.violations(bundle).join('\n');
+
+    expect(found).toContain('dmg-core/src/app/');
+    expect(found).toContain('dmg-core/src/testing/example/app/');
+    expect(found).toContain('node:');
+    expect(found).toContain('Bun\\.');
+    expect(found).toContain('process\\.');
+  });
+});
