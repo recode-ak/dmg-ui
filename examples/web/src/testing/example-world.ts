@@ -13,7 +13,14 @@ import {
   MemoryUiObserver,
 } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
-import { type ClientEnd, PageClient, PageHost, PageWire } from 'dmg-ui/web-ui';
+import {
+  type ClientEnd,
+  PageClient,
+  type PageHistoryPort,
+  PageHost,
+  type PageStepPlace,
+  PageWire,
+} from 'dmg-ui/web-ui';
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
@@ -87,12 +94,19 @@ export const exampleWorld = (dataDir: string, wrap?: DispatchWrap) => {
 
 export type ExampleWorld = ReturnType<typeof exampleWorld>;
 
+/** Необязательная сборка вкладки: история и правило шага приложения (по умолчанию — без истории и с правилом ядра). */
+export type OpenTabOptions = {
+  readonly history?: PageHistoryPort;
+  readonly stepPlace?: PageStepPlace;
+};
+
 /** Вкладка человека: свой провод (журнал), конец провода и клиент с теми же настройками, что у примера. */
 export const openTab = async (
   world: ExampleWorld,
   token: string,
   prefix: string,
   faults?: (fault: UiFault) => void,
+  options: OpenTabOptions = {},
 ) => {
   const wire = new PageWire(world.host);
   const connected = await wire.connect(token);
@@ -108,6 +122,10 @@ export const openTab = async (
     observer: new MemoryUiObserver(),
     reviveSubject: exampleSubjectWire.revive,
     ...(faults === undefined ? {} : { faults }),
+    ...(options.history === undefined ? {} : { history: options.history }),
+    ...(options.stepPlace === undefined
+      ? {}
+      : { stepPlace: options.stepPlace }),
     requestIds: () => {
       requests += 1;
       return `${prefix}-${requests}`;

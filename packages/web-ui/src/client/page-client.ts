@@ -54,6 +54,7 @@ import { PageInbox } from './page-inbox';
 import { PageOverlay } from './page-overlay';
 import { PagePlacements } from './page-placements';
 import { PageRegions } from './page-regions';
+import { PageStepKey } from './page-step-key';
 import { PageSystemClock } from './page-system-clock';
 import { PageTraces } from './page-traces';
 import { WirePorts } from './wire-ports';
@@ -138,6 +139,11 @@ export class PageClient {
   private readonly history: PageHistory | undefined;
   /** Цели выходов экранов по исходам сторис приложения: решает ядро, клиент исполняет. */
   private readonly targets: ExitTargets;
+  /**
+   * Заметка выхода корня, ушедшего движением назад (D-UI-104): ставится корню
+   * в конце перехода, на который придёт вкладка (`popstate` позже).
+   */
+  private exitNote: string | undefined;
 
   /**
    * Приложение другого канала, нет входа `start` — ошибка сборки, бросок;
@@ -632,7 +638,8 @@ export class PageClient {
       return;
     }
     if (target.kind === 'back' && this.history?.returnable() === true) {
-      await this.history.back();
+      this.exitNote = note;
+      if (!(await this.history.back())) this.exitNote = undefined;
       return;
     }
     await this.open(
@@ -813,7 +820,12 @@ export class PageClient {
       for (const result of settled) {
         if (result.status === 'rejected') throw result.reason;
       }
+      // Выход корня ушёл назад — заметка у корня, на который вкладка пришла.
+      if (this.exitNote !== undefined) {
+        this.regions.mark(PAGE_ROOT_REGION, { note: this.exitNote });
+      }
     } finally {
+      this.exitNote = undefined;
       if (generation !== undefined) this.history?.traversed(generation);
     }
   }
@@ -1028,13 +1040,19 @@ export class PageClient {
   private recorded(spec: PageClientSpec): PageHistory | undefined {
     const port = spec.history;
     if (port === undefined) return undefined;
+    const steps = PageStepKey.of(spec.stepPlace, () =>
+      this.fault(PAGE_CHANNEL, new Error(PAGE_FAULTS.step)),
+    );
     const history = new PageHistory(
       port,
       {
         url: () => this.url(),
         snapshot: () => this.snapshot(),
         places: () => this.places(),
-        place: () => this.regions.state(PAGE_ROOT_REGION).address?.screen,
+        place: () => {
+          const address = this.regions.state(PAGE_ROOT_REGION).address;
+          return address === undefined ? undefined : steps.key(address);
+        },
         loading: () =>
           PAGE_REGIONS.some(
             (name) => this.regions.state(name).status === 'loading',

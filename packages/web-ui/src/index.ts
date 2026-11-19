@@ -7,7 +7,8 @@
 // конец (`PageClient.attach`). Входящие вкладки — источник вида
 // `PageClient.inbox()`; время вкладки — порт `PageClock` с умолчанием
 // `PageSystemClock`; история вкладки — порт `PageHistoryPort` с привязкой
-// `PageBrowserHistory` поверх узкого типа окна `PageBrowserWindow` (D-UI-81).
+// `PageBrowserHistory` поверх узкого типа окна `PageBrowserWindow` (D-UI-81),
+// правило шага приложения — `PageStepPlace` (D-UI-104).
 // Маршрут `PageRouteDef` и кодек адреса в URL `PageUrls` лежат в `url/`
 // (D-UI-76): строка на входе и выходе, без браузера.
 // Пределы строки кадра `MAX_CLIENT_TEXT`, `MAX_SERVER_TEXT` нужны привязке
@@ -15,9 +16,9 @@
 // Внутренние `WirePorts`, `PageConnection`, `PageOutbox`, `serverFrame`,
 // `PageRegions`, `PagePlacements`, `PageForms`, `PageInbox`, `PageSeenKeys`,
 // `ViewCell`, `PageTextPresenter`, `PagePath`, `PageParams`, `PageLayoutUrls`,
-// `PageHistory`, `PageHistoryRecord`, `PageOverlay` наружу не выходят. Жест
-// показывает ожидаемый итог до ответа — функция представления `PageExpected`
-// (D-UI-84). Областей три — основная, соседняя и модальная
+// `PageHistory`, `PageHistoryRecord`, `PageStepKey`, `PageOverlay` наружу
+// не выходят. Жест показывает ожидаемый итог до ответа — функция
+// представления `PageExpected` (D-UI-84). Областей три — основная, соседняя и модальная
 // (`PageRegionName`): куда открыть переход, объявляет приложение страниц
 // (`PagePlacement`).
 
@@ -38,6 +39,7 @@ export type {
   PageBrowserWindow,
   PageHistoryEntry,
   PageHistoryPort,
+  PageStepPlace,
 } from './client/page-history.types';
 export { PageReconnector } from './client/page-reconnector';
 export type { PageReconnectorSpec } from './client/page-reconnector.types';

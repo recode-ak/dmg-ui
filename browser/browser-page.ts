@@ -1,6 +1,6 @@
 import type { CdpConnection } from './cdp-connection';
 
-/** Сколько `waitFor` ждёт появления элемента, мс. */
+/** Сколько `waitFor`, `waitUntil` и `back` ждут события страницы, мс. */
 const WAIT_MS = 5_000;
 
 type EvaluateResult<T> = {
@@ -11,7 +11,10 @@ type EvaluateResult<T> = {
   };
 };
 
-/** Вкладка Chrome: переход, выполнение кода в странице, ожидание и клик по селектору. */
+/**
+ * Вкладка Chrome: переход, «Назад», выполнение кода в странице, ожидание
+ * элемента или условия, клик по селектору и по тексту кнопки.
+ */
 export class BrowserPage {
   private constructor(
     private readonly connection: CdpConnection,
@@ -81,6 +84,91 @@ export class BrowserPage {
         reject(new Error('Элемент не появился за ${timeoutMs} мс: ' + ${quoted}));
       }, ${timeoutMs});
     })`);
+  }
+
+  /**
+   * Ждёт условие — выражение JS в странице: проверка сразу, при каждом
+   * изменении DOM (`MutationObserver`) и после `popstate` (когда отработали
+   * все его слушатели: адрес и запись не дают событий DOM). Не выполнилось
+   * за `timeoutMs` — бросок с выражением; бросок выражения — дальше.
+   */
+  async waitUntil(js: string, timeoutMs = WAIT_MS): Promise<void> {
+    const quoted = JSON.stringify(js);
+    await this.evaluate(`new Promise((resolve, reject) => {
+      const holds = () => Boolean(${js});
+      let watcher;
+      let timer;
+      const finish = (end) => {
+        watcher?.disconnect();
+        removeEventListener('popstate', later);
+        clearTimeout(timer);
+        end();
+      };
+      const check = () => {
+        try {
+          if (holds()) finish(() => resolve(true));
+        } catch (error) {
+          finish(() => reject(error));
+        }
+      };
+      const later = () => setTimeout(check, 0);
+      try {
+        if (holds()) return resolve(true);
+      } catch (error) {
+        return reject(error);
+      }
+      watcher = new MutationObserver(check);
+      watcher.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+      addEventListener('popstate', later);
+      timer = setTimeout(() => {
+        finish(() => reject(new Error('Условие не выполнилось за ${timeoutMs} мс: ' + ${quoted})));
+      }, ${timeoutMs});
+    })`);
+  }
+
+  /**
+   * «Назад» браузера: одноразовый слушатель `popstate`, затем
+   * `history.back()`; ждёт события. Не пришло за `timeoutMs` — бросок.
+   * `back()` за первую запись уводит со страницы — бросок протокола.
+   */
+  async back(timeoutMs = WAIT_MS): Promise<void> {
+    await this.evaluate(`new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        removeEventListener('popstate', arrived);
+        reject(new Error('popstate не пришёл за ${timeoutMs} мс'));
+      }, ${timeoutMs});
+      const arrived = () => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+      addEventListener('popstate', arrived, { once: true });
+      history.back();
+    })`);
+  }
+
+  /** Путь и строка запроса текущей страницы. */
+  url(): Promise<string> {
+    return this.evaluate<string>('location.pathname + location.search');
+  }
+
+  /**
+   * Нажимает кнопку по видимому тексту внутри `scope` (селектор; все
+   * совпавшие элементы). Нет такой кнопки или их несколько — бросок с текстом
+   * и областью: нажатие не по той кнопке хуже отказа.
+   */
+  async clickText(text: string, scope = 'body'): Promise<void> {
+    const quotedText = JSON.stringify(text);
+    const quotedScope = JSON.stringify(scope);
+    await this.evaluate(`(() => {
+      const found = [...document.querySelectorAll(${quotedScope})]
+        .flatMap((area) => [...area.querySelectorAll('button')])
+        .filter((button) => button.getClientRects().length > 0 && button.innerText.trim() === ${quotedText});
+      const unique = [...new Set(found)];
+      if (unique.length !== 1) {
+        throw new Error('Кнопок «' + ${quotedText} + '» в ' + ${quotedScope} + ': ' + unique.length);
+      }
+      unique[0].click();
+    })()`);
   }
 
   /** Дожидается элемента и нажимает на него. */

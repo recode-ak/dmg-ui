@@ -14,6 +14,7 @@ import {
 import type { ExampleRegion } from '../common/example-web.types';
 import { ExampleGestures } from '../view/example-gestures';
 import { EXAMPLE_PLACEMENTS } from '../view/example-placements.const';
+import { ExampleStepPlace } from '../view/example-step-place';
 import { exampleWebViews } from '../view/example-views';
 import { FormDrafts } from '../view/form-drafts';
 import { LinkClick } from '../view/link-click';
@@ -66,6 +67,7 @@ export class ExamplePage {
       observer: { record: () => {} },
       faults: () => env.log(CONSOLE_FAULT),
       history: new PageBrowserHistory(env.browser),
+      stepPlace: ExampleStepPlace.key,
       reviveSubject: exampleSubjectWire.revive,
     });
     reconnector.follow(end, (next) => client.attach(next));

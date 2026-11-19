@@ -29,7 +29,7 @@ import type {
 import type { ClientEnd } from '../wire/page-wire.types';
 import type { PAGE_REGIONS, PAGE_ROOT_REGION } from './page-client.const';
 import type { PageClock } from './page-clock.types';
-import type { PageHistoryPort } from './page-history.types';
+import type { PageHistoryPort, PageStepPlace } from './page-history.types';
 import type { PageTraces } from './page-traces';
 import type { ViewCell } from './view-cell';
 
@@ -73,6 +73,11 @@ export type PageClientSpec = {
   readonly faults?: (fault: UiFault) => void;
   /** История вкладки: шаги, «Назад», перезагрузка (D-UI-81); без порта истории нет. */
   readonly history?: PageHistoryPort;
+  /**
+   * Правило шага приложения (D-UI-104): ключ места по адресу корня — смена
+   * ключа даёт новую запись истории. По умолчанию — экран корня (D-UI-97).
+   */
+  readonly stepPlace?: PageStepPlace;
   /**
    * Субъект проекта из JSON `hello.context.subject` (пара `subjectToWire`
    * сервера, D-46, D-UI-99): зовётся один раз на соединение. Бросок —

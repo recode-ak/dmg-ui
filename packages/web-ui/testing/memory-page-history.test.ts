@@ -274,3 +274,245 @@ describe('MemoryPageHistory.fail — отказ браузера', () => {
     expect(history.current().url).toBe('/a');
   });
 });
+
+// Режим `deferred` описывает Chrome: `back()` возвращает промис сразу, а
+// `popstate` приходит позже — по `release()`. Цель каждого перехода считается
+// от цели прежнего неотпущенного; `push` до `release()` ложится во временный
+// хвост, который первый же `release()` снимает; `replace` меняет ту запись,
+// что текущая сейчас. Без неотпущенных переходов режим ведёт себя как
+// `immediate` — его сцены выше.
+
+/** Отложенная история с записями `/`, `/a`, `/b`, стоящая на последней. */
+const threeDeferred = () => {
+  const history = new MemoryPageHistory('/', null, 'deferred');
+  history.push('/a', 'A');
+  history.push('/b', 'B');
+  return history;
+};
+
+/** Записи обработчика: что получил и сколько раз. */
+const listening = (history: MemoryPageHistory) => {
+  const seen: PageHistoryEntry[] = [];
+  history.onTraverse((entry) => {
+    seen.push(entry);
+  });
+  return seen;
+};
+
+/** Отдаёт микрозадачи без таймеров (TST-04). */
+const turns = async () => {
+  for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+};
+
+const urlsOf = (history: MemoryPageHistory) =>
+  history.entries().map((entry) => entry.url);
+
+describe('MemoryPageHistory.deferred — «Назад» до popstate', () => {
+  test('после back() текущая запись и положение прежние, обработчики не звались, pending = 1, промис уже разрешён', async () => {
+    const history = threeDeferred();
+    const seen = listening(history);
+    let done = false;
+
+    void history.back().then(() => {
+      done = true;
+    });
+    await turns();
+
+    expect(done).toBe(true);
+    expect(history.current()).toEqual({ url: '/b', record: 'B' });
+    expect(history.position).toBe(2);
+    expect(seen).toEqual([]);
+    expect(history.pending).toBe(1);
+  });
+
+  test('release() сдвигает положение, обработчик получает запись, release() ждёт его промис; pending = 0', async () => {
+    const history = threeDeferred();
+    const gate = Promise.withResolvers<void>();
+    const seen: PageHistoryEntry[] = [];
+    history.onTraverse((entry) => {
+      seen.push(entry);
+      return gate.promise;
+    });
+    void history.back();
+    let done = false;
+
+    const releasing = history.release().then(() => {
+      done = true;
+    });
+    await turns();
+
+    expect(seen).toEqual([{ url: '/a', record: 'A' }]);
+    expect(done).toBe(false);
+    gate.resolve();
+    await releasing;
+    expect(done).toBe(true);
+    expect(history.position).toBe(1);
+    expect(history.current()).toEqual({ url: '/a', record: 'A' });
+    expect(history.pending).toBe(0);
+  });
+
+  test('два back() подряд — два перехода по очереди, цели накопительные', async () => {
+    const history = threeDeferred();
+    const seen = listening(history);
+
+    void history.back();
+    void history.back();
+    expect(history.pending).toBe(2);
+    expect(history.position).toBe(2);
+    await history.release();
+    expect(history.position).toBe(1);
+    expect(history.pending).toBe(1);
+    await history.release();
+
+    expect(history.position).toBe(0);
+    expect(history.pending).toBe(0);
+    expect(seen.map((entry) => entry.url)).toEqual(['/a', '/']);
+  });
+
+  test('back() перед первой записью: popstate нет, leaves = 1, pending = 0', async () => {
+    const history = new MemoryPageHistory('/', null, 'deferred');
+    const seen = listening(history);
+
+    await history.back();
+
+    expect(history.leaves).toBe(1);
+    expect(history.pending).toBe(0);
+    expect(history.position).toBe(0);
+    expect(seen).toEqual([]);
+  });
+
+  test('второй back() за первую запись при неотпущенном первом: переход один, leaves = 1', async () => {
+    const history = new MemoryPageHistory('/', null, 'deferred');
+    history.push('/a', 'A');
+
+    void history.back();
+    void history.back();
+
+    expect(history.pending).toBe(1);
+    expect(history.leaves).toBe(1);
+    await history.release();
+    expect(history.position).toBe(0);
+  });
+
+  test('forward() за последнюю запись — без действия: ни перехода, ни leaves', async () => {
+    const history = threeDeferred();
+    const seen = listening(history);
+
+    await history.forward();
+
+    expect(history.pending).toBe(0);
+    expect(history.leaves).toBe(0);
+    expect(history.position).toBe(2);
+    expect(seen).toEqual([]);
+  });
+
+  test('forward() после back() идёт от цели неотпущенного: две записи — на последнюю', async () => {
+    const history = threeDeferred();
+    const seen = listening(history);
+    void history.back();
+    void history.back();
+
+    void history.forward();
+    expect(history.pending).toBe(3);
+    await history.release();
+    await history.release();
+    await history.release();
+
+    expect(seen.map((entry) => entry.url)).toEqual(['/a', '/', '/a']);
+    expect(history.position).toBe(1);
+  });
+});
+
+describe('MemoryPageHistory.deferred — push и replace до popstate', () => {
+  test('push при неотпущенном: current() и pushes видят запись; после release() её нет, «вперёд» ведёт к прежней', async () => {
+    const history = threeDeferred();
+    const seen = listening(history);
+    void history.back();
+
+    history.push('/c', 'C');
+
+    expect(history.current()).toEqual({ url: '/c', record: 'C' });
+    expect(history.pushes).toBe(3);
+    await history.release();
+    expect(history.current()).toEqual({ url: '/a', record: 'A' });
+    expect(urlsOf(history)).toEqual(['/', '/a', '/b']);
+    void history.forward();
+    await history.release();
+    expect(history.current()).toEqual({ url: '/b', record: 'B' });
+    expect(seen.map((entry) => entry.url)).toEqual(['/a', '/b']);
+  });
+
+  test('replace при неотпущенном меняет запись, бывшую текущей, и переживает release()', async () => {
+    const history = threeDeferred();
+    void history.back();
+
+    history.replace('/b2', 'B2');
+
+    expect(history.current()).toEqual({ url: '/b2', record: 'B2' });
+    expect(history.replaces).toBe(1);
+    await history.release();
+    expect(history.current()).toEqual({ url: '/a', record: 'A' });
+    expect(urlsOf(history)).toEqual(['/', '/a', '/b2']);
+    void history.forward();
+    await history.release();
+    expect(history.current()).toEqual({ url: '/b2', record: 'B2' });
+  });
+
+  test('replace хвостовой записи: current() видит замену, release() снимает хвост вместе с ней', async () => {
+    const history = threeDeferred();
+    void history.back();
+    history.push('/c', 'C');
+
+    history.replace('/c2', 'C2');
+
+    expect(history.current()).toEqual({ url: '/c2', record: 'C2' });
+    await history.release();
+    expect(urlsOf(history)).toEqual(['/', '/a', '/b']);
+    expect(history.entries()[2]).toEqual({ url: '/b', record: 'B' });
+  });
+
+  test('release() без неотпущенного перехода — бросок с названием подставы', async () => {
+    const history = threeDeferred();
+
+    await expect(
+      Promise.resolve().then(() => history.release()),
+    ).rejects.toThrow('MemoryPageHistory');
+  });
+});
+
+describe('MemoryPageHistory.deferred — перезагрузка и порт', () => {
+  test('reloaded() сохраняет режим, неотпущенные переходы и хвост отбрасывает', async () => {
+    const history = threeDeferred();
+    void history.back();
+    history.push('/c', 'C');
+
+    const reloaded = history.reloaded();
+
+    expect(reloaded.pending).toBe(0);
+    expect(reloaded.leaves).toBe(0);
+    expect(urlsOf(reloaded)).toEqual(['/', '/a', '/b']);
+    expect(reloaded.position).toBe(2);
+    expect(reloaded.current()).toEqual({ url: '/b', record: 'B' });
+    void reloaded.back();
+    expect(reloaded.pending).toBe(1);
+    expect(reloaded.position).toBe(2);
+  });
+
+  test('через тип порта back() разрешается до перехода: обработчик не звался, запись прежняя', async () => {
+    const history = threeDeferred();
+    const port: PageHistoryPort = history;
+    const seen = listening(history);
+    let done = false;
+
+    void Promise.resolve(port.back()).then(() => {
+      done = true;
+    });
+    await turns();
+
+    expect(done).toBe(true);
+    expect(seen).toEqual([]);
+    expect(port.current()).toEqual({ url: '/b', record: 'B' });
+    await history.release();
+    expect(seen).toEqual([{ url: '/a', record: 'A' }]);
+  });
+});

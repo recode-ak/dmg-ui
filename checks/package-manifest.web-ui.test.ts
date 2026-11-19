@@ -213,6 +213,7 @@ export type WebUiHistoryTypes = [
   PageBrowserWindow['history'],
   PageBrowserWindow['location'],
   PageClientSpec['history'],
+  PageClientSpec['stepPlace'],
 ];
 
 /**

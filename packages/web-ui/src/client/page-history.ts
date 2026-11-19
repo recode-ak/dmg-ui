@@ -49,6 +49,11 @@ export class PageHistory {
    * последнему переходу: вытесненный ранний его не держит и не снимает.
    */
   private blocking: number | undefined;
+  /**
+   * «Назад» ушёл в порт, а переход ещё не пришёл (`traversing`): браузер
+   * отвечает `popstate` позже.
+   */
+  private awaiting = false;
 
   constructor(
     private readonly port: PageHistoryPort,
@@ -108,25 +113,47 @@ export class PageHistory {
   }
 
   /**
-   * Своё место позади есть, и текущую запись положило не открытие слоя:
-   * выходу корня есть куда вернуться движением назад.
+   * Своё место позади есть, текущую запись положило не открытие слоя и
+   * прежний «Назад» уже пришёл: выходу корня есть куда вернуться движением
+   * назад.
    */
   returnable(): boolean {
+    if (this.awaiting) return false;
     const { depth, over } = this.marks();
     return depth > 0 && !over;
   }
 
   /**
-   * Движение назад по истории («Назад» человека): шаги права на запись
-   * лишены, замены ждут конца перехода, на который придёт вкладка. Отказ
-   * порта — `onFault`.
+   * Движение назад по истории без второго «Назад» до `popstate` (D-UI-104):
+   * шаги права на запись лишены, замены ждут конца перехода, на который
+   * придёт вкладка. Пока прежний «Назад» не пришёл (`popstate` позже), новый
+   * в порт не уходит — в браузере он сложился бы с прежним и вывел со
+   * страницы. Отказ порта — `onFault` и `false`.
    */
-  async back(): Promise<void> {
+  async back(): Promise<boolean> {
+    if (this.awaiting) return true;
     this.traversing();
+    const before = this.port.current();
+    let going: Promise<void> | void;
     try {
-      await this.port.back();
+      going = this.port.back();
     } catch {
       this.onFault();
+      return false;
+    }
+    // Запись не сменилась внутри вызова — переход придёт позже. Сравнение
+    // сразу, до `await`: второй `back()` того же такта (`void this.back()`
+    // из `stepped` при втором закрытии слоя) застал бы ожидание не взведённым
+    // и ушёл бы в порт — в браузере два «Назад» складываются (E3).
+    const after = this.port.current();
+    this.awaiting = after.url === before.url && after.record === before.record;
+    try {
+      await going;
+      return true;
+    } catch {
+      this.awaiting = false;
+      this.onFault();
+      return false;
     }
   }
 
@@ -136,6 +163,7 @@ export class PageHistory {
    * ждут его конца. Возвращает поколение для `traversed`.
    */
   traversing(): number {
+    this.awaiting = false;
     this.generation += 1;
     this.blocking = this.generation;
     this.unrecorded = 0;
