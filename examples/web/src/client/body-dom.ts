@@ -56,6 +56,8 @@ export class BodyDom {
           h('p', { class: 'title', text: body.userId }),
           h('p', { class: 'status', text: body.status }),
         ];
+      case 'menu':
+        return [];
     }
   }
 

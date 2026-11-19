@@ -5,6 +5,7 @@ import {
   type Address,
   AddressCodec,
   type AddressJson,
+  ExitTargets,
   type InstanceView,
   type LocalOutcome,
   type OpenOptions,
@@ -131,6 +132,8 @@ export class PageClient {
   private readonly layout: PageLayoutUrls;
   /** Записи истории вкладки; без порта истории нет. */
   private readonly history: PageHistory | undefined;
+  /** Цели выходов экранов по исходам сторис приложения: решает ядро, клиент исполняет. */
+  private readonly targets: ExitTargets;
 
   /**
    * Приложение другого канала, нет входа `start` — ошибка сборки, бросок;
@@ -152,6 +155,7 @@ export class PageClient {
     this.urls = new PageUrls({ app, routes });
     this.layout = new PageLayoutUrls(this.urls, PAGE_LINKED_REGIONS);
     this.ids = new UiIds(app.set);
+    this.targets = ExitTargets.of(app);
     this.spec = spec;
     this.end = spec.end;
     this.start = home.address;
@@ -592,19 +596,53 @@ export class PageClient {
     }
   }
 
-  /** Выход: текст из `exits` Def; в корневой области — вход `start`, в прочих — пусто. */
+  /**
+   * Выход сторис: цель решает ядро (`ExitTargets`), клиент исполняет —
+   * назад по истории, вход `start` или адрес в корне; слой закрывается.
+   * @see D-UI-97
+   */
   private async exited(
     region: PageRegionName,
     instance: ScreenInstance,
     exit: string,
   ): Promise<void> {
-    const def = this.ids.findScreen(instance.view().screen);
-    const note = def?.exits[exit]?.label ?? exit;
-    if (region === PAGE_ROOT_REGION) {
-      await this.open(region, this.start, { note });
-    } else {
-      this.clear(region, { note });
+    const screen = instance.view().screen;
+    const note = this.ids.findScreen(screen)?.exits[exit]?.label ?? exit;
+    const target = this.targets.find(screen, exit);
+    if (region !== PAGE_ROOT_REGION) {
+      const address =
+        target.kind === 'back'
+          ? undefined
+          : target.kind === 'at'
+            ? target.address
+            : this.start;
+      // Корень уже на цели — не открывается заново: слой закрывается, как
+      // при `back`; заметка — у той области, что сменилась.
+      if (address !== undefined && !this.showing(PAGE_ROOT_REGION, address)) {
+        await this.open(PAGE_ROOT_REGION, address, { note });
+        this.clear(region);
+      } else {
+        this.clear(region, { note });
+      }
+      return;
     }
+    if (target.kind === 'back' && this.history?.returnable() === true) {
+      await this.history.back();
+      return;
+    }
+    await this.open(
+      region,
+      target.kind === 'at' ? target.address : this.start,
+      { note },
+    );
+  }
+
+  /** В области — экран по адресу `address` (в том числе грузящийся). */
+  private showing(region: PageRegionName, address: Address): boolean {
+    return (
+      JSON.stringify(this.regions.state(region).address) ===
+      JSON.stringify(this.codec.encode(address))
+    );
   }
 
   /** Разбор URL и открытия `route` — работа его шага. */
@@ -785,10 +823,8 @@ export class PageClient {
     target: Address,
     slot: unknown,
   ): Promise<void> {
+    if (this.showing(region, target)) return Promise.resolve();
     const key = JSON.stringify(this.codec.encode(target));
-    if (JSON.stringify(this.regions.state(region).address) === key) {
-      return Promise.resolve();
-    }
     const recorded = this.slotAddress(slot);
     const same =
       recorded !== undefined &&
@@ -992,6 +1028,7 @@ export class PageClient {
         url: () => this.url(),
         snapshot: () => this.snapshot(),
         places: () => this.places(),
+        place: () => this.regions.state(PAGE_ROOT_REGION).address?.screen,
         loading: () =>
           PAGE_REGIONS.some(
             (name) => this.regions.state(name).status === 'loading',

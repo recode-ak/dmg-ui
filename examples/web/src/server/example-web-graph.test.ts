@@ -45,9 +45,10 @@ describe('ExampleWebArch', () => {
     expect(ArchChecker.of(ExampleWebArch).check()).toEqual([]);
   });
 
-  test('рёбра presents идут от приложения к четырём экранам и двум уведомлениям', () => {
+  test('рёбра presents идут от приложения к пяти экранам и двум уведомлениям', () => {
     expect(ownEdges()).toEqual([
       'examplePages -> exampleUi/todo/assignedTasks',
+      'examplePages -> exampleUi/todo/mainMenu',
       'examplePages -> exampleUi/todo/taskAssigned',
       'examplePages -> exampleUi/todo/taskCard',
       'examplePages -> exampleUi/todo/taskCompleted',

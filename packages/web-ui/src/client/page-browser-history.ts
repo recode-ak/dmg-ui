@@ -5,7 +5,7 @@ import type {
 } from './page-history.types';
 
 /**
- * Порт истории поверх History API окна (D-UI-81). Окно — узкий тип: его
+ * Порт истории поверх History API окна (D-UI-81, D-UI-97). Окно — узкий тип: его
  * передаёт привязка вкладки, типов DOM пакет не подключает. URL записи —
  * путь и строка запроса: фрагмент-переход даёт запись без нашей записи, она
  * читается по URL. Броски `pushState`/`replaceState` — вызывающему.
@@ -25,6 +25,11 @@ export class PageBrowserHistory implements PageHistoryPort {
 
   replace(url: string, record: string): void {
     this.browser.history.replaceState(record, '', url);
+  }
+
+  /** «Назад» History API окна: `popstate` придёт позже, вызов его не ждёт. */
+  back(): void {
+    this.browser.history.back();
   }
 
   onTraverse(handler: (entry: PageHistoryEntry) => Promise<void> | void): void {

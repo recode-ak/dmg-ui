@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { PageHistoryEntry } from 'dmg-ui/web-ui';
+import type { PageHistoryEntry, PageHistoryPort } from 'dmg-ui/web-ui';
 import { MemoryPageHistory } from './index';
 
 // Подставная история вкладки для тестов без браузера: записи и положение в
@@ -159,6 +159,64 @@ describe('MemoryPageHistory — «Назад» и «Вперёд»', () => {
     history.onTraverse(() => Promise.reject(new Error('код не загрузился')));
 
     await expect(history.back()).rejects.toThrow('код не загрузился');
+  });
+});
+
+describe('MemoryPageHistory как PageHistoryPort', () => {
+  test('back() — член порта: через тип порта зовёт обработчики и ждёт их промисов', async () => {
+    const port: PageHistoryPort = three();
+    const seen: PageHistoryEntry[] = [];
+    const gate = Promise.withResolvers<void>();
+    port.onTraverse((entry) => {
+      seen.push(entry);
+      return gate.promise;
+    });
+    let done = false;
+
+    const going = Promise.resolve(port.back()).then(() => {
+      done = true;
+    });
+    for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+    expect(done).toBe(false);
+    gate.resolve();
+    await going;
+
+    expect(done).toBe(true);
+    expect(seen).toEqual([{ url: '/a', record: 'A' }]);
+  });
+
+  test('back() через порт сдвигает положение сразу, как и запись «Назад»', () => {
+    const history = three();
+    const port: PageHistoryPort = history;
+
+    void port.back();
+
+    expect(history.position).toBe(1);
+    expect(port.current().url).toBe('/a');
+  });
+});
+
+describe('MemoryPageHistory.settled — ожидание перехода', () => {
+  test('ждёт обработчиков последнего перехода, начатого без ожидания', async () => {
+    const history = three();
+    const gate = Promise.withResolvers<void>();
+    history.onTraverse(() => gate.promise);
+    let done = false;
+
+    void history.back();
+    const waiting = history.settled().then(() => {
+      done = true;
+    });
+    for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+    expect(done).toBe(false);
+    gate.resolve();
+    await waiting;
+
+    expect(done).toBe(true);
+  });
+
+  test('переходов не было — разрешён сразу', async () => {
+    await expect(three().settled()).resolves.toBeUndefined();
   });
 });
 

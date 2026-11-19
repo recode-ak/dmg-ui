@@ -21,6 +21,7 @@ const route = (name: string, path: string, entry: string) =>
 
 const TASKS = route('tasks', '/', 'start');
 const ASSIGNED = route('assigned', '/assigned', 'assigned');
+const MENU = route('menu', '/menu', 'menu');
 
 const reportOf = (routes: readonly PageRouteDef[]) =>
   ArchReport.of(
@@ -40,6 +41,7 @@ describe('PG-01: маршрут ведёт на вход приложения UI
     const report = reportOf([
       TASKS,
       ASSIGNED,
+      MENU,
       route('ghost', '/ghost', 'nowhere'),
     ]);
 
@@ -50,14 +52,14 @@ describe('PG-01: маршрут ведёт на вход приложения UI
     expect(report.rule('PG-02')).toEqual([]);
   });
 
-  test('оба маршрута на объявленные входы — PG-01 молчит', () => {
-    expect(reportOf([TASKS, ASSIGNED]).rule('PG-01')).toEqual([]);
+  test('маршруты на все объявленные входы — PG-01 молчит', () => {
+    expect(reportOf([TASKS, ASSIGNED, MENU]).rule('PG-01')).toEqual([]);
   });
 });
 
 describe('PG-02: у входа приложения есть маршрут', () => {
   test('вход assigned без маршрута — код 1 и строка PG-02 с экраном входа', () => {
-    const report = reportOf([TASKS]);
+    const report = reportOf([TASKS, MENU]);
     const lines = report.rule('PG-02');
 
     expect(report.code).toBe(1);
@@ -67,17 +69,18 @@ describe('PG-02: у входа приложения есть маршрут', ()
     expect(report.rule('PG-01')).toEqual([]);
   });
 
-  test('нет ни одного маршрута — PG-02 на каждый из двух входов', () => {
+  test('нет ни одного маршрута — PG-02 на каждый из трёх входов', () => {
     const report = reportOf([]);
 
     expect(report.code).toBe(1);
-    expect(report.rule('PG-02')).toHaveLength(2);
+    expect(report.rule('PG-02')).toHaveLength(3);
   });
 
   test('два маршрута на один вход — PG-02 молчит', () => {
     const report = reportOf([
       TASKS,
       ASSIGNED,
+      MENU,
       route('again', '/again', 'start'),
     ]);
 
@@ -86,8 +89,8 @@ describe('PG-02: у входа приложения есть маршрут', ()
 });
 
 describe('PG-01 и PG-02: чистая сцена', () => {
-  test('маршруты на оба входа — код 0, правил PG в отчёте нет', () => {
-    const report = reportOf([TASKS, ASSIGNED]);
+  test('маршруты на все три входа — код 0, правил PG в отчёте нет', () => {
+    const report = reportOf([TASKS, ASSIGNED, MENU]);
 
     expect(report.code).toBe(0);
     expect(report.rule('PG-01')).toEqual([]);
@@ -117,7 +120,7 @@ describe('PG-02: два приложения в одном поставщике'
               {
                 app: ExamplePagesAppDef,
                 views: examplePageViews,
-                routes: [TASKS, ASSIGNED],
+                routes: [TASKS, ASSIGNED, MENU],
               },
               {
                 app: SecondPagesAppDef,
@@ -131,7 +134,7 @@ describe('PG-02: два приложения в одном поставщике'
     );
 
   test('у второго приложения вход assigned без маршрута — строка с его именем, у первого её нет', () => {
-    const report = twoApps([TASKS]);
+    const report = twoApps([TASKS, MENU]);
 
     expect(report.code).toBe(1);
     expect(report.rule('PG-02')).toEqual([
@@ -140,6 +143,6 @@ describe('PG-02: два приложения в одном поставщике'
   });
 
   test('оба приложения с маршрутами на все входы — PG-02 молчит', () => {
-    expect(twoApps([TASKS, ASSIGNED]).rule('PG-02')).toEqual([]);
+    expect(twoApps([TASKS, ASSIGNED, MENU]).rule('PG-02')).toEqual([]);
   });
 });

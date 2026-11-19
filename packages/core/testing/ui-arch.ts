@@ -191,16 +191,16 @@ export class UiScene {
     });
   }
 
-  /** Исход сторис по выходу `done` экрана; `to` — цель исхода, без неё — умолчание. */
+  /** Исход сторис по выходу `done` экрана; `after` — цель исхода, без неё — умолчание. */
   static outcome(
     screen: AnyScreenDef,
-    to?: 'back' | 'home' | Address,
+    after?: 'back' | 'home' | Address,
   ): OutcomeSpec {
     return {
       label: 'Работа окончена',
       description: 'Исход по выходу экрана.',
       exits: [UiScene.exit(screen, 'done')],
-      ...(to === undefined ? {} : { after: to }),
+      ...(after === undefined ? {} : { after }),
     };
   }
 

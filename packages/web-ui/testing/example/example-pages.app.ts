@@ -4,7 +4,9 @@ import {
   ExampleUiSetDef,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
+  MainMenuScreenDef,
   PlanTasksStoryDef,
+  StartWorkStoryDef,
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
@@ -12,7 +14,7 @@ import {
 } from 'dmg-ui/testing';
 import { PAGE_CHANNEL } from 'dmg-ui/web-ui';
 
-/** Приложение UI учебного примера на страницах: те же сторис и уведомления, что в основном приложении диалога; два входа. */
+/** Приложение UI учебного примера на страницах: те же сторис и уведомления, что в основном приложении диалога; три входа, меню — `menu`. */
 export const ExamplePagesAppDef = UiAppDef.define({
   name: 'examplePages',
   label: 'Учебное приложение на страницах',
@@ -20,6 +22,7 @@ export const ExamplePagesAppDef = UiAppDef.define({
   set: ExampleUiSetDef,
   channel: PAGE_CHANNEL,
   stories: [
+    StartWorkStoryDef,
     PlanTasksStoryDef,
     FinishTasksStoryDef,
     FollowAssignedStoryDef,
@@ -36,6 +39,11 @@ export const ExamplePagesAppDef = UiAppDef.define({
       label: 'Назначенные мне',
       description: 'Задачи, которые поручили вызывающему.',
       address: AssignedTasksScreenDef.at({}),
+    },
+    menu: {
+      label: 'Начать работу',
+      description: 'Меню: свои задачи и поручения.',
+      address: MainMenuScreenDef.at({}),
     },
   },
 });

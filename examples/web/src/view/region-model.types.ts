@@ -83,8 +83,18 @@ export type UserBody = {
   readonly status: string;
 };
 
+/** Тело «Начать работу»: только заголовок области, без управления. */
+export type MenuBody = {
+  readonly kind: 'menu';
+};
+
 /** Тело экрана по виду. */
-export type ScreenBody = ListBody | CardBody | AssignedBody | UserBody;
+export type ScreenBody =
+  | ListBody
+  | CardBody
+  | AssignedBody
+  | UserBody
+  | MenuBody;
 
 /**
  * Модель области — то, что видит человек; данные JSON. `busy` — область

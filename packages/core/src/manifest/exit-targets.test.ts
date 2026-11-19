@@ -132,6 +132,23 @@ describe('ExitTargets: учебный набор', () => {
     );
   });
 
+  test('find: экран по id из внешних данных — цель его выхода', () => {
+    expect(targets.find('exampleUi/todo/mainMenu', 'closed')).toEqual({
+      kind: 'home',
+    });
+  });
+
+  test('find: экрана нет в наборе — назад, без броска', () => {
+    expect(targets.find('exampleUi/todo/ghost', 'closed')).toEqual({
+      kind: 'back',
+    });
+    expect(
+      ExitTargets.of(undefined).find('exampleUi/todo/mainMenu', 'closed'),
+    ).toEqual({
+      kind: 'back',
+    });
+  });
+
   test('закрытие списка и карточки пользователя — назад', () => {
     expect(targets.of(TaskListScreenDef, 'closed')).toEqual({ kind: 'back' });
     expect(targets.of(UserCardScreenDef, 'closed')).toEqual({ kind: 'back' });

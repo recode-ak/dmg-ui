@@ -55,6 +55,7 @@ const route = (name: string, path: string, entry: string) =>
 
 const TASKS = route('tasks', '/', 'start');
 const ASSIGNED = route('assigned', '/assigned', 'assigned');
+const MENU = route('menu', '/menu', 'menu');
 
 /** Вход приложения: тексты не проверяются. */
 const entryOf = (address: Address) => ({
@@ -115,9 +116,9 @@ const reportOf = (scene: Scene) =>
     ),
   );
 
-/** Приложение examplePages с маршрутами `TASKS`, `ASSIGNED` и `extra`. */
+/** Приложение examplePages с маршрутами `TASKS`, `ASSIGNED`, `MENU` и `extra`. */
 const examplePages = (...extra: readonly PageRouteDef[]) =>
-  reportOf(onExample(ExamplePagesAppDef, [TASKS, ASSIGNED, ...extra]));
+  reportOf(onExample(ExamplePagesAppDef, [TASKS, ASSIGNED, MENU, ...extra]));
 
 /** Приложение routedPages с маршрутами `routes`. */
 const routedPages = (...routes: readonly PageRouteDef[]) =>
@@ -570,6 +571,13 @@ describe('PG-06: маршрут не пересекается с общим пу
     ]);
   });
 
+  test('маршрут /menu входа menu общего пути экрана mainMenu не пересекает — PG-06 молчит', () => {
+    const report = examplePages();
+
+    expect(report.code).toBe(0);
+    expect(report.rule('PG-06')).toEqual([]);
+  });
+
   test.each(['/todo', '/todo/odd/x', '/other/odd'])(
     '%s не совпадает с общим путём экрана — PG-06 молчит',
     (path) => {
@@ -740,7 +748,7 @@ describe('Два приложения web в одном поставщике г�
       {
         app: ExamplePagesAppDef,
         views: examplePageViews,
-        routes: [TASKS, ASSIGNED],
+        routes: [TASKS, ASSIGNED, MENU],
       },
       {
         app: LeanPagesAppDef,
@@ -789,12 +797,14 @@ describe('Два приложения web в одном поставщике г�
 
     expect(nodes).toEqual([
       'examplePages/assigned',
+      'examplePages/menu',
       'examplePages/tasks',
       'leanPages/home',
       'leanPages/list',
     ]);
     expect(opens).toEqual([
       'examplePages/assigned -> exampleUi/todo/assignedTasks',
+      'examplePages/menu -> exampleUi/todo/mainMenu',
       'examplePages/tasks -> exampleUi/todo/taskList',
       'leanPages/home -> exampleUi/todo/assignedTasks',
       'leanPages/list -> exampleUi/todo/taskList',
@@ -818,6 +828,7 @@ describe('Два приложения web в одном поставщике г�
 
     expect(from('examplePages')).toEqual([
       'exampleUi/todo/assignedTasks',
+      'exampleUi/todo/mainMenu',
       'exampleUi/todo/taskAssigned',
       'exampleUi/todo/taskCard',
       'exampleUi/todo/taskCompleted',

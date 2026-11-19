@@ -12,6 +12,12 @@ class StubBrowserHistory {
   state: unknown = null;
   readonly calls: [string, unknown, string, string][] = [];
   refusal: Error | undefined;
+  /** Сколько раз позван `back()`. */
+  backs = 0;
+
+  back(): void {
+    this.backs += 1;
+  }
 
   pushState(data: unknown, unused: string, url: string): void {
     this.write('pushState', data, unused, url);
@@ -126,6 +132,48 @@ describe('PageBrowserHistory', () => {
       { url: '/?page=2', record: 'вторая' },
     ]);
     expect(browser.types).toEqual(['popstate']);
+  });
+
+  test('back — history.back() окна один раз; записей не пишет', () => {
+    const browser = new StubWindow();
+
+    new PageBrowserHistory(browser).back();
+
+    expect(browser.history.backs).toBe(1);
+    expect(browser.history.calls).toEqual([]);
+  });
+
+  test('back не ждёт popstate: вызов разрешается до события, обработчик им не зовётся', async () => {
+    const browser = new StubWindow();
+    const history = new PageBrowserHistory(browser);
+    const seen: PageHistoryEntry[] = [];
+    history.onTraverse((entry) => {
+      seen.push(entry);
+    });
+    let settled = false;
+
+    void Promise.resolve(history.back()).then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(settled).toBe(true);
+    expect(seen).toEqual([]);
+  });
+
+  test('popstate после back — обработчик получает запись, на которой вкладка теперь', () => {
+    const browser = new StubWindow();
+    const history = new PageBrowserHistory(browser);
+    const seen: PageHistoryEntry[] = [];
+    history.onTraverse((entry) => {
+      seen.push(entry);
+    });
+
+    history.back();
+    browser.traverse('/', '', 'предыдущая');
+
+    expect(seen).toEqual([{ url: '/', record: 'предыдущая' }]);
   });
 
   test('бросок pushState и replaceState уходит вызывающему', () => {

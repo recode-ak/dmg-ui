@@ -235,6 +235,7 @@ describe('вход dmg-ui/web-ui/testing', () => {
       'MemoryPageHistory',
       'examplePageRoutes',
       'examplePageViews',
+      'exampleWindowPlacements',
     ]);
   });
 });

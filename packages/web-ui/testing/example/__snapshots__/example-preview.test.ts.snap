@@ -56,6 +56,16 @@ exports[`ExamplePreview через PageRenderer — снимки примеро�
   [Закрыть]"
 `;
 
+exports[`ExamplePreview через PageRenderer — снимки примеров mainMenu start 1`] = `
+"# Начать работу
+
+  [Мои задачи]
+
+  [Назначенные мне]
+
+  [Закрыть]"
+`;
+
 exports[`ExamplePreview через PageRenderer — снимки примеров уведомление taskAssigned sample 1`] = `"Вам назначена задача: Хлеб"`;
 
 exports[`ExamplePreview через PageRenderer — снимки примеров уведомление taskCompleted sample 1`] = `"Поручение выполнено: Сыр"`;

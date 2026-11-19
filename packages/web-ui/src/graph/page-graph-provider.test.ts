@@ -90,6 +90,7 @@ const OTHER_VIEWS = { set: OtherSetDef, presented: () => [] };
 const graph = () => new AppGraph(ExamplePagesArch).build();
 const TASKS = 'examplePages/tasks';
 const ASSIGNED = 'examplePages/assigned';
+const MENU = 'examplePages/menu';
 
 const ownEdges = (kind: string) =>
   graph()
@@ -105,12 +106,12 @@ describe('PageGraphProvider: узлы', () => {
     expect(ExamplePagesAppDef.channel).toBe(PAGE_CHANNEL);
   });
 
-  test('маршруты tasks и assigned — узлы вида pageRoute под приложением examplePages', () => {
+  test('маршруты tasks, assigned и menu — узлы вида pageRoute под приложением examplePages', () => {
     const own = graph()
       .nodes()
       .filter((node) => node.provider === 'dmg-ui-pages');
 
-    expect(own.map((node) => node.id).sort()).toEqual([ASSIGNED, TASKS]);
+    expect(own.map((node) => node.id).sort()).toEqual([ASSIGNED, MENU, TASKS]);
     expect(graph().node(TASKS)).toMatchObject({
       kind: 'pageRoute',
       parent: 'examplePages',
@@ -122,6 +123,12 @@ describe('PageGraphProvider: узлы', () => {
       parent: 'examplePages',
       provider: 'dmg-ui-pages',
       props: { path: '/assigned', entry: 'assigned' },
+    });
+    expect(graph().node(MENU)).toMatchObject({
+      kind: 'pageRoute',
+      parent: 'examplePages',
+      provider: 'dmg-ui-pages',
+      props: { path: '/menu', entry: 'menu' },
     });
   });
 
@@ -181,13 +188,15 @@ describe('PageGraphProvider: рёбра', () => {
   test('opens — от маршрута к экрану его входа', () => {
     expect(ownEdges('opens')).toEqual([
       `${ASSIGNED} -> exampleUi/todo/assignedTasks`,
+      `${MENU} -> exampleUi/todo/mainMenu`,
       `${TASKS} -> exampleUi/todo/taskList`,
     ]);
   });
 
-  test('presents — от examplePages к каждому экрану и уведомлению реестра, шесть рёбер', () => {
+  test('presents — от examplePages к каждому экрану и уведомлению реестра, семь рёбер', () => {
     expect(ownEdges('presents')).toEqual([
       'examplePages -> exampleUi/todo/assignedTasks',
+      'examplePages -> exampleUi/todo/mainMenu',
       'examplePages -> exampleUi/todo/taskAssigned',
       'examplePages -> exampleUi/todo/taskCard',
       'examplePages -> exampleUi/todo/taskCompleted',
@@ -318,8 +327,10 @@ describe('PageGraphProvider: сборка — броски только стру
         .sort(),
     ).toEqual([
       'examplePages/assigned',
+      'examplePages/menu',
       'examplePages/tasks',
       'secondPages/assigned',
+      'secondPages/menu',
       'secondPages/tasks',
     ]);
   });
@@ -354,11 +365,13 @@ describe('PageGraphProvider: сборка — броски только стру
 
     expect(contribution.nodes.map((node) => node.id).sort()).toEqual([
       'examplePages/assigned',
+      'examplePages/menu',
       'examplePages/tasks',
       'secondPages/only',
     ]);
     expect(opens).toEqual([
       'examplePages/assigned -> exampleUi/todo/assignedTasks',
+      'examplePages/menu -> exampleUi/todo/mainMenu',
       'examplePages/tasks -> exampleUi/todo/taskList',
       'secondPages/only -> exampleUi/todo/assignedTasks',
     ]);

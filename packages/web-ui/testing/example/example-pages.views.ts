@@ -1,6 +1,7 @@
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { PageViews } from 'dmg-ui/web-ui';
 import { AssignedTasksView } from './assigned-tasks.view';
+import { MainMenuView } from './main-menu.view';
 import { TaskCardView } from './task-card.view';
 import { TaskListView } from './task-list.view';
 import { TaskAssignedView, TaskCompletedView } from './task-notes.view';
@@ -12,6 +13,7 @@ export const examplePageViews = PageViews.of(ExampleUiSetDef, [
   TaskCardView,
   AssignedTasksView,
   UserCardView,
+  MainMenuView,
   TaskAssignedView,
   TaskCompletedView,
 ]);

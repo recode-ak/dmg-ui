@@ -1,4 +1,5 @@
 import type { Address } from '../address/address';
+import { UiIds } from '../address/ui-ids';
 import type { AnyScreenDef } from './screen-def.types';
 import type { ScreenExit } from './screen-exit';
 import type { OutcomeSpec } from './story-def.types';
@@ -18,7 +19,9 @@ const HOME: ExitTarget = { kind: 'home' };
  * приложения, которые ссылаются на выход. Одно решение для всех каналов —
  * канал цель только исполняет. Нет приложения, сторис или исхода с выходом —
  * `back`. Исходы нескольких сторис с разными целями — нарушение UI-25; здесь
- * берётся первый по порядку сторис приложения.
+ * берётся первый по порядку сторис приложения. Экран по `id` из внешних
+ * данных (вид экземпляра) ищет `find`: экрана нет в наборе — тоже `back`,
+ * каналы экран сами не ищут.
  */
 export class ExitTargets {
   private constructor(
@@ -26,6 +29,7 @@ export class ExitTargets {
       AnyScreenDef,
       ReadonlyMap<string, ExitTarget>
     >,
+    private readonly ids: UiIds | undefined,
   ) {}
 
   static of(app: AnyUiAppDef | undefined): ExitTargets {
@@ -37,12 +41,21 @@ export class ExitTargets {
         }
       }
     }
-    return new ExitTargets(targets);
+    return new ExitTargets(
+      targets,
+      app === undefined ? undefined : new UiIds(app.set),
+    );
   }
 
   /** Цель выхода `exit` экрана `screen`. */
   of(screen: AnyScreenDef, exit: string): ExitTarget {
     return this.targets.get(screen)?.get(exit) ?? BACK;
+  }
+
+  /** Цель выхода `exit` экрана с `id` из внешних данных; экрана нет в наборе — `back`. */
+  find(screen: string, exit: string): ExitTarget {
+    const def = this.ids?.findScreen(screen);
+    return def === undefined ? BACK : this.of(def, exit);
   }
 
   private static targetOf(outcome: OutcomeSpec): ExitTarget {

@@ -7,7 +7,6 @@ import {
   type InstanceJson,
   type InstanceView,
   type ScreenInstance,
-  UiIds,
 } from 'dmg-ui';
 import type { SendOptions } from '../messenger/messenger.types';
 import type { ComposedScreen, ScreenComposer } from '../view/screen-composer';
@@ -64,7 +63,6 @@ type ScreensParts = {
 export class ConversationScreens {
   private readonly parts: ScreensParts;
   private readonly codec: AddressCodec;
-  private readonly ids: UiIds;
   /** Цели выходов сторис приложения: решает ядро, беседа исполняет. */
   private readonly targets: ExitTargets;
   private live: LiveScreen | undefined;
@@ -74,7 +72,6 @@ export class ConversationScreens {
   constructor(parts: ScreensParts, serial: Serial, pending?: LiveScreenJson) {
     this.parts = parts;
     this.codec = new AddressCodec(parts.spec.app.set);
-    this.ids = new UiIds(parts.spec.app.set);
     this.targets = ExitTargets.of(parts.spec.app);
     this.serial = serial;
     this.pending = pending;
@@ -160,8 +157,8 @@ export class ConversationScreens {
   /**
    * Выход сторис с экрана `screen` (id), не принятый приёмником: цель решает
    * ядро (`ExitTargets`, D-UI-96), беседа исполняет; `lead` — текст выхода
-   * перед видом одним показом. `back` — верх пути с перечитыванием, путь
-   * пуст — вход home; `home` — вход home, путь сброшен; адрес — экран
+   * перед видом одним показом; экрана нет в наборе — `back`. `back` — верх
+   * пути с перечитыванием, путь пуст — вход home; `home` — вход home, путь сброшен; адрес — экран
    * заново, без записи в путь, экран из пути обрезает путь до себя.
    */
   async exited(
@@ -170,11 +167,7 @@ export class ConversationScreens {
     trace: Trace,
     lead: string,
   ): Promise<void> {
-    const def = this.ids.findScreen(screen);
-    if (def === undefined) {
-      throw new Error(`Conversation: экрана ${screen} нет в наборе`);
-    }
-    const target = this.targets.of(def, exit);
+    const target = this.targets.find(screen, exit);
     switch (target.kind) {
       case 'back': {
         const step = this.parts.path.top();

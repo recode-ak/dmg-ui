@@ -55,4 +55,22 @@ describe('UI-07: экран достижим от входов приложен�
 
     expect(scene.report().rule('UI-07')).toEqual([]);
   });
+
+  test('нарушение: к экрану ведёт только цель-адрес исхода сторис вне приложения', () => {
+    const done = UiScene.exiting('done');
+    const outside = UiScene.story('s', [done], {
+      outcomes: { finished: UiScene.outcome(done, lone.at({})) },
+    });
+    const own = UiScene.story('u', [done]);
+    const holder = UiScene.story('t', [lone]);
+    const scene = new UiScene({
+      screens: [done, lone],
+      stories: [outside, own, holder],
+      appStories: [own, holder],
+    });
+
+    expect(scene.report().rule('UI-07')).toEqual([
+      'UI-07: приложение miniConsole: экран miniUi/todo/lone недостижим от входов',
+    ]);
+  });
 });

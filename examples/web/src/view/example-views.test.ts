@@ -56,11 +56,11 @@ describe('ExampleViews.of — реестр', () => {
     expect(exampleWebViews.set).toBe(ExampleUiSetDef);
   });
 
-  test('presented() по составу равен текстовому реестру: четыре экрана и два уведомления', () => {
+  test('presented() по составу равен текстовому реестру: пять экранов и два уведомления', () => {
     expect([...exampleWebViews.presented()].sort()).toEqual(
       [...examplePageViews.presented()].sort(),
     );
-    expect(exampleWebViews.presented()).toHaveLength(6);
+    expect(exampleWebViews.presented()).toHaveLength(7);
   });
 
   test('экран находится по id', () => {

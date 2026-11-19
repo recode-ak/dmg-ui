@@ -18,4 +18,12 @@ export const examplePageRoutes = [
     path: '/assigned',
     entry: 'assigned',
   }),
+  PageRouteDef.define({
+    name: 'menu',
+    label: 'Начать работу',
+    description: 'Меню: свои задачи и поручения.',
+    visible: true,
+    path: '/menu',
+    entry: 'menu',
+  }),
 ] as const;

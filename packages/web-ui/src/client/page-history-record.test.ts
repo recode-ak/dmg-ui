@@ -9,7 +9,9 @@ import {
 import { PageHistoryRecord } from './page-history-record';
 
 // Запись истории вкладки — строка JSON `{"version":1,"regions":{…}}`: слоты
-// снимка областей (адрес, ревизия, состояние). Запись — внешние данные: чтение
+// снимка областей (адрес, ревизия, состояние) и необязательные метки: `depth`
+// — сколько своих записей позади, `over` — запись положило открытие панели
+// или окна. Нет меток — `depth` 0 и `over` ложь. Запись — внешние данные: чтение
 // не бросает ни на каком входе и отдаёт слоты как есть — их проверяют ядро
 // (`ScreenRuntime.restore`) и клиент. Пределы: слот длиннее 8192 знаков JSON
 // не пишется, запись длиннее 32 768 знаков не разбирается.
@@ -200,5 +202,104 @@ describe('PageHistoryRecord.read — внешние данные', () => {
     expect(
       PageHistoryRecord.read(JSON.stringify({ version: 1, regions })),
     ).toStrictEqual(regions);
+  });
+});
+
+describe('PageHistoryRecord — метки depth и over', () => {
+  const MARKS = { depth: 2, over: true };
+  const DEFAULT = { depth: 0, over: false };
+
+  test('метки пишутся рядом со слотами и читаются обратно; версия остаётся 1', () => {
+    const record = PageHistoryRecord.write({ main: LIST_SLOT }, MARKS);
+
+    expect(JSON.parse(record)).toMatchObject({
+      version: 1,
+      regions: { main: LIST_SLOT },
+      depth: 2,
+      over: true,
+    });
+    expect(PageHistoryRecord.marks(record)).toEqual(MARKS);
+    expect(PageHistoryRecord.read(record)).toStrictEqual({ main: LIST_SLOT });
+  });
+
+  test('глубина без открытия слоя — over ложь', () => {
+    const record = PageHistoryRecord.write(
+      { main: LIST_SLOT },
+      { depth: 5, over: false },
+    );
+
+    expect(PageHistoryRecord.marks(record)).toEqual({ depth: 5, over: false });
+  });
+
+  test('запись без меток — depth 0, over ложь; слоты читаются как прежде', () => {
+    const record = PageHistoryRecord.write({ main: LIST_SLOT });
+
+    expect(PageHistoryRecord.marks(record)).toEqual(DEFAULT);
+    expect(PageHistoryRecord.read(record)).toStrictEqual({ main: LIST_SLOT });
+  });
+
+  test('запись прежней формы, без полей меток, — метки по умолчанию', () => {
+    const record = '{"version":1,"regions":{}}';
+
+    expect(PageHistoryRecord.marks(record)).toEqual(DEFAULT);
+  });
+
+  test.each([
+    [
+      'depth отрицательный',
+      { depth: -1, over: true },
+      { depth: 0, over: true },
+    ],
+    ['depth дробный', { depth: 1.5, over: true }, { depth: 0, over: true }],
+    ['depth строкой', { depth: '2', over: true }, { depth: 0, over: true }],
+    ['depth null', { depth: null, over: true }, { depth: 0, over: true }],
+    ['over строкой', { depth: 2, over: 'true' }, { depth: 2, over: false }],
+    ['over числом', { depth: 2, over: 1 }, { depth: 2, over: false }],
+    ['over null', { depth: 2, over: null }, { depth: 2, over: false }],
+  ])('%s — по умолчанию, без броска', (_, extra, expected) => {
+    const record = JSON.stringify({ version: 1, regions: {}, ...extra });
+
+    expect(PageHistoryRecord.marks(record)).toEqual(expected);
+  });
+
+  test.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['число', 42],
+    ['объект нужной формы, а не строка', { version: 1, regions: {}, depth: 3 }],
+    ['пустая строка', ''],
+    ['обрывок JSON', '{'],
+    ['не JSON', 'мусор'],
+    ['массив JSON', '[]'],
+    [
+      'версия 2 с метками',
+      JSON.stringify({ version: 2, regions: {}, depth: 3, over: true }),
+    ],
+  ])(
+    'запись не читается (%s) — метки по умолчанию, без броска',
+    (_, record) => {
+      expect(PageHistoryRecord.marks(record)).toEqual(DEFAULT);
+    },
+  );
+
+  test('запись длиннее предела — метки по умолчанию', () => {
+    const record = recordOfLength(PAGE_RECORD_LIMIT + 1).replace(
+      '{"version":1,',
+      '{"version":1,"depth":3,"over":true,',
+    );
+
+    expect(PageHistoryRecord.marks(record)).toEqual(DEFAULT);
+  });
+
+  test('мусор в метках слоты не отнимает: чтение отдаёт их как есть', () => {
+    const record = JSON.stringify({
+      version: 1,
+      regions: { main: LIST_SLOT },
+      depth: 'много',
+      over: 'да',
+    });
+
+    expect(PageHistoryRecord.marks(record)).toEqual(DEFAULT);
+    expect(PageHistoryRecord.read(record)).toStrictEqual({ main: LIST_SLOT });
   });
 });

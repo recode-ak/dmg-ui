@@ -4,6 +4,7 @@ import { type AnyPageNotePresenter, PageNotePresenter } from 'dmg-ui/web-ui';
 import { AssignedTasksView } from './assigned-tasks.view';
 import { ExampleScreenView } from './example-screen-view';
 import type { AnyExampleScreen } from './example-views.types';
+import { MainMenuView } from './main-menu.view';
 import { TaskCardView } from './task-card.view';
 import { TaskListView } from './task-list.view';
 import { TaskAssignedView, TaskCompletedView } from './task-notes.view';
@@ -84,12 +85,13 @@ export class ExampleViews {
   }
 }
 
-/** Готовый реестр примера: четыре экрана и два уведомления учебного набора; меню не показывается. */
+/** Готовый реестр примера: пять экранов и два уведомления учебного набора; меню — только заголовок. */
 export const exampleWebViews = ExampleViews.of(ExampleUiSetDef, [
   TaskListView,
   TaskCardView,
   AssignedTasksView,
   UserCardView,
+  MainMenuView,
   TaskAssignedView,
   TaskCompletedView,
 ]);

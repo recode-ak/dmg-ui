@@ -46,6 +46,7 @@ const controls = (model: RegionModel): boolean[] => {
     case 'assigned':
       return body.rows.flatMap((row) => [row.openable, row.selectable]);
     case 'user':
+    case 'menu':
       return [];
   }
 };

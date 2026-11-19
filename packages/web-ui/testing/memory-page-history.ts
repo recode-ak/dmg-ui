@@ -6,7 +6,8 @@ type Handler = (entry: PageHistoryEntry) => Promise<void> | void;
  * Подставная история вкладки для тестов без браузера: записи и положение в
  * памяти. `push` обрезает «Вперёд»; `back`/`forward` сдвигают положение сразу
  * и ждут промисов обработчиков (TST-04, без таймеров); на краю — без действия.
- * `reloaded()` — те же записи глазами новой страницы; `fail` — отказ записи.
+ * `settled()` — ожидание последнего перехода; `reloaded()` — те же записи
+ * глазами новой страницы; `fail` — отказ записи.
  * @see ./memory-page-history.test.ts
  */
 export class MemoryPageHistory implements PageHistoryPort {
@@ -16,6 +17,8 @@ export class MemoryPageHistory implements PageHistoryPort {
   private refusal: Error | undefined;
   private pushed = 0;
   private replaced = 0;
+  /** Обработка последнего перехода: её ждёт `settled`. */
+  private going: Promise<void> = Promise.resolve();
 
   /** Начальная запись — как до первой работы скрипта страницы: `/` без записи. */
   constructor(url = '/', record: unknown = null) {
@@ -69,6 +72,14 @@ export class MemoryPageHistory implements PageHistoryPort {
     return this.go(1);
   }
 
+  /**
+   * Обработчики последнего перехода отработали (или отказали) — для перехода,
+   * начатого без ожидания (клиент сам зовёт `back()` при закрытии слоя).
+   */
+  settled(): Promise<void> {
+    return this.going;
+  }
+
   entries(): readonly PageHistoryEntry[] {
     return [...this.records];
   }
@@ -91,7 +102,13 @@ export class MemoryPageHistory implements PageHistoryPort {
     if (next < 0 || next >= this.records.length) return;
     this.at = next;
     const entry = this.current();
-    await Promise.all(this.handlers.map((handler) => handler(entry)));
+    const going = Promise.all(this.handlers.map((handler) => handler(entry)));
+    // Отказ обработчика — вызывающему `back`/`forward`; `settled` не отклоняется.
+    this.going = going.then(
+      () => undefined,
+      () => undefined,
+    );
+    await going;
   }
 
   /** Отказ записи и URL не своего источника (`//x`, `/\x`, не путь) — бросок, как у браузера. */

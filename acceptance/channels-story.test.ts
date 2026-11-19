@@ -39,12 +39,26 @@ import {
 import {
   ExampleUiSetDef,
   exampleCodes,
+  LIST_ID,
   MemoryUiObserver,
-  StartWorkStoryDef,
+  TaskListScreenDef,
 } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
-import { PageClient, PageHost, PageWire } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef, examplePageRoutes } from 'dmg-ui/web-ui/testing';
+import {
+  PageClient,
+  type PageHistoryEntry,
+  type PageHistoryPort,
+  PageHost,
+  type PagePlacement,
+  type PageViewState,
+  PageWire,
+} from 'dmg-ui/web-ui';
+import {
+  ExamplePagesAppDef,
+  examplePageRoutes,
+  exampleWindowPlacements,
+  MemoryPageHistory,
+} from 'dmg-ui/web-ui/testing';
 import * as v from 'valibot';
 
 // Приёмка нейтральности ядра: один сценарий сторис
@@ -196,8 +210,15 @@ const onDialog = async () => {
   return w;
 };
 
-/** Страничный канал: вкладка A, подключённая к хосту приложения `app`. */
-const pagesOf = async (app: AnyUiAppDef, name: string) => {
+/** Страничный канал: вкладка A, подключённая к хосту приложения `app`; история и размещения — по желанию. */
+const pagesOf = async (
+  app: AnyUiAppDef,
+  name: string,
+  extra: {
+    readonly history?: PageHistoryPort;
+    readonly placements?: readonly PagePlacement[];
+  } = {},
+) => {
   const w = base(name);
   const codes = exampleCodes();
   const tokens = new Map([['tA', A]]);
@@ -228,6 +249,8 @@ const pagesOf = async (app: AnyUiAppDef, name: string) => {
     end: connected.value,
     observer: w.observer,
     requestIds: counter(),
+    ...(extra.history === undefined ? {} : { history: extra.history }),
+    ...(extra.placements === undefined ? {} : { placements: extra.placements }),
   });
   return { w, wire, client };
 };
@@ -275,13 +298,13 @@ test('сторис finishTasks: итоговое состояние задачи
 });
 
 test('приложения каналов делят сторис и набор', () => {
-  // Меню «Начать работу» в приложении страниц пока не объявлено.
-  const shared = ExampleDialogAppDef.stories.filter(
-    (story) => story !== StartWorkStoryDef,
+  expect(ExamplePagesAppDef.stories).toHaveLength(
+    ExampleDialogAppDef.stories.length,
   );
-  expect(ExamplePagesAppDef.stories).toHaveLength(shared.length);
   expect(
-    ExamplePagesAppDef.stories.every((story, index) => story === shared[index]),
+    ExamplePagesAppDef.stories.every(
+      (story, index) => story === ExampleDialogAppDef.stories[index],
+    ),
   ).toBe(true);
   expect(ExamplePagesAppDef.set).toBe(ExampleDialogAppDef.set);
 });
@@ -497,4 +520,164 @@ test('беседа, порт выхода: принятый выход при н
   expect(taken[0]?.screen).toBe(USER_CARD);
   expect(saved).toEqual({});
   expect(livePlace(d.messenger)).toBeUndefined();
+});
+
+/** Метки записи истории: сколько своих записей позади и положена ли она открытием слоя. */
+const Marks = v.object({
+  depth: v.optional(v.number(), 0),
+  over: v.optional(v.boolean(), false),
+});
+const marksOf = (entry: PageHistoryEntry | undefined) =>
+  v.parse(Marks, JSON.parse(String(entry?.record)));
+
+/** Область `main` как список названий назначенных задач. */
+const AssignedData = v.object({
+  tasks: v.array(v.object({ title: v.string(), status: v.string() })),
+});
+const titlesOf = (state: PageViewState): string[] =>
+  v.parse(AssignedData, state.view?.data).tasks.map((task) => task.title);
+
+/**
+ * Страница A на `/assigned`: у него одно поручение, открыта карточка
+ * исполнителя; пока она открыта, B назначает ему вторую задачу.
+ */
+const cardOnPage = async () => {
+  const history = new MemoryPageHistory('/assigned');
+  const p = await pagesOf(ExamplePagesAppDef, 'pages-return', { history });
+  await assignToA(p.w);
+  await p.client.boot();
+  await p.client.submit('main', 'openAssignee', {});
+  await p.wire.settled();
+  await assignToA(p.w, SECOND);
+  await p.wire.settled();
+  return { ...p, history };
+};
+
+test('страница, карточка исполнителя: открытие — запись с over, карточка в side; список поручений перечитан по событию назначения', async () => {
+  const p = await cardOnPage();
+
+  expect(p.client.region('side').view?.screen).toBe(USER_CARD);
+  expect(p.history.position).toBe(1);
+  expect(marksOf(p.history.current())).toEqual({ depth: 1, over: true });
+  expect(titlesOf(p.client.region('main')).sort()).toEqual([SECOND, TITLE]);
+});
+
+test('страница, возврат с карточки исполнителя: карточка закрыта, main — тот же экран и объект, позиция истории прежняя, записей не прибавилось', async () => {
+  const p = await cardOnPage();
+  const main = p.client.region('main');
+
+  const outcome = await p.client.submit('side', 'close', {});
+  await p.wire.settled();
+  await p.history.settled();
+
+  expect(outcome).toMatchObject({ kind: 'exited', exit: 'closed' });
+  expect(p.client.region('side').status).toBe('empty');
+  expect(p.client.region('main')).toBe(main);
+  expect(titlesOf(p.client.region('main')).sort()).toEqual([SECOND, TITLE]);
+  expect(p.history.position).toBe(0);
+  expect(p.history.pushes).toBe(1);
+  expect(p.history.entries()).toHaveLength(2);
+});
+
+const MENU_ID = 'exampleUi/todo/mainMenu';
+/** Окно задачи — размещение примера; список задач — в основной области, под окном. */
+const MENU_PLACEMENTS: readonly PagePlacement[] = [
+  { screen: TaskListScreenDef, region: 'main' },
+  ...exampleWindowPlacements,
+];
+
+/** A создаёт себе задачу: владелец видит её в списке и может выполнить. */
+const ownTask = async (w: World, title = TITLE) => {
+  const trace = Trace.fromRequest({ requestId: `r-a-create-${title}` });
+  const caller = await w.example.callers.resolve(A, trace);
+  if (!caller.ok) throw new Error('вызывающий A не найден');
+  const created = await w.example.api.dispatch(
+    TodoModuleDef,
+    CreateTaskUcDef.command({ title }),
+    caller.value,
+    trace,
+  );
+  if (!created.ok) throw new Error('createTask: отказ');
+  await w.bus.delivered();
+};
+
+/** Страница A на `/menu`: «Мои задачи», окно задачи, назначение и выполнение в окне. */
+const windowFromMenu = async () => {
+  const history = new MemoryPageHistory('/menu');
+  const p = await pagesOf(ExamplePagesAppDef, 'pages-window', {
+    history,
+    placements: MENU_PLACEMENTS,
+  });
+  await ownTask(p.w);
+  await p.client.boot();
+  await p.client.submit('main', 'tasks', {});
+  await p.client.submit('main', 'open', { taskId: TITLE });
+  await p.client.submit('modal', 'assign', { assigneeId: B });
+  await p.client.submit('modal', 'complete', {});
+  await p.wire.settled();
+  return { ...p, history };
+};
+
+/** Меню в основной области, ни окна, ни панели. */
+const expectMenuOnly = (client: PageClient) => {
+  expect(client.region('main').view?.screen).toBe(MENU_ID);
+  expect(client.region('modal').status).toBe('empty');
+  expect(client.region('side').status).toBe('empty');
+};
+
+test('страница, меню → «Мои задачи» → окно: запись на список, запись открытия окна с over; назначение и выполнение — замены', async () => {
+  const p = await windowFromMenu();
+
+  expect(p.client.region('modal').view?.data).toMatchObject({
+    status: 'done',
+  });
+  expect(p.history.entries()).toHaveLength(3);
+  expect(p.history.pushes).toBe(2);
+  expect(p.history.position).toBe(2);
+  expect(p.history.entries().map((entry) => marksOf(entry))).toEqual([
+    { depth: 0, over: false },
+    { depth: 1, over: false },
+    { depth: 2, over: true },
+  ]);
+});
+
+test('страница, закрытие окна client.close: движение назад — список без окна; затем «Назад» — меню', async () => {
+  const p = await windowFromMenu();
+
+  p.client.close('modal');
+  await p.history.settled();
+
+  expect(p.client.region('modal').status).toBe('empty');
+  expect(p.client.region('main').view?.screen).toBe(LIST_ID);
+  expect(p.history.position).toBe(1);
+  expect(p.history.pushes).toBe(2);
+  await p.history.back();
+  expectMenuOnly(p.client);
+  expect(p.history.position).toBe(0);
+});
+
+test('страница, «К списку» в окне: окно закрыто движением назад; затем «Назад» — меню', async () => {
+  const p = await windowFromMenu();
+
+  await p.client.submit('modal', 'back', {});
+  await p.wire.settled();
+  await p.history.settled();
+
+  expect(p.client.region('modal').status).toBe('empty');
+  expect(p.client.region('main').view?.screen).toBe(LIST_ID);
+  expect(p.history.position).toBe(1);
+  expect(p.history.pushes).toBe(2);
+  await p.history.back();
+  expectMenuOnly(p.client);
+});
+
+test('страница, «Назад» при открытом окне закрывает его; следующий «Назад» — меню', async () => {
+  const p = await windowFromMenu();
+
+  await p.history.back();
+
+  expect(p.client.region('modal').status).toBe('empty');
+  expect(p.client.region('main').view?.screen).toBe(LIST_ID);
+  await p.history.back();
+  expectMenuOnly(p.client);
 });
