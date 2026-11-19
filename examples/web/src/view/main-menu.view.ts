@@ -1,7 +1,11 @@
 import { MainMenuScreenDef } from 'dmg-ui/testing';
 import { ExampleScreenView } from './example-screen-view';
 
-/** «Начать работу»: заголовок области, без управления — переходов меню пример пока не рисует. */
-export const MainMenuView = ExampleScreenView.for(MainMenuScreenDef, () => ({
-  kind: 'menu',
-}));
+/** «Начать работу»: заголовок области и кнопки переходов меню. */
+export const MainMenuView = ExampleScreenView.for(
+  MainMenuScreenDef,
+  (_view, controls) => ({
+    kind: 'menu',
+    ...controls,
+  }),
+);

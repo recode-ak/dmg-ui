@@ -164,6 +164,16 @@ describe('ExampleBot — чужой человек', () => {
 });
 
 describe('ExampleBot — меню и уведомления', () => {
+  test('у каждого входа приложения беседы есть точка в ENTRY_POINTS: человек доходит до каждого входа', () => {
+    const covered = new Set<string>(ENTRY_POINTS.map((point) => point.entry));
+
+    const missing = Object.keys(ExampleDialogAppDef.entries).filter(
+      (entry) => !covered.has(entry),
+    );
+
+    expect(missing).toEqual([]);
+  });
+
   test('start(): один setMyCommands с командами точек menu из ENTRY_POINTS, область — личные чаты', async () => {
     const w = await world();
 

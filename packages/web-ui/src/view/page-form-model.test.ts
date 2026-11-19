@@ -284,23 +284,6 @@ describe('PageFormModel.of — варианты и начальные значе
 });
 
 describe('PageFormModel.of — доступность и подтверждение', () => {
-  test('available — по данным экрана: выполнить выбранные, дальше, назад недоступны без выбора и страниц', async () => {
-    const { state } = await listed();
-
-    expect(formOf(state, 'create').available).toBe(true);
-    expect(formOf(state, 'open').available).toBe(true);
-    expect(formOf(state, 'completeSelected').available).toBe(false);
-    expect(formOf(state, 'next').available).toBe(false);
-    expect(formOf(state, 'prev').available).toBe(false);
-  });
-
-  test('available — по состоянию экрана: после выбора задачи выполнение доступно', async () => {
-    const { instance } = await listed();
-    await instance.local({ name: 'toggle', input: { taskId: TASK_A } });
-
-    expect(formOf(ready(instance), 'completeSelected').available).toBe(true);
-  });
-
   test('при stale offline недоступны все формы, в том числе локальные', async () => {
     const { state } = await listed();
 

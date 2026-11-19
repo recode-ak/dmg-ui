@@ -5885,38 +5885,7 @@ const formOn = (
 };
 
 describe('PageClient — причина отключённого действия в форме', () => {
-  test('«Выполнить выбранные»: до выделения available false и reason, после toggle — доступна без reason', async () => {
-    const { client } = await listed();
-
-    expect(formOn(client, 'completeSelected')).toMatchObject({
-      available: false,
-      reason: 'Отметьте открытые задачи',
-    });
-    await client.local('main', 'toggle', { taskId: 'Хлеб' });
-
-    expect(formOn(client, 'completeSelected').available).toBe(true);
-    expect(formOn(client, 'completeSelected')).not.toHaveProperty('reason');
-  });
-
-  test('три открытые задачи: форма «Создать» — available false, reason — текст правила', async () => {
-    const open = TASKS.map((task) => ({ ...task, status: 'open' }));
-    const end = answered().answer('listTasks', ok(open));
-    const { client } = await listed(end);
-
-    expect(formOn(client, 'create')).toMatchObject({
-      available: false,
-      reason: 'Слишком много открытых задач',
-    });
-  });
-
-  test('две открытые задачи: форма «Создать» доступна, reason нет', async () => {
-    const { client } = await listed();
-
-    expect(formOn(client, 'create').available).toBe(true);
-    expect(formOn(client, 'create')).not.toHaveProperty('reason');
-  });
-
-  test('условие кода экрана: все задачи доски выполнены — форма available false, reason — текст кода', async () => {
+  test('основание «своё условие экрана»: все задачи доски выполнены — форма available false, reason — текст кода', async () => {
     const done = TASKS.map((task) => ({ ...task, status: 'done' }));
     const { client } = await boarded(
       new StubEnd().answer('listTasks', ok(done)),

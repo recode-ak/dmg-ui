@@ -69,11 +69,12 @@ export type CardBody = ScreenControls & {
   readonly dropEnabled: boolean;
 };
 
-/** Тело «Назначенные мне»: строки без управления. */
+/** Тело «Назначенные мне»: строки без выбора и кнопки перехода и закрытия. */
 export type AssignedBody = {
   readonly kind: 'assigned';
   readonly rows: readonly TaskRowModel[];
   readonly empty?: string;
+  readonly actions: readonly ActionModel[];
 };
 
 /** Тело «Пользователь»: учётная запись и текст её активности, без управления. */
@@ -83,8 +84,8 @@ export type UserBody = {
   readonly status: string;
 };
 
-/** Тело «Начать работу»: только заголовок области, без управления. */
-export type MenuBody = {
+/** Тело «Начать работу»: кнопки переходов меню. */
+export type MenuBody = ScreenControls & {
   readonly kind: 'menu';
 };
 

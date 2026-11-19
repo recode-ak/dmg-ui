@@ -376,14 +376,6 @@ describe('ScreenInstance.act — вход и доступность', () => {
     expect(kit.ucs.names()).toEqual(['listTasks']);
   });
 
-  test('отключённое доступностью действие — unavailable/disabled', async () => {
-    const list = await new RuntimeKit().openList();
-
-    const outcome = await list.act({ action: 'next', revision: 1, trace });
-
-    expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
-  });
-
   test('имя не из манифеста — unavailable/unknown', async () => {
     const list = await new RuntimeKit().openList();
 

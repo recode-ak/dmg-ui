@@ -49,7 +49,7 @@ const ID = {
   user: 'exampleUi/users/userCard',
 };
 
-const BODY: ScreenBody = { kind: 'assigned', rows: [] };
+const BODY: ScreenBody = { kind: 'assigned', rows: [], actions: [] };
 
 describe('ExampleViews.of — реестр', () => {
   test('готовый реестр примера: набор — набор учебного примера', () => {
@@ -445,5 +445,44 @@ describe('экран «Назначенные мне» — модель', () => 
       openable: false,
     });
     expect(body.empty).toBeUndefined();
+  });
+});
+
+/** Названия действий тела, если у вида тела есть управление; иначе пусто. */
+const actionNamesOf = (model: RegionModel): string[] =>
+  model.body !== undefined && 'actions' in model.body
+    ? names(model.body.actions)
+    : [];
+
+describe('экран «Начать работу» — модель', () => {
+  test('меню: у тела — действия «tasks» и «assigned», чтобы запускаемый пример вёл по экранам', async () => {
+    const w = exampleWorld(tmp().path);
+    const a = await openTab(w, TOKEN_ANNA, 'a');
+    await a.client.route('/menu');
+
+    const model = new RegionFrame().next(a.client.region('main'));
+
+    expect(model.body?.kind).toBe('menu');
+    expect(actionNamesOf(model)).toContain('tasks');
+    expect(actionNamesOf(model)).toContain('assigned');
+  });
+});
+
+describe('экран «Назначенные мне» — действия тела', () => {
+  test('у тела — действия «openAssignee» и «close»; выполнение и выбор строк остаются за показом списка', async () => {
+    const { w, a } = await listed();
+    const b = await openTab(w, TOKEN_BORIS, 'b');
+    await b.client.route('/assigned');
+    await a.client.submit('side', 'assign', {
+      assigneeId: personOf('boris').uuid,
+    });
+    await settle(w, a, b);
+
+    const model = new RegionFrame().next(b.client.region('main'));
+
+    expect(model.body?.kind).toBe('assigned');
+    expect(actionNamesOf(model)).toContain('openAssignee');
+    expect(actionNamesOf(model)).toContain('close');
+    expect(actionNamesOf(model)).not.toContain('completeSelected');
   });
 });

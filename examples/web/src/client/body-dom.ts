@@ -50,6 +50,7 @@ export class BodyDom {
           ...(body.empty === undefined
             ? []
             : [h('p', { class: 'empty', text: body.empty })]),
+          this.actions(body.actions, model, (name) => this.run(name, model)),
         ];
       case 'user':
         return [
@@ -57,7 +58,9 @@ export class BodyDom {
           h('p', { class: 'status', text: body.status }),
         ];
       case 'menu':
-        return [];
+        return [
+          this.actions(body.actions, model, (name) => this.run(name, model)),
+        ];
     }
   }
 

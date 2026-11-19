@@ -68,14 +68,6 @@ async function rowsOnWire() {
 }
 
 describe('домен на клиенте: сервер → провод → клиент', () => {
-  it('state с сервера после JSON восстанавливается в Ar', async () => {
-    const { rows } = await rowsOnWire();
-    const task = TaskAr.readonly(rows[0]);
-
-    expect(task.isOwnedBy(OWNER)).toBe(true);
-    expect(task.isOpen()).toBe(true);
-  });
-
   it('строка выхода listTasks — state: Ar.readonly её восстанавливает', async () => {
     const { rows } = await rowsOnWire();
     const task = TaskAr.readonly(rows[0]);

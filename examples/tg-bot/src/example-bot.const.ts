@@ -13,6 +13,7 @@ export const EXAMPLE_USER_B = '00000000-0000-4000-8000-000000000002';
  */
 export const ENTRY_POINTS = [
   { entry: 'start', via: TELEGRAM_VIA.menu, key: 'start' },
+  { entry: 'menu', via: TELEGRAM_VIA.menu, key: 'menu' },
   { entry: 'assigned', via: TELEGRAM_VIA.menu, key: 'assigned' },
   { entry: 'start', via: TELEGRAM_VIA.link, key: 'hello' },
 ] as const satisfies readonly ChatEntryPointSpec[];

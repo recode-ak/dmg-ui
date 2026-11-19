@@ -70,6 +70,7 @@ describe('реестр на DOM в графе — экран без предст
       ExampleScreenView.for(TaskListScreenDef, () => ({
         kind: 'assigned',
         rows: [],
+        actions: [],
       })),
       PageNotePresenter.for(TaskAssignedNotificationDef, () => 'a'),
       PageNotePresenter.for(TaskCompletedNotificationDef, () => 'b'),

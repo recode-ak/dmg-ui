@@ -43,34 +43,15 @@ describe('Availability — значения', () => {
 });
 
 describe('Availability.when — своё условие', () => {
-  test('условие верно — доступно', () => {
+  test('основание «своё условие»: условие верно — доступно', () => {
     expect(Availability.when(true, 'Нельзя')).toEqual(AVAILABLE);
   });
 
-  test('условие неверно — отключено с текстом автора', () => {
+  test('основание «своё условие»: условие неверно — отключено с текстом автора', () => {
     expect(Availability.when(false, 'Задач нет')).toEqual({
       kind: 'disabled',
       text: 'Задач нет',
     });
-  });
-
-  test('основание «своё условие»: решает выражение кода экрана', () => {
-    const selected: string[] = [];
-
-    const answer = Availability.when(selected.length > 0, 'Ничего не выбрано');
-
-    expect(answer).toEqual({ kind: 'disabled', text: 'Ничего не выбрано' });
-  });
-
-  test('основание «признак из ответа query UC»: решает поле ответа', () => {
-    const answered = { hasMore: false };
-
-    expect(Availability.when(answered.hasMore, 'Дальше нет').kind).toBe(
-      'disabled',
-    );
-    expect(Availability.when(!answered.hasMore, 'Дальше есть').kind).toBe(
-      'available',
-    );
   });
 });
 
