@@ -7,7 +7,8 @@ import type {
 } from '../manifest/screen-def.types';
 import type { FieldIssue } from '../schema/schema-check.types';
 import type { ActionField } from '../screen/action-input.types';
-import type { RenderContext } from './context.types';
+import type { ViewAvailability } from '../screen/availability.types';
+import type { ViewContext } from './context.types';
 
 /**
  * Отказ: код ошибки, главная строка `ErrorText` и признак «у экрана свой
@@ -44,18 +45,21 @@ export type LocalOutcome =
   | { readonly kind: 'refused'; readonly refusal: Refusal }
   | { readonly kind: 'unavailable'; readonly reason: UnavailableReason };
 
-/** Действие в виде экземпляра: доступность, поля входа, подтверждение. */
+/**
+ * Действие в виде экземпляра: доступность (доступно или отключено с
+ * причиной; скрытого в виде нет), поля входа, подтверждение.
+ */
 export type ActionView = {
   readonly name: string;
-  readonly available: boolean;
+  readonly availability: ViewAvailability;
   readonly fields: readonly ActionField[];
   readonly confirm?: ItemTexts;
 };
 
-/** Локальное действие в виде экземпляра. */
+/** Локальное действие в виде экземпляра; скрытого в виде нет. */
 export type LocalView = {
   readonly name: string;
-  readonly available: boolean;
+  readonly availability: ViewAvailability;
   readonly fields: readonly ActionField[];
 };
 
@@ -71,7 +75,7 @@ export type InstanceView = {
   readonly data?: unknown;
   readonly state?: unknown;
   readonly refusal?: Refusal;
-  readonly context: RenderContext;
+  readonly context: ViewContext;
   readonly primary?: string;
   readonly actions: readonly ActionView[];
   readonly locals: readonly LocalView[];

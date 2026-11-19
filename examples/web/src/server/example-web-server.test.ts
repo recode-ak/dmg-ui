@@ -11,7 +11,11 @@ import {
   PageClient,
   PageSocketEnd,
 } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef, examplePageRoutes } from 'dmg-ui/web-ui/testing';
+import {
+  ExamplePagesAppDef,
+  examplePageRoutes,
+  exampleSubjectWire,
+} from 'dmg-ui/web-ui/testing';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
 import { EXAMPLE_COOKIE, EXAMPLE_PATHS } from '../common/example-web.const';
 import { ExampleTokens } from './example-tokens';
@@ -364,6 +368,7 @@ describe('сокет — ворота', () => {
         end: res.value,
         placements: [{ screen: AssignedTasksScreenDef, region: 'modal' }],
         observer: new MemoryUiObserver(),
+        reviveSubject: exampleSubjectWire.revive,
         requestIds: () => {
           n += 1;
           return `${prefix}-${n}`;

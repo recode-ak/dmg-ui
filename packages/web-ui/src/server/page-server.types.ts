@@ -33,6 +33,13 @@ export type PageHostSpec<U extends Identified> = {
   /** Порт сборки: место личности — язык и часовой пояс (D-UI-41). */
   readonly places: PersonPlaces;
   readonly logger: PageLogger;
+  /**
+   * Перевод субъекта вызывающего (у заместителя — принципал) в JSON для
+   * `hello.context.subject`; клиент восстанавливает его `reviveSubject`.
+   * Отдавать только то, что нужно правилам клиента. Без перевода субъект в
+   * `hello` не уходит.
+   */
+  readonly subjectToWire?: (subject: U) => unknown;
 };
 
 /**

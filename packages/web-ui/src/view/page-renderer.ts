@@ -53,7 +53,7 @@ export class PageRenderer {
     return [
       this.views.screen(view.screen).text(view),
       ...view.actions
-        .filter((action) => action.available)
+        .filter((action) => action.availability.kind === 'available')
         .map((action) =>
           this.form(
             def?.actions[action.name]?.label ?? action.name,
@@ -61,7 +61,7 @@ export class PageRenderer {
           ),
         ),
       ...view.locals
-        .filter((local) => local.available)
+        .filter((local) => local.availability.kind === 'available')
         .map((local) =>
           this.form(def?.locals[local.name]?.label ?? local.name, local.fields),
         ),

@@ -28,6 +28,7 @@ import {
 } from '../../testing/example';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
+import { taskState } from '../../testing/task-state';
 import { UiScene } from '../../testing/ui-arch';
 import { CutKit } from '../../testing/ui-cut-scene';
 import {
@@ -127,7 +128,12 @@ describe('ScreenRuntime.open', () => {
       address: LIST_START,
       revision: 1,
       status: 'ready',
-      data: { tasks: [...TASKS], hasMore: false, hasPrev: false },
+      data: {
+        tasks: [...TASKS],
+        owned: [...TASKS],
+        hasMore: false,
+        hasPrev: false,
+      },
       state: { selected: [] },
     });
   });
@@ -274,7 +280,10 @@ describe('ScreenRuntime.open — дефекты кода экрана', () => {
     class BadData extends TaskListScreenCode {
       override async load() {
         return ok({
-          tasks: [{ uuid: 'не uuid', title: 'Хлеб', status: 'open' as const }],
+          tasks: [
+            taskState({ uuid: 'не uuid', title: 'Хлеб', status: 'open' }),
+          ],
+          owned: [],
           hasMore: false,
           hasPrev: false,
         });

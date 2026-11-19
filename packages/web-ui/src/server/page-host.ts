@@ -1,5 +1,5 @@
 import { err, type Identified, ok, type Result, Trace } from 'dmg-core';
-import type { RenderContext } from 'dmg-ui';
+import type { RenderContext, ViewContext } from 'dmg-ui';
 import { type CallerSource, RenderContexts } from 'dmg-ui/server';
 import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
@@ -67,7 +67,7 @@ export class PageHost<U extends Identified> implements PageServerPort {
       source: PAGE_CHANNEL,
     });
     this.delivery.attach(uuid, connection);
-    outbox.push({ kind: 'hello', context });
+    outbox.push({ kind: 'hello', context: this.wired(context) });
     return ok({
       receive: (raw) => connection.receive(raw),
       close: () => {
@@ -100,10 +100,28 @@ export class PageHost<U extends Identified> implements PageServerPort {
   }
 
   /**
+   * Контекст `hello`: место и признаки; субъект — только в форме
+   * `subjectToWire` проекта (D-UI-98). Без перевода или без субъекта поля
+   * нет: объект субъекта на провод не уходит.
+   */
+  private wired(
+    context: ViewContext & { readonly subject?: U },
+  ): RenderContext {
+    const { locale, timeZone, delegate, readOnly, subject } = context;
+    const view: ViewContext = { locale, timeZone, delegate, readOnly };
+    const toWire = this.spec.subjectToWire;
+    return toWire === undefined || subject === undefined
+      ? view
+      : { ...view, subject: toWire(subject) };
+  }
+
+  /**
    * Контекст рендера соединения — `RenderContexts` по `uuid` токена. Сбой
    * порта места или вызывающего — `error` без текста броска и `undefined`.
    */
-  private async context(uuid: string): Promise<RenderContext | undefined> {
+  private async context(
+    uuid: string,
+  ): Promise<(ViewContext & { readonly subject?: U }) | undefined> {
     // Id запроса соединения создаёт сервер: признак `generated` честен,
     // предупреждать не о чем.
     const trace = Trace.fromRequest(

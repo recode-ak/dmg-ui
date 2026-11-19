@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ok } from 'dmg-core';
-import { ListTasksUcDef } from 'dmg-core/testing/example';
+import { testUuid } from 'dmg-core/testing';
+import { type ExampleUser, ListTasksUcDef } from 'dmg-core/testing/example';
 import * as v from 'valibot';
 import {
   exampleCodes,
@@ -117,12 +118,27 @@ describe('ScreenPreview.screen — вид по примеру', () => {
       status: 'ready',
       data: TaskListScreenDef.examples.full?.data,
       state: { selected: [TASK_A] },
-      context: testRenderContext,
       primary: 'create',
     });
   });
 
-  test('доступность и варианты полей — из кода экрана', async () => {
+  test('контекст вида — место и признаки, субъекта в виде нет', async () => {
+    const view = await preview().screen(
+      TaskListScreenDef,
+      'full',
+      testRenderContext,
+    );
+
+    expect('subject' in view.context).toBe(false);
+    expect(view.context).toStrictEqual({
+      locale: testRenderContext.locale,
+      timeZone: testRenderContext.timeZone,
+      delegate: false,
+      readOnly: false,
+    });
+  });
+
+  test('с субъектом — доступность и варианты полей из кода экрана', async () => {
     const view = await preview().screen(
       TaskListScreenDef,
       'full',
@@ -131,8 +147,10 @@ describe('ScreenPreview.screen — вид по примеру', () => {
     const action = (name: string) =>
       view.actions.find((item: ActionView) => item.name === name);
 
-    expect(action('completeSelected')?.available).toBe(true);
-    expect(action('next')?.available).toBe(true);
+    expect(action('completeSelected')?.availability).toEqual({
+      kind: 'available',
+    });
+    expect(action('next')?.availability).toEqual({ kind: 'available' });
     expect(action('open')?.fields).toEqual([
       expect.objectContaining({
         name: 'taskId',
@@ -143,8 +161,44 @@ describe('ScreenPreview.screen — вид по примеру', () => {
       }),
     ]);
     expect(view.locals).toEqual([
-      expect.objectContaining({ name: 'toggle', available: true }),
+      expect.objectContaining({
+        name: 'toggle',
+        availability: { kind: 'available' },
+      }),
     ]);
+  });
+
+  test('без субъекта — действия с Policy скрыты, остальные на месте', async () => {
+    const view = await preview().screen(TaskListScreenDef, 'full', {
+      ...testRenderContext,
+      subject: undefined,
+    });
+
+    expect(view.actions.map((action: ActionView) => action.name)).toEqual([
+      'open',
+      'create',
+      'next',
+      'prev',
+      'close',
+    ]);
+  });
+
+  test('чужой субъект — выполнение чужих задач скрыто, администратор — доступно', async () => {
+    const other: ExampleUser = { uuid: testUuid(77), hasRole: () => false };
+    const admin: ExampleUser = {
+      uuid: testUuid(78),
+      hasRole: (role) => role === 'admin',
+    };
+    const namesFor = async (subject: ExampleUser) =>
+      (
+        await preview().screen(TaskListScreenDef, 'full', {
+          ...testRenderContext,
+          subject,
+        })
+      ).actions.map((action: ActionView) => action.name);
+
+    expect(await namesFor(other)).not.toContain('completeSelected');
+    expect(await namesFor(admin)).toContain('completeSelected');
   });
 
   test('пример без state — состояние из initialState кода по данным примера', async () => {
@@ -158,22 +212,25 @@ describe('ScreenPreview.screen — вид по примеру', () => {
     expect(view.state).toEqual({ picked: ['Хлеб'] });
   });
 
-  test('readOnly гасит действия с uc, действия без uc доступны', async () => {
+  test('readOnly отключает действия с uc, действия без uc доступны', async () => {
     const view = await preview().screen(TaskListScreenDef, 'full', {
       ...testRenderContext,
       readOnly: true,
     });
-    const available = Object.fromEntries(
-      view.actions.map((action: ActionView) => [action.name, action.available]),
+    const kinds = Object.fromEntries(
+      view.actions.map((action: ActionView) => [
+        action.name,
+        action.availability.kind,
+      ]),
     );
 
-    expect(available).toEqual({
-      open: true,
-      create: false,
-      completeSelected: false,
-      next: true,
-      prev: false,
-      close: true,
+    expect(kinds).toEqual({
+      open: 'available',
+      create: 'disabled',
+      completeSelected: 'disabled',
+      next: 'available',
+      prev: 'disabled',
+      close: 'available',
     });
   });
 

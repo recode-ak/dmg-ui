@@ -14,6 +14,7 @@ import {
   ListTasksUcDef,
   TaskErrors,
 } from 'dmg-core/testing/example';
+import * as v from 'valibot';
 import {
   CARD_ID,
   exampleCodes,
@@ -24,13 +25,19 @@ import {
 } from '../../testing/example';
 import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { taskState } from '../../testing/task-state';
+import { UiScene } from '../../testing/ui-arch';
 import { CutKit } from '../../testing/ui-cut-scene';
 import {
   RuntimeKit,
   requestTrace,
   testRenderContext,
 } from '../../testing/ui-runtime-fixture';
+import { ScreenDef } from '../manifest/screen-def';
+import { Availability } from '../screen/availability';
+import { ScreenCode } from '../screen/screen-code';
 import type { ActionSteps, LoadContext } from '../screen/screen-code.types';
+import { CodeLoader, CodeLoaders } from './code-loaders';
 import type { ViewChange } from './outcome.types';
 
 // Действия экземпляра экрана: порядок шагов `act`, проверка перехода,
@@ -84,9 +91,10 @@ class Caught extends TaskListScreenCode {
   };
 }
 
-/** Контекст, полученный `load` и шагом `open`, — в `seen`. */
+/** Контекст `load` и шага `open` и субъект функции доступности — в `seen`. */
 class Spy extends TaskListScreenCode {
   readonly seen: unknown[] = [];
+  readonly judged: unknown[] = [];
   override readonly actions: Partial<ActionSteps<List>> = {
     ...listSteps,
     open: {
@@ -97,10 +105,58 @@ class Spy extends TaskListScreenCode {
     },
   };
 
+  override readonly availability = {
+    close: (ctx: { readonly subject?: unknown }) => {
+      this.judged.push(ctx.subject);
+      return Availability.yes();
+    },
+  };
+
   override async load(ctx: LoadContext<List>) {
     this.seen.push(ctx.context);
     return super.load(ctx);
   }
+}
+
+/** Замена доступности: что скрыть и что отключить с текстом `OFF`. */
+const OFF = 'Пока нельзя';
+class Gated extends TaskListScreenCode {
+  constructor(
+    private readonly hide: readonly string[],
+    private readonly disable: readonly string[],
+  ) {
+    super();
+  }
+
+  private answer(name: string) {
+    if (this.hide.includes(name)) return Availability.hidden();
+    if (this.disable.includes(name)) return Availability.disabled(OFF);
+    return Availability.yes();
+  }
+
+  override readonly availability = {
+    create: () => this.answer('create'),
+    close: () => this.answer('close'),
+    next: () => this.answer('next'),
+    toggle: () => this.answer('toggle'),
+  };
+}
+
+/** Доступность `close` и `toggle`, бросающая со второго вызова: открытие проходит, исполнение — дефект. */
+class Flaky extends TaskListScreenCode {
+  private readonly calls = new Map<string, number>();
+
+  private once(name: string) {
+    const next = (this.calls.get(name) ?? 0) + 1;
+    this.calls.set(name, next);
+    if (next > 1) throw new Error('сбой доступности');
+    return Availability.yes();
+  }
+
+  override readonly availability = {
+    close: () => this.once('close'),
+    toggle: () => this.once('toggle'),
+  };
 }
 
 /** `toggle` возвращает состояние не по схеме — дефект кода. */
@@ -319,7 +375,7 @@ describe('ScreenInstance.act — вход и доступность', () => {
     expect(kit.ucs.names()).toEqual(['listTasks']);
   });
 
-  test('available = false — unavailable/disabled', async () => {
+  test('отключённое доступностью действие — unavailable/disabled', async () => {
     const list = await new RuntimeKit().openList();
 
     const outcome = await list.act({ action: 'next', revision: 1, trace });
@@ -360,13 +416,18 @@ describe('ScreenInstance.act — только чтение', () => {
     expect(outcome.kind).toBe('moved');
   });
 
-  test('вид помечает действие с uc недоступным, без uc — доступным', async () => {
+  test('вид отключает действие с uc текстом ядра, без uc — доступно', async () => {
     const list = await new RuntimeKit().openList({ readOnly: true });
 
     const actions = list.view().actions;
 
-    expect(actions.find((a) => a.name === 'create')?.available).toBe(false);
-    expect(actions.find((a) => a.name === 'open')?.available).toBe(true);
+    expect(actions.find((a) => a.name === 'create')?.availability).toEqual({
+      kind: 'disabled',
+      text: expect.stringMatching(/\S/),
+    });
+    expect(actions.find((a) => a.name === 'open')?.availability).toEqual({
+      kind: 'available',
+    });
   });
 });
 
@@ -450,7 +511,7 @@ describe('ScreenInstance.act — ревизия и очередь', () => {
 });
 
 describe('ScreenInstance — контекст', () => {
-  test('язык и зона доходят до load и шагов действия', async () => {
+  test('язык, зона и субъект доходят до load и шагов действия', async () => {
     const spy = new Spy();
     const list = await new RuntimeKit(exampleCodes({ list: spy })).openList();
 
@@ -461,11 +522,35 @@ describe('ScreenInstance — контекст', () => {
       trace,
     });
 
-    const { locale, timeZone } = testRenderContext;
+    const { locale, timeZone, subject } = testRenderContext;
     expect(spy.seen).toEqual([
-      { locale, timeZone },
-      { locale, timeZone },
+      { locale, timeZone, subject },
+      { locale, timeZone, subject },
     ]);
+  });
+
+  test('субъект доходит до функции доступности: при открытии и при исполнении', async () => {
+    const spy = new Spy();
+    const list = await new RuntimeKit(exampleCodes({ list: spy })).openList();
+
+    await list.act({ action: 'close', revision: 1, trace });
+
+    const { subject } = testRenderContext;
+    expect(spy.judged).toEqual([subject, subject]);
+  });
+
+  test('вид не несёт субъекта: контекст вида — место и признаки', async () => {
+    const list = await new RuntimeKit().openList();
+
+    const context = list.view().context;
+
+    expect('subject' in context).toBe(false);
+    expect(context).toStrictEqual({
+      locale: testRenderContext.locale,
+      timeZone: testRenderContext.timeZone,
+      delegate: false,
+      readOnly: false,
+    });
   });
 });
 
@@ -592,5 +677,203 @@ describe('ScreenInstance.act — отрезанная ветка приложе�
       kind: 'moved',
       address: { screen: 'miniUi/todo/inside', params: {} },
     });
+  });
+});
+
+describe('ScreenInstance — доступность в виде', () => {
+  const kitOf = (code: TaskListScreenCode) =>
+    new RuntimeKit(exampleCodes({ list: code }));
+
+  test('скрытое действие — нет в actions, остальные на месте', async () => {
+    const list = await kitOf(new Gated(['create', 'close'], [])).openList();
+
+    const names = list.view().actions.map((action) => action.name);
+
+    expect(names).toEqual(['open', 'completeSelected', 'next', 'prev']);
+  });
+
+  test('скрытое локальное действие — нет в locals', async () => {
+    const list = await kitOf(new Gated(['toggle'], [])).openList();
+
+    expect(list.view().locals).toEqual([]);
+  });
+
+  test('отключённое действие и локальное — в виде с текстом, доступное — без текста', async () => {
+    const list = await kitOf(new Gated([], ['next', 'toggle'])).openList();
+    const view = list.view();
+    const action = (name: string) => view.actions.find((a) => a.name === name);
+
+    expect(action('next')?.availability).toStrictEqual({
+      kind: 'disabled',
+      text: OFF,
+    });
+    expect(view.locals[0]?.availability).toStrictEqual({
+      kind: 'disabled',
+      text: OFF,
+    });
+    expect(action('close')?.availability).toStrictEqual({ kind: 'available' });
+  });
+
+  test('основное действие скрытого — вид без primary; отключённого — primary остаётся', async () => {
+    const hidden = await kitOf(new Gated(['create'], [])).openList();
+    const disabled = await kitOf(new Gated([], ['create'])).openList();
+
+    expect(hidden.view().primary).toBeUndefined();
+    expect(disabled.view().primary).toBe('create');
+  });
+
+  test.each([
+    ['скрытое', new Gated(['create'], [])],
+    ['отключённое', new Gated([], ['create'])],
+  ])(
+    'act по действию: %s — unavailable/disabled без текста, UC не вызван',
+    async (_, code) => {
+      const kit = kitOf(code);
+      const list = await kit.openList();
+
+      const outcome = await list.act(CREATE);
+
+      expect(outcome).toStrictEqual({
+        kind: 'unavailable',
+        reason: 'disabled',
+      });
+      expect(kit.ucs.names()).toEqual(['listTasks']);
+    },
+  );
+
+  test.each([
+    ['скрытое', new Gated(['toggle'], [])],
+    ['отключённое', new Gated([], ['toggle'])],
+  ])('local: %s — unavailable/disabled, состояние прежнее', async (_, code) => {
+    const list = await kitOf(code).openList();
+
+    const outcome = await list.local({
+      name: 'toggle',
+      input: { taskId: TASK_A },
+    });
+
+    expect(outcome).toStrictEqual({ kind: 'unavailable', reason: 'disabled' });
+    expect(list.view().state).toEqual({ selected: [] });
+  });
+
+  test('бросок функции доступности при открытии — вид в отказе SERVER_INTERNAL, запись defect', async () => {
+    class Broken extends TaskListScreenCode {
+      override readonly availability = {
+        close: () => {
+          throw new Error('сбой доступности');
+        },
+      };
+    }
+    const kit = kitOf(new Broken());
+
+    const view = (await kit.openList()).view();
+
+    expect(view.status).toBe('refused');
+    expect(view.refusal).toMatchObject({ code: 'SERVER_INTERNAL' });
+    expect(kit.observer.kinds()).toContain('defect');
+  });
+
+  test('бросок функции доступности при act — refused/SERVER_INTERNAL, запись defect', async () => {
+    const kit = kitOf(new Flaky());
+    const list = await kit.openList();
+
+    const outcome = await list.act({ action: 'close', revision: 1, trace });
+
+    expect(outcome).toMatchObject({
+      kind: 'refused',
+      refusal: { code: 'SERVER_INTERNAL', caught: false },
+    });
+    expect(kit.observer.kinds()).toContain('defect');
+  });
+
+  test('бросок функции доступности при local — refused/SERVER_INTERNAL, состояние прежнее', async () => {
+    const kit = kitOf(new Flaky());
+    const list = await kit.openList();
+
+    const outcome = await list.local({
+      name: 'toggle',
+      input: { taskId: TASK_A },
+    });
+
+    expect(outcome).toMatchObject({
+      kind: 'refused',
+      refusal: { code: 'SERVER_INTERNAL', caught: false },
+    });
+    expect(list.view().state).toEqual({ selected: [] });
+    expect(kit.observer.kinds()).toContain('defect');
+  });
+});
+
+// Экран, чья доступность решается признаком из ответа query UC: данные
+// загрузки несут число открытых задач из ответа `listTasks`.
+
+const FlagScreenDef = ScreenDef.define({
+  name: 'flag',
+  label: 'Признак',
+  description: 'Действие доступно, пока в ответе есть открытые задачи.',
+  reads: [ListTasksUcDef],
+  data: v.object({
+    open: v.pipe(v.number(), v.description('Открытых задач в ответе')),
+  }),
+  actions: {
+    finish: { label: 'Закончить', description: 'Нужна открытая задача.' },
+  },
+});
+
+type Flag = typeof FlagScreenDef;
+
+class FlagCode extends ScreenCode<Flag> {
+  override readonly actions: Partial<ActionSteps<Flag>> = {
+    finish: { done: () => FlagScreenDef.at({}) },
+  };
+
+  override readonly availability = {
+    finish: ({ data }: { readonly data: { readonly open: number } }) =>
+      Availability.when(data.open > 0, 'Открытых задач нет'),
+  };
+
+  override async load({ read }: LoadContext<Flag>) {
+    const listed = await read(ListTasksUcDef, {});
+    if (!listed.ok) return listed;
+    return ok({
+      open: listed.value.filter((task) => task.status === 'open').length,
+    });
+  }
+}
+
+const flagged = (rows: ReturnType<typeof taskState>[]) => {
+  const { set } = new UiScene({ screens: [FlagScreenDef] });
+  const codes = CodeLoaders.of(set, [
+    CodeLoader.screen(FlagScreenDef, async () => new FlagCode()),
+  ]);
+  const kit = new RuntimeKit(codes, set);
+  kit.ucs.answer(ListTasksUcDef, ok(rows));
+  return kit.runtime.open(FlagScreenDef.at({}), RuntimeKit.options());
+};
+
+describe('ScreenInstance — основание доступности: признак из ответа query UC', () => {
+  test('в ответе read есть открытая задача — действие доступно', async () => {
+    const row = taskState({ uuid: TASK_A, title: 'Хлеб', status: 'open' });
+
+    const view = (await flagged([row])).view();
+
+    expect(view.actions[0]?.availability).toEqual({ kind: 'available' });
+  });
+
+  test('в ответе read открытых нет — отключено с текстом автора, act — unavailable', async () => {
+    const row = taskState({ uuid: TASK_B, title: 'Молоко', status: 'done' });
+    const instance = await flagged([row]);
+
+    const outcome = await instance.act({
+      action: 'finish',
+      revision: 1,
+      trace,
+    });
+
+    expect(instance.view().actions[0]?.availability).toEqual({
+      kind: 'disabled',
+      text: 'Открытых задач нет',
+    });
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
   });
 });

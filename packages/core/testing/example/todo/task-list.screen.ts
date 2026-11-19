@@ -8,7 +8,7 @@ import {
 } from 'dmg-core/testing/example';
 import { type AnyScreenDef, ScreenDef } from 'dmg-ui';
 import * as v from 'valibot';
-import { TASK_A, TASK_B, taskRow } from './example-tasks';
+import { exampleTask, TASK_A, TASK_B, taskRow } from './example-tasks';
 import { TaskCardScreenDef } from './task-card.screen';
 
 // Взаимные thunk `to` аннотированы: без типа возврата TS выводит `any` для
@@ -34,6 +34,12 @@ export const TaskListScreenDef = ScreenDef.define({
   reads: [ListTasksUcDef],
   data: v.object({
     tasks: v.pipe(v.array(taskRow), v.description('Задачи страницы')),
+    owned: v.pipe(
+      v.array(taskRow),
+      v.description(
+        'Все неархивные задачи вызывающего — контекст предела открытых',
+      ),
+    ),
     hasMore: v.pipe(v.boolean(), v.description('Есть следующая страница')),
     hasPrev: v.pipe(v.boolean(), v.description('Есть предыдущая страница')),
   }),
@@ -114,7 +120,7 @@ export const TaskListScreenDef = ScreenDef.define({
       label: 'Пустой список',
       description: 'Задач ещё нет.',
       params: { page: 0 },
-      data: { tasks: [], hasMore: false, hasPrev: false },
+      data: { tasks: [], owned: [], hasMore: false, hasPrev: false },
       state: { selected: [] },
     },
     full: {
@@ -123,8 +129,12 @@ export const TaskListScreenDef = ScreenDef.define({
       params: { page: 0 },
       data: {
         tasks: [
-          { uuid: TASK_A, title: 'Хлеб', status: 'open' },
-          { uuid: TASK_B, title: 'Молоко', status: 'done' },
+          exampleTask(TASK_A, 'Хлеб', 'open'),
+          exampleTask(TASK_B, 'Молоко', 'done'),
+        ],
+        owned: [
+          exampleTask(TASK_A, 'Хлеб', 'open'),
+          exampleTask(TASK_B, 'Молоко', 'done'),
         ],
         hasMore: true,
         hasPrev: false,

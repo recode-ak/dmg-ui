@@ -9,10 +9,12 @@ import {
   type InstanceView,
   type LocalOutcome,
   type OpenOptions,
+  type RenderContext,
   type ScreenInstance,
   ScreenRuntime,
   UiIds,
   type UnavailableReason,
+  type ViewContext,
 } from 'dmg-ui';
 import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
@@ -110,8 +112,10 @@ type Ready =
  */
 export class PageClient {
   private readonly spec: PageClientSpec;
-  /** Текущий конец провода: его контекст — у новых экземпляров. */
+  /** Текущий конец провода. */
   private end: ClientEnd;
+  /** Контекст рендера текущего соединения — у новых экземпляров (`contextOf`). */
+  private context: RenderContext;
   /** Переходы без связи — по одному на область, ждут `attach`. */
   private readonly deferred = new Map<PageRegionName, DeferredOpen>();
   private readonly runtime: ScreenRuntime;
@@ -163,6 +167,7 @@ export class PageClient {
       spec.requestIds ?? (() => crypto.randomUUID()),
       PAGE_CHANNEL,
     );
+    this.context = this.contextOf(spec.end);
     this.regions = new PageRegions(
       (node, error) => this.fault(node, error),
       new PagePlacements(this.ids, spec.placements ?? []),
@@ -878,6 +883,7 @@ export class PageClient {
    */
   private bind(end: ClientEnd): void {
     this.end = end;
+    this.context = this.contextOf(end);
     this.ports.attach(end);
     this.regions.connect();
     this.listen(end);
@@ -1069,7 +1075,26 @@ export class PageClient {
   }
 
   private options(): OpenOptions {
-    return { context: this.end.context, trace: this.traces.next() };
+    return { context: this.context, trace: this.traces.next() };
+  }
+
+  /**
+   * Контекст рендера соединения: место и признаки из `hello`, субъект —
+   * `reviveSubject` проекта из JSON `hello` (один раз на соединение).
+   * Бросок восстановления — без субъекта и запись в `faults` фиксированным
+   * текстом: значения провода в диагностику не идут (ERR-07).
+   */
+  private contextOf(end: ClientEnd): RenderContext {
+    const { locale, timeZone, delegate, readOnly, subject } = end.context;
+    const view: ViewContext = { locale, timeZone, delegate, readOnly };
+    const revive = this.spec.reviveSubject;
+    if (subject === undefined || revive === undefined) return view;
+    try {
+      return { ...view, subject: revive(subject) };
+    } catch {
+      this.fault(PAGE_CHANNEL, new Error(PAGE_FAULTS.subject));
+      return view;
+    }
   }
 
   /** Значения только объявленных полей формы: чужие ключи отброшены. */

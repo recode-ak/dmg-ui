@@ -7,12 +7,12 @@ import {
 } from 'dmg-core/testing/example';
 import { type AnyScreenDef, ScreenDef } from 'dmg-ui';
 import * as v from 'valibot';
-import { TASK_A, TASK_B, taskRow } from './example-tasks';
+import { exampleTask, TASK_A, TASK_B, taskRow } from './example-tasks';
 import { TaskListScreenDef } from './task-list.screen';
 
 /**
- * Карточка задачи владельца: выполнение (недоступно по данным у
- * выполненной), назначение исполнителя — текстовый вход, возврат к списку.
+ * Карточка задачи владельца: выполнение (по Policy задачи; у выполненной —
+ * отключено), назначение исполнителя — текстовый вход, возврат к списку.
  */
 export const TaskCardScreenDef = ScreenDef.define({
   name: 'taskCard',
@@ -51,13 +51,13 @@ export const TaskCardScreenDef = ScreenDef.define({
       label: 'Открытая задача',
       description: 'Задачу можно выполнить.',
       params: { taskId: TASK_A },
-      data: { uuid: TASK_A, title: 'Хлеб', status: 'open' },
+      data: exampleTask(TASK_A, 'Хлеб', 'open'),
     },
     done: {
       label: 'Выполненная задача',
       description: 'Выполнить уже нельзя.',
       params: { taskId: TASK_B },
-      data: { uuid: TASK_B, title: 'Молоко', status: 'done' },
+      data: exampleTask(TASK_B, 'Молоко', 'done'),
     },
   },
 });

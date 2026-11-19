@@ -51,12 +51,12 @@ const controls = (model: RegionModel): boolean[] => {
   }
 };
 
-/** Anna с тремя задачами и открытой карточкой «Хлеб»; кадры списка и карточки. */
-const world = async () => {
+/** Anna с задачами `titles` (по умолчанию три) и открытой карточкой «Хлеб»; кадры списка и карточки. */
+const world = async (titles = ['Хлеб', 'Молоко', 'Сыр']) => {
   const w = exampleWorld(tmp().path);
   const a = await openTab(w, TOKEN_ANNA, 'a');
   await a.client.route('/');
-  for (const title of ['Хлеб', 'Молоко', 'Сыр']) {
+  for (const title of titles) {
     await a.client.submit('main', 'create', { title });
   }
   await a.client.submit('main', 'open', { taskId: 'Хлеб' });
@@ -349,7 +349,8 @@ describe('RegionFrame — что переносится из состояния'
   });
 
   test('отказ формы по полю: замечание у поля формы, общих замечаний нет, введённое в поле на месте', async () => {
-    const { a, frame } = await world();
+    // Две открытые: при трёх «Создать задачу» отключено пределом открытых.
+    const { a, frame } = await world(['Хлеб', 'Молоко']);
     await a.client.submit('main', 'create', { title: '' });
 
     const model = frame.next(a.client.region('main'));

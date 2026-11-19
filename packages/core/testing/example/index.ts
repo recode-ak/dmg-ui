@@ -2,6 +2,7 @@
 // загрузчики кода; его собирает вход `dmg-ui/testing` (`testing/index.ts`).
 
 export { type ExampleCodeOverrides, exampleCodes } from './example-codes';
+export { exampleSubject } from './example-subject';
 export { ExampleUiSetDef } from './example-ui.set';
 export { AssignedTasksScreenDef } from './todo/assigned-tasks.screen';
 export {

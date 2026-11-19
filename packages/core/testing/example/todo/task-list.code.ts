@@ -1,7 +1,15 @@
 import { type DomainError, ok, type Result } from 'dmg-core';
-import { ListTasksUcDef } from 'dmg-core/testing/example';
+import {
+  type ExampleUser,
+  ListTasksUcDef,
+  TaskAr,
+  TaskPolicy,
+  TaskRules,
+} from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  Availability,
+  type AvailabilityFns,
   type DataOf,
   type FieldChoices,
   type FieldValues,
@@ -9,7 +17,7 @@ import {
   ScreenCode,
   type StateOf,
 } from 'dmg-ui';
-import { TASK_PAGE_SIZE, TaskRows } from './example-tasks';
+import { TASK_PAGE_SIZE, TaskRows, TaskSelection } from './example-tasks';
 import { TaskCardScreenDef } from './task-card.screen';
 import { TaskListScreenDef } from './task-list.screen';
 
@@ -20,26 +28,25 @@ type ListState = StateOf<List>;
 /**
  * Код списка задач. Выполнять имеет смысл только выбранные открытые задачи
  * страницы: после выполнения выбор остаётся, но действие гаснет, а команда
- * не шлёт выполненные (иначе `TASK_ALREADY_DONE`).
+ * не шлёт выполненные (иначе `TASK_ALREADY_DONE`). Доступность решает домен
+ * на клиенте: предел открытых (`TaskRules`) над всеми задачами вызывающего и
+ * Policy набора (`TaskPolicy`) над выбранными — те же правила, что у UC.
  */
-export class TaskListScreenCode extends ScreenCode<List> {
+export class TaskListScreenCode extends ScreenCode<List, ExampleUser> {
   /** Отметить можно только задачу из данных; чужой id выбор не меняет. */
   override readonly locals = {
     toggle: (
       state: ListState,
       data: ListData,
       input: { taskId: string },
-    ): ListState => {
-      if (!data.tasks.some((task) => task.uuid === input.taskId)) return state;
-      return {
-        selected: state.selected.includes(input.taskId)
-          ? state.selected.filter((id) => id !== input.taskId)
-          : [...state.selected, input.taskId],
-      };
-    },
+    ): ListState => ({
+      selected: new TaskSelection(data.tasks, state.selected).toggled(
+        input.taskId,
+      ),
+    }),
   };
 
-  override readonly actions: Partial<ActionSteps<List>> = {
+  override readonly actions: Partial<ActionSteps<List, ExampleUser>> = {
     create: {
       done: (_, output) =>
         TaskListScreenDef.exits.created.with({ taskId: output.taskId }),
@@ -47,7 +54,7 @@ export class TaskListScreenCode extends ScreenCode<List> {
     open: { done: ({ input }) => TaskCardScreenDef.at(input) },
     completeSelected: {
       command: ({ data, state }) => ({
-        taskIds: TaskListScreenCode.openSelected(data, state),
+        taskIds: new TaskSelection(data.tasks, state.selected).openIds(),
       }),
       done: ({ params }) => TaskListScreenDef.at(params),
     },
@@ -60,13 +67,28 @@ export class TaskListScreenCode extends ScreenCode<List> {
     close: { done: () => TaskListScreenDef.exits.closed.with() },
   };
 
-  /** Выбранные задачи страницы, которые ещё открыты, — в порядке выбора. */
-  static openSelected(data: ListData, state: ListState): string[] {
-    const open = new Set(
-      data.tasks.filter((task) => task.status === 'open').map((t) => t.uuid),
-    );
-    return state.selected.filter((id) => open.has(id));
-  }
+  override readonly availability: Partial<AvailabilityFns<List, ExampleUser>> =
+    {
+      create: ({ data }) =>
+        Availability.rule(TaskRules.rules.withinOpenLimit, {
+          ownerTasks: data.owned.map((row) => TaskAr.readonly(row)),
+        }),
+      completeSelected: ({ data, state, subject }) =>
+        Availability.given(
+          new TaskSelection(data.tasks, state.selected).openTasks(),
+          'Отметьте открытые задачи',
+          (tasks) =>
+            Availability.policy(TaskPolicy.rules.canManageAll, subject, {
+              tasks,
+            }),
+        ),
+      open: ({ data }) => Availability.when(data.tasks.length > 0, 'Задач нет'),
+      toggle: ({ data }) =>
+        Availability.when(data.tasks.length > 0, 'Задач нет'),
+      next: ({ data }) => Availability.when(data.hasMore, 'Дальше задач нет'),
+      prev: ({ data }) =>
+        Availability.when(data.hasPrev, 'Это первая страница'),
+    };
 
   override async load({
     params,
@@ -78,6 +100,7 @@ export class TaskListScreenCode extends ScreenCode<List> {
     const from = params.page * TASK_PAGE_SIZE;
     return ok({
       tasks: rows.slice(from, from + TASK_PAGE_SIZE),
+      owned: [...rows],
       hasMore: rows.length > from + TASK_PAGE_SIZE,
       hasPrev: params.page > 0,
     });
@@ -85,16 +108,6 @@ export class TaskListScreenCode extends ScreenCode<List> {
 
   override initialState(): ListState {
     return { selected: [] };
-  }
-
-  override available(name: string, data: ListData, state: ListState): boolean {
-    if (name === 'next') return data.hasMore;
-    if (name === 'prev') return data.hasPrev;
-    if (name === 'completeSelected') {
-      return TaskListScreenCode.openSelected(data, state).length > 0;
-    }
-    if (name === 'open' || name === 'toggle') return data.tasks.length > 0;
-    return true;
   }
 
   override choices(name: string, data: ListData): FieldChoices {

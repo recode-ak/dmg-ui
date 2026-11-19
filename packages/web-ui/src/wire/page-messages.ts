@@ -98,6 +98,8 @@ export const ServerMessage: v.GenericSchema<unknown, ServerMessageType> =
         timeZone: PageId,
         delegate: v.boolean(),
         readOnly: v.boolean(),
+        // Форму субъекта знает проект (`reviveSubject`), а не канал.
+        subject: v.optional(v.unknown()),
       }),
     }),
     v.strictObject({ kind: v.literal('result'), id: PageId, result: Result }),

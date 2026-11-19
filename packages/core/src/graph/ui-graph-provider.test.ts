@@ -51,13 +51,14 @@ const edgeProps = (kind: string, from: string, to: string) =>
     ?.props;
 
 describe('UiGraphProvider: узлы', () => {
-  test('31 узел набора и приложения UI в каноническом порядке', () => {
+  test('32 узла набора и приложения UI в каноническом порядке', () => {
     expect(own.map((node) => node.id)).toEqual([
       'exampleStub',
       'exampleUi',
       'exampleUi/todo',
       ASSIGNED,
       `${ASSIGNED}/close`,
+      `${ASSIGNED}/completeSelected`,
       `${ASSIGNED}/openAssignee`,
       'exampleUi/todo/finishTasks',
       'exampleUi/todo/followAssigned',
@@ -98,7 +99,7 @@ describe('UiGraphProvider: узлы', () => {
         ]),
       ),
     ).toEqual({ uiSet: 1, uiModule: 2, screen: 5, story: 5, notification: 2 });
-    expect(count('action')).toBe(15);
+    expect(count('action')).toBe(16);
     expect(count('uiApp')).toBe(1);
   });
 
@@ -318,19 +319,19 @@ describe('UiGraphProvider: свойства узлов', () => {
 });
 
 describe('UiGraphProvider: рёбра', () => {
-  test('рёбра поставщика: 47 штук, по видам', () => {
+  test('рёбра поставщика: 48 штук, по видам', () => {
     const counts: Record<string, number> = {};
     for (const edge of ownEdges)
       counts[edge.kind] = (counts[edge.kind] ?? 0) + 1;
 
-    expect(ownEdges).toHaveLength(47);
+    expect(ownEdges).toHaveLength(48);
     expect(counts).toEqual({
       includes: 11,
       leads: 4,
       requires: 1,
       entry: 2,
       reads: 6,
-      invokes: 4,
+      invokes: 5,
       leadsTo: 5,
       refreshedBy: 5,
       notifiedBy: 2,
@@ -400,6 +401,7 @@ describe('UiGraphProvider: рёбра', () => {
 
   test('invokes — действие → command UC, только при uc', () => {
     expect(pairs('invokes')).toEqual([
+      `${ASSIGNED}/completeSelected -> example/todo/completeTasks`,
       `${CARD}/assign -> example/todo/assignTask`,
       `${CARD}/complete -> example/todo/completeTask`,
       `${SCREEN}/completeSelected -> example/todo/completeTasks`,
@@ -536,7 +538,7 @@ describe('UiGraphProvider: действия в графе', () => {
     const json = appGraph().document(UI_VERSION).toJSON();
     const create = json.nodes.find((n) => n.id === `${SCREEN}/create`);
 
-    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(15);
+    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(16);
     expect(create).toMatchObject({
       kind: 'action',
       label: 'Создать задачу',

@@ -37,7 +37,8 @@ export class PageFormModel {
           label: def?.actions[action.name]?.label ?? action.name,
           description: def?.actions[action.name]?.description ?? '',
           primary: view.primary === action.name,
-          available: action.available && !offline && !expecting,
+          available:
+            action.availability.kind === 'available' && !offline && !expecting,
           ...(action.confirm === undefined ? {} : { confirm: action.confirm }),
         }),
       ),
@@ -46,7 +47,7 @@ export class PageFormModel {
           label: def?.locals[local.name]?.label ?? local.name,
           description: def?.locals[local.name]?.description ?? '',
           primary: false,
-          available: local.available && !offline,
+          available: local.availability.kind === 'available' && !offline,
         }),
       ),
     ];

@@ -11,6 +11,7 @@ export {
   type ExampleCodeOverrides,
   ExampleUiSetDef,
   exampleCodes,
+  exampleSubject,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
   LIST_ID,

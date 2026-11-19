@@ -327,12 +327,18 @@ class SwitchCode extends ScreenCode<Switch> {
     return { armed: false };
   }
 
-  override available(
-    name: string,
-    _data: DataOf<Switch>,
-    state: StateOf<Switch>,
-  ): boolean {
-    return name === 'arm' || state.armed;
+  /** `zap` и `fire` отключены, пока пульт не взведён: `arm` доступно всегда. */
+  override readonly availability = {
+    zap: ({ state }: { readonly state: StateOf<Switch> }) =>
+      SwitchCode.armedOnly(state),
+    fire: ({ state }: { readonly state: StateOf<Switch> }) =>
+      SwitchCode.armedOnly(state),
+  };
+
+  private static armedOnly(state: StateOf<Switch>) {
+    return state.armed
+      ? ({ kind: 'available' } as const)
+      : ({ kind: 'disabled', text: 'Пульт не взведён' } as const);
   }
 }
 

@@ -14,7 +14,11 @@ import {
 } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { type ClientEnd, PageClient, PageHost, PageWire } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef, examplePageRoutes } from 'dmg-ui/web-ui/testing';
+import {
+  ExamplePagesAppDef,
+  examplePageRoutes,
+  exampleSubjectWire,
+} from 'dmg-ui/web-ui/testing';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
 import { PLACES } from '../server/example-web.const';
 import { EXAMPLE_PLACEMENTS } from '../view/example-placements.const';
@@ -67,6 +71,7 @@ export const exampleWorld = (dataDir: string, wrap?: DispatchWrap) => {
     callers: example.callers,
     places: PLACES,
     logger: context.logger,
+    subjectToWire: exampleSubjectWire.toWire,
   });
   new UiNotifier({
     app: ExamplePagesAppDef,
@@ -101,6 +106,7 @@ export const openTab = async (
     end,
     placements: EXAMPLE_PLACEMENTS,
     observer: new MemoryUiObserver(),
+    reviveSubject: exampleSubjectWire.revive,
     ...(faults === undefined ? {} : { faults }),
     requestIds: () => {
       requests += 1;

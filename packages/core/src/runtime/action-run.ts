@@ -34,7 +34,7 @@ export class ActionRun {
   private readonly spec: ActionRunSpec;
   private readonly where: string;
   /** Этап исполнения — в тексте дефекта при чужом броске. */
-  private stage = 'available';
+  private stage = 'availability';
 
   constructor(spec: ActionRunSpec) {
     this.spec = spec;
@@ -67,7 +67,8 @@ export class ActionRun {
     frame: ScreenFrame,
   ): Promise<ActionEnd> {
     const { unit, context, request } = this.spec;
-    if (!unit.available(action.name, frame)) {
+    // Скрытое и отключённое — один исход без текста: причина — только в виде.
+    if (unit.availability(action.name, frame, context).kind !== 'available') {
       return this.unavailable('disabled');
     }
     if (action.confirm !== undefined && request.confirmed !== true) {
@@ -81,7 +82,11 @@ export class ActionRun {
     const ctx: ErasedStepContext = {
       ...frame,
       input: input.value,
-      context: { locale: context.locale, timeZone: context.timeZone },
+      context: {
+        locale: context.locale,
+        timeZone: context.timeZone,
+        subject: context.subject,
+      },
     };
     const step = unit.step(action.name);
     if (action.uc === undefined) {

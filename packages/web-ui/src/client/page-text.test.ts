@@ -27,11 +27,31 @@ import { PageText } from './page-text';
 // представление на `main`, `side` и `modal`, склейка областей через `---` и входящие
 // вкладки. После `close()` текст больше не меняется.
 
+const OWNER_ID = testUuid(1);
+const AT = Date.UTC(2026, 0, 1);
+
+/** Задача владельца как строка выхода query UC — state целиком. */
+const stateOf = (uuid: string, title: string) => ({
+  uuid,
+  createdAt: AT,
+  updatedAt: AT,
+  version: 1,
+  ownerId: OWNER_ID,
+  title,
+  status: 'open',
+});
+
 const TASKS = [
-  { uuid: TASK_A, title: 'Хлеб', status: 'open' },
-  { uuid: TASK_B, title: 'Молоко', status: 'open' },
-  { uuid: testUuid(3), title: 'Сыр', status: 'open' },
+  stateOf(TASK_A, 'Хлеб'),
+  stateOf(TASK_B, 'Молоко'),
+  stateOf(testUuid(3), 'Сыр'),
 ];
+
+/** Субъект вкладки: владелец задач, JSON из `hello` и его восстановление. */
+const reviveSubject = (raw: unknown) => ({
+  uuid: (raw as { readonly uuid: string }).uuid,
+  hasRole: () => false,
+});
 
 /** Конец провода: на любой `call` — задачи следующей микрозадачей. */
 class StubEnd implements ClientEnd {
@@ -40,6 +60,7 @@ class StubEnd implements ClientEnd {
     timeZone: 'Asia/Oral',
     delegate: false,
     readOnly: false,
+    subject: { uuid: OWNER_ID, roles: [] },
   };
   private readonly handlers: ((message: ServerMsg) => void)[] = [];
 
@@ -76,6 +97,7 @@ const page = (placements?: readonly PagePlacement[]) => {
     routes: examplePageRoutes,
     end,
     observer: new MemoryUiObserver(),
+    reviveSubject,
     ...(placements === undefined ? {} : { placements }),
   });
   return { end, client, text: new PageText(client, examplePageViews) };

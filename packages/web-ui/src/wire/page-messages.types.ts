@@ -27,7 +27,10 @@ export type UnwatchMessage = {
 /** Сообщение клиента. */
 export type ClientMessage = CallMessage | WatchMessage | UnwatchMessage;
 
-/** Сервер → клиент: соединение принято; контекст рендера — один раз (D-UI-33). */
+/**
+ * Сервер → клиент: соединение принято; контекст рендера — один раз
+ * (D-UI-33). `subject` — JSON из `subjectToWire` проекта, не объект субъекта.
+ */
 export type HelloMessage = {
   readonly kind: 'hello';
   readonly context: RenderContext;

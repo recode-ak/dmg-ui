@@ -177,7 +177,12 @@ export class ScreenInstance {
         return { kind: 'unavailable', reason: 'disabled' };
       }
       try {
-        if (!unit.available(request.name, frame)) {
+        const answer = unit.availability(
+          request.name,
+          frame,
+          this.spec.context,
+        );
+        if (answer.kind !== 'available') {
           return { kind: 'unavailable', reason: 'disabled' };
         }
         const next = unit.applyLocal(request.name, request.input, frame);
@@ -299,7 +304,11 @@ export class ScreenInstance {
   ): Promise<InstanceLoad> {
     const { unit, address, context, calls, ucs, ids } = spec;
     const node = ids.screen(address.screen);
-    const code = { locale: context.locale, timeZone: context.timeZone };
+    const code = {
+      locale: context.locale,
+      timeZone: context.timeZone,
+      subject: context.subject,
+    };
     const where = `Экран ${unit.def.name}`;
     const res = await unit.load(
       address.params,

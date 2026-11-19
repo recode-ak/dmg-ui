@@ -1,4 +1,4 @@
-import type { SerializedResult } from 'dmg-core';
+import type { ReviveSubject, SerializedResult } from 'dmg-core';
 import type {
   Address,
   AddressJson,
@@ -73,6 +73,12 @@ export type PageClientSpec = {
   readonly faults?: (fault: UiFault) => void;
   /** История вкладки: шаги, «Назад», перезагрузка (D-UI-81); без порта истории нет. */
   readonly history?: PageHistoryPort;
+  /**
+   * Субъект проекта из JSON `hello.context.subject` (пара `subjectToWire`
+   * сервера, D-46): зовётся один раз на соединение. Бросок — субъекта нет
+   * (Policy скрывает), запись в `faults`. Без порта субъекта у кода нет.
+   */
+  readonly reviveSubject?: ReviveSubject<unknown>;
 };
 
 export type { PageFormValues };

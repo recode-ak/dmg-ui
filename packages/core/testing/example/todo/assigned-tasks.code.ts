@@ -1,35 +1,82 @@
 import { type DomainError, ok, type Result } from 'dmg-core';
-import { ListAssignedTasksUcDef } from 'dmg-core/testing/example';
+import {
+  type ExampleUser,
+  ListAssignedTasksUcDef,
+  TaskPolicy,
+} from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  Availability,
+  type AvailabilityFns,
   type DataOf,
+  type FieldChoices,
   type LoadContext,
   ScreenCode,
+  type StateOf,
 } from 'dmg-ui';
 import { UserCardScreenDef } from '../users/user-card.screen';
 import { AssignedTasksScreenDef } from './assigned-tasks.screen';
-import { TaskRows } from './example-tasks';
+import { TaskRows, TaskSelection } from './example-tasks';
 
 type Assigned = typeof AssignedTasksScreenDef;
 type AssignedData = DataOf<Assigned>;
+type AssignedState = StateOf<Assigned>;
 
 /**
- * Код экрана «Назначенные мне»: задачи из `listAssignedTasks` вызывающего и
- * исполнитель из назначения первой строки; без поручений исполнителя нет и
- * карточка исполнителя недоступна.
+ * Код экрана «Назначенные мне»: задачи из `listAssignedTasks` вызывающего;
+ * карточка исполнителя — по субъекту контекста. Выбранные поручения
+ * выполняет тот, кому разрешает Policy набора задач (`canManageAll`):
+ * владелец каждой или администратор; исполнителю-не-владельцу действие
+ * скрыто.
  */
-export class AssignedTasksScreenCode extends ScreenCode<Assigned> {
-  override readonly actions: Partial<ActionSteps<Assigned>> = {
+export class AssignedTasksScreenCode extends ScreenCode<Assigned, ExampleUser> {
+  override readonly locals = {
+    toggle: (
+      state: AssignedState,
+      data: AssignedData,
+      input: { taskId: string },
+    ): AssignedState => ({
+      selected: new TaskSelection(data.tasks, state.selected).toggled(
+        input.taskId,
+      ),
+    }),
+  };
+
+  override readonly actions: Partial<ActionSteps<Assigned, ExampleUser>> = {
+    completeSelected: {
+      command: ({ data, state }) => ({
+        taskIds: new TaskSelection(data.tasks, state.selected).openIds(),
+      }),
+      done: () => AssignedTasksScreenDef.at({}),
+    },
     openAssignee: {
-      done: ({ data }) => {
-        // Исполнитель задан: без него действие недоступно (`available`).
-        if (data.assigneeId === undefined) {
-          throw new Error('openAssignee без исполнителя');
+      done: ({ context }) => {
+        // Без субъекта поручений не прочитать: исполнитель — тот, кто смотрит.
+        if (context.subject === undefined) {
+          throw new Error('openAssignee без субъекта');
         }
-        return UserCardScreenDef.at({ userId: data.assigneeId });
+        return UserCardScreenDef.at({ userId: context.subject.uuid });
       },
     },
     close: { done: () => AssignedTasksScreenDef.exits.closed.with() },
+  };
+
+  override readonly availability: Partial<
+    AvailabilityFns<Assigned, ExampleUser>
+  > = {
+    completeSelected: ({ data, state, subject }) =>
+      Availability.given(
+        new TaskSelection(data.tasks, state.selected).openTasks(),
+        'Отметьте открытые задачи',
+        (tasks) =>
+          Availability.policy(TaskPolicy.rules.canManageAll, subject, {
+            tasks,
+          }),
+      ),
+    openAssignee: ({ data }) =>
+      Availability.when(data.tasks.length > 0, 'Поручений нет'),
+    toggle: ({ data }) =>
+      Availability.when(data.tasks.length > 0, 'Поручений нет'),
   };
 
   override async load({
@@ -37,12 +84,20 @@ export class AssignedTasksScreenCode extends ScreenCode<Assigned> {
   }: LoadContext<Assigned>): Promise<Result<AssignedData, DomainError>> {
     const listed = await read(ListAssignedTasksUcDef, {});
     if (!listed.ok) return listed;
-    const tasks = [...new TaskRows(listed.value).all];
-    const assigneeId = listed.value[0]?.assignment?.assigneeId;
-    return ok(assigneeId === undefined ? { tasks } : { tasks, assigneeId });
+    return ok({ tasks: [...new TaskRows(listed.value).all] });
   }
 
-  override available(name: string, data: AssignedData): boolean {
-    return name !== 'openAssignee' || data.assigneeId !== undefined;
+  override initialState(): AssignedState {
+    return { selected: [] };
+  }
+
+  override choices(name: string, data: AssignedData): FieldChoices {
+    if (name !== 'toggle') return {};
+    return {
+      taskId: data.tasks.map((task) => ({
+        value: task.uuid,
+        label: task.title,
+      })),
+    };
   }
 }

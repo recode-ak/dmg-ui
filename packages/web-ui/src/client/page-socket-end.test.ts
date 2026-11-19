@@ -103,6 +103,27 @@ describe('PageSocketEnd.connect', () => {
     expect(socket.closes).toBe(0);
   });
 
+  test('hello с субъектом — context.subject: JSON как пришёл, без восстановления', async () => {
+    const { socket, result } = connecting();
+    const subject = { uuid: 'u-1', roles: ['admin'] };
+
+    socket.message(
+      JSON.stringify({ kind: 'hello', context: { ...CONTEXT, subject } }),
+    );
+    const res = await result;
+
+    expect(res.ok && res.value.context).toEqual({ ...CONTEXT, subject });
+  });
+
+  test('hello без субъекта — ключа subject в контексте нет', async () => {
+    const { socket, result } = connecting();
+
+    socket.message(JSON.stringify(HELLO));
+    const res = await result;
+
+    expect(res.ok && 'subject' in res.value.context).toBe(false);
+  });
+
   test('сокет закрыт до hello кодом отказа (4403) — refused', async () => {
     const { socket, result } = connecting();
 

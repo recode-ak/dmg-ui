@@ -1,6 +1,6 @@
 import type { AddressJson } from '../address/address-codec.types';
 import type { AppReach } from '../manifest/app-reach';
-import type { RenderContext } from './context.types';
+import type { RenderContext, ViewContext } from './context.types';
 import type { InstanceView } from './outcome.types';
 import type { InstanceLoad } from './screen-instance.types';
 import type { AnyScreenUnit, ScreenFrame } from './screen-unit.types';
@@ -9,7 +9,8 @@ import type { AnyScreenUnit, ScreenFrame } from './screen-unit.types';
  * Сборка вида экземпляра экрана — одно место для экземпляра и
  * `ScreenPreview`: шапка (экран, адрес, контекст, основное действие) и
  * загруженное — данные, состояние, действия или отказ. Действия, отрезанные
- * составом приложения UI (`AppReach`), в вид не попадают.
+ * составом приложения UI (`AppReach`) и скрытые кодом экрана, в вид не
+ * попадают; субъекта в контексте вида нет (D-UI-98).
  */
 export class InstanceViews {
   private readonly unit: AnyScreenUnit;
@@ -38,7 +39,7 @@ export class InstanceViews {
    */
   ready(frame: ScreenFrame): InstanceLoad {
     const { unit, reach } = this;
-    const presentation = unit.present(frame, this.context.readOnly);
+    const presentation = unit.present(frame, this.context);
     const actions = presentation.actions.filter((view) => {
       const action = unit.action(view.name);
       return action === undefined || !reach.cuts(unit.def, action);
@@ -53,12 +54,12 @@ export class InstanceViews {
 
   /** Вид при ревизии; у отказа нет данных и действий. */
   view(revision: number, loaded: InstanceLoad): InstanceView {
-    const primary = this.primary();
+    const primary = this.primary(loaded);
     const base = {
       screen: this.screen,
       address: this.address,
       revision,
-      context: this.context,
+      context: this.viewContext(),
       ...(primary === undefined ? {} : { primary }),
     };
     if (loaded.status === 'refused') {
@@ -80,14 +81,25 @@ export class InstanceViews {
     };
   }
 
-  /** Основное действие манифеста; отрезанное составом приложения — нет. */
-  private primary(): string | undefined {
+  /**
+   * Основное действие манифеста; отрезанное составом приложения — нет, у
+   * загруженного — только если оно есть в действиях вида (скрытое — нет).
+   */
+  private primary(loaded: InstanceLoad): string | undefined {
     const { unit, reach } = this;
     const { primary } = unit.def;
     if (primary === undefined) return undefined;
     const action = unit.action(primary);
-    return action !== undefined && reach.cuts(unit.def, action)
-      ? undefined
-      : primary;
+    if (action !== undefined && reach.cuts(unit.def, action)) return undefined;
+    if (loaded.status === 'refused') return primary;
+    return loaded.presentation.actions.some((view) => view.name === primary)
+      ? primary
+      : undefined;
+  }
+
+  /** Контекст вида — место и признаки; субъект остаётся у кода экрана. */
+  private viewContext(): ViewContext {
+    const { locale, timeZone, delegate, readOnly } = this.context;
+    return { locale, timeZone, delegate, readOnly };
   }
 }

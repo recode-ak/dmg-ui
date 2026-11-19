@@ -20,6 +20,7 @@ import {
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
+  exampleSubjectWire,
   ManualPageClock,
   MemoryPageHistory,
 } from 'dmg-ui/web-ui/testing';
@@ -121,6 +122,7 @@ const tab = async (
     end: res.value,
     placements: PLACEMENTS,
     observer: new MemoryUiObserver(),
+    reviveSubject: exampleSubjectWire.revive,
     requestIds: () => {
       n += 1;
       return `${prefix}-${n}`;
@@ -153,6 +155,7 @@ const reconnecting = async (s: Started, key: string, prefix: string) => {
     placements: PLACEMENTS,
     observer: new MemoryUiObserver(),
     clock,
+    reviveSubject: exampleSubjectWire.revive,
     requestIds: () => {
       n += 1;
       return `${prefix}-${n}`;

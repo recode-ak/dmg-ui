@@ -96,12 +96,12 @@ export class ScreenComposer {
     return { kind: 'text', text: TextBuilder.of(text), options };
   }
 
-  /** Варианты по умолчанию: доступные действия, затем доступные локальные, «Назад» при `back`. */
+  /** Варианты по умолчанию: доступные действия, затем доступные локальные (отключённое — не вариант), «Назад» при `back`. */
   private options(view: InstanceView, back: boolean): readonly ViewOption[] {
     const labels = this.labelsOf(view.screen);
     return [
       ...view.actions
-        .filter((action) => action.available)
+        .filter((action) => action.availability.kind === 'available')
         .map(
           (action): ViewOption => ({
             kind: 'action',
@@ -110,7 +110,7 @@ export class ScreenComposer {
           }),
         ),
       ...view.locals
-        .filter((local) => local.available)
+        .filter((local) => local.availability.kind === 'available')
         .map(
           (local): ViewOption => ({
             kind: 'local',

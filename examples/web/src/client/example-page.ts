@@ -6,7 +6,11 @@ import {
   PageReconnector,
   PageSystemClock,
 } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef, examplePageRoutes } from 'dmg-ui/web-ui/testing';
+import {
+  ExamplePagesAppDef,
+  examplePageRoutes,
+  exampleSubjectWire,
+} from 'dmg-ui/web-ui/testing';
 import type { ExampleRegion } from '../common/example-web.types';
 import { ExampleGestures } from '../view/example-gestures';
 import { EXAMPLE_PLACEMENTS } from '../view/example-placements.const';
@@ -62,6 +66,7 @@ export class ExamplePage {
       observer: { record: () => {} },
       faults: () => env.log(CONSOLE_FAULT),
       history: new PageBrowserHistory(env.browser),
+      reviveSubject: exampleSubjectWire.revive,
     });
     reconnector.follow(end, (next) => client.attach(next));
     const gestures = new ExampleGestures(client, env.log);

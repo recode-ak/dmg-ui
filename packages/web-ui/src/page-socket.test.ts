@@ -29,6 +29,7 @@ import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
+  exampleSubjectWire,
   ManualPageClock,
 } from '../testing';
 import { PageBrowserSocket } from './client/page-browser-socket';
@@ -137,6 +138,7 @@ const serving = (
     callers: example.callers,
     places,
     logger,
+    subjectToWire: exampleSubjectWire.toWire,
   });
   new UiNotifier({
     app: ExamplePagesAppDef,
@@ -226,6 +228,7 @@ const tab = async (w: Served, token: string, prefix: string) => {
     routes: examplePageRoutes,
     end,
     observer: new MemoryUiObserver(),
+    reviveSubject: exampleSubjectWire.revive,
     requestIds: () => {
       requests += 1;
       return `${prefix}-${requests}`;
@@ -308,6 +311,7 @@ const reconnecting = async (w: Served, token: string, prefix: string) => {
     end,
     observer: new MemoryUiObserver(),
     clock,
+    reviveSubject: exampleSubjectWire.revive,
     requestIds: () => {
       requests += 1;
       return `${prefix}-${requests}`;

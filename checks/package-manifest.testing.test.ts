@@ -41,7 +41,7 @@ describe('вход dmg-ui/testing', () => {
     );
   });
 
-  it('константы данных примера', async () => {
+  it('константы данных примера и субъект примеров', async () => {
     expect(await keys()).toEqual(
       expect.arrayContaining([
         'ASSIGNED_ID',
@@ -49,6 +49,7 @@ describe('вход dmg-ui/testing', () => {
         'LIST_ID',
         'TASK_A',
         'TASK_B',
+        'exampleSubject',
       ]),
     );
   });

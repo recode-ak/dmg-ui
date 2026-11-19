@@ -53,7 +53,10 @@ exports[`ExamplePreview через PageRenderer — снимки примеро�
 
   [Карточка исполнителя]
 
-  [Закрыть]"
+  [Закрыть]
+
+  Идентификатор задачи: Хлеб | Молоко
+  [Отметить задачу]"
 `;
 
 exports[`ExamplePreview через PageRenderer — снимки примеров mainMenu start 1`] = `

@@ -83,7 +83,7 @@ export {
 } from './manifest/ui-set-def';
 export type { ActRequest, LocalRequest } from './runtime/action-run';
 export { CodeLoader, CodeLoaders } from './runtime/code-loaders';
-export type { RenderContext } from './runtime/context.types';
+export type { RenderContext, ViewContext } from './runtime/context.types';
 export {
   NotificationCode,
   type NotificationDataOf,
@@ -130,9 +130,13 @@ export {
   ActionInput,
   type InputRejection,
 } from './screen/action-input';
+export { Availability, type ViewAvailability } from './screen/availability';
 export {
   type ActionStep,
   type ActionSteps,
+  type AvailabilityContext,
+  type AvailabilityFn,
+  type AvailabilityFns,
   type Choice,
   type FieldChoices,
   type FieldValues,

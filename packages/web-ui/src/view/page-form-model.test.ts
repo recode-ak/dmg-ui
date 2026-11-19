@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { CoreErrors, ErrorDef, err, ok } from 'dmg-core';
+import { testUuid } from 'dmg-core/testing';
 import { ListTasksUcDef, TaskEvents } from 'dmg-core/testing/example';
-import type { FieldIssue, ScreenInstance } from 'dmg-ui';
+import type { ActionView, FieldIssue, ScreenInstance } from 'dmg-ui';
 import { ExampleUiSetDef, TASK_A, TASK_B } from 'dmg-ui/testing';
 import { RuntimeKit, requestTrace } from 'dmg-ui/testing/fixtures';
 import type { PageForm, PageFormField } from './page-form.types';
@@ -15,6 +16,19 @@ import type { PageEntered, PageViewState } from './page-view-state.types';
 // и провод не нужны.
 
 const model = () => new PageFormModel(ExampleUiSetDef);
+
+const AT = Date.UTC(2026, 0, 1);
+
+/** Открытая задача как строка выхода query UC — state целиком. */
+const stateRow = (uuid: string, title: string) => ({
+  uuid,
+  createdAt: AT,
+  updatedAt: AT,
+  version: 1,
+  ownerId: testUuid(1),
+  title,
+  status: 'open' as const,
+});
 
 const TITLE_ISSUE: FieldIssue = {
   field: 'title',
@@ -37,8 +51,11 @@ const ready = (
   };
 };
 
-const listed = async (kit = new RuntimeKit()) => {
-  const instance = await kit.openList();
+const listed = async (
+  kit = new RuntimeKit(),
+  context: Parameters<RuntimeKit['openList']>[0] = {},
+) => {
+  const instance = await kit.openList(context);
   return { kit, instance, state: ready(instance) };
 };
 
@@ -54,6 +71,25 @@ const fieldOf = (form: PageForm, name: string): PageFormField => {
   const field = form.fields.find((f) => f.name === name);
   if (field === undefined) throw new Error(`нет поля ${name}`);
   return field;
+};
+
+/** Состояние, в виде которого у действия `name` — ответ доступности `availability`. */
+const withAction = (
+  state: PageViewState,
+  name: string,
+  availability: ActionView['availability'],
+): PageViewState => {
+  const view = state.view;
+  if (view === undefined) throw new Error('нет вида');
+  return {
+    ...state,
+    view: {
+      ...view,
+      actions: view.actions.map((action) =>
+        action.name === name ? { ...action, availability } : action,
+      ),
+    },
+  };
 };
 
 /** Состояние с подменённым начальным значением поля `taskId` действия `open`. */
@@ -168,10 +204,7 @@ describe('PageFormModel.of — варианты и начальные значе
     const { instance } = await listed(kit);
     kit.ucs.answer(
       ListTasksUcDef,
-      ok([
-        { uuid: TASK_B, title: 'Сыр', status: 'open' },
-        { uuid: TASK_A, title: 'Яйца', status: 'open' },
-      ]),
+      ok([stateRow(TASK_B, 'Сыр'), stateRow(TASK_A, 'Яйца')]),
     );
 
     kit.refresh.emit({
@@ -281,6 +314,53 @@ describe('PageFormModel.of — доступность и подтвержден�
     expect(formOf({ ...state, stale: 'revision' }, 'create').available).toBe(
       true,
     );
+  });
+
+  test('available — из availability вида: доступно — true, отключено — false', async () => {
+    const { state } = await listed();
+    const off = { kind: 'disabled', text: 'Пока нельзя' } as const;
+    const on = { kind: 'available' } as const;
+
+    expect(formOf(withAction(state, 'create', off), 'create').available).toBe(
+      false,
+    );
+    expect(formOf(withAction(state, 'close', on), 'close').available).toBe(
+      true,
+    );
+  });
+
+  test('локальное действие: availability вида решает available формы', async () => {
+    const { state } = await listed();
+    const view = state.view;
+    if (view === undefined) throw new Error('нет вида');
+    const off: PageViewState = {
+      ...state,
+      view: {
+        ...view,
+        locals: view.locals.map((local) => ({
+          ...local,
+          availability: { kind: 'disabled', text: 'Пока нельзя' } as const,
+        })),
+      },
+    };
+
+    expect(formOf(off, 'toggle').available).toBe(false);
+  });
+
+  test('скрытое действие — формы нет: чужому «Выполнить выбранные» не показано, владельцу — есть', async () => {
+    const foreign = await listed(new RuntimeKit(), { subject: undefined });
+    const own = await listed(new RuntimeKit());
+    for (const { instance } of [foreign, own]) {
+      await instance.local({ name: 'toggle', input: { taskId: TASK_A } });
+    }
+
+    const names = (instance: ScreenInstance) =>
+      model()
+        .of(ready(instance))
+        .forms.map((form) => form.name);
+
+    expect(names(foreign.instance)).not.toContain('completeSelected');
+    expect(names(own.instance)).toContain('completeSelected');
   });
 
   test('подтверждение — свойство действия: тексты Def у completeSelected, у прочих нет', async () => {

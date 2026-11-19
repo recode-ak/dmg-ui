@@ -2,7 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import { MemoryLogger, useTempDir } from 'dmg-core/testing';
 import { exampleCodes, MemoryUiObserver } from 'dmg-ui/testing';
 import { PageClient, PageWire, type ViewSource } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef, examplePageRoutes } from 'dmg-ui/web-ui/testing';
+import {
+  ExamplePagesAppDef,
+  examplePageRoutes,
+  exampleSubjectWire,
+} from 'dmg-ui/web-ui/testing';
 import * as v from 'valibot';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
 import { ExampleWeb } from './example-web';
@@ -46,6 +50,7 @@ const tab = async (
     routes: examplePageRoutes,
     end: connected.value,
     observer: new MemoryUiObserver(),
+    reviveSubject: exampleSubjectWire.revive,
   });
   return { wire, client };
 };

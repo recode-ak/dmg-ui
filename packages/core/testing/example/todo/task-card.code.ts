@@ -1,7 +1,15 @@
 import { type DomainError, ok, type Result } from 'dmg-core';
-import { ListTasksUcDef, TaskErrors } from 'dmg-core/testing/example';
+import {
+  type ExampleUser,
+  ListTasksUcDef,
+  TaskAr,
+  TaskErrors,
+  TaskPolicy,
+} from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  Availability,
+  type AvailabilityFns,
   type DataOf,
   type LoadContext,
   ScreenCode,
@@ -13,9 +21,13 @@ import { TaskListScreenDef } from './task-list.screen';
 type Card = typeof TaskCardScreenDef;
 type CardData = DataOf<Card>;
 
-/** Код карточки задачи; экран без состояния — `initialState` не нужен. */
-export class TaskCardScreenCode extends ScreenCode<Card> {
-  override readonly actions: Partial<ActionSteps<Card>> = {
+/**
+ * Код карточки задачи; экран без состояния — `initialState` не нужен.
+ * «Выполнить» и «Назначить» решает Policy задачи (`canManage`) над
+ * `TaskAr.readonly` из state, «Выполнить» — ещё и статус задачи.
+ */
+export class TaskCardScreenCode extends ScreenCode<Card, ExampleUser> {
+  override readonly actions: Partial<ActionSteps<Card, ExampleUser>> = {
     back: { done: () => TaskListScreenDef.at({ page: 0 }) },
     complete: {
       command: ({ params }) => ({ taskId: params.taskId }),
@@ -30,6 +42,21 @@ export class TaskCardScreenCode extends ScreenCode<Card> {
     },
   };
 
+  override readonly availability: Partial<AvailabilityFns<Card, ExampleUser>> =
+    {
+      complete: ({ data, subject }) => {
+        const task = TaskAr.readonly(data);
+        return Availability.all(
+          Availability.policy(TaskPolicy.rules.canManage, subject, { task }),
+          Availability.when(task.isOpen(), 'Задача уже выполнена'),
+        );
+      },
+      assign: ({ data, subject }) =>
+        Availability.policy(TaskPolicy.rules.canManage, subject, {
+          task: TaskAr.readonly(data),
+        }),
+    };
+
   /** Карточка ищет задачу в списке вызывающего; нет — `TASK_NOT_FOUND`. */
   override async load({
     params,
@@ -41,10 +68,5 @@ export class TaskCardScreenCode extends ScreenCode<Card> {
     return task === undefined
       ? TaskErrors.NOT_FOUND.err({ taskId: params.taskId })
       : ok(task);
-  }
-
-  /** Выполнить можно только открытую задачу — действие, недоступное по данным. */
-  override available(name: string, data: CardData): boolean {
-    return name !== 'complete' || data.status === 'open';
   }
 }

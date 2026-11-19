@@ -35,6 +35,7 @@ import {
   ExamplePagesAppDef,
   examplePageRoutes,
   examplePageViews,
+  exampleSubjectWire,
 } from './index';
 
 type ClientMsg = v.InferOutput<typeof ClientMessage>;
@@ -68,6 +69,7 @@ const tab = async (host: PageServerPort, token: string, prefix: string) => {
     routes: examplePageRoutes,
     end: connected.value,
     observer: new MemoryUiObserver(),
+    reviveSubject: exampleSubjectWire.revive,
     requestIds: () => {
       requests += 1;
       return `${prefix}-${requests}`;
@@ -97,6 +99,7 @@ const world = async () => {
     callers: example.callers,
     places,
     logger: context.logger,
+    subjectToWire: exampleSubjectWire.toWire,
   });
   new UiNotifier({
     app: ExamplePagesAppDef,

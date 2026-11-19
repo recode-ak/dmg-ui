@@ -9,13 +9,19 @@ import type {
 import { SchemaCheck } from '../schema/schema-check';
 import type { ActionContext } from '../screen/action-context.types';
 import type { InputRejection } from '../screen/action-input.types';
+import type { Availability } from '../screen/availability';
 import { CodeDefect } from '../screen/code-defect';
 import type { ScreenCode } from '../screen/screen-code';
-import type { LoadContext } from '../screen/screen-code.types';
+import type {
+  AvailabilityContext,
+  LoadContext,
+} from '../screen/screen-code.types';
 import { ScreenLogic } from '../screen/screen-logic';
 import type { ActionName, LocalName } from '../screen/screen-logic.types';
+import type { RenderContext } from './context.types';
 import { DeclaredReads } from './declared-reads';
 import { ExampleCheck } from './example-check';
+import type { ActionView, LocalView } from './outcome.types';
 import type { UcPort } from './ports.types';
 import { RefusalText } from './refusal-text';
 import type {
@@ -41,6 +47,9 @@ export type {
  * действия — бросок с именем. Бросок кода при загрузке — дефект в итоге.
  */
 export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
+  /** Причина отключения действий с `uc` при «только чтении» (D-UI-11). */
+  static readonly READ_ONLY_TEXT = 'Только чтение: изменения недоступны';
+
   readonly def: AnyScreenDef;
   readonly refusals: RefusalText;
   private readonly logic: ScreenLogic<D>;
@@ -49,7 +58,15 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
     ctx: LoadContext<D>,
   ) => Promise<Result<DataOf<D>, DomainError>>;
 
-  constructor(def: D, code: ScreenCode<D>) {
+  /**
+   * `anySubject` — код с субъектом любого типа проекта (`never` — верхний тип по
+   * субъекту). Ядро субъекта не разбирает: он приходит из контекста рендера
+   * (`RenderContext.subject`) — тот же объект, что получает Policy, — и тип
+   * субъекта согласует корень сборки проекта. Поэтому код приводится к
+   * непрозрачному субъекту здесь, в одном месте.
+   */
+  constructor(def: D, anySubject: ScreenCode<D, never>) {
+    const code = anySubject as ScreenCode<D, unknown>;
     this.def = def;
     this.refusals = new RefusalText(def.catches);
     this.logic = new ScreenLogic(def, code);
@@ -167,39 +184,53 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
     return { params, data, state };
   }
 
-  /** Действия и локальные действия для вида; `readOnly` гасит действия с `uc`. */
-  present(frame: ScreenFrame, readOnly: boolean): UnitPresentation {
+  /**
+   * Действия и локальные действия для вида. Порядок: «только чтение»
+   * отключает действия с `uc` текстом ядра (функция доступности не
+   * зовётся), затем ответ кода экрана; скрытое в вид не попадает.
+   */
+  present(frame: ScreenFrame, context: RenderContext): UnitPresentation {
     const { data, state } = this.typed(frame);
-    return {
-      actions: Object.values<ScreenAction>(this.def.actions).map((action) => {
-        const name = this.actionName(action.name);
-        return {
-          name: action.name,
-          available:
-            !(readOnly && action.uc !== undefined) &&
-            this.logic.available(name, data, state),
-          fields: this.logic.fields(name, data, state),
-          ...(action.confirm === undefined ? {} : { confirm: action.confirm }),
-        };
-      }),
-      locals: Object.keys(this.def.locals).map((local) => {
-        const name = this.localName(local);
-        return {
-          name: local,
-          available: this.logic.available(name, data, state),
-          fields: this.logic.fields(name, data, state),
-        };
-      }),
-    };
+    const ctx = this.judged(frame, context);
+    const actions: ActionView[] = [];
+    for (const action of Object.values<ScreenAction>(this.def.actions)) {
+      const name = this.actionName(action.name);
+      const answer: Availability =
+        context.readOnly && action.uc !== undefined
+          ? { kind: 'disabled', text: ScreenUnit.READ_ONLY_TEXT }
+          : this.logic.availability(name, ctx);
+      if (answer.kind === 'hidden') continue;
+      actions.push({
+        name: action.name,
+        availability: answer,
+        fields: this.logic.fields(name, data, state),
+        ...(action.confirm === undefined ? {} : { confirm: action.confirm }),
+      });
+    }
+    const locals: LocalView[] = [];
+    for (const local of Object.keys(this.def.locals)) {
+      const name = this.localName(local);
+      const answer = this.logic.availability(name, ctx);
+      if (answer.kind === 'hidden') continue;
+      locals.push({
+        name: local,
+        availability: answer,
+        fields: this.logic.fields(name, data, state),
+      });
+    }
+    return { actions, locals };
   }
 
-  /** Доступно ли действие или локальное действие манифеста сейчас. */
-  available(name: string, frame: ScreenFrame): boolean {
-    const { data, state } = this.typed(frame);
+  /** Ответ кода о действии или локальном действии манифеста сейчас. */
+  availability(
+    name: string,
+    frame: ScreenFrame,
+    context: ActionContext,
+  ): Availability {
     const known = this.hasLocal(name)
       ? this.localName(name)
       : this.actionName(name);
-    return this.logic.available(known, data, state);
+    return this.logic.availability(known, this.judged(frame, context));
   }
 
   /** Сырой вход действия манифеста по его схеме. */
@@ -215,6 +246,22 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
   ): Result<unknown, InputRejection> {
     const { data, state } = this.typed(frame);
     return this.logic.applyLocal(this.localName(name), raw, state, data);
+  }
+
+  /** Вход функции доступности: кадр, субъект и контекст кода (место и субъект). */
+  private judged(
+    frame: ScreenFrame,
+    context: ActionContext,
+  ): AvailabilityContext<D> {
+    const { data, state } = this.typed(frame);
+    const { locale, timeZone, subject } = context;
+    return {
+      params: this.typedParams(frame.params),
+      data,
+      state,
+      subject,
+      context: { locale, timeZone, subject },
+    };
   }
 
   /** Текст дефекта с именем экрана. */

@@ -20,9 +20,10 @@ export class CodeLoader {
     this.target = target;
   }
 
+  /** Код с любым типом субъекта (`never` — верхний тип по субъекту, см. `ScreenUnit`). */
   static screen<D extends AnyScreenDef>(
     def: D,
-    load: () => Promise<ScreenCode<D>>,
+    load: () => Promise<ScreenCode<D, never>>,
   ): CodeLoader {
     return new CodeLoader({
       kind: 'screen',

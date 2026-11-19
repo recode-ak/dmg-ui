@@ -1,5 +1,9 @@
 import { describe, expect, spyOn, test } from 'bun:test';
+import type { ExampleUser } from 'dmg-core/testing/example';
+import * as v from 'valibot';
 import {
+  LIST_START,
+  OWNER,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
@@ -7,24 +11,49 @@ import {
 } from '../../testing/example';
 import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { taskState } from '../../testing/task-state';
 import type { DataOf } from '../manifest/screen-def';
+import { Availability } from './availability';
+import { CodeDefect } from './code-defect';
 import { ScreenCode } from './screen-code';
 import { ScreenLogic } from './screen-logic';
 
 // Чистая логика экрана: под тестом `ScreenLogic` и код экрана примера;
 // исполнитель, сервер и канал не участвуют (вход примера их не грузит).
 
+const BREAD = taskState({ uuid: TASK_A, title: 'Хлеб', status: 'open' });
+const MILK = taskState({ uuid: TASK_B, title: 'Молоко', status: 'done' });
+
 const data: DataOf<typeof TaskListScreenDef> = {
-  tasks: [
-    { uuid: TASK_A, title: 'Хлеб', status: 'open' },
-    { uuid: TASK_B, title: 'Молоко', status: 'done' },
-  ],
+  tasks: [BREAD, MILK],
+  owned: [BREAD, MILK],
   hasMore: false,
   hasPrev: false,
 };
 
+const SUBJECT = { uuid: OWNER, hasRole: () => false };
+/** Параметры адреса списка — выход схемы `params` экрана. */
+const PARAMS = v.parse(TaskListScreenDef.params, LIST_START.params);
+const PLACE = { locale: 'ru-RU', timeZone: 'Asia/Oral' };
+
+/** Вход функции доступности: параметры, данные, состояние, субъект и контекст. */
+const ctxOf = (
+  listData: DataOf<typeof TaskListScreenDef> = data,
+  selected: string[] = [],
+  subject: typeof SUBJECT | undefined = SUBJECT,
+) => ({
+  params: PARAMS,
+  data: listData,
+  state: { selected },
+  subject,
+  context: { ...PLACE, subject },
+});
+
 const logicOf = (
-  code: ScreenCode<typeof TaskListScreenDef> = new TaskListScreenCode(),
+  code: ScreenCode<
+    typeof TaskListScreenDef,
+    ExampleUser
+  > = new TaskListScreenCode(),
 ) => new ScreenLogic(TaskListScreenDef, code);
 
 /**
@@ -43,7 +72,7 @@ class DoneSelectedCode extends ScreenCode<typeof TaskListScreenDef> {
   }
 }
 
-/** Код списка без `available`, `choices` и `defaults` — для умолчаний. */
+/** Код списка без `availability`, `choices` и `defaults` — для умолчаний. */
 class BareListCode extends ScreenCode<typeof TaskListScreenDef> {
   override readonly locals = {
     toggle: (state: { selected: string[] }) => state,
@@ -98,13 +127,7 @@ describe('ScreenLogic.restoreState', () => {
 
   test('экран без состояния — undefined, initialState не нужен', () => {
     const logic = new ScreenLogic(TaskCardScreenDef, new TaskCardScreenCode());
-    expect(
-      logic.restoreState(undefined, {
-        uuid: TASK_A,
-        title: 'Хлеб',
-        status: 'open',
-      }),
-    ).toBeUndefined();
+    expect(logic.restoreState(undefined, BREAD)).toBeUndefined();
   });
 });
 
@@ -153,45 +176,61 @@ describe('ScreenLogic.applyLocal', () => {
   });
 });
 
-describe('ScreenLogic.available', () => {
-  test('без available в коде — действие доступно', () => {
+const DISABLED = {
+  kind: 'disabled',
+  text: expect.stringMatching(/\S/),
+} as const;
+
+describe('ScreenLogic.availability', () => {
+  test('нет записи в availability кода — действие доступно', () => {
     const logic = new ScreenLogic(TaskListScreenDef, new BareListCode());
-    expect(logic.available('next', data, { selected: [] })).toBe(true);
+
+    expect(logic.availability('next', ctxOf())).toEqual({ kind: 'available' });
   });
 
-  test('неизвестное имя — бросок с именем', () => {
-    expect(() =>
+  test('неизвестное имя — CodeDefect с именем', () => {
+    const run = () =>
       // @ts-expect-error имя не из actions и locals экрана
-      logicOf().available('missing', data, { selected: [] }),
-    ).toThrow('missing');
+      logicOf().availability('missing', ctxOf());
+
+    expect(run).toThrow(CodeDefect);
+    expect(run).toThrow('missing');
   });
 
-  test('недоступно по данным: дальше списка нет', () => {
-    expect(logicOf().available('next', data, { selected: [] })).toBe(false);
+  test('локальное действие: отметка недоступна, пока задач нет', () => {
+    const empty = { ...data, tasks: [], owned: [] };
+
+    expect(logicOf().availability('toggle', ctxOf())).toEqual({
+      kind: 'available',
+    });
+    expect(logicOf().availability('toggle', ctxOf(empty))).toEqual(DISABLED);
   });
 
-  test('недоступно по состоянию: выбор пуст', () => {
-    expect(
-      logicOf().available('completeSelected', data, { selected: [] }),
-    ).toBe(false);
-  });
+  test('ctx несёт параметры, данные, состояние, субъекта и место', () => {
+    const seen: unknown[] = [];
+    class Recording extends BareListCode {
+      override readonly availability = {
+        next: (ctx: unknown) => {
+          seen.push(ctx);
+          return Availability.yes();
+        },
+      };
+    }
+    const ctx = ctxOf(data, [TASK_A]);
 
-  test('выбраны только выполненные — выполнять нечего', () => {
-    const logic = logicOf();
+    new ScreenLogic(TaskListScreenDef, new Recording()).availability(
+      'next',
+      ctx,
+    );
 
-    expect(
-      logic.available('completeSelected', data, { selected: [TASK_B] }),
-    ).toBe(false);
-    expect(
-      logic.available('completeSelected', data, { selected: [TASK_A] }),
-    ).toBe(true);
-  });
-
-  test('недоступно по данным: назад некуда (hasPrev)', () => {
-    expect(logicOf().available('prev', data, { selected: [] })).toBe(false);
-    expect(
-      logicOf().available('prev', { ...data, hasPrev: true }, { selected: [] }),
-    ).toBe(true);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({
+      params: LIST_START.params,
+      data,
+      state: { selected: [TASK_A] },
+      subject: SUBJECT,
+      context: PLACE,
+    });
   });
 });
 

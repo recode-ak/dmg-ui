@@ -26,7 +26,7 @@ import type { ScreenRender, ViewOption } from './view.types';
 // отказе, шапка заместителя, проверка вывода и ключ истории. Вид — литерал
 // `InstanceView` локального экрана; возможности — у подставных мессенджеров.
 
-/** Экран с тремя действиями и двумя локальными; по одному недоступно в виде. */
+/** Экран с тремя действиями и двумя локальными; по одному отключено в виде. */
 const PanelScreenDef = ScreenDef.define({
   name: 'panel',
   label: 'Панель',
@@ -45,11 +45,11 @@ const PanelScreenDef = ScreenDef.define({
   actions: {
     save: { label: 'Сохранить', description: 'Остаётся на экране.' },
     leave: { label: 'Дальше', description: 'Уходит с экрана.' },
-    archive: { label: 'В архив', description: 'Недоступно в виде.' },
+    archive: { label: 'В архив', description: 'Отключено в виде.' },
   },
   locals: {
     tick: { label: 'Отметить', description: 'Прибавляет отметку.' },
-    fold: { label: 'Свернуть', description: 'Недоступно в виде.' },
+    fold: { label: 'Свернуть', description: 'Отключено в виде.' },
   },
 });
 
@@ -99,6 +99,9 @@ const LOCKED: Refusal = {
   caught: true,
 };
 
+const AVAILABLE = { kind: 'available' } as const;
+const DISABLED = { kind: 'disabled', text: 'Пока нельзя' } as const;
+
 const ready = (context: RenderContext = testRenderContext): InstanceView => ({
   screen: PANEL,
   address: ADDRESS,
@@ -108,13 +111,13 @@ const ready = (context: RenderContext = testRenderContext): InstanceView => ({
   state: { ticks: 0 },
   context,
   actions: [
-    { name: 'save', available: true, fields: [] },
-    { name: 'leave', available: true, fields: [] },
-    { name: 'archive', available: false, fields: [] },
+    { name: 'save', availability: AVAILABLE, fields: [] },
+    { name: 'leave', availability: AVAILABLE, fields: [] },
+    { name: 'archive', availability: DISABLED, fields: [] },
   ],
   locals: [
-    { name: 'tick', available: true, fields: [] },
-    { name: 'fold', available: false, fields: [] },
+    { name: 'tick', availability: AVAILABLE, fields: [] },
+    { name: 'fold', availability: DISABLED, fields: [] },
   ],
 });
 
@@ -172,6 +175,22 @@ describe('ScreenComposer', () => {
     expect(composed.messages.map((message) => message.options)).toEqual([
       DEFAULTS,
     ]);
+  });
+
+  test('отключённое с текстом не вариант: ни действие, ни локальное, текст причины в варианты не идёт', () => {
+    const seen: (readonly ViewOption[])[] = [];
+    const composer = rendering((_, kit) => {
+      seen.push(kit.options);
+      return kit.message('Панель');
+    });
+
+    composer.compose(ready(), false);
+
+    const names = seen[0]?.flatMap((option) =>
+      'name' in option ? [option.name] : [],
+    );
+    expect(names).toEqual(['save', 'leave', 'tick']);
+    expect(JSON.stringify(seen)).not.toContain(DISABLED.text);
   });
 
   test('путь не пуст — «Назад» последним; пуст — нет', () => {

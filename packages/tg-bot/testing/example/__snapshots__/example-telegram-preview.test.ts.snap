@@ -179,6 +179,12 @@ exports[`снимки запросов Telegram assignedTasks two — общее
           "text": "Закрыть",
         },
       ],
+      [
+        {
+          "callback_data": "3",
+          "text": "Отметить задачу",
+        },
+      ],
     ],
   },
   "text": 

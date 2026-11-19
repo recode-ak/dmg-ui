@@ -35,7 +35,9 @@ const viewAt = (revision: number, data: unknown = DATA): InstanceView => ({
   data,
   state: { mark: 'состояние экрана' },
   context: CONTEXT,
-  actions: [{ name: 'complete', available: true, fields: [] }],
+  actions: [
+    { name: 'complete', availability: { kind: 'available' }, fields: [] },
+  ],
   locals: [],
 });
 

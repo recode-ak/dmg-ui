@@ -62,3 +62,29 @@ describe('ClientBundle — домен на клиенте', () => {
     expect(found).toContain('process\\.');
   });
 });
+
+const AVAILABILITY = `
+import { TaskAr, TaskPolicy, TaskRules } from 'dmg-core/testing/example';
+import { Availability } from 'dmg-ui';
+import { exampleCodes } from 'dmg-ui/testing';
+export const client = { Availability, TaskAr, TaskPolicy, TaskRules, exampleCodes };
+`;
+
+describe('ClientBundle — доступность на клиенте', () => {
+  test('Availability, домен и коды экранов — сборка без нарушений: ни node:*, ни dmg-core/src/app/', async () => {
+    const bundle = await ClientBundle.build(
+      virtual('availability', AVAILABILITY),
+    );
+
+    expect(ClientBundle.violations(bundle)).toEqual([]);
+    expect(
+      bundle.inputs.some((input) => input.endsWith('availability.ts')),
+    ).toBe(true);
+    expect(bundle.imports.filter((path) => /^(node|bun):/.test(path))).toEqual(
+      [],
+    );
+    expect(bundle.inputs.some((i) => i.includes('dmg-core/src/app/'))).toBe(
+      false,
+    );
+  });
+});

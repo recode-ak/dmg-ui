@@ -1,4 +1,6 @@
+import type { RenderContext } from 'dmg-ui';
 import type { Moment } from 'dmg-ui/chat-ui';
+import { exampleSubject } from 'dmg-ui/testing';
 
 /**
  * Момент примера (D-UI-67): `2026-11-20 12:00` в часовом поясе `Asia/Oral`
@@ -16,10 +18,11 @@ export const EXAMPLE_MOMENT_LABEL = 'Напоминание (пример): ';
 /** Получатель запроса в превью: любое целое положительное — чат примера. */
 export const EXAMPLE_CHAT = 1;
 
-/** Контекст примера: тот же, что по умолчанию у `ExamplePreview`. */
-export const EXAMPLE_CONTEXT = {
+/** Контекст примера: тот же, что по умолчанию у `ExamplePreview`, с субъектом примеров. */
+export const EXAMPLE_CONTEXT: RenderContext = {
   locale: 'ru-RU',
   timeZone: 'Asia/Oral',
   delegate: false,
   readOnly: false,
-} as const;
+  subject: exampleSubject,
+};

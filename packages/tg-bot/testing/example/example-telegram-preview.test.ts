@@ -16,6 +16,7 @@ import { ArchReport } from 'dmg-ui/testing/fixtures';
 import type { InlineKeyboardButton, MessageEntity } from 'dmg-ui/tg-bot';
 import { ExampleTelegramPreview, exampleTelegramViews } from '../index';
 import { MENU_POINT, telegramScene } from '../telegram-graph-scene';
+import { EXAMPLE_CONTEXT } from './example-telegram.const';
 
 // Перекрытие общего представления под Telegram (D-UI-67): `exampleTelegramViews`
 // = общие представления + перекрытие `taskList` и `taskCard`. Проверки —
@@ -88,6 +89,7 @@ describe('один код экранов — два представления',
       set: ExampleUiSetDef,
       codes: exampleCodes(),
       renderer: views,
+      context: EXAMPLE_CONTEXT,
     }).screen(def, example);
 
   test('taskList full: подписи и текст те же в общем и перекрытом', async () => {

@@ -56,6 +56,7 @@ import {
 import {
   ExamplePagesAppDef,
   examplePageRoutes,
+  exampleSubjectWire,
   exampleWindowPlacements,
   MemoryPageHistory,
 } from 'dmg-ui/web-ui/testing';
@@ -229,6 +230,7 @@ const pagesOf = async (
     callers: w.example.callers,
     places,
     logger: w.context.logger,
+    subjectToWire: exampleSubjectWire.toWire,
   });
   new UiNotifier({
     app,
@@ -248,6 +250,7 @@ const pagesOf = async (
     routes: examplePageRoutes,
     end: connected.value,
     observer: w.observer,
+    reviveSubject: exampleSubjectWire.revive,
     requestIds: counter(),
     ...(extra.history === undefined ? {} : { history: extra.history }),
     ...(extra.placements === undefined ? {} : { placements: extra.placements }),

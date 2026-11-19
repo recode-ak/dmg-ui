@@ -15,28 +15,31 @@ import {
 import {
   ExampleUiSetDef,
   exampleCodes,
+  exampleSubject,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
   TaskListScreenDef,
 } from './example';
 import { MemoryUiObserver } from './memory-ui-observer';
+import { taskState } from './task-state';
 
 // Заглушки портов исполнителя на учебном примере — помощники тестов
 // `runtime/` (из входа `testing` не экспортируются: деталь тестов ядра).
 
-/** Выход `listTasks` по умолчанию: открытая и выполненная задача. */
+/** Выход `listTasks` по умолчанию: открытая и выполненная задача владельца — state целиком. */
 export const TASKS = [
-  { uuid: TASK_A, title: 'Хлеб', status: 'open' },
-  { uuid: TASK_B, title: 'Молоко', status: 'done' },
-] as const;
+  taskState({ uuid: TASK_A, title: 'Хлеб', status: 'open' }),
+  taskState({ uuid: TASK_B, title: 'Молоко', status: 'done' }),
+];
 
-/** Контекст рендера по умолчанию: свой вызывающий, не только чтение. */
+/** Контекст рендера по умолчанию: свой вызывающий-владелец, не только чтение. */
 export const testRenderContext: RenderContext = {
   locale: 'ru-RU',
   timeZone: 'Asia/Oral',
   delegate: false,
   readOnly: false,
+  subject: exampleSubject,
 };
 
 /** След входящего сигнала канала с заданным `requestId`. */

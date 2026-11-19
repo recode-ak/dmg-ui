@@ -14,6 +14,8 @@ import type {
   StateOf,
 } from '../manifest/screen-def.types';
 import type { ActionContext } from './action-context.types';
+import type { Availability } from './availability';
+import type { ActionName, LocalName } from './screen-logic.types';
 import type { Transition } from './transition.types';
 
 /** Вариант значения поля входа: значение и его подпись. */
@@ -62,20 +64,42 @@ export type ReadPort<D extends { readonly reads: readonly AnyUseCaseDef[] }> = <
   input: UcInputOf<U>,
 ) => Promise<Result<OutputOf<U>, UseCaseErrorOf<U>>>;
 
-/** Вход загрузки экрана: параметры адреса, чтение и контекст. */
-export type LoadContext<D extends AnyScreenDef> = {
+/** Вход загрузки экрана: параметры адреса, чтение и контекст с субъектом `S`. */
+export type LoadContext<D extends AnyScreenDef, S = unknown> = {
   readonly params: ParamsOf<D>;
   readonly read: ReadPort<D>;
-  readonly context: ActionContext;
+  readonly context: ActionContext<S>;
 };
 
 /** Вход шага действия: параметры, данные, состояние, вход действия, контекст. */
-export type StepContext<D extends AnyScreenDef, I> = {
+export type StepContext<D extends AnyScreenDef, I, S = unknown> = {
   readonly params: ParamsOf<D>;
   readonly data: DataOf<D>;
   readonly state: StateOf<D>;
   readonly input: I;
-  readonly context: ActionContext;
+  readonly context: ActionContext<S>;
+};
+
+/**
+ * Вход функции доступности: параметры, данные, состояние, субъект и
+ * контекст кода (место и тот же субъект).
+ */
+export type AvailabilityContext<D extends AnyScreenDef, S = unknown> = {
+  readonly params: ParamsOf<D>;
+  readonly data: DataOf<D>;
+  readonly state: StateOf<D>;
+  readonly subject?: S;
+  readonly context: ActionContext<S>;
+};
+
+/** Функция доступности действия или локального действия. */
+export type AvailabilityFn<D extends AnyScreenDef, S = unknown> = (
+  ctx: AvailabilityContext<D, S>,
+) => Availability;
+
+/** Функции доступности по именам `actions` и `locals` манифеста экрана. */
+export type AvailabilityFns<D extends AnyScreenDef, S = unknown> = {
+  readonly [K in ActionName<D> | LocalName<D>]: AvailabilityFn<D, S>;
 };
 
 /** Вход UC действия; у действия без `uc` — `undefined`. */
@@ -89,17 +113,18 @@ export type UcOutputFor<U> = U extends AnyUseCaseDef ? OutputOf<U> : undefined;
  * `done` даёт переход по выходу UC, `caught` — по отказу с кодом из
  * `catches` экрана. Порт UC шагам не виден: вызывает исполнитель.
  */
-export type ActionStep<D extends AnyScreenDef, I, U> = {
-  command?(ctx: StepContext<D, I>): UcInputFor<U>;
-  done(ctx: StepContext<D, I>, output: UcOutputFor<U>): Transition;
-  caught?(ctx: StepContext<D, I>, error: DomainError): Transition;
+export type ActionStep<D extends AnyScreenDef, I, U, S = unknown> = {
+  command?(ctx: StepContext<D, I, S>): UcInputFor<U>;
+  done(ctx: StepContext<D, I, S>, output: UcOutputFor<U>): Transition;
+  caught?(ctx: StepContext<D, I, S>, error: DomainError): Transition;
 };
 
-/** Шаги действий по именам `actions` манифеста экрана. */
-export type ActionSteps<D extends AnyScreenDef> = {
+/** Шаги действий по именам `actions` манифеста экрана; `S` — тип субъекта. */
+export type ActionSteps<D extends AnyScreenDef, S = unknown> = {
   readonly [K in keyof D['actions']]: ActionStep<
     D,
     InputOf<D['actions'][K]['input']>,
-    D['actions'][K]['uc']
+    D['actions'][K]['uc'],
+    S
   >;
 };

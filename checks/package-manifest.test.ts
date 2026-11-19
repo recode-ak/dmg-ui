@@ -77,6 +77,7 @@ describe('PackageManifest', () => {
         'ActionInput',
         'Address',
         'AddressCodec',
+        'Availability',
         'CodeLoader',
         'CodeLoaders',
         'ExitTargets',

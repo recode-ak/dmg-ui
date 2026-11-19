@@ -4,6 +4,7 @@ import {
   ExamplePreview,
   ExampleUiSetDef,
   exampleCodes,
+  exampleSubject,
   MainMenuScreenDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
@@ -28,6 +29,7 @@ const pagePreviewOf = (delegate = false, readOnly = false) =>
       timeZone: 'Asia/Oral',
       delegate,
       readOnly,
+      subject: exampleSubject,
     },
   });
 

@@ -27,7 +27,7 @@ exports[`ExamplePreview через DialogRenderer — снимки пример�
 • Хлеб
 • Молоко — выполнена
 
-[Карточка исполнителя] [Закрыть]"
+[Карточка исполнителя] [Закрыть] [Отметить задачу]"
 `;
 
 exports[`ExamplePreview через DialogRenderer — снимки примеров уведомление taskAssigned sample 1`] = `"Вам назначена задача: Хлеб"`;

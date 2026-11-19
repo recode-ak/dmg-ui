@@ -1,5 +1,14 @@
 import { describe, expect, test } from 'bun:test';
-import { CoreErrors, DelegateCaller, ok, type Trace } from 'dmg-core';
+import {
+  type Caller,
+  CoreErrors,
+  DelegateCaller,
+  GuestCaller,
+  ok,
+  SystemCaller,
+  type Trace,
+  UserCaller,
+} from 'dmg-core';
 import { testTrace, testUuid } from 'dmg-core/testing';
 import type { ExampleUser } from 'dmg-core/testing/example';
 import {
@@ -12,6 +21,7 @@ import type { PersonPlaces, RecipientCallers } from './server.types';
 // Контекст рендера личности: место — из порта мест по uuid человека из
 // транспорта, признаки — из вызывающего (`RenderFlags`).
 
+const DENIED = CoreErrors.DELEGATION_DENIED.make({ reason: 'revoked' });
 const PERSON_A = testUuid(1);
 const PERSON_B = testUuid(2);
 const ALMATY = { locale: 'kk-KZ', timeZone: 'Asia/Almaty' };
@@ -45,7 +55,12 @@ describe('RenderContexts.of — место и признаки рендера л
 
     const context = await contexts.of(PERSON_A, testTrace());
 
-    expect(context).toEqual({ ...ALMATY, delegate: false, readOnly: false });
+    expect(context).toEqual({
+      ...ALMATY,
+      delegate: false,
+      readOnly: false,
+      subject: expect.objectContaining({ uuid: PERSON_A }),
+    });
   });
 
   test('порт места получает uuid и след сигнала', async () => {
@@ -80,13 +95,17 @@ describe('RenderContexts.of — место и признаки рендера л
       testTrace(),
     );
 
-    expect(context).toEqual({ ...MOSCOW, delegate: true, readOnly: true });
+    expect(context).toEqual({
+      ...MOSCOW,
+      delegate: true,
+      readOnly: true,
+      subject: expect.objectContaining({ uuid: PERSON_A }),
+    });
     expect(places.asked.map((entry) => entry.uuid)).toEqual([PERSON_B]);
   });
 
   test('вызывающий не разрешился — признаков нет, место есть', async () => {
-    const denied = CoreErrors.DELEGATION_DENIED.make({ reason: 'revoked' });
-    const callers = new StubRecipientCallers(new Map([[PERSON_A, denied]]));
+    const callers = new StubRecipientCallers(new Map([[PERSON_A, DENIED]]));
 
     const context = await new RenderContexts(callers, placesOf()).of(
       PERSON_A,
@@ -104,7 +123,61 @@ describe('RenderContexts.of — место и признаки рендера л
       contexts.of(PERSON_B, testTrace('r-2')),
     ]);
 
-    expect(first).toEqual({ ...ALMATY, delegate: false, readOnly: false });
-    expect(second).toEqual({ ...MOSCOW, delegate: false, readOnly: false });
+    expect(first).toMatchObject({ ...ALMATY, subject: { uuid: PERSON_A } });
+    expect(second).toMatchObject({ ...MOSCOW, subject: { uuid: PERSON_B } });
+  });
+});
+
+describe('RenderContexts.of — субъект вызывающего', () => {
+  const contextOf = (caller: Caller<ExampleUser> | undefined) =>
+    new RenderContexts<ExampleUser>(
+      {
+        resolve: async () =>
+          caller === undefined ? { ok: false, error: DENIED } : ok(caller),
+      },
+      placesOf(),
+    ).of(PERSON_A, testTrace());
+
+  test('пользователь — его субъект', async () => {
+    const user = exampleUser(PERSON_A);
+
+    const context = await contextOf(new UserCaller(user));
+
+    expect(context.subject).toBe(user);
+  });
+
+  test('заместитель — субъект замещаемого, а не того, кто работает', async () => {
+    const principal = exampleUser(PERSON_A);
+    const actor = exampleUser(PERSON_B);
+
+    const context = await contextOf(
+      new DelegateCaller(principal, actor, 'd-1'),
+    );
+
+    expect(context.subject).toBe(principal);
+  });
+
+  test('система от имени человека — субъект этого человека', async () => {
+    const user = exampleUser(PERSON_A);
+    const system = new SystemCaller<ExampleUser>(
+      { kind: 'app', module: 'test', name: 'render' },
+      new UserCaller(user),
+    );
+
+    const context = await contextOf(system);
+
+    expect(context.subject).toBe(user);
+  });
+
+  test('система без человека, гость и неразрешившийся вызывающий — субъекта нет', async () => {
+    const system = new SystemCaller<ExampleUser>({
+      kind: 'app',
+      module: 'test',
+      name: 'render',
+    });
+
+    for (const caller of [system, new GuestCaller<ExampleUser>(), undefined]) {
+      expect((await contextOf(caller)).subject).toBeUndefined();
+    }
   });
 });

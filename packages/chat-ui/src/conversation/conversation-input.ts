@@ -1,5 +1,5 @@
 import type { Trace } from 'dmg-core';
-import type { ActionField, FieldIssue } from 'dmg-ui';
+import type { ActionField, ActionView, FieldIssue } from 'dmg-ui';
 import { CONVERSATION_TEXTS } from './conversation.const';
 import type {
   DraftJson,
@@ -72,12 +72,21 @@ export class ConversationInput {
     await this.advance(draft, trace);
   }
 
-  /** Свободный текст: текущему полю, без черновика — первому полю основного действия; иначе «Выберите вариант.». */
+  /**
+   * Свободный текст: текущему полю, без черновика — первому полю основного
+   * действия; основное отключено — заметка с причиной; иначе «Выберите
+   * вариант.».
+   */
   async text(text: string, trace: Trace): Promise<void> {
     const active = this.active();
     if (active !== undefined) {
       if (active.answer(text)) await this.advance(active, trace);
       else await this.ask(active, CONVERSATION_TEXTS.choose);
+      return;
+    }
+    const availability = this.primaryAction()?.availability;
+    if (availability?.kind === 'disabled') {
+      await this.parts.output.note(availability.text);
       return;
     }
     const draft = this.primary();
@@ -192,7 +201,7 @@ export class ConversationInput {
     if (live === undefined) return undefined;
     const view = live.instance.view();
     const action = view.actions.find(
-      (a) => a.name === view.primary && a.available,
+      (a) => a.name === view.primary && a.availability.kind === 'available',
     );
     if (action === undefined || action.fields.length === 0) return undefined;
     return InputDraft.start(
@@ -201,6 +210,12 @@ export class ConversationInput {
       { kind: 'action', action: action.name, revision: view.revision },
       action.fields,
     );
+  }
+
+  /** Основное действие в виде живого экрана; скрытого или отсутствующего — нет. */
+  private primaryAction(): ActionView | undefined {
+    const view = this.parts.screens.current()?.instance.view();
+    return view?.actions.find((a) => a.name === view.primary);
   }
 
   /** Запись — шаг этого черновика и его текущего поля; «Пропустить» — только у необязательного. */

@@ -7,9 +7,10 @@ import type {
 } from '../manifest/screen-def.types';
 import { ActionInput } from './action-input';
 import type { ActionField, InputRejection } from './action-input.types';
+import type { Availability } from './availability';
 import { CodeDefect } from './code-defect';
 import type { ScreenCode } from './screen-code';
-import type { InputOf } from './screen-code.types';
+import type { AvailabilityContext, InputOf } from './screen-code.types';
 import type {
   ActionName,
   CheckedLocalFn,
@@ -25,9 +26,9 @@ export type { ActionName, LocalName } from './screen-logic.types';
  * ошибка кода экрана (состояние или начальные значения не по схеме) —
  * бросок `CodeDefect` с путями полей, без значений.
  */
-export class ScreenLogic<D extends AnyScreenDef> {
+export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
   readonly def: D;
-  readonly code: ScreenCode<D>;
+  readonly code: ScreenCode<D, S>;
   private readonly actionInputs: ReadonlyMap<string, ActionInput | undefined>;
   private readonly localInputs: ReadonlyMap<string, ActionInput | undefined>;
   private readonly localFns: ReadonlyMap<string, CheckedLocalFn<D>>;
@@ -36,7 +37,7 @@ export class ScreenLogic<D extends AnyScreenDef> {
    * Код сверяется с манифестом сразу: у экрана со `state` нет
    * `initialState` или у локального действия нет функции — бросок.
    */
-  constructor(def: D, code: ScreenCode<D>) {
+  constructor(def: D, code: ScreenCode<D, S>) {
     this.def = def;
     this.code = code;
     this.actionInputs = ScreenLogic.inputsOf(def.actions);
@@ -100,18 +101,18 @@ export class ScreenLogic<D extends AnyScreenDef> {
   }
 
   /**
-   * Доступно ли действие или локальное действие; без метода кода — да.
-   * Неизвестное имя — бросок.
+   * Ответ о действии или локальном действии по карте `availability` кода;
+   * нет записи — доступно. Неизвестное имя — бросок.
    */
-  available(
+  availability(
     name: ActionName<D> | LocalName<D>,
-    data: DataOf<D>,
-    state: StateOf<D>,
-  ): boolean {
+    ctx: AvailabilityContext<D, S>,
+  ): Availability {
     if (!this.actionInputs.has(name) && !this.localInputs.has(name)) {
       throw new CodeDefect(`Экран ${this.def.name}: нет действия ${name}`);
     }
-    return this.code.available?.(name, data, state) ?? true;
+    const fn = this.code.availability[name];
+    return fn === undefined ? { kind: 'available' } : fn(ctx);
   }
 
   /**

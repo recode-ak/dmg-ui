@@ -92,18 +92,50 @@ import { PageText } from './page-text';
 // журнал `source(region).subscribe`.
 
 const TASK_C = testUuid(3);
+const SUBJECT_ID = testUuid(1);
+const AT = Date.UTC(2026, 0, 1);
+
+/** Строка выхода query UC — state задачи (D-UI-93): клиент считает по ней Policy и правила. */
+const stateOf = (uuid: string, title: string, status: 'open' | 'done') => ({
+  uuid,
+  createdAt: AT,
+  updatedAt: AT,
+  version: 1,
+  ownerId: SUBJECT_ID,
+  title,
+  status,
+});
+
+/** Задачи вызывающего: две открытые и выполненная — предел открытых не достигнут. */
 const TASKS = [
-  { uuid: TASK_A, title: 'Хлеб', status: 'open' },
-  { uuid: TASK_B, title: 'Молоко', status: 'open' },
-  { uuid: TASK_C, title: 'Сыр', status: 'open' },
+  stateOf(TASK_A, 'Хлеб', 'open'),
+  stateOf(TASK_B, 'Молоко', 'open'),
+  stateOf(TASK_C, 'Сыр', 'done'),
 ];
 const LIST = { screen: LIST_ID, params: { page: 0 } };
 const ASSIGNED = { screen: ASSIGNED_ID, params: {} };
+/** Субъект из `hello` — JSON проекта: `{ uuid, roles }`; владелец `TASKS`. */
+const SUBJECT_WIRE = { uuid: SUBJECT_ID, roles: [] };
 const CONTEXT = {
   locale: 'ru-RU',
   timeZone: 'Asia/Oral',
   delegate: false,
   readOnly: false,
+  subject: SUBJECT_WIRE,
+};
+
+const SubjectWire = v.strictObject({
+  uuid: v.string(),
+  roles: v.array(v.string()),
+});
+
+/** Восстановление субъекта проекта из JSON `hello`: `{ uuid, hasRole }`. */
+const reviveSubject = (raw: unknown) => {
+  const wire = v.parse(SubjectWire, raw);
+  return {
+    uuid: wire.uuid,
+    hasRole: (role: string) => wire.roles.includes(role),
+  };
 };
 
 type Answer = SerializedResult | ((call: unknown) => SerializedResult);
@@ -241,6 +273,7 @@ const tab = (
     end,
     observer,
     clock,
+    reviveSubject,
     faults: (fault) => {
       faults.push(fault);
     },
@@ -3509,14 +3542,9 @@ const stepped = async () => {
 
 /** Поручение с исполнителем: у «Назначенные мне» появляется карточка исполнителя. */
 const ASSIGNEE_ROW = {
-  uuid: TASK_A,
+  ...stateOf(TASK_A, 'Хлеб', 'open'),
   ownerId: testUuid(9),
-  title: 'Хлеб',
-  status: 'open',
-  assignment: {
-    assigneeId: testUuid(1),
-    assignedAt: '2026-01-01T00:00:00.000Z',
-  },
+  assignment: { assigneeId: SUBJECT_ID, assignedAt: AT },
 };
 const MENU_ID = 'exampleUi/todo/mainMenu';
 const USER_CARD_ID = 'exampleUi/users/userCard';
@@ -4838,15 +4866,15 @@ describe('PageClient — переход по записи вытеснен де�
 
 const EXPECTING = 'Ждём ответа…';
 
-/** Данные экрана со строками задач: прочие ключи остаются как есть. */
+/** Данные экрана со строками задач: прочие ключи, в том числе поля state строки, остаются как есть. */
 const TasksData = v.looseObject({
   tasks: v.array(
-    v.object({ uuid: v.string(), title: v.string(), status: v.string() }),
+    v.looseObject({ uuid: v.string(), title: v.string(), status: v.string() }),
   ),
 });
 
-/** Строка задачи карточки. */
-const CardData = v.object({
+/** Строка задачи карточки — state задачи: итог не теряет его поля. */
+const CardData = v.looseObject({
   uuid: v.string(),
   title: v.string(),
   status: v.string(),
@@ -5409,8 +5437,7 @@ describe('PageClient — ожидаемый итог действия', () => {
 
     expect(client.region('side').expected).toBe(true);
     expect(client.region('side').view?.data).toEqual({
-      uuid: TASK_A,
-      title: 'Хлеб',
+      ...stateOf(TASK_A, 'Хлеб', 'open'),
       status: 'done',
     });
     await end.flush();
@@ -5492,9 +5519,12 @@ class BoardCode extends ScreenCode<typeof BoardScreenDef> {
   }
 
   /** Выполнить можно, пока есть открытая задача. */
-  override available(name: string, data: BoardData): boolean {
-    return name !== 'finish' || data.tasks.some((t) => t.status === 'open');
-  }
+  override readonly availability = {
+    finish: ({ data }: { readonly data: BoardData }) =>
+      data.tasks.some((t) => t.status === 'open')
+        ? ({ kind: 'available' } as const)
+        : ({ kind: 'disabled', text: 'Открытых задач нет' } as const),
+  };
 }
 
 const BoardSetDef = UiSetDef.define({
@@ -5551,7 +5581,7 @@ const rowsOf = (state: PageViewState) =>
 describe('PageClient — ожидаемый итог на доске', () => {
   test('жест со входом: строка B выполнена до ответа, A и C как были; после ответа — данные сервера', async () => {
     const { client, end, rev } = await boarded();
-    expect(rowsOf(client.region('main'))).toEqual(['open', 'open', 'open']);
+    expect(rowsOf(client.region('main'))).toEqual(['open', 'open', 'done']);
 
     const acting = client.submitInput(
       'main',
@@ -5562,12 +5592,12 @@ describe('PageClient — ожидаемый итог на доске', () => {
     );
 
     expect(client.region('main').expected).toBe(true);
-    expect(rowsOf(client.region('main'))).toEqual(['open', 'done', 'open']);
+    expect(rowsOf(client.region('main'))).toEqual(['open', 'done', 'done']);
     await end.flush();
     end.release('completeTask');
     expect(await acting).toEqual({ kind: 'stayed', revision: rev + 1 });
     expect(client.region('main').expected).toBeUndefined();
-    expect(rowsOf(client.region('main'))).toEqual(['open', 'done', 'open']);
+    expect(rowsOf(client.region('main'))).toEqual(['open', 'done', 'done']);
     expect(end.calls().find((c) => c.uc === 'completeTask')).toMatchObject({
       input: { taskId: TASK_B },
     });
@@ -5598,7 +5628,7 @@ describe('PageClient — ожидаемый итог на доске', () => {
       1,
     );
     expect(client.region('main').expected).toBe(true);
-    expect(rowsOf(client.region('main'))).toEqual(['done', 'open', 'open']);
+    expect(rowsOf(client.region('main'))).toEqual(['done', 'open', 'done']);
     const forms = new PageFormModel(BoardSetDef).of(client.region('main'));
     expect(forms.forms.find((form) => form.name === 'finish')?.available).toBe(
       false,
@@ -5616,7 +5646,7 @@ describe('PageClient — ожидаемый итог на доске', () => {
     );
 
     expect(again).toMatchObject({ kind: 'stayed' });
-    expect(rowsOf(client.region('main'))).toEqual(['done', 'done', 'open']);
+    expect(rowsOf(client.region('main'))).toEqual(['done', 'done', 'done']);
   });
 
   test('подтверждение, пока итог области показан, недоступно', async () => {
@@ -5800,14 +5830,9 @@ describe('PageClient — отрезанная ветка приложения', 
     entries: ExamplePagesAppDef.entries,
   });
   const ROW = {
-    uuid: TASK_A,
+    ...stateOf(TASK_A, 'Хлеб', 'open'),
     ownerId: testUuid(9),
-    title: 'Хлеб',
-    status: 'open',
-    assignment: {
-      assigneeId: testUuid(1),
-      assignedAt: '2026-01-01T00:00:00.000Z',
-    },
+    assignment: { assigneeId: SUBJECT_ID, assignedAt: AT },
   };
   const client = async () => {
     let requests = 0;
@@ -5818,6 +5843,7 @@ describe('PageClient — отрезанная ветка приложения', 
       end: new StubEnd().answer('listAssignedTasks', ok([ROW])),
       observer: new MemoryUiObserver(),
       clock: new ManualPageClock(),
+      reviveSubject,
       requestIds: () => {
         requests += 1;
         return `r-${requests}`;
@@ -5829,8 +5855,10 @@ describe('PageClient — отрезанная ветка приложения', 
 
   test('у «Назначенные мне» нет действия карточки исполнителя', async () => {
     const actions = (await client()).region('main').view?.actions;
+    const names = actions?.map((action) => action.name);
 
-    expect(actions?.map((action) => action.name)).toEqual(['close']);
+    expect(names).toContain('close');
+    expect(names).not.toContain('openAssignee');
   });
 
   test('сигнал по отрезанному действию — unavailable/unknown', async () => {
