@@ -1,13 +1,17 @@
-import type { ItemTexts } from 'dmg-ui';
+import type { FieldExample, FieldKind, FieldLimits, ItemTexts } from 'dmg-ui';
 
 /** Значения формы по именам полей — строки, как у формы страницы. */
 export type PageFormValues = Readonly<Record<string, string>>;
 
-/** Поле формы: подпись, варианты (подписи), значение и замечания по полю. */
+/** Поле формы: подпись, вид, описание, варианты (подписи), значение и замечания по полю. */
 export type PageFormField = {
   readonly name: string;
   readonly label: string;
   readonly optional: boolean;
+  readonly kind: FieldKind;
+  readonly hint?: string;
+  readonly example?: FieldExample;
+  readonly limits?: FieldLimits;
   /** Подписи вариантов в порядке кода экрана; значение формы — подпись. */
   readonly choices?: readonly string[];
   /** Введённое в отвергнутую форму, иначе начальное, иначе пустая строка. */

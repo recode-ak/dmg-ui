@@ -95,6 +95,10 @@ export class PageFormModel {
       name: field.name,
       label: field.label,
       optional: field.optional,
+      kind: field.kind,
+      ...(field.hint === undefined ? {} : { hint: field.hint }),
+      ...(field.example === undefined ? {} : { example: field.example }),
+      ...(field.limits === undefined ? {} : { limits: field.limits }),
       ...(field.choices === undefined
         ? {}
         : { choices: field.choices.map((c) => c.label) }),

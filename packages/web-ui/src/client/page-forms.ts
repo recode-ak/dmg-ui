@@ -1,12 +1,13 @@
-import type { ActionField } from 'dmg-ui';
+import { type ActionField, FieldInput } from 'dmg-ui';
 import type { PageFormValues } from '../view/page-form.types';
 
 /**
  * Вход формой страницы: все поля действия разом — один `act` или
  * `local`, замечания `rejected` — по всем полям. Поле с вариантами —
- * подпись варианта, без совпадения — как есть (проверит схема); пустое
- * необязательное, незаполненное и чужое поле опускаются. Допущение: поля —
- * строки, число и дату отвергнет схема ядра.
+ * значение варианта по подписи (варианты побеждают приведение), иначе строка
+ * приводится к виду поля `FieldInput` ядра: число — числом, остальное как есть
+ * (проверит схема); пустое необязательное, незаполненное и чужое поле
+ * опускаются.
  */
 export class PageForms {
   /** Вход по полям формы; у действия без полей входа нет (`undefined`). */
@@ -23,6 +24,8 @@ export class PageForms {
 
   private value(field: ActionField, raw: string): unknown {
     const choice = field.choices?.find((c) => c.label === raw);
-    return choice === undefined ? raw : choice.value;
+    return choice === undefined
+      ? new FieldInput(field).value(raw)
+      : choice.value;
   }
 }

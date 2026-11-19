@@ -1,31 +1,12 @@
 import * as v from 'valibot';
 import type {
+  FieldCore,
   FieldExample,
-  FieldKind,
   FieldLimits,
   FieldShape,
+  PipeAction,
 } from './field-description.types';
 import { FIELD_HINT_KEY } from './field-hint';
-
-export type {
-  FieldExample,
-  FieldKind,
-  FieldLimits,
-  FieldShape,
-} from './field-description.types';
-
-/** Действие проверки в pipe схемы: тип и требование (предел). */
-type PipeAction = {
-  readonly type: string;
-  readonly requirement: unknown;
-};
-
-/** Вид и то, что от него зависит: пределы и варианты. */
-type FieldCore = {
-  readonly kind: FieldKind;
-  readonly limits?: FieldLimits;
-  readonly options?: readonly string[];
-};
 
 /** Действия pipe, по которым строка считается датой ISO. */
 const DATE_ACTIONS: ReadonlySet<string> = new Set([
@@ -153,6 +134,7 @@ export class FieldDescription {
     const options = 'options' in schema ? schema.options : undefined;
     return (
       Array.isArray(options) &&
+      options.length > 0 &&
       options.every(
         (o) =>
           typeof o === 'object' &&

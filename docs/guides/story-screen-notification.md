@@ -33,7 +33,7 @@
      to: (): readonly AnyScreenDef[] => [TaskListScreenDef],
    },
    ```
-2. **Действие** — `uc` (command UC) и/или `to`. Без `uc` — переход (меню, листание). Действие вправе не вызывать UC; вызывает не больше одного (D-UI-10). `input` — схема полей, у каждого поле `v.description()`; `confirm` — подтверждение с текстами.
+2. **Действие** — `uc` (command UC) и/или `to`. Без `uc` — переход (меню, листание). Действие вправе не вызывать UC; вызывает не больше одного (D-UI-10). `input` — схема полей (как их писать — ниже, «Поле входа»); `confirm` — подтверждение с текстами. Необязательное `hint` — подсказка человеку (у сторис, экрана, действия и локального действия одно имя), отдельная от `description`, который пишется для программиста.
 3. **Локальное действие** (`locals`) меняет только состояние экрана и UC не зовёт. Имена `actions` и `locals` не пересекаются (UI-21).
 4. **Выходы** (`exits`) объявляет экран; `data` выхода — схема. Выход экрана получает значение через `TaskListScreenDef.exits.closed.with(...)`.
 5. **Перечитывание** — `refresh: [{ event, params, subject }]`: `params` сопоставляет параметр адреса с полем payload, `subject` — поле payload с `uuid` человека, `any: true` — «всем» (D-UI-22). Пустая запись — нарушение UI-17.
@@ -56,6 +56,24 @@
 7. **Уведомление** — `NotificationDef.define`: `event`, `recipients`, `reads`, `data`, `links`, `examples`. Получатели — `{ from: 'payload', fields: ['assigneeId'] }` или `{ from: 'query', uc, input, fields }`: query UC вызывает система (`SystemCaller` с `kind: 'app'`, `module` — имя набора UI, D-UI-23).
 8. **Сборка** — `UiModuleDef.define({ screens, stories, notifications })`, затем `UiSetDef.define({ app: <AppDef домена>, modules })` и `UiAppDef.define({ set, channel, stories, notifications, entries })`. Вход — `entries.start.address: TaskListScreenDef.at({ page: 0 })`.
 9. **Адрес.** `Screen.at(params)` даёт `Address`; через границу JSON адрес идёт как `AddressJson` (`AddressCodec.encode/decode`). `id` экрана — `<набор>/<модуль>/<экран>` (`UiIds.screen`). `decode` — внешние данные: отказ приходит значением (`AddressRejection`), не броском (D-UI-9). Параметры, влияющие на чтение (страница, фильтр), — параметры адреса, а не состояние.
+
+**Поле входа** (D-UI-100). Ядро читает схему поля и отдаёт каналу `ActionField`: подпись, вид, обязательность, подсказку, пример, пределы. Пиши поле так:
+
+```ts
+title: v.pipe(
+  v.string(),
+  v.minLength(1),
+  v.title('Название задачи'), // подпись для человека; без него — description, затем имя поля
+  fieldHint('Коротко: что нужно сделать'), // подсказка (v.metadata), не v.description
+  v.examples(['Купить хлеб']), // пример: первый скаляр
+  v.description('Название'), // для программиста (UI-14)
+),
+```
+
+- Вид — по схеме: `v.number` — `number` (`v.integer` даёт предел «целое»), `v.boolean` — `boolean` (варианты «Да» и «Нет»), `picklist`, `enum`, union литералов — `choice`, `v.pipe(v.string(), v.isoDate())` — `date`; всё остальное, включая `v.date()`, откатывается на `string`. Дата — строка ISO.
+- Пределы показываются из `v.minValue`, `v.maxValue`, `v.minLength`, `v.maxLength`, `v.length`, `v.nonEmpty`; сообщение схемы пиши по-человечески (`v.number('Введите номер страницы')`): канал показывает его как замечание.
+- Число из строки приводит канал через `FieldInput`; не число отвергает схема.
+- Подсказка и пределы — только показ: проверяет схема входа и Policy (D-UI-29). У поля с `F.sensitive` пример в `ActionField` не отдаётся, но `examples` и `hint` попадают в граф через JSON Schema входа и там видны: пример у `F.sensitive` пиши вымышленным. Правило графа, запрещающее `examples` у `F.sensitive`, — кандидат на будущее.
 
 ## 4. Код экрана и уведомления
 
@@ -105,7 +123,7 @@
 
 - Сторис: UI-01 (вызывающие допущены к UC экранов), UI-02, UI-03, UI-04, UI-23.
 - Экран: UI-08 (`reads` — только query), UI-09 (`uc` — только command), UI-12 (только UC для человека), UI-15, UI-16, UI-17, UI-19, UI-21.
-- Тексты и примеры: UI-13 (заполнены), UI-14 (`description` у полей), UI-20 (примеры по схемам).
+- Тексты и примеры: UI-13 (заполнены, включая необязательную `hint`), UI-14 (`description` у полей), UI-20 (примеры по схемам).
 - Уведомление: UI-18 (поля получателей).
 - Канал и приложение: UI-05, UI-06 (представление), UI-07, UI-10; общее — UI-11, UI-22.
 

@@ -124,6 +124,10 @@ describe('FieldDescription — вид поля', () => {
     expect(shape(entry).kind).toBe('choice');
   });
 
+  test('union из пустого списка — не choice, а string', () => {
+    expect(shape(v.union([])).kind).toBe('string');
+  });
+
   test.each([
     ['isoDate', v.pipe(v.string(), v.isoDate())],
     ['isoDateTime', v.pipe(v.string(), v.isoDateTime())],

@@ -94,6 +94,8 @@ export const CONVERSATION_TEXTS = {
   closed: 'Эта кнопка устарела.',
   unavailable: 'Действие сейчас недоступно.',
   choose: 'Выберите вариант.',
+  example: 'Пример',
+  limits: 'Пределы',
   unknownRef: 'Эта кнопка устарела.',
   notRestored: 'Прежний экран не восстановлен — начнём сначала.',
   noEntry: 'Такого входа нет.',

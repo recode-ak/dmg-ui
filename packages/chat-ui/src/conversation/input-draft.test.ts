@@ -280,3 +280,165 @@ describe('InputDraft — страница вариантов', () => {
     expect(names(draft)).toBe('note');
   });
 });
+
+// Приведение ответа к виду поля (`FieldInput`, D-UI-47): число из текста —
+// числом, остальное строкой; булево — неявные варианты «Да» и «Нет».
+
+const TypedInput = v.object({
+  count: v.pipe(v.number('Введите число'), v.title('Количество')),
+  flag: v.pipe(v.boolean(), v.title('Срочно')),
+  mark: v.optional(v.pipe(v.number('Введите число'), v.title('Оценка'))),
+  when: v.pipe(v.string(), v.isoDate(), v.title('Дата')),
+});
+
+const typed = () =>
+  InputDraft.start(1, 1, TARGET, new ActionInput(TypedInput).fields());
+
+/** Черновик одного числового поля. */
+const counting = () =>
+  InputDraft.start(
+    1,
+    1,
+    TARGET,
+    new ActionInput(TypedInput).fields().filter((f) => f.name === 'count'),
+  );
+
+describe('InputDraft — приведение ответа к виду поля', () => {
+  test('число: «3» ложится в вход числом', () => {
+    const draft = counting();
+
+    const accepted = draft.answer('3');
+
+    expect(accepted).toBe(true);
+    expect(draft.input()).toEqual({ count: 3 });
+    expect(draft.done()).toBe(true);
+  });
+
+  test('число, пропуск необязательного: значения нет, поле отвечено', () => {
+    const draft = InputDraft.start(
+      1,
+      1,
+      TARGET,
+      new ActionInput(TypedInput).fields().filter((f) => f.name === 'mark'),
+    );
+
+    draft.skip();
+
+    expect(draft.input()).toEqual({});
+    expect(draft.done()).toBe(true);
+  });
+
+  test('число с вариантами кода экрана: «2» — второй вариант по номеру, не число 2', () => {
+    const draft = InputDraft.start(1, 1, TARGET, [
+      {
+        name: 'level',
+        label: 'Уровень',
+        kind: 'choice',
+        optional: false,
+        choices: [
+          { value: 10, label: 'Низкий' },
+          { value: 20, label: 'Высокий' },
+        ],
+      },
+    ]);
+
+    draft.answer('2');
+
+    expect(draft.input()).toEqual({ level: 20 });
+  });
+
+  test('число с вариантами: подпись, совпавшая с текстом числа, выбирает вариант', () => {
+    const draft = InputDraft.start(1, 1, TARGET, [
+      {
+        name: 'level',
+        label: 'Уровень',
+        kind: 'number',
+        optional: false,
+        choices: [
+          { value: 100, label: '5' },
+          { value: 200, label: '6' },
+        ],
+      },
+    ]);
+
+    draft.answer('6');
+
+    expect(draft.input()).toEqual({ level: 200 });
+  });
+
+  test('булево: поле — неявные «Да» и «Нет», ответ подписью даёт true и false', () => {
+    const asked = (text: string) => {
+      const draft = InputDraft.start(
+        1,
+        1,
+        TARGET,
+        new ActionInput(TypedInput).fields().filter((f) => f.name === 'flag'),
+      );
+      draft.answer(text);
+      return draft.input();
+    };
+
+    expect([asked('Да'), asked('Нет')]).toEqual([
+      { flag: true },
+      { flag: false },
+    ]);
+  });
+
+  test('булево: номер «2» — «Нет» (false), а не число 2 и не строка', () => {
+    const draft = InputDraft.start(
+      1,
+      1,
+      TARGET,
+      new ActionInput(TypedInput).fields().filter((f) => f.name === 'flag'),
+    );
+
+    draft.answer('2');
+
+    expect(draft.input()).toEqual({ flag: false });
+  });
+
+  test('булево: нажатие «Нет» (false) — отвечено, значение false в входе', () => {
+    const draft = InputDraft.start(
+      1,
+      1,
+      TARGET,
+      new ActionInput(TypedInput).fields().filter((f) => f.name === 'flag'),
+    );
+
+    draft.choose(false);
+
+    expect(draft.done()).toBe(true);
+    expect(draft.input()).toEqual({ flag: false });
+  });
+
+  test('булево: текст не из вариантов — не принят, поле остаётся текущим', () => {
+    const draft = InputDraft.start(
+      1,
+      1,
+      TARGET,
+      new ActionInput(TypedInput).fields().filter((f) => f.name === 'flag'),
+    );
+
+    const accepted = draft.answer('может быть');
+
+    expect(accepted).toBe(false);
+    expect(draft.current()?.name).toBe('flag');
+  });
+
+  test('шаги черновика разных видов по порядку: число, булево, дата; значения — через JSON снимка без потери типа', () => {
+    const draft = typed();
+
+    draft.answer('4');
+    draft.answer('Нет');
+    draft.skip();
+    draft.answer('2026-01-02');
+    const restored = viaJson(draft);
+
+    expect(restored.done()).toBe(true);
+    expect(restored.input()).toEqual({
+      count: 4,
+      flag: false,
+      when: '2026-01-02',
+    });
+  });
+});

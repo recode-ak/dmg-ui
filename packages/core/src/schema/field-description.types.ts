@@ -32,3 +32,16 @@ export type FieldShape = {
   readonly limits?: FieldLimits;
   readonly options?: readonly string[];
 };
+
+/** Действие проверки в pipe схемы: тип и требование (предел). */
+export type PipeAction = {
+  readonly type: string;
+  readonly requirement: unknown;
+};
+
+/** Вид и то, что от него зависит: пределы и варианты. */
+export type FieldCore = {
+  readonly kind: FieldKind;
+  readonly limits?: FieldLimits;
+  readonly options?: readonly string[];
+};

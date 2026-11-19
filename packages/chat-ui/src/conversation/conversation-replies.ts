@@ -2,6 +2,7 @@ import {
   type ActionField,
   type AddressJson,
   type AnyScreenDef,
+  FieldInput,
   type InstanceView,
   UiIds,
 } from 'dmg-ui';
@@ -16,6 +17,7 @@ import type { ChatViews } from '../view/chat-views';
 import { type ComposedScreen, ScreenComposer } from '../view/screen-composer';
 import { VIEW_TEXTS } from '../view/view.const';
 import type { ViewOption } from '../view/view.types';
+import { CONVERSATION_TEXTS } from './conversation.const';
 import type { Layout, RefTarget, Serial } from './conversation.types';
 import type { InputDraft } from './input-draft';
 import type { OptionLayout } from './option-layout';
@@ -288,7 +290,18 @@ export class ConversationReplies {
   /** Вопрос поля входа; `note` — замечание перед ним (отвергнутый вход). */
   private static field(field: ActionField, note?: string): string {
     const ask = field.choices === undefined ? 'Введите' : 'Выберите';
-    return ConversationReplies.join([note, `${ask}: ${field.label}`]);
+    const limits = new FieldInput(field).limitsText();
+    const lines = [
+      `${ask}: ${field.label}`,
+      field.hint,
+      field.example === undefined
+        ? undefined
+        : `${CONVERSATION_TEXTS.example}: ${field.example}`,
+      limits === undefined
+        ? undefined
+        : `${CONVERSATION_TEXTS.limits}: ${limits}`,
+    ].filter((line) => line !== undefined);
+    return ConversationReplies.join([note, lines.join('\n')]);
   }
 
   /** Части текста через пустую строку; пустые части опускаются. */

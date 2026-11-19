@@ -895,8 +895,12 @@ describe.each(MESSENGERS)(
       const repeated = lastText(s.messenger);
       await s.text('Хлеб');
 
-      expect(question).toBe('Введите: Название');
-      expect(repeated).toBe('Не длиннее 5 знаков\n\nВведите: Название');
+      expect(question).toBe(
+        'Введите: Название\nПределы: не длиннее 5 символов',
+      );
+      expect(repeated).toBe(
+        'Не длиннее 5 знаков\n\nВведите: Название\nПределы: не длиннее 5 символов',
+      );
       expect(s.world.calls).toEqual(['rename:Хлеб']);
       expect(lastText(s.messenger)).toBe('Форма');
     });
@@ -1051,7 +1055,9 @@ describe.each(MESSENGERS)(
       const repeated = lastText(s.messenger);
       await s.text('мин');
 
-      expect(repeated).toBe('Не длиннее 3 знаков\n\nВведите: Уровень');
+      expect(repeated).toBe(
+        'Не длиннее 3 знаков\n\nВведите: Уровень\nПределы: не длиннее 3 символов',
+      );
       expect(lastText(s.messenger)).toBe('Лаборатория: 0, уровень «мин»');
     });
 

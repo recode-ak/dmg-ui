@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { type DomainError, ok, type Result } from 'dmg-core';
 import { ExampleAppDef } from 'dmg-core/testing/example';
 import {
+  type ActionField,
+  ActionInput,
   type ActionSteps,
   CodeLoader,
   CodeLoaders,
@@ -142,5 +144,95 @@ describe('PageForms', () => {
     const { fields } = await opened('ping');
 
     expect(forms.input(fields, { anything: 'x' })).toBeUndefined();
+  });
+});
+
+// Приведение строки формы к виду поля (`FieldInput`): число — числом, булево
+// и выбор — значением варианта по подписи, прочее — строкой как есть.
+
+const NumberInput = v.object({
+  count: v.pipe(v.number('Введите число'), v.title('Количество')),
+  mark: v.optional(v.pipe(v.number('Введите число'), v.title('Оценка'))),
+  flag: v.pipe(v.boolean(), v.title('Срочно')),
+  when: v.pipe(v.string(), v.isoDate(), v.title('Дата')),
+});
+
+const typedFields = (): readonly ActionField[] =>
+  new ActionInput(NumberInput).fields();
+
+describe('PageForms — приведение к виду поля', () => {
+  test('число: «3» уходит в вход числом', () => {
+    const input = forms.input(typedFields(), {
+      count: '3',
+      flag: 'Да',
+      when: '2026-01-02',
+    });
+
+    expect(input).toStrictEqual({ count: 3, flag: true, when: '2026-01-02' });
+  });
+
+  test('булево: подпись варианта «Нет» — false, а не строка и не пропуск', () => {
+    const input = forms.input(typedFields(), {
+      count: '1',
+      flag: 'Нет',
+      when: '2026-01-02',
+    });
+
+    expect(input).toStrictEqual({ count: 1, flag: false, when: '2026-01-02' });
+  });
+
+  test('булево: подпись вне вариантов остаётся строкой — проверит схема', () => {
+    const input = forms.input(typedFields(), {
+      count: '1',
+      flag: 'может',
+      when: '2026-01-02',
+    }) as Record<string, unknown>;
+
+    expect(input.flag).toBe('может');
+  });
+
+  test('необязательное число: пустое опускается, заполненное — число', () => {
+    const empty = forms.input(typedFields(), {
+      count: '1',
+      mark: '',
+      flag: 'Да',
+      when: 'd',
+    }) as Record<string, unknown>;
+    const filled = forms.input(typedFields(), {
+      count: '1',
+      mark: '5',
+      flag: 'Да',
+      when: 'd',
+    }) as Record<string, unknown>;
+
+    expect('mark' in empty).toBe(false);
+    expect(filled.mark).toBe(5);
+  });
+
+  test('обязательное число пустое — пустая строка уходит схеме, не пропуск', () => {
+    const input = forms.input(typedFields(), {
+      count: '',
+      flag: 'Да',
+      when: 'd',
+    }) as Record<string, unknown>;
+
+    expect(input.count).toBe('');
+  });
+
+  test('подпись варианта числового поля выигрывает у приведения', () => {
+    const fields: readonly ActionField[] = [
+      {
+        name: 'level',
+        label: 'Уровень',
+        kind: 'number',
+        optional: false,
+        choices: [
+          { value: 100, label: '5' },
+          { value: 200, label: '6' },
+        ],
+      },
+    ];
+
+    expect(forms.input(fields, { level: '6' })).toStrictEqual({ level: 200 });
   });
 });

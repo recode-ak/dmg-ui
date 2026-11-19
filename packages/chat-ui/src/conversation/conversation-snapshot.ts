@@ -168,9 +168,9 @@ const LiveScreen = v.object({
   message: v.optional(PlaceMessageSchema),
 });
 
-// Вид поля старого снимка не записан — читается как строка. Подсказка и
-// пример строкой — до `MAX_LABEL_LENGTH`: длинное не отвергает снимок
-// целиком, а не проходит схему так же, как длинная подпись.
+// Вид поля старого снимка не записан — читается как строка. `hint` и
+// `example` длиннее `MAX_LABEL_LENGTH` отвергают снимок целиком, как длинная
+// подпись (D-UI-100).
 const FieldLimits = v.object({
   min: v.optional(v.number()),
   max: v.optional(v.number()),

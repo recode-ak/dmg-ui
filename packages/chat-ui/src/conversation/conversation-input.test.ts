@@ -382,7 +382,7 @@ describe('Conversation — варианты сверх лимита мессен
       'Выберите: Размер\n\n1. Малый\n2. Средний\n3. Большой\n4. Огромный',
     );
     expect(labels(numbered)).toEqual(['Пропустить']);
-    expect(text(next)).toBe('Введите: Заметка');
+    expect(text(next)).toBe('Введите: Заметка\nПределы: не длиннее 8 символов');
     expect(labels(next)).toEqual(['Пропустить']);
     expect(w.calls.inputs).toEqual([{ kind: 'a', size: 'm' }]);
     expect(errors(w.logger)).toEqual([]);
@@ -477,7 +477,7 @@ describe('Conversation — черновик входа', () => {
     expect(saved.draft?.serial).toBeGreaterThan(saved.screen?.serial ?? 0);
     expect(saved.serial).toBeGreaterThanOrEqual(saved.draft?.serial ?? 0);
     const texts = sent(after).map(text);
-    expect(texts[0]).toBe('Введите: Заметка');
+    expect(texts[0]).toBe('Введите: Заметка\nПределы: не длиннее 8 символов');
     expect(texts.some((t) => t.includes('Экран обновился'))).toBe(false);
     expect(texts.some((t) => t.includes('недоступно'))).toBe(false);
     expect(w.calls.inputs).toEqual([{ kind: 'b', size: 's', note: 'к ужину' }]);
@@ -528,7 +528,7 @@ describe('Conversation — черновик входа', () => {
 
     const repeated = lastSent(messenger);
     expect(text(repeated)).toBe(
-      'Не длиннее 8 знаков: mark-z9-secret\n\nВведите: Заметка',
+      'Не длиннее 8 знаков: mark-z9-secret\n\nВведите: Заметка\nПределы: не длиннее 8 символов',
     );
     expect(labels(repeated)).toEqual(['Пропустить']);
     expect(sent(messenger, PEER_B).length).toBeGreaterThan(0);

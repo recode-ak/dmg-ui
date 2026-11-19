@@ -1,4 +1,4 @@
-import type { ActionField } from 'dmg-ui';
+import { type ActionField, FieldInput } from 'dmg-ui';
 import type { ChoiceValue, DraftJson, Serial } from './conversation.types';
 
 /** Строка номера варианта: только цифры. */
@@ -8,8 +8,10 @@ const NUMBER = /^[0-9]+$/;
  * Вход действия по шагам — над данными черновика `DraftJson` (D-UI-47):
  * поля по порядку, текущее — первое без ответа. Текст — строка, у поля с
  * вариантами — `Choice.value` по нажатию, подписи или номеру `1…n`;
- * необязательное поле можно пропустить. Другие типы полей (число, дата) не
- * поддержаны: значение собирается строкой и отвергается схемой ядра.
+ * необязательное поле можно пропустить. Строку ответа приводит к виду поля
+ * `FieldInput` ядра: число из текста — числом, остальное строкой; что не
+ * приведено, отвергает схема своим текстом. Варианты (в том числе неявные
+ * «Да» и «Нет» булева) приведение обходят.
  * @see input-draft.test.ts
  */
 export class InputDraft {
@@ -80,7 +82,7 @@ export class InputDraft {
   answer(text: string): boolean {
     const field = this.expect('answer');
     if (field.choices === undefined) {
-      this.fill(field, text);
+      this.fill(field, new FieldInput(field).value(text));
       return true;
     }
     const choice =

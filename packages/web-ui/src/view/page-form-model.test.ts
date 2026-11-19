@@ -811,3 +811,71 @@ describe('PageFormModel.of — ожидаемый итог', () => {
     expect(formOf(state, 'toggle').available).toBe(true);
   });
 });
+
+describe('PageFormModel.of — вид, подсказка, пример и пределы поля', () => {
+  test('поле со всеми частями описания: kind, hint, example, limits из вида', async () => {
+    const { state } = await listed();
+
+    const part = fieldOf(formOf(state, 'jumpTo'), 'part');
+
+    expect(part).toMatchObject({
+      name: 'part',
+      label: 'Часть',
+      kind: 'number',
+      optional: false,
+      hint: 'Номер части списка, с первой',
+      example: 2,
+      limits: { min: 1, max: 99, integer: true },
+    });
+  });
+
+  test('строковое поле с подсказкой и примером: kind string, предел — непустая строка', async () => {
+    const { state } = await listed();
+
+    const title = fieldOf(formOf(state, 'create'), 'title');
+
+    expect(title).toMatchObject({
+      kind: 'string',
+      hint: 'Коротко: что нужно сделать',
+      example: 'Купить хлеб',
+    });
+    expect(title.limits).toEqual({ minLength: 1 });
+  });
+
+  test('поле без подсказки, примера и пределов — ключей hint, example, limits нет', async () => {
+    const { state } = await listed();
+
+    const task = fieldOf(formOf(state, 'open'), 'taskId');
+
+    expect(task).toHaveProperty('kind');
+    expect(task).not.toHaveProperty('hint');
+    expect(task).not.toHaveProperty('example');
+    expect(task).not.toHaveProperty('limits');
+  });
+
+  test('поле формы — данные JSON: после круга через JSON описание то же', async () => {
+    const { state } = await listed();
+
+    const part = fieldOf(formOf(state, 'jumpTo'), 'part');
+
+    expect(JSON.parse(JSON.stringify(part))).toEqual(part);
+  });
+
+  test('введённое в отвергнутую форму числовое поле остаётся строкой, как набрано', async () => {
+    const { state } = await listed();
+
+    const form = formOf(
+      {
+        ...state,
+        issues: [{ field: 'part', text: 'Введите номер части' }],
+        entered: entered('action', 'jumpTo', { part: 'abc' }),
+      },
+      'jumpTo',
+    );
+
+    expect(fieldOf(form, 'part')).toMatchObject({
+      value: 'abc',
+      issues: ['Введите номер части'],
+    });
+  });
+});

@@ -1,10 +1,5 @@
 import type { FieldKind, FieldLimits } from './field-description.types';
-
-/** Часть описания поля, которой хватает вводу: вид и пределы. */
-type FieldInputSpec = {
-  readonly kind: FieldKind;
-  readonly limits?: FieldLimits;
-};
+import type { FieldInputSpec } from './field-input.types';
 
 /** Строка, которую приводят к числу: знак, целая часть, дробная через точку. */
 const NUMBER_PATTERN = /^[+-]?\d+(\.\d+)?$/;
@@ -32,7 +27,9 @@ export class FieldInput {
   value(raw: string): string | number {
     if (this.kind !== 'number') return raw;
     const text = raw.trim();
-    return NUMBER_PATTERN.test(text) ? Number(text) : raw;
+    if (!NUMBER_PATTERN.test(text)) return raw;
+    const number = Number(text);
+    return Number.isFinite(number) ? number : raw;
   }
 
   /**
@@ -66,10 +63,33 @@ export class FieldInput {
     min: number | undefined,
     max: number | undefined,
   ): string | undefined {
-    if (min === undefined && max === undefined) return undefined;
-    if (min !== undefined && min === max) return `ровно ${min} символов`;
-    if (max === undefined) return `не короче ${min} символов`;
-    if (min === undefined) return `не длиннее ${max} символов`;
-    return `от ${min} до ${max} символов`;
+    if (min === undefined) {
+      return max === undefined
+        ? undefined
+        : `не длиннее ${max} ${FieldInput.chars(max)}`;
+    }
+    if (min === max) return `ровно ${min} ${FieldInput.chars(min, true)}`;
+    if (max === undefined) {
+      return min === 1
+        ? 'не пустое'
+        : `не короче ${min} ${FieldInput.chars(min)}`;
+    }
+    return `от ${min} до ${max} ${FieldInput.chars(max)}`;
+  }
+
+  /**
+   * «символ» в форме, согласованной с числом. После «ровно» — именительный
+   * падеж: 1 символ, 2 символа, 5 символов, 21 символ. После «от», «до»,
+   * «не короче», «не длиннее» число стоит в родительном: 1 символа,
+   * 2 символов, 21 символа.
+   */
+  private static chars(count: number, nominative = false): string {
+    const n = Math.abs(count);
+    const teen = n % 100 >= 11 && n % 100 <= 14;
+    const last = n % 10;
+    if (teen) return 'символов';
+    if (last === 1) return nominative ? 'символ' : 'символа';
+    if (nominative && last >= 2 && last <= 4) return 'символа';
+    return 'символов';
   }
 }

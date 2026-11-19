@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Trace } from 'dmg-core';
+import { AppGraph } from 'dmg-core/graph';
 import {
   AwaitingBus,
   MemoryLogger,
@@ -13,6 +14,7 @@ import {
   AssignTaskUcDef,
   CreateTaskUcDef,
   ExampleApp,
+  ExampleAppDef,
   ListTasksUcDef,
   TodoModuleDef,
 } from 'dmg-core/testing/example';
@@ -30,6 +32,7 @@ import {
   exampleDialogViews,
   MemoryMessenger,
 } from 'dmg-ui/chat-ui/testing';
+import { UiGraphProvider } from 'dmg-ui/graph';
 import {
   ApiAppDispatch,
   type PersonPlaces,
@@ -46,6 +49,7 @@ import {
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import {
   PageClient,
+  PageFormModel,
   type PageHistoryEntry,
   type PageHistoryPort,
   PageHost,
@@ -683,4 +687,231 @@ test('страница, «Назад» при открытом окне закр
   expect(p.client.region('main').view?.screen).toBe(LIST_ID);
   await p.history.back();
   expectMenuOnly(p.client);
+});
+
+// Сценарий 5: поле входа. Вид поля (подпись, подсказка, пример, пределы, вид)
+// берётся из схемы действия ядром и одинаков на двух каналах и в графе;
+// число из текста приводит ядро, схема отвергает не число и выход за предел
+// своим текстом. Действие `jumpTo` списка задач — поле `part` с пределами
+// 1…99; `create` — строковое поле с подсказкой и примером. Каналы узнают о
+// поле только из вида экрана.
+
+const PART_FIELD = {
+  name: 'part',
+  label: 'Часть',
+  kind: 'number',
+  optional: false,
+  hint: 'Номер части списка, с первой',
+  example: 2,
+  limits: { min: 1, max: 99, integer: true },
+};
+const PART_QUESTION = [
+  'Введите: Часть',
+  'Номер части списка, с первой',
+  'Пример: 2',
+  'Пределы: от 1 до 99, целое',
+].join('\n');
+const THREE = ['Хлеб', 'Молоко', 'Сыр'];
+
+/** Текст последнего сообщения беседы A: вопрос поля идёт без вариантов, живого места у него нет. */
+const lastText = (messenger: MemoryMessenger): string => {
+  const line = messenger.chat(WHO_A.peer).at(-1);
+  return line === undefined ? '' : PlainText.of(line.message.text);
+};
+
+/** Снимок беседы: черновик входа с полями, которые беседа спросит. */
+const Draft = v.object({
+  draft: v.object({ fields: v.array(v.unknown()) }),
+});
+
+/** Заголовки задач списка в данных вида — на странице их две на часть. */
+const listTitles = (state: PageViewState): string[] =>
+  v
+    .parse(
+      v.object({ tasks: v.array(v.object({ title: v.string() })) }),
+      state.view?.data,
+    )
+    .tasks.map((task) => task.title);
+
+/** Узел графа: свойства схемы входа действия `action` списка. */
+const graphInput = (action: string) => {
+  const graph = new AppGraph({
+    def: ExampleAppDef,
+    providers: [
+      new UiGraphProvider({
+        set: ExampleUiSetDef,
+        apps: [ExamplePagesAppDef],
+      }),
+    ],
+  }).build();
+  const props = graph.node(`exampleUi/todo/taskList/${action}`)?.props;
+  return v.parse(
+    v.object({
+      input: v.object({
+        properties: v.record(v.string(), v.record(v.string(), v.unknown())),
+      }),
+    }),
+    props,
+  ).input.properties;
+};
+
+/** Беседа A на списке с тремя задачами: список — часть 1. */
+const dialogList = async (name: string) => {
+  const d = dialogOf(ExampleDialogAppDef, name);
+  for (const title of THREE) await ownTask(d.w, title);
+  await d.enter('start');
+  return d;
+};
+
+/** Страница A на списке с тремя задачами. */
+const pageList = async (name: string) => {
+  const p = await pagesOf(ExamplePagesAppDef, name);
+  for (const title of THREE) await ownTask(p.w, title);
+  await p.client.route('/');
+  return p;
+};
+
+const fieldsOnPage = (client: PageClient, action: string, name: string) =>
+  client
+    .region('main')
+    .view?.actions.find((a) => a.name === action)
+    ?.fields.find((f) => f.name === name);
+
+test('поле part: вид — подпись, подсказка, пример, пределы, kind number — одинаков в беседе и на странице', async () => {
+  const d = await dialogList('field-dialog-view');
+  await d.press('К части');
+  const asked = v.parse(Draft, await d.store.load(WHO_A.peer)).draft.fields;
+  const p = await pageList('field-pages-view');
+
+  const onPage = fieldsOnPage(p.client, 'jumpTo', 'part');
+
+  expect(onPage).toMatchObject(PART_FIELD);
+  expect(asked).toHaveLength(1);
+  expect(asked[0]).toEqual(onPage);
+});
+
+test('беседа, jumpTo: вопрос с подсказкой, примером и пределами; «abc» — замечание схемы; «2» — часть 2', async () => {
+  const d = await dialogList('field-dialog-jump');
+  const first = lastText(d.messenger);
+
+  await d.press('К части');
+  const question = lastText(d.messenger);
+  await d.send({ ...d.head(), kind: 'text', text: 'abc' });
+  const noted = lastText(d.messenger);
+  await d.send({ ...d.head(), kind: 'text', text: '2' });
+  await d.conversations.settled();
+  const second = lastText(d.messenger);
+
+  expect(question).toBe(PART_QUESTION);
+  expect(noted).toBe(`Введите номер части\n\n${PART_QUESTION}`);
+  const shown = (text: string) => THREE.filter((t) => text.includes(t));
+  expect(shown(first)).toHaveLength(2);
+  expect(shown(second)).toHaveLength(1);
+});
+
+test('беседа, jumpTo: «0» — замечание о пределе её текстом, вопрос повторён', async () => {
+  const d = await dialogList('field-dialog-zero');
+  await d.press('К части');
+
+  await d.send({ ...d.head(), kind: 'text', text: '0' });
+
+  expect(lastText(d.messenger)).toBe(
+    `Части начинаются с первой\n\n${PART_QUESTION}`,
+  );
+});
+
+test('страница, jumpTo { part: «2» }: движение на адрес с page 1, на странице одна задача', async () => {
+  const p = await pageList('field-pages-jump');
+  expect(listTitles(p.client.region('main'))).toHaveLength(2);
+
+  const outcome = await p.client.submit('main', 'jumpTo', { part: '2' });
+  await p.wire.settled();
+
+  expect(outcome).toMatchObject({ kind: 'moved' });
+  expect(p.client.region('main').view?.address).toEqual({
+    screen: LIST_ID,
+    params: { page: 1 },
+  });
+  expect(listTitles(p.client.region('main'))).toHaveLength(1);
+});
+
+test('страница, jumpTo { part: «0» }: rejected, замечание у поля part, форма и введённое остались', async () => {
+  const p = await pageList('field-pages-zero');
+
+  const outcome = await p.client.submit('main', 'jumpTo', { part: '0' });
+
+  expect(outcome).toMatchObject({ kind: 'rejected' });
+  const state = p.client.region('main');
+  expect(state.view?.address).toEqual({
+    screen: LIST_ID,
+    params: { page: 0 },
+  });
+  expect(state.issues).toEqual([
+    { field: 'part', text: 'Части начинаются с первой' },
+  ]);
+  const form = new PageFormModel(ExampleUiSetDef)
+    .of(state)
+    .forms.find((f) => f.name === 'jumpTo');
+  expect(form?.fields).toMatchObject([
+    {
+      value: '0',
+      issues: ['Части начинаются с первой'],
+      ...PART_FIELD,
+    },
+  ]);
+});
+
+test('страница, jumpTo { part: «abc» }: rejected текстом схемы, вызов не ушёл', async () => {
+  const p = await pageList('field-pages-abc');
+
+  const outcome = await p.client.submit('main', 'jumpTo', { part: 'abc' });
+
+  expect(outcome).toMatchObject({ kind: 'rejected' });
+  expect(p.client.region('main').issues).toEqual([
+    { field: 'part', text: 'Введите номер части' },
+  ]);
+});
+
+test('create.title: подсказка и пример в виде поля и в вопросе беседы; на странице — в форме', async () => {
+  const d = dialogOf(ExampleDialogAppDef, 'field-dialog-title');
+  await d.enter('start');
+  await d.press('Создать задачу');
+  const p = await pagesOf(ExamplePagesAppDef, 'field-pages-title');
+  await p.client.route('/');
+
+  const onPage = fieldsOnPage(p.client, 'create', 'title');
+
+  expect(lastText(d.messenger)).toStartWith(
+    'Введите: Название задачи\nКоротко: что нужно сделать\nПример: Купить хлеб',
+  );
+  expect(onPage).toMatchObject({
+    label: 'Название задачи',
+    kind: 'string',
+    hint: 'Коротко: что нужно сделать',
+    example: 'Купить хлеб',
+  });
+  const asked = v.parse(Draft, await d.store.load(WHO_A.peer)).draft.fields;
+  expect(asked[0]).toEqual(onPage);
+});
+
+test('граф: hint, title, пределы и пример полей part и title — те же, что в виде полей каналов', async () => {
+  const p = await pageList('field-graph');
+  const part = fieldsOnPage(p.client, 'jumpTo', 'part');
+  const title = fieldsOnPage(p.client, 'create', 'title');
+
+  const jump = graphInput('jumpTo');
+  const create = graphInput('create');
+
+  expect(jump.part).toMatchObject({
+    title: part?.label,
+    hint: part?.hint,
+    minimum: part?.limits?.min,
+    maximum: part?.limits?.max,
+    examples: [part?.example],
+  });
+  expect(create.title).toMatchObject({
+    title: title?.label,
+    hint: title?.hint,
+    examples: [title?.example],
+  });
 });

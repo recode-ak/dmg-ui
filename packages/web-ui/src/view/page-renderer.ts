@@ -1,5 +1,6 @@
 import {
   type ActionField,
+  FieldInput,
   type InstanceView,
   type NotificationPreview,
   UiIds,
@@ -13,6 +14,8 @@ export const PAGE_TEXTS = {
   readOnly: 'только чтение',
   optional: 'необязательно',
   blank: '____',
+  example: 'Пример',
+  limits: 'Пределы',
   loading: 'Загрузка…',
   refreshing: 'Обновляется…',
   expected: 'Ждём ответа…',
@@ -82,7 +85,22 @@ export class PageRenderer {
       field.choices === undefined
         ? PAGE_TEXTS.blank
         : field.choices.map((choice) => choice.label).join(' | ');
-    return `${field.label}${mark}: ${input}`;
+    const notes = this.notes(field);
+    return `${field.label}${mark}: ${input}${notes === '' ? '' : ` — ${notes}`}`;
+  }
+
+  /** Подсказка, пример и пределы через «; »; пустые части опускаются. */
+  private notes(field: ActionField): string {
+    const limits = new FieldInput(field).limitsText();
+    return [
+      field.hint,
+      field.example === undefined
+        ? undefined
+        : `${PAGE_TEXTS.example}: ${field.example}`,
+      limits === undefined ? undefined : `${PAGE_TEXTS.limits}: ${limits}`,
+    ]
+      .filter((part) => part !== undefined)
+      .join('; ');
   }
 
   private header(view: InstanceView): string | undefined {
