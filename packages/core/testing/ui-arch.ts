@@ -21,6 +21,7 @@ import {
 import type { ScreenExit } from '../src/manifest/screen-exit';
 import {
   type AnyStoryDef,
+  type OutcomeSpec,
   StoryDef,
   type StorySpec,
 } from '../src/manifest/story-def';
@@ -180,6 +181,27 @@ export class UiScene {
     const exit = screen.exits[name];
     if (!exit) throw new Error(`У экрана ${screen.name} нет выхода ${name}`);
     return exit;
+  }
+
+  /** Экран с выходом `done`: его исходы сторис называют цель выхода. */
+  static exiting(name: string, over: Partial<ScreenSpec> = {}): ScreenDef {
+    return UiScene.screen(name, {
+      exits: { done: { label: 'Готово', description: 'Работа окончена.' } },
+      ...over,
+    });
+  }
+
+  /** Исход сторис по выходу `done` экрана; `to` — цель исхода, без неё — умолчание. */
+  static outcome(
+    screen: AnyScreenDef,
+    to?: 'back' | 'home' | Address,
+  ): OutcomeSpec {
+    return {
+      label: 'Работа окончена',
+      description: 'Исход по выходу экрана.',
+      exits: [UiScene.exit(screen, 'done')],
+      ...(to === undefined ? {} : { after: to }),
+    };
   }
 
   /** Пример экрана с данными, не зависящими от схем. */

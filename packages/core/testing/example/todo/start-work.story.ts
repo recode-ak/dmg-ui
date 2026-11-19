@@ -18,6 +18,7 @@ export const StartWorkStoryDef = StoryDef.define({
       label: 'Работа закончена',
       description: 'Пользователь закрыл меню.',
       exits: [MainMenuScreenDef.exits.closed],
+      after: 'home',
     },
   },
   leads: (): readonly AnyStoryDef[] => [

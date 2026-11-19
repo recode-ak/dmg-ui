@@ -11,6 +11,7 @@ import { MemoryMessenger } from 'dmg-ui/chat-ui/testing';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import {
+  MENU_POINT,
   stubProvider,
   telegramScene,
 } from '../../testing/telegram-graph-scene';
@@ -22,11 +23,12 @@ import { TelegramGraphProvider } from './telegram-graph-provider';
 // мессенджеров, свои шесть правил TG-01…TG-06 ставит в области приложений
 // UI с мессенджером `telegram`. Сами правила — в `rules/*.rule.test.ts`.
 
-/** Три точки: `/start`, меню и ссылка на вход `assigned`. */
+/** Четыре точки: `/start`, меню и ссылка на вход `assigned`, ссылка на меню «Начать работу». */
 const POINTS = [
   { entry: 'start', via: 'command', key: 'start' },
   { entry: 'assigned', via: 'menu', key: 'assigned' },
   { entry: 'assigned', via: 'link', key: 'assigned' },
+  MENU_POINT,
 ];
 
 /** Строки правил TG отчёта. */
@@ -87,6 +89,7 @@ describe('TG-01…TG-06: область — приложения с мессен
         entryPoints: [
           { entry: 'start', via: 'message', key: 'Start' },
           { entry: 'assigned', via: 'message', key: 'assigned' },
+          { entry: 'menu', via: 'message', key: 'menu' },
         ],
       }),
     );

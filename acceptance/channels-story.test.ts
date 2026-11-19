@@ -18,6 +18,7 @@ import {
 } from 'dmg-core/testing/example';
 import type { AnyUiAppDef } from 'dmg-ui';
 import {
+  type ConversationExit,
   type ConversationSignal,
   Conversations,
   MemoryConversationStore,
@@ -39,6 +40,7 @@ import {
   ExampleUiSetDef,
   exampleCodes,
   MemoryUiObserver,
+  StartWorkStoryDef,
 } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import { PageClient, PageHost, PageWire } from 'dmg-ui/web-ui';
@@ -125,10 +127,15 @@ const labelsOf = (messenger: MemoryMessenger): string[] =>
   livePlace(messenger)?.message.options.map((o) => o.label) ?? [];
 
 /** Беседа A на подставном мессенджере в приложении `app`. */
-const dialogOf = (app: AnyUiAppDef, name: string) => {
+const dialogOf = (
+  app: AnyUiAppDef,
+  name: string,
+  exits?: (exit: ConversationExit) => boolean,
+) => {
   const w = base(name);
   const codes = exampleCodes();
   const messenger = MemoryMessenger.editing();
+  const store = new MemoryConversationStore();
   const conversations = new Conversations({
     app,
     codes,
@@ -136,13 +143,16 @@ const dialogOf = (app: AnyUiAppDef, name: string) => {
     views: exampleDialogViews,
     observer: w.observer,
     messenger,
-    store: new MemoryConversationStore(),
+    store,
     logger: w.context.logger,
     people: async (sender) => (sender === WHO_A.sender ? A : undefined),
     peers: async () => undefined,
     callers: w.example.callers,
     places,
     requestIds: counter(),
+    ...(exits === undefined
+      ? {}
+      : { exits: { accept: async (exit) => exits(exit) } }),
   });
   new UiNotifier({
     app,
@@ -167,7 +177,7 @@ const dialogOf = (app: AnyUiAppDef, name: string) => {
       press: `p-${ids}`,
     });
   const enter = (entry: string) => send({ ...head(), kind: 'enter', entry });
-  return { w, messenger, conversations, send, press, enter, head };
+  return { w, messenger, conversations, send, press, enter, head, store };
 };
 
 /** Сценарий на диалоговом канале: беседа на подставном мессенджере. */
@@ -265,13 +275,13 @@ test('сторис finishTasks: итоговое состояние задачи
 });
 
 test('приложения каналов делят сторис и набор', () => {
-  expect(ExamplePagesAppDef.stories).toHaveLength(
-    ExampleDialogAppDef.stories.length,
+  // Меню «Начать работу» в приложении страниц пока не объявлено.
+  const shared = ExampleDialogAppDef.stories.filter(
+    (story) => story !== StartWorkStoryDef,
   );
+  expect(ExamplePagesAppDef.stories).toHaveLength(shared.length);
   expect(
-    ExamplePagesAppDef.stories.every(
-      (story, index) => story === ExampleDialogAppDef.stories[index],
-    ),
+    ExamplePagesAppDef.stories.every((story, index) => story === shared[index]),
   ).toBe(true);
   expect(ExamplePagesAppDef.set).toBe(ExampleDialogAppDef.set);
 });
@@ -291,23 +301,23 @@ const OutcomeRecord = v.object({
 
 type World = ReturnType<typeof base>;
 
-/** B создаёт задачу и назначает её на A: у A одно поручение. */
-const assignToA = async (w: World) => {
+/** B создаёт задачу `title` и назначает её на A: у A на одно поручение больше. */
+const assignToA = async (w: World, title = TITLE) => {
   const asB = async (requestId: string) => {
     const trace = Trace.fromRequest({ requestId });
     const caller = await w.example.callers.resolve(B, trace);
     if (!caller.ok) throw new Error('вызывающий B не найден');
     return { caller: caller.value, trace };
   };
-  const first = await asB('r-b-create');
+  const first = await asB(`r-b-create-${title}`);
   const task = await w.example.api.dispatch(
     TodoModuleDef,
-    CreateTaskUcDef.command({ title: TITLE }),
+    CreateTaskUcDef.command({ title }),
     first.caller,
     first.trace,
   );
   if (!task.ok) throw new Error('createTask: отказ');
-  const second = await asB('r-b-assign');
+  const second = await asB(`r-b-assign-${title}`);
   const assigned = await w.example.api.dispatch(
     TodoModuleDef,
     AssignTaskUcDef.command({ taskId: task.value.taskId, assigneeId: A }),
@@ -384,4 +394,107 @@ test('основная беседа: нажатие открывает карт�
   expect(card === undefined ? '' : PlainText.of(card)).toContain(
     'Учётная запись активна',
   );
+});
+
+const SECOND = 'Молоко';
+/** Снимок беседы: экран и путь, которых после принятого выхода нет. */
+const Saved = v.object({
+  screen: v.optional(v.unknown()),
+  path: v.optional(v.unknown()),
+});
+const textOfLive = (messenger: MemoryMessenger) => {
+  const message = livePlace(messenger)?.message;
+  return message === undefined ? '' : PlainText.of(message.text);
+};
+
+/**
+ * Основная беседа: A открыл «Назначенные мне» и карточку исполнителя; пока он
+ * на карточке, B назначает ему вторую задачу; A нажимает «Закрыть».
+ */
+const returnFromCard = async () => {
+  const d = dialogOf(ExampleDialogAppDef, 'dialog-return');
+  await assignToA(d.w);
+  await d.enter('assigned');
+  await d.press(CARD);
+  await assignToA(d.w, SECOND);
+  await d.press('Закрыть');
+  await d.conversations.settled();
+  return d;
+};
+
+test('беседа, возврат с карточки исполнителя: список поручений перечитан — обе задачи', async () => {
+  const d = await returnFromCard();
+
+  expect(textOfLive(d.messenger)).toStartWith(
+    'Карточка просмотрена\n\nПользователь закрыл карточку.\n\n',
+  );
+  expect(textOfLive(d.messenger)).toContain(TITLE);
+  expect(textOfLive(d.messenger)).toContain(SECOND);
+});
+
+test('беседа, возврат с карточки исполнителя: снова «Назначенные мне», путь снят — «Назад» нет', async () => {
+  const d = await returnFromCard();
+
+  expect(labelsOf(d.messenger)).toContain(CARD);
+  expect(labelsOf(d.messenger)).not.toContain('Назад');
+});
+
+test('беседа, меню: вход menu даёт «Мои задачи», «Назначенные мне» и «Закрыть»', async () => {
+  const d = dialogOf(ExampleDialogAppDef, 'dialog-menu');
+
+  await d.enter('menu');
+
+  expect(labelsOf(d.messenger).slice(0, 3)).toEqual([
+    'Мои задачи',
+    'Назначенные мне',
+    'Закрыть',
+  ]);
+});
+
+/** Меню → «Мои задачи» → задача → «Открыть задачу» → «Выполнить» → «К списку». */
+const completedFromMenu = async () => {
+  const d = dialogOf(ExampleDialogAppDef, 'dialog-menu-path');
+  await d.enter('menu');
+  await d.press('Мои задачи');
+  await d.send({ ...d.head(), kind: 'text', text: TITLE });
+  await d.press('Открыть задачу');
+  await d.press(TITLE);
+  await d.press('Выполнить');
+  await d.w.bus.delivered();
+  await d.conversations.settled();
+  await d.press('К списку');
+  return d;
+};
+
+test('беседа, меню → список → карточка → «К списку»: «Назад» ведёт в меню', async () => {
+  const d = await completedFromMenu();
+
+  await d.press('Назад');
+
+  expect(labelsOf(d.messenger).slice(0, 3)).toEqual([
+    'Мои задачи',
+    'Назначенные мне',
+    'Закрыть',
+  ]);
+  expect(labelsOf(d.messenger)).not.toContain('Назад');
+});
+
+test('беседа, порт выхода: принятый выход при непустом пути сбрасывает путь', async () => {
+  const taken: ConversationExit[] = [];
+  const d = dialogOf(ExampleDialogAppDef, 'dialog-exit-port', (exit) => {
+    taken.push(exit);
+    return true;
+  });
+  await assignToA(d.w);
+  await d.enter('assigned');
+  await d.press(CARD);
+
+  await d.press('Закрыть');
+  await d.conversations.settled();
+
+  const saved = v.parse(Saved, await d.store.load(WHO_A.peer));
+  expect(taken).toHaveLength(1);
+  expect(taken[0]?.screen).toBe(USER_CARD);
+  expect(saved).toEqual({});
+  expect(livePlace(d.messenger)).toBeUndefined();
 });

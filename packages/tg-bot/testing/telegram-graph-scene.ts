@@ -81,6 +81,12 @@ export const telegramScene = (spec: TelegramSceneSpec): ArchApp => {
   };
 };
 
+/**
+ * Точка входа меню «Начать работу» приложения `exampleDialog`: ссылкой — в
+ * счёт команд и меню не идёт. Без неё у входа `menu` нет точки (CH-02).
+ */
+export const MENU_POINT = { entry: 'menu', via: 'link', key: 'menu' } as const;
+
 /** Подставной поставщик сцены без своих видов: только узлы и рёбра. */
 export const stubProvider = (
   contribution: GraphContribution,

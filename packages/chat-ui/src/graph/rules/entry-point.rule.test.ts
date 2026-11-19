@@ -107,7 +107,9 @@ const ruleOf = (scene: ArchApp): GraphRule | undefined =>
 
 describe('CH-02: у входа приложения есть точка входа', () => {
   test('вход assigned без точки входа — код 1 и строка CH-02 с входом и приложением', () => {
-    const report = ArchReport.of(sceneOf([dialog([point('start')])]));
+    const report = ArchReport.of(
+      sceneOf([dialog([point('start'), point('menu')])]),
+    );
 
     expect(report.code).toBe(1);
     expect(report.rule('CH-02')).toEqual([
@@ -121,13 +123,14 @@ describe('CH-02: у входа приложения есть точка вход
     expect(report.code).toBe(1);
     expect([...report.rule('CH-02')].sort()).toEqual([
       'CH-02: вход assigned приложения exampleDialog: нет точки входа',
+      'CH-02: вход menu приложения exampleDialog: нет точки входа',
       'CH-02: вход start приложения exampleDialog: нет точки входа',
     ]);
   });
 
   test('все входы с точками — CH-02 молчит, код 0', () => {
     const report = ArchReport.of(
-      sceneOf([dialog([point('start'), point('assigned')])]),
+      sceneOf([dialog([point('start'), point('assigned'), point('menu')])]),
     );
 
     expect(report.rule('CH-02')).toEqual([]);
@@ -137,7 +140,12 @@ describe('CH-02: у входа приложения есть точка вход
   test('две точки на один вход — CH-02 молчит', () => {
     const report = ArchReport.of(
       sceneOf([
-        dialog([point('start'), point('start', 'again'), point('assigned')]),
+        dialog([
+          point('start'),
+          point('start', 'again'),
+          point('assigned'),
+          point('menu'),
+        ]),
       ]),
     );
 
@@ -149,7 +157,10 @@ describe('CH-02: у входа приложения есть точка вход
 describe('CH-02: два приложения в одном графе', () => {
   test('нарушение только у приложения без точки входа', () => {
     const report = ArchReport.of(
-      sceneOf([dialog([point('start'), point('assigned')]), windowed()]),
+      sceneOf([
+        dialog([point('start'), point('assigned'), point('menu')]),
+        windowed(),
+      ]),
     );
 
     expect(report.code).toBe(1);
@@ -160,7 +171,10 @@ describe('CH-02: два приложения в одном графе', () => {
 
   test('точки входа одного приложения не закрывают одноимённый вход другого', () => {
     const report = ArchReport.of(
-      sceneOf([dialog([point('start')]), windowed([point('start')])]),
+      sceneOf([
+        dialog([point('start'), point('menu')]),
+        windowed([point('start')]),
+      ]),
     );
 
     expect(report.rule('CH-02')).toEqual([
@@ -173,7 +187,7 @@ describe('CH-02: точка входа — под тем же приложени
   test('ребро chatOpens от точки входа другого приложения — вход без точки', () => {
     const report = ArchReport.of(
       sceneOf(
-        [dialog([point('start')]), windowed([point('start')])],
+        [dialog([point('start'), point('menu')]), windowed([point('start')])],
         [
           stub({
             nodes: [],
@@ -191,7 +205,7 @@ describe('CH-02: точка входа — под тем же приложени
   test('точка входа другого поставщика под тем же приложением — засчитывается', () => {
     const report = ArchReport.of(
       sceneOf(
-        [dialog([point('start')])],
+        [dialog([point('start'), point('menu')])],
         [
           stub({
             nodes: [pointNode('exampleDialog/point-scene')],
@@ -209,7 +223,7 @@ describe('CH-02: точка входа — под тем же приложени
 describe('CH-02: читает только узлы и рёбра', () => {
   test('свойства chatEntry и chatEntryPoint не по схеме — check не бросает, строки те же, что у целого графа', () => {
     const scene = sceneOf([
-      dialog([point('start')]),
+      dialog([point('start'), point('menu')]),
       windowed([point('start')]),
     ]);
     const built = new AppGraph(scene).build();
@@ -250,7 +264,7 @@ describe('CH-02: читает только узлы и рёбра', () => {
     });
     const report = ArchReport.of(
       sceneOf(
-        [dialog([point('start')])],
+        [dialog([point('start'), point('menu')])],
         [
           stub({
             nodes: [
@@ -272,7 +286,7 @@ describe('CH-02: читает только узлы и рёбра', () => {
   test('ребро chatOpens не от точки входа — вход без точки', () => {
     const report = ArchReport.of(
       sceneOf(
-        [dialog([point('start')])],
+        [dialog([point('start'), point('menu')])],
         [
           stub({
             nodes: [],

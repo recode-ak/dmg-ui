@@ -10,6 +10,11 @@ const outcome = v.strictObject({
   name: v.string(),
   ...item,
   exits: v.array(v.strictObject({ screen: v.string(), exit: v.string() })),
+  after: v.union([
+    v.literal('back'),
+    v.literal('home'),
+    v.strictObject({ screen: v.string(), params: v.unknown() }),
+  ]),
 });
 
 const local = v.strictObject({

@@ -163,6 +163,7 @@ describe('UiGraphProvider: узлы', () => {
       'presents',
       'reads',
       'recipients',
+      'redirects',
       'refreshedBy',
       'requires',
     ]);
@@ -248,15 +249,31 @@ describe('UiGraphProvider: свойства узлов', () => {
           label: 'Задача добавлена',
           description: 'В списке появилась новая задача.',
           exits: [{ screen: SCREEN, exit: 'created' }],
+          after: { screen: SCREEN, params: LIST_START.params },
         },
         {
           name: 'closed',
           label: 'Список закрыт',
           description: 'Пользователь закрыл список, не добавив задачу.',
           exits: [{ screen: SCREEN, exit: 'closed' }],
+          after: 'back',
         },
       ],
     });
+  });
+
+  test('сторис: цель исхода — back по умолчанию, home у меню, адрес — экран и параметры', () => {
+    const thens = (id: string) =>
+      (props(id) as { outcomes: { after: unknown }[] }).outcomes.map(
+        (outcome) => outcome.after,
+      );
+
+    expect(thens('exampleUi/todo/startWork')).toEqual(['home']);
+    expect(thens('exampleUi/todo/finishTasks')).toEqual([
+      { screen: SCREEN, params: LIST_START.params },
+      'back',
+    ]);
+    expect(thens('exampleUi/users/viewUser')).toEqual(['back']);
   });
 
   test('приложение UI: набор, канал и входы с адресом экрана', () => {
@@ -301,12 +318,12 @@ describe('UiGraphProvider: свойства узлов', () => {
 });
 
 describe('UiGraphProvider: рёбра', () => {
-  test('рёбра поставщика: 45 штук, по видам', () => {
+  test('рёбра поставщика: 47 штук, по видам', () => {
     const counts: Record<string, number> = {};
     for (const edge of ownEdges)
       counts[edge.kind] = (counts[edge.kind] ?? 0) + 1;
 
-    expect(ownEdges).toHaveLength(45);
+    expect(ownEdges).toHaveLength(47);
     expect(counts).toEqual({
       includes: 11,
       leads: 4,
@@ -321,6 +338,7 @@ describe('UiGraphProvider: рёбра', () => {
       recipients: 1,
       catches: 1,
       omits: 1,
+      redirects: 2,
     });
   });
 
@@ -351,6 +369,14 @@ describe('UiGraphProvider: рёбра', () => {
       'exampleUi/todo/planTasks -> example/todo/task/withinOpenLimit',
     ]);
     expect(pairs('omits')).toEqual(['exampleStub -> exampleUi/users/viewUser']);
+  });
+
+  test('redirects — сторис → экран цели-адреса; цели back и home ребра не дают', () => {
+    expect(pairs('redirects')).toEqual([
+      `exampleUi/todo/finishTasks -> ${SCREEN}`,
+      `exampleUi/todo/planTasks -> ${SCREEN}`,
+    ]);
+    expect(graph.outgoing('exampleUi/todo/startWork', 'redirects')).toEqual([]);
   });
 
   test('entry — приложение → экраны входов', () => {

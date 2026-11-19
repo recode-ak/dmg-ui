@@ -3,9 +3,11 @@ import {
   type Address,
   AddressCodec,
   type AddressJson,
+  ExitTargets,
   type InstanceJson,
   type InstanceView,
   type ScreenInstance,
+  UiIds,
 } from 'dmg-ui';
 import type { SendOptions } from '../messenger/messenger.types';
 import type { ComposedScreen, ScreenComposer } from '../view/screen-composer';
@@ -62,6 +64,9 @@ type ScreensParts = {
 export class ConversationScreens {
   private readonly parts: ScreensParts;
   private readonly codec: AddressCodec;
+  private readonly ids: UiIds;
+  /** Цели выходов сторис приложения: решает ядро, беседа исполняет. */
+  private readonly targets: ExitTargets;
   private live: LiveScreen | undefined;
   private pending: LiveScreenJson | undefined;
   private serial: Serial;
@@ -69,6 +74,8 @@ export class ConversationScreens {
   constructor(parts: ScreensParts, serial: Serial, pending?: LiveScreenJson) {
     this.parts = parts;
     this.codec = new AddressCodec(parts.spec.app.set);
+    this.ids = new UiIds(parts.spec.app.set);
+    this.targets = ExitTargets.of(parts.spec.app);
     this.serial = serial;
     this.pending = pending;
   }
@@ -145,21 +152,72 @@ export class ConversationScreens {
    * заметка и вход home, нижние элементы не пробуются.
    */
   async back(trace: Trace): Promise<void> {
-    const { path } = this.parts;
-    const step = path.top();
-    if (step === undefined) {
-      await this.show();
-      return;
+    const step = this.parts.path.top();
+    if (step === undefined) await this.show();
+    else await this.stepBack(step, trace);
+  }
+
+  /**
+   * Выход сторис с экрана `screen` (id), не принятый приёмником: цель решает
+   * ядро (`ExitTargets`, D-UI-96), беседа исполняет; `lead` — текст выхода
+   * перед видом одним показом. `back` — верх пути с перечитыванием, путь
+   * пуст — вход home; `home` — вход home, путь сброшен; адрес — экран
+   * заново, без записи в путь, экран из пути обрезает путь до себя.
+   */
+  async exited(
+    screen: string,
+    exit: string,
+    trace: Trace,
+    lead: string,
+  ): Promise<void> {
+    const def = this.ids.findScreen(screen);
+    if (def === undefined) {
+      throw new Error(`Conversation: экрана ${screen} нет в наборе`);
     }
+    const target = this.targets.of(def, exit);
+    switch (target.kind) {
+      case 'back': {
+        const step = this.parts.path.top();
+        if (step === undefined) await this.home(trace, lead);
+        else await this.stepBack(step, trace, lead);
+        return;
+      }
+      case 'home':
+        await this.home(trace, lead);
+        return;
+      case 'at': {
+        const instance = await this.start(target.address, trace);
+        this.parts.path.cut(this.codec.encode(target.address).screen);
+        await this.present(instance, lead);
+        return;
+      }
+      default: {
+        const unknownKind: never = target;
+        throw new Error(
+          `Conversation: неизвестная цель выхода ${(unknownKind as { readonly kind: string }).kind}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Шаг назад по пути: элемент `step` (верх пути) через `restore`, снимается,
+   * когда `restore` ответил. Не восстановился — заметка и вход home.
+   */
+  private async stepBack(
+    step: unknown,
+    trace: Trace,
+    lead?: string,
+  ): Promise<void> {
     const restored = await this.restore(step, trace);
-    path.pop();
+    this.parts.path.pop();
     if (restored === undefined) {
       await this.parts.output.note(CONVERSATION_TEXTS.notRestored);
-      await this.home(trace);
+      await this.home(trace, lead);
       return;
     }
     this.replace(restored);
-    await this.show();
+    await this.show(lead);
   }
 
   /**

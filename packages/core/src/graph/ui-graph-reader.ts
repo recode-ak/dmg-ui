@@ -85,6 +85,13 @@ export class UiGraphReader {
     return UiGraphReader.parse(UI_PROPS.story, node)?.start;
   }
 
+  /** Исходы сторис с целями; нет узла или свойства не по схеме — пусто. */
+  outcomesOf(storyId: string): StoryView['outcomes'] {
+    const node = this.graph.node(storyId);
+    if (node?.kind !== UI_NODE_KINDS.story) return [];
+    return UiGraphReader.parse(UI_PROPS.story, node)?.outcomes ?? [];
+  }
+
   /** Сторис из связей сторис `storyIds`, чей стартовый экран — `to`. */
   ledTo(storyIds: readonly string[], to: string): string[] {
     return storyIds

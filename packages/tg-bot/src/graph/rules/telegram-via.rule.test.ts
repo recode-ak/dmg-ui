@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
-import { telegramScene } from '../../../testing/telegram-graph-scene';
+import {
+  MENU_POINT,
+  telegramScene,
+} from '../../../testing/telegram-graph-scene';
 
 // TG-01: способ точки входа известен Telegram — `command`, `menu`, `link`.
 // Правило читает узлы `chatEntryPoint` приложений с мессенджером `telegram`;
@@ -56,6 +59,7 @@ describe('TG-01: способ точки входа известен Telegram', 
           START,
           { entry: 'assigned', via: 'menu', key: 'assigned' },
           { entry: 'assigned', via: 'link', key: 'assigned' },
+          MENU_POINT,
         ],
       }),
     );

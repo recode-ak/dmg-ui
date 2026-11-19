@@ -20,6 +20,7 @@ export const FinishTasksStoryDef = StoryDef.define({
       label: 'Задача добавлена',
       description: 'По ходу выполнения в списке появилась новая задача.',
       exits: [TaskListScreenDef.exits.created],
+      after: TaskListScreenDef.at({ page: 0 }),
     },
     closed: {
       label: 'Список закрыт',

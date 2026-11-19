@@ -6,15 +6,24 @@ import type {
   DefTexts,
   NormalizedRule,
 } from 'dmg-core';
+import type { Address } from '../address/address';
 import type { AnyScreenDef } from './screen-def.types';
 import type { ScreenExit } from './screen-exit';
 import type { StoryDef } from './story-def';
 
-/** Исход сторис: какие выходы экранов к нему ведут. */
+/**
+ * Куда ведёт исход: `back` — туда, откуда человек пришёл, с перечитыванием;
+ * `home` — вход «в начало» приложения UI; адрес — экран по адресу.
+ */
+export type OutcomeAfter = 'back' | 'home' | Address;
+
+/** Исход сторис: какие выходы экранов к нему ведут и куда после него. */
 export type OutcomeSpec = {
   readonly label: string;
   readonly description: string;
   readonly exits: readonly ScreenExit[];
+  /** Цель исхода; без неё — `back`. */
+  readonly after?: OutcomeAfter;
 };
 
 /** Спека сторис: кто, зачем, с какого экрана и чем заканчивается. */
@@ -46,9 +55,16 @@ export type AnyStoryDef = {
   readonly [K in keyof StoryDef]: StoryDef[K];
 };
 
-/** Сериализуемая форма исхода; выходы — `<экран>.<выход>`. */
+/** Сериализуемая цель исхода: адрес — экран именем и параметры. */
+export type NormalizedAfter =
+  | 'back'
+  | 'home'
+  | { readonly screen: string; readonly params: unknown };
+
+/** Сериализуемая форма исхода; выходы — `<экран>.<выход>`, цель — всегда. */
 export type NormalizedOutcome = DefTexts & {
   readonly exits: readonly string[];
+  readonly after: NormalizedAfter;
 };
 
 /** Сериализуемая форма сторис; ссылки — именами, доступ — свёрнутым правилом. */

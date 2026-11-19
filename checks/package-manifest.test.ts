@@ -79,6 +79,7 @@ describe('PackageManifest', () => {
         'AddressCodec',
         'CodeLoader',
         'CodeLoaders',
+        'ExitTargets',
         'NotificationCode',
         'NotificationDef',
         'RefreshOn',

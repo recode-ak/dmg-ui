@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
-import { sceneApp, telegramScene } from '../../../testing/telegram-graph-scene';
+import {
+  MENU_POINT,
+  sceneApp,
+  telegramScene,
+} from '../../../testing/telegram-graph-scene';
 
 // TG-05: новичок попадает в бота. Кнопка «Запустить» в пустом чате шлёт
 // `/start`; без точки `command` или `menu` с ключом `start` человек
@@ -30,6 +34,7 @@ describe('TG-05: у приложения есть точка для /start', () 
         entryPoints: [
           { entry: 'assigned', via: 'command', key: 'start' },
           { entry: 'start', via: 'command', key: 'tasks' },
+          MENU_POINT,
         ],
       }),
     );

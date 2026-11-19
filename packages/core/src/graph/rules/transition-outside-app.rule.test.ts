@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchReport, UiScene } from '../../../testing/ui-arch';
+import type { Address } from '../../address/address';
 import { UiAppDef } from '../../manifest/ui-app-def';
 
 const b = UiScene.screen('b');
@@ -136,5 +137,72 @@ describe('UI-05: переход и вход — на экран из стори�
     expect(scene.report().rule('UI-05')).toEqual([
       'UI-05: приложение miniConsole: вход ведёт на miniUi/todo/b, которого нет в его сторис',
     ]);
+  });
+});
+
+describe('UI-05: цель исхода сторис — экран из сторис приложения', () => {
+  const done = UiScene.exiting('done');
+  const target = UiScene.screen('target');
+  const other = UiScene.story('other', [target]);
+  const outcome = (after: Address) =>
+    UiScene.story('s', [done], {
+      outcomes: { finished: UiScene.outcome(done, after) },
+    });
+
+  test('нарушение: цель-адрес вне сторис приложения', () => {
+    const story = outcome(target.at({}));
+    const scene = new UiScene({
+      screens: [done, target],
+      stories: [story, other],
+      appStories: [story],
+    });
+
+    expect(scene.report().rule('UI-05')).toEqual([
+      'UI-05: приложение miniConsole: сторис miniUi/todo/s направляет исход finished на miniUi/todo/target, которого нет в его сторис',
+    ]);
+  });
+
+  test('без нарушения: цель-адрес — экран другой сторис приложения', () => {
+    const story = outcome(target.at({}));
+    const scene = new UiScene({
+      screens: [done, target],
+      stories: [story, other],
+    });
+
+    expect(scene.report().rule('UI-05')).toEqual([]);
+  });
+
+  test('без нарушения: цель-адрес — экран той же сторис', () => {
+    const story = UiScene.story('s', [done, target], {
+      outcomes: { finished: UiScene.outcome(done, target.at({})) },
+    });
+    const scene = new UiScene({ screens: [done, target], stories: [story] });
+
+    expect(scene.report().rule('UI-05')).toEqual([]);
+  });
+
+  test('без нарушения: сторис не входит в приложение — её исход не проверяется', () => {
+    const story = outcome(target.at({}));
+    const scene = new UiScene({
+      screens: [done, target],
+      stories: [story, other],
+      appStories: [other],
+      entries: { start: UiScene.entry(target) },
+    });
+
+    expect(scene.report().rule('UI-05')).toEqual([]);
+  });
+
+  test('без нарушения: цели back и home экрана не называют', () => {
+    const scene = new UiScene({
+      screens: [done],
+      stories: [
+        UiScene.story('s', [done], {
+          outcomes: { finished: UiScene.outcome(done, 'home') },
+        }),
+      ],
+    });
+
+    expect(scene.report().rule('UI-05')).toEqual([]);
   });
 });

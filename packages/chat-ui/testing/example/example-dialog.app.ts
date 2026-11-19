@@ -5,14 +5,20 @@ import {
   ExampleUiSetDef,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
+  MainMenuScreenDef,
   PlanTasksStoryDef,
+  StartWorkStoryDef,
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
   ViewUserStoryDef,
 } from 'dmg-ui/testing';
 
-/** Приложение UI учебного примера в диалоговом канале: сторис задач и карточка пользователя, все уведомления, два входа. */
+/**
+ * Приложение UI учебного примера в диалоговом канале: меню, сторис задач и
+ * карточка пользователя, все уведомления, три входа — список «в начало»,
+ * поручения и меню.
+ */
 export const ExampleDialogAppDef = UiAppDef.define({
   name: 'exampleDialog',
   label: 'Учебное приложение в диалоге',
@@ -20,6 +26,7 @@ export const ExampleDialogAppDef = UiAppDef.define({
   set: ExampleUiSetDef,
   channel: DIALOG_CHANNEL,
   stories: [
+    StartWorkStoryDef,
     PlanTasksStoryDef,
     FinishTasksStoryDef,
     FollowAssignedStoryDef,
@@ -36,6 +43,11 @@ export const ExampleDialogAppDef = UiAppDef.define({
       label: 'Назначенные мне',
       description: 'Задачи, которые поручили вызывающему.',
       address: AssignedTasksScreenDef.at({}),
+    },
+    menu: {
+      label: 'Начать работу',
+      description: 'Меню: свои задачи и поручения.',
+      address: MainMenuScreenDef.at({}),
     },
   },
 });

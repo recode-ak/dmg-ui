@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
-import { telegramScene } from '../../../testing/telegram-graph-scene';
+import {
+  MENU_POINT,
+  telegramScene,
+} from '../../../testing/telegram-graph-scene';
 
 // TG-03: ключ ведёт на один вход. Команда и меню — одно пространство
 // (в приёме это одно сообщение `/key`), ссылка — своё (`/start <key>`).
@@ -70,6 +73,7 @@ describe('TG-03: ключ ведёт на один вход', () => {
           { entry: 'start', via: 'link', key: 'start' },
           { entry: 'assigned', via: 'command', key: 'assigned' },
           { entry: 'assigned', via: 'link', key: 'assigned' },
+          MENU_POINT,
         ],
       }),
     );

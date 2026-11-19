@@ -45,7 +45,7 @@ type OutcomeParts = {
 
 /**
  * Исполнение действия живого экрана и политика по исходу ядра (D-UI-54,
- * D-UI-90); таблица исходов — гайд `channel-package.md`, §4. Неизвестный
+ * D-UI-90, D-UI-96); таблица исходов — гайд `channel-package.md`, §4. Неизвестный
  * исход — дефект беседы, бросок (ERR-06).
  */
 export class ConversationOutcomes {
@@ -143,7 +143,10 @@ export class ConversationOutcomes {
         const view = instance.view();
         if (await this.parts.handoff.take(view.screen, outcome, trace)) {
           await screens.release();
-        } else await screens.home(trace, replies.exit(view, outcome.exit));
+        } else {
+          const lead = replies.exit(view, outcome.exit);
+          await screens.exited(view.screen, outcome.exit, trace, lead);
+        }
         return;
       }
       case 'confirm':

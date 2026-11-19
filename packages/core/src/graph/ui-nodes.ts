@@ -9,7 +9,7 @@ import type { ScreenAction } from '../manifest/screen-action';
 import type { AnyScreenDef } from '../manifest/screen-def.types';
 import type { ScreenExit } from '../manifest/screen-exit';
 import type { ScreenLocal } from '../manifest/screen-local';
-import type { AnyStoryDef } from '../manifest/story-def.types';
+import type { AnyStoryDef, OutcomeSpec } from '../manifest/story-def.types';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiModuleDef } from '../manifest/ui-module-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
@@ -20,6 +20,7 @@ import type {
   UiExitProps,
   UiLocalProps,
   UiNotificationProps,
+  UiOutcomeAfterProps,
   UiRecipientsProps,
   UiScreenProps,
   UiSetProps,
@@ -89,6 +90,7 @@ export class UiNodes {
           screen: this.ids.target(exit.screen),
           exit: exit.name,
         })),
+        after: this.afterOf(outcome),
       })),
       ...(story.access === undefined
         ? {}
@@ -183,6 +185,13 @@ export class UiNodes {
       visible: app.visible,
       props,
     };
+  }
+
+  /** Цель исхода: адрес — `id` экрана (вне набора — внешний конец) и параметры. */
+  private afterOf(outcome: OutcomeSpec): UiOutcomeAfterProps {
+    const after = outcome.after ?? 'back';
+    if (after === 'back' || after === 'home') return after;
+    return { screen: this.ids.target(after.screen), params: after.params };
   }
 
   private static localProps(local: ScreenLocal): UiLocalProps {

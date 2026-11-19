@@ -5,6 +5,7 @@ import {
   ExamplePreview,
   ExampleUiSetDef,
   exampleCodes,
+  MainMenuScreenDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
@@ -54,6 +55,12 @@ describe('ExamplePreview через DialogRenderer — снимки пример
   test('assignedTasks two', async () => {
     expect(
       await previewOf().screen(AssignedTasksScreenDef, 'two'),
+    ).toMatchSnapshot();
+  });
+
+  test('mainMenu start', async () => {
+    expect(
+      await previewOf().screen(MainMenuScreenDef, 'start'),
     ).toMatchSnapshot();
   });
 

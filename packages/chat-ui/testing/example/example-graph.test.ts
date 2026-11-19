@@ -36,6 +36,35 @@ describe('граф учебного примера', () => {
     expect(omits('exampleWindowed')).toEqual(['exampleUi/users/viewUser']);
   });
 
+  test('меню «Начать работу»: вход menu и сторис startWork — в основном и урезанном приложениях, оконное без меню', () => {
+    const MENU = 'exampleUi/todo/mainMenu';
+    const START_WORK = 'exampleUi/todo/startWork';
+    const reaches = (app: string) => [
+      graph()
+        .outgoing(app, 'entry')
+        .some((edge) => edge.to === MENU),
+      graph()
+        .outgoing(app, 'includes')
+        .some((edge) => edge.to === START_WORK),
+    ];
+
+    expect(reaches('exampleDialog')).toEqual([true, true]);
+    expect(reaches('exampleTrimmed')).toEqual([true, true]);
+    expect(reaches('exampleWindowed')).toEqual([false, false]);
+  });
+
+  test('цель исхода-адреса: сторис задач ведут на список — ребро redirects', () => {
+    const redirects = graph()
+      .edges()
+      .filter((edge) => edge.kind === 'redirects')
+      .map((edge) => `${edge.from} -> ${edge.to}`);
+
+    expect(redirects).toEqual([
+      'exampleUi/todo/finishTasks -> exampleUi/todo/taskList',
+      'exampleUi/todo/planTasks -> exampleUi/todo/taskList',
+    ]);
+  });
+
   test('taskCompleted: recipients — getTaskAssignee, reads — listAssignedTasks', () => {
     const targets = (kind: string) =>
       graph()

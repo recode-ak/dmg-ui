@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
-import { sceneApp, telegramScene } from '../../../testing/telegram-graph-scene';
+import {
+  MENU_POINT,
+  sceneApp,
+  telegramScene,
+} from '../../../testing/telegram-graph-scene';
 
 // TG-06: меню укладывается в Bot API. `setMyCommands` — до 100 команд;
 // описание команды (название входа, `label`) — 1–256 знаков, длина — в
@@ -32,7 +36,9 @@ describe('TG-06: число команд меню', () => {
 
   test('ровно 100 точек menu — TG-06 молчит', () => {
     const report = ArchReport.of(
-      telegramScene({ entryPoints: [START, ASSIGNED, ...menu(100)] }),
+      telegramScene({
+        entryPoints: [START, ASSIGNED, MENU_POINT, ...menu(100)],
+      }),
     );
 
     expect(report.rule('TG-06')).toEqual([]);

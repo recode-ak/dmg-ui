@@ -13,9 +13,17 @@ export type UiOutcomeExitProps = {
   readonly exit: string;
 };
 
+/** Цель исхода в `props`: `back`, `home` или адрес — `id` экрана и параметры. */
+export type UiOutcomeAfterProps =
+  | 'back'
+  | 'home'
+  | { readonly screen: string; readonly params: unknown };
+
 export type UiOutcomeProps = UiItemProps & {
   readonly name: string;
   readonly exits: readonly UiOutcomeExitProps[];
+  /** Всегда есть: умолчание `back` видно в графе. */
+  readonly after: UiOutcomeAfterProps;
 };
 
 export type UiLocalProps = UiItemProps & {

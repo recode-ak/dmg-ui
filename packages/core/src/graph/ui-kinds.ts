@@ -43,6 +43,7 @@ export const UI_EDGE_KINDS = {
   leads: 'leads',
   requires: 'requires',
   omits: 'omits',
+  redirects: 'redirects',
 } as const;
 
 /** Виды узлов и рёбер ядра UI и схемы их свойств; данные, как `DOMAIN_KINDS`. */
@@ -169,6 +170,12 @@ export const UI_KINDS: GraphKinds = {
       label: 'Не включает сторис',
       description:
         'Приложение UI не включает сторис из связей своих сторис: переходы в неё отрезаны.',
+    },
+    {
+      kind: UI_EDGE_KINDS.redirects,
+      label: 'Направляет исход',
+      description:
+        'Исход сторис ведёт на экран по адресу; цели «назад» и «в начало» ребра не дают.',
     },
   ],
 };

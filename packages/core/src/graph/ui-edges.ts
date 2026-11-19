@@ -5,6 +5,7 @@ import type {
   AnyUseCaseDef,
 } from 'dmg-core';
 import { DomainIds, type GraphEdgeInput } from 'dmg-core/graph';
+import { Address } from '../address/address';
 import type { UiIds } from '../address/ui-ids';
 import type { UiTarget } from '../address/ui-ids.types';
 import { AppReach } from '../manifest/app-reach';
@@ -12,7 +13,7 @@ import type { AnyNotificationDef } from '../manifest/notification-def.types';
 import type { RefreshOn } from '../manifest/refresh-on';
 import type { ScreenAction } from '../manifest/screen-action';
 import type { AnyScreenDef } from '../manifest/screen-def.types';
-import type { AnyStoryDef } from '../manifest/story-def.types';
+import type { AnyStoryDef, OutcomeSpec } from '../manifest/story-def.types';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import { UI_EDGE_KINDS } from './ui-kinds';
@@ -54,13 +55,21 @@ export class UiEdges {
     return [...known.values()];
   }
 
-  /** Экраны сторис, связи с другими сторис и доменные правила. */
+  /**
+   * Экраны сторис, связи с другими сторис, доменные правила и экраны целей
+   * исходов-адресов (`redirects`).
+   */
   private storyEdges(story: AnyStoryDef): GraphEdgeInput[] {
     const from = this.ids.story(story);
     return [
       ...story.screens.map((screen) => this.edge('includes', from, screen)),
       ...story.leads().map((lead) => this.edge('leads', from, lead)),
       ...story.rules.map((rule) => this.rule(from, rule)),
+      ...Object.values<OutcomeSpec>(story.outcomes).flatMap((outcome) =>
+        outcome.after instanceof Address
+          ? [this.edge('redirects', from, outcome.after.screen)]
+          : [],
+      ),
     ];
   }
 

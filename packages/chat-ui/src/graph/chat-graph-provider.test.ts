@@ -38,6 +38,7 @@ import {
   MemoryMessenger,
 } from '../../testing';
 import { AssignedTasksView } from '../../testing/example/assigned-tasks.view';
+import { MainMenuView } from '../../testing/example/main-menu.view';
 import { TaskListView } from '../../testing/example/task-list.view';
 import {
   TaskAssignedView,
@@ -66,9 +67,10 @@ const DIALOG = 'exampleDialog';
 const WINDOWED_APP = 'exampleWindowed';
 const CARD = 'exampleUi/todo/taskCard';
 
-/** Цели `presents` учебного примера: экраны и уведомления реестра — все, кроме меню. */
+/** Цели `presents` учебного примера: все экраны и уведомления реестра. */
 const PRESENTED = [
   'exampleUi/todo/assignedTasks',
+  'exampleUi/todo/mainMenu',
   'exampleUi/todo/taskAssigned',
   CARD,
   'exampleUi/todo/taskCompleted',
@@ -191,7 +193,7 @@ describe('ChatGraphProvider на графе примера', () => {
     );
   });
 
-  test('узел chatEntry на каждый вход приложения: у exampleDialog — start и assigned, у exampleWindowed — start', () => {
+  test('узел chatEntry на каждый вход приложения: у exampleDialog — start, assigned и menu, у exampleWindowed — start', () => {
     const built = graph();
     const entries = (app: string) =>
       childrenOf(built, app, 'chatEntry')
@@ -207,6 +209,11 @@ describe('ChatGraphProvider на графе примера', () => {
         id: 'exampleDialog/enter-assigned',
         provider: 'dmg-ui-chat',
         props: { entry: 'assigned' },
+      },
+      {
+        id: 'exampleDialog/enter-menu',
+        provider: 'dmg-ui-chat',
+        props: { entry: 'menu' },
       },
       {
         id: 'exampleDialog/enter-start',
@@ -303,7 +310,7 @@ describe('ChatGraphProvider на графе примера', () => {
 });
 
 describe('ChatGraphProvider — перекрытый реестр', () => {
-  test('presents у перекрытого реестра (views.over) — те же шесть целей без повторов', () => {
+  test('presents у перекрытого реестра (views.over) — те же семь целей без повторов', () => {
     const own = exampleDialogViews.over([
       ScreenPresenter.for(TaskCardScreenDef, () => 'Своя карточка'),
       ScreenPresenter.for(TaskListScreenDef, () => 'Свой список'),
@@ -327,6 +334,7 @@ describe('ChatGraphProvider — экран без представления', (
       TaskListView,
       AssignedTasksView,
       UserCardView,
+      MainMenuView,
       TaskAssignedView,
       TaskCompletedView,
     ]);

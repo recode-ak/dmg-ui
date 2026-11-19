@@ -27,16 +27,23 @@ export class ConversationPath {
    */
   leave(left: InstanceJson, target: string): void {
     if (left.address.screen === target) return;
-    const at = this.steps.findIndex(
-      (step) => ConversationPath.screenOf(step) === target,
-    );
-    if (at >= 0) {
-      this.steps = this.steps.slice(0, at);
-      return;
-    }
+    if (this.cut(target)) return;
     if (JSON.stringify(left).length > MAX_STEP_LENGTH) return;
     this.steps.push(left);
     if (this.steps.length > MAX_PATH) this.steps.shift();
+  }
+
+  /**
+   * Экран `target` (id) есть в пути — путь обрезан до него, сам он снят:
+   * экран открывается заново; true. Экрана в пути нет — путь прежний, false.
+   */
+  cut(target: string): boolean {
+    const at = this.steps.findIndex(
+      (step) => ConversationPath.screenOf(step) === target,
+    );
+    if (at < 0) return false;
+    this.steps = this.steps.slice(0, at);
+    return true;
   }
 
   /** Верхний элемент пути без снятия; путь пуст — `undefined`. */
@@ -49,7 +56,7 @@ export class ConversationPath {
     this.steps.pop();
   }
 
-  /** Вход приложения, «В начало», выход сторис, экран не восстановлен. */
+  /** Вход приложения, «В начало», выход сторис с целью home, экран не восстановлен. */
   reset(): void {
     this.steps = [];
   }

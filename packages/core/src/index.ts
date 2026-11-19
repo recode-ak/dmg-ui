@@ -7,6 +7,7 @@ export {
   type AddressRejection,
 } from './address/address-codec';
 export { UiIds } from './address/ui-ids';
+export { type ExitTarget, ExitTargets } from './manifest/exit-targets';
 export type { NormalizedSchema } from './manifest/normalized.types';
 export {
   type AnyNotificationDef,
@@ -52,8 +53,10 @@ export { type ExitValue, ScreenExit } from './manifest/screen-exit';
 export { ScreenLocal } from './manifest/screen-local';
 export {
   type AnyStoryDef,
+  type NormalizedAfter,
   type NormalizedOutcome,
   type NormalizedStory,
+  type OutcomeAfter,
   type OutcomeSpec,
   StoryDef,
   type StorySpec,

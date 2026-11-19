@@ -4,8 +4,8 @@ import { UI_EDGE_KINDS, UI_NODE_KINDS } from '../ui-kinds';
 
 /**
  * UI-03: у экрана и цели перехода есть общая сторис, или цель — старт сторис
- * из связей сторис экрана. Экран — вход приложения UI из правила исключён:
- * меню ведёт на экраны разных сторис.
+ * из связей сторис экрана. Исключения для экрана-входа нет (D-UI-96): меню —
+ * обычная сторис, переходы в чужие сторис объявлены её связями.
  */
 export class TransitionOutsideStoryRule implements GraphRule {
   readonly id = 'UI-03';
@@ -23,7 +23,6 @@ export class TransitionOutsideStoryRule implements GraphRule {
       ) {
         continue;
       }
-      if (reader.sources(source, UI_EDGE_KINDS.entry).length > 0) continue;
       const stories = reader.storiesOf(source);
       const shared = stories.some((story) =>
         reader.storiesOf(edge.to).includes(story),

@@ -20,10 +20,22 @@ describe('UI-03: переход ведёт на экран с общей сто�
     ]);
   });
 
-  test('без нарушения: экран — вход приложения, меню ведёт в чужую сторис', () => {
+  test('нарушение: экран — вход приложения, переход в чужую сторис без связи', () => {
     const scene = new UiScene({
       screens: [a, b],
       stories: [UiScene.story('s1', [a]), UiScene.story('s2', [b])],
+    });
+
+    expect(scene.report().rule('UI-03')).toEqual([
+      'UI-03: действие miniUi/todo/a/go ведёт на экран miniUi/todo/b, с которым у экрана нет общей сторис и который не старт сторис из связей сторис',
+    ]);
+  });
+
+  test('без нарушения: экран — вход приложения, связь ведёт на старт чужой сторис', () => {
+    const target = UiScene.story('s2', [b]);
+    const scene = new UiScene({
+      screens: [a, b],
+      stories: [UiScene.story('s1', [a], { leads: () => [target] }), target],
     });
 
     expect(scene.report().rule('UI-03')).toEqual([]);

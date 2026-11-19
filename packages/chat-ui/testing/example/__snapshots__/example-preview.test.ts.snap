@@ -43,3 +43,9 @@ exports[`ExamplePreview через DialogRenderer — снимки пример�
 
 [Открыть задачу] [Дальше] [Закрыть] [Отметить задачу]"
 `;
+
+exports[`ExamplePreview через DialogRenderer — снимки примеров mainMenu start 1`] = `
+"Начать работу
+
+[Мои задачи] [Назначенные мне] [Закрыть]"
+`;

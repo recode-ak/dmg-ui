@@ -40,4 +40,19 @@ describe('UI-07: экран достижим от входов приложен�
 
     expect(scene.report().rule('UI-07')).toEqual([]);
   });
+
+  test('без нарушения: экран достижим только по цели-адресу исхода сторис', () => {
+    const done = UiScene.exiting('done');
+    const scene = new UiScene({
+      screens: [done, lone],
+      stories: [
+        UiScene.story('s', [done], {
+          outcomes: { finished: UiScene.outcome(done, lone.at({})) },
+        }),
+        UiScene.story('t', [lone]),
+      ],
+    });
+
+    expect(scene.report().rule('UI-07')).toEqual([]);
+  });
 });

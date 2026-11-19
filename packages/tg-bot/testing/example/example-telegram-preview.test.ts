@@ -15,7 +15,7 @@ import {
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import type { InlineKeyboardButton, MessageEntity } from 'dmg-ui/tg-bot';
 import { ExampleTelegramPreview, exampleTelegramViews } from '../index';
-import { telegramScene } from '../telegram-graph-scene';
+import { MENU_POINT, telegramScene } from '../telegram-graph-scene';
 
 // Перекрытие общего представления под Telegram (D-UI-67): `exampleTelegramViews`
 // = общие представления + перекрытие `taskList` и `taskCard`. Проверки —
@@ -218,6 +218,7 @@ describe('сцена графа Telegram на exampleTelegramViews', () => {
           { entry: 'start', via: 'command', key: 'start' },
           { entry: 'assigned', via: 'menu', key: 'assigned' },
           { entry: 'assigned', via: 'link', key: 'assigned' },
+          MENU_POINT,
         ],
         views: exampleTelegramViews,
       }),

@@ -7,6 +7,7 @@ import {
 import type { AnyScreenDef } from './screen-def.types';
 import type {
   AnyStoryDef,
+  NormalizedAfter,
   NormalizedStory,
   OutcomeSpec,
   StorySpec,
@@ -14,8 +15,10 @@ import type {
 
 export type {
   AnyStoryDef,
+  NormalizedAfter,
   NormalizedOutcome,
   NormalizedStory,
+  OutcomeAfter,
   OutcomeSpec,
   StorySpec,
 } from './story-def.types';
@@ -67,10 +70,18 @@ export class StoryDef<N extends string = string> extends Def<N> {
         label: o.label,
         description: o.description,
         exits: o.exits.map((e) => `${e.screen.name}.${e.name}`),
+        after: StoryDef.afterOf(o),
       })),
       leads: this.leads().map((story) => story.name),
       rules: this.rules.map((rule) => rule.name),
       ...(this.access === undefined ? {} : { access: this.access.normalize() }),
     };
+  }
+
+  /** Цель исхода для нормализованной формы: умолчание `back` видно явно. */
+  private static afterOf(outcome: OutcomeSpec): NormalizedAfter {
+    const after = outcome.after ?? 'back';
+    if (after === 'back' || after === 'home') return after;
+    return { screen: after.screen.name, params: after.params };
   }
 }

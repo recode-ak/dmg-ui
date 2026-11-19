@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
-import { telegramScene } from '../../../testing/telegram-graph-scene';
+import {
+  MENU_POINT,
+  telegramScene,
+} from '../../../testing/telegram-graph-scene';
 
 // TG-04: команда не занимает имя беседы. `cancel` и `back` приём отдаёт
 // беседе раньше таблицы, поэтому точка с таким ключом недостижима.
@@ -34,6 +37,7 @@ describe('TG-04: команда не занимает имя беседы', () =
           START,
           { entry: 'start', via: 'menu', key: 'tasks' },
           ASSIGNED,
+          MENU_POINT,
         ],
       }),
     );

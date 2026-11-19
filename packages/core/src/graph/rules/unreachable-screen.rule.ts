@@ -4,7 +4,8 @@ import { UI_EDGE_KINDS } from '../ui-kinds';
 
 /**
  * UI-07: каждый экран приложения UI достижим от входов. Семена — цели `entry`
- * и ссылки его уведомлений; дальше замыкание по переходам действий.
+ * и ссылки его уведомлений; дальше замыкание по переходам действий и по
+ * целям-адресам исходов (`redirects`) сторис приложения с достигнутым экраном.
  */
 export class UnreachableScreenRule implements GraphRule {
   readonly id = 'UI-07';
@@ -28,6 +29,7 @@ export class UnreachableScreenRule implements GraphRule {
 
   private reached(reader: UiGraphReader, appId: string): Set<string> {
     const seen = new Set<string>();
+    const stories = new Set(reader.appStories(appId));
     const queue = [
       ...reader.targets(appId, UI_EDGE_KINDS.entry),
       ...reader
@@ -39,6 +41,10 @@ export class UnreachableScreenRule implements GraphRule {
       seen.add(id);
       for (const action of reader.actionsOf(id)) {
         queue.push(...reader.targets(action.node.id, UI_EDGE_KINDS.leadsTo));
+      }
+      for (const story of reader.storiesOf(id)) {
+        if (!stories.has(story)) continue;
+        queue.push(...reader.targets(story, UI_EDGE_KINDS.redirects));
       }
     }
     return seen;

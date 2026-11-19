@@ -41,6 +41,7 @@ export const ExampleDialogArch: ArchApp = {
           entryPoints: [
             { entry: 'start', via: 'message', key: 'start' },
             { entry: 'assigned', via: 'message', key: 'assigned' },
+            { entry: 'menu', via: 'message', key: 'menu' },
           ],
         },
         {
@@ -50,6 +51,7 @@ export const ExampleDialogArch: ArchApp = {
           entryPoints: [
             { entry: 'start', via: 'message', key: 'start' },
             { entry: 'assigned', via: 'message', key: 'assigned' },
+            { entry: 'menu', via: 'message', key: 'menu' },
           ],
         },
         {

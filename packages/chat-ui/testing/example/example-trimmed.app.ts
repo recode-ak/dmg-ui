@@ -5,6 +5,7 @@ import {
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
   PlanTasksStoryDef,
+  StartWorkStoryDef,
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
 } from 'dmg-ui/testing';
@@ -12,7 +13,7 @@ import { ExampleDialogAppDef } from './example-dialog.app';
 
 /**
  * Урезанное приложение учебного примера в диалоге: входы и уведомления
- * основного, сторис — без карточки пользователя. Переход «Назначенные мне» →
+ * основного, сторис — меню и сторис задач, без карточки пользователя. Переход «Назначенные мне» →
  * карточка исполнителя отрезан составом приложения: его не показывает ядро.
  */
 export const ExampleTrimmedDialogAppDef = UiAppDef.define({
@@ -22,7 +23,12 @@ export const ExampleTrimmedDialogAppDef = UiAppDef.define({
     'Приложение UI учебного примера для диалогового канала без просмотра карточки пользователя.',
   set: ExampleUiSetDef,
   channel: DIALOG_CHANNEL,
-  stories: [PlanTasksStoryDef, FinishTasksStoryDef, FollowAssignedStoryDef],
+  stories: [
+    StartWorkStoryDef,
+    PlanTasksStoryDef,
+    FinishTasksStoryDef,
+    FollowAssignedStoryDef,
+  ],
   notifications: [TaskAssignedNotificationDef, TaskCompletedNotificationDef],
   entries: ExampleDialogAppDef.entries,
 });

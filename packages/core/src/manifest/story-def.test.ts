@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import { TaskPolicy, TaskRules } from 'dmg-core/testing/example';
-import { FinishTasksStoryDef, PlanTasksStoryDef } from '../../testing/example';
+import {
+  FinishTasksStoryDef,
+  LIST_START,
+  OWNER,
+  PlanTasksStoryDef,
+  StartWorkStoryDef,
+  UserCardScreenDef,
+} from '../../testing/example';
 import { UiScene } from '../../testing/ui-arch';
 import type { StoryDef } from './story-def';
 
@@ -22,12 +29,14 @@ describe('StoryDef', () => {
           label: 'Задача добавлена',
           description: 'В списке появилась новая задача.',
           exits: ['taskList.created'],
+          after: { screen: 'taskList', params: LIST_START.params },
         },
         {
           name: 'closed',
           label: 'Список закрыт',
           description: 'Пользователь закрыл список, не добавив задачу.',
           exits: ['taskList.closed'],
+          after: 'back',
         },
       ],
       leads: [],
@@ -97,5 +106,51 @@ describe('StoryDef: связи, доступ и правила', () => {
 
     expect(story.access).toBe(TaskPolicy.rules.canManage);
     expect(story.rules[0]).toBe(TaskRules.rules.withinOpenLimit);
+  });
+});
+
+describe('StoryDef: цель исхода', () => {
+  const screen = UiScene.exiting('a');
+  const outcomesOf = (to?: Parameters<typeof UiScene.outcome>[1]) =>
+    UiScene.story('s', [screen], {
+      outcomes: { done: UiScene.outcome(screen, to) },
+    }).normalize().outcomes;
+
+  test('по умолчанию исход возвращает назад: normalize несёт after — back', () => {
+    expect(outcomesOf()).toMatchObject([{ name: 'done', after: 'back' }]);
+  });
+
+  test('цель home — во вход приложения: normalize несёт after — home', () => {
+    expect(outcomesOf('home')).toMatchObject([{ after: 'home' }]);
+  });
+
+  test('цель-адрес — экран по имени и параметры адреса', () => {
+    const to = UserCardScreenDef.at({ userId: OWNER });
+
+    expect(outcomesOf(to)).toMatchObject([
+      { after: { screen: 'userCard', params: { userId: OWNER } } },
+    ]);
+  });
+
+  test('имена выходов исхода прежние: экран.выход, цель их не меняет', () => {
+    expect(outcomesOf('home')).toMatchObject([{ exits: ['a.done'] }]);
+    expect(outcomesOf(UserCardScreenDef.at({ userId: OWNER }))).toMatchObject([
+      { exits: ['a.done'] },
+    ]);
+  });
+
+  test('after в спеке — ссылка на адрес, а не копия', () => {
+    const to = UserCardScreenDef.at({ userId: OWNER });
+    const story = UiScene.story('s', [screen], {
+      outcomes: { done: UiScene.outcome(screen, to) },
+    });
+
+    expect(story.outcomes.done?.after).toBe(to);
+  });
+
+  test('меню «Начать работу»: закрытие ведёт во вход приложения', () => {
+    expect(StartWorkStoryDef.normalize().outcomes).toMatchObject([
+      { name: 'closed', after: 'home' },
+    ]);
   });
 });

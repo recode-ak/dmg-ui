@@ -3,11 +3,11 @@ import { UiGraphReader } from '../ui-graph-reader';
 import { UI_EDGE_KINDS, UI_NODE_KINDS } from '../ui-kinds';
 
 /**
- * UI-05: переход и вход приложения UI ведут на экран из его сторис. Переход
- * в отрезанную ветку — на старт сторис из связей сторис приложения с
- * экраном-источником, которой в приложении нет (`omits`), — не нарушение;
- * вход туда — нарушение. Пара (экран, цель) называется один раз; цель входа —
- * только если перехода на неё нет.
+ * UI-05: переход, вход приложения UI и цель-адрес исхода его сторис ведут на
+ * экран из его сторис. Переход в отрезанную ветку — на старт сторис из связей
+ * сторис приложения с экраном-источником, которой в приложении нет
+ * (`omits`), — не нарушение; вход туда — нарушение. Пара (экран, цель)
+ * называется один раз; цель входа — только если перехода на неё нет.
  */
 export class TransitionOutsideAppRule implements GraphRule {
   readonly id = 'UI-05';
@@ -51,6 +51,15 @@ export class TransitionOutsideAppRule implements GraphRule {
         found.push(
           `приложение ${app.id}: вход ведёт на ${to}, которого нет в его сторис`,
         );
+      }
+      for (const story of reader.inGraphOrder(stories)) {
+        for (const outcome of reader.outcomesOf(story.id)) {
+          const after = outcome.after;
+          if (typeof after !== 'object' || !outside(after.screen)) continue;
+          found.push(
+            `приложение ${app.id}: сторис ${story.id} направляет исход ${outcome.name} на ${after.screen}, которого нет в его сторис`,
+          );
+        }
       }
     }
     return found;

@@ -75,4 +75,33 @@ describe('UI-22: ссылки только на Def набора UI и доме�
       'UI-22: miniUi/todo/s ссылается на story «ghost» вне набора UI и домена',
     );
   });
+
+  test('нарушение: исход сторис направляет на экран вне набора', () => {
+    const done = UiScene.exiting('done');
+    const ghost = UiScene.screen('ghost');
+    const story = UiScene.story('s', [done], {
+      outcomes: { finished: UiScene.outcome(done, ghost.at({})) },
+    });
+
+    const report = new UiScene({ screens: [done], stories: [story] }).report();
+
+    expect(report.rule('UI-22')).toContain(
+      'UI-22: сторис miniUi/todo/s направляет исход finished на экран «ghost», которого нет в наборе',
+    );
+  });
+
+  test('без нарушения: исход направляет на экран набора', () => {
+    const done = UiScene.exiting('done');
+    const target = UiScene.screen('target');
+    const story = UiScene.story('s', [done], {
+      outcomes: { finished: UiScene.outcome(done, target.at({})) },
+    });
+
+    const report = new UiScene({
+      screens: [done, target],
+      stories: [story, UiScene.story('t', [target])],
+    }).report();
+
+    expect(report.rule('UI-22')).toEqual([]);
+  });
 });

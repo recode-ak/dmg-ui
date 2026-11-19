@@ -3,6 +3,7 @@ import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import { CatchesOfUcRule } from './rules/catches-of-uc.rule';
 import { EventNodeCommandRule } from './rules/event-node-command.rule';
 import { ExamplesBySchemaRule } from './rules/examples-by-schema.rule';
+import { ExitTargetsRule } from './rules/exit-targets.rule';
 import { ExitWithoutOutcomeRule } from './rules/exit-without-outcome.rule';
 import { FilledTextsRule } from './rules/filled-texts.rule';
 import { InvokesOnlyCommandRule } from './rules/invokes-only-command.rule';
@@ -30,7 +31,7 @@ export class UiRules {
   private constructor(private readonly set: AnyUiSetDef) {}
 
   /**
-   * Правила по порядку ID: UI-01…UI-24. Набор нужен только UI-20 (примеры
+   * Правила по порядку ID: UI-01…UI-25. Набор нужен только UI-20 (примеры
    * проверяются схемами valibot); `UiIds` здесь не строится и не бросает.
    */
   static of(set: AnyUiSetDef): readonly GraphRule[] {
@@ -63,6 +64,7 @@ export class UiRules {
       new OrphanReferenceRule(),
       new StoryFormRule(),
       new StoryLeadsRule(),
+      new ExitTargetsRule(),
     ];
   }
 }

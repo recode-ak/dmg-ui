@@ -37,6 +37,7 @@ import {
   MemoryMessenger,
 } from '../../../testing';
 import { AssignedTasksView } from '../../../testing/example/assigned-tasks.view';
+import { MainMenuView } from '../../../testing/example/main-menu.view';
 import { TaskListView } from '../../../testing/example/task-list.view';
 import {
   TaskAssignedView,
@@ -581,6 +582,7 @@ describe('CH-01: граница с другими правилами', () => {
       TaskListView,
       AssignedTasksView,
       UserCardView,
+      MainMenuView,
       TaskAssignedView,
       TaskCompletedView,
     ]);

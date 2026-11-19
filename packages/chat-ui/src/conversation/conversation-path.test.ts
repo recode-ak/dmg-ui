@@ -23,6 +23,7 @@ import {
   ScreenCode,
   ScreenDef,
   type StateOf,
+  StoryDef,
   UiAppDef,
   UiModuleDef,
   UiSetDef,
@@ -286,6 +287,25 @@ class HopCode extends ScreenCode<Hop> {
   }
 }
 
+/** Сторис заметок: выход `done` ведёт во вход приложения, а не назад по пути. */
+const NotesStoryDef = StoryDef.define({
+  name: 'notesWork',
+  label: 'Работа с заметками',
+  description: 'Заметки человека до выхода во вход приложения.',
+  callers: ['user'],
+  goal: 'чтобы записать заметки',
+  start: NotesScreenDef,
+  screens: [NotesScreenDef],
+  outcomes: {
+    done: {
+      label: 'Заметки закрыты',
+      description: 'Работа с заметками окончена.',
+      exits: [NotesScreenDef.exits.done],
+      after: 'home',
+    },
+  },
+});
+
 const PathSetDef = UiSetDef.define({
   name: 'pathUi',
   label: 'Набор пути',
@@ -304,7 +324,7 @@ const PathSetDef = UiSetDef.define({
       label: 'Люди',
       description: 'Профиль, заметки и цепочка звеньев.',
       screens: [ProfileScreenDef, NotesScreenDef, ...HOPS],
-      stories: [],
+      stories: [NotesStoryDef],
     }),
   ],
 });
@@ -315,7 +335,7 @@ const PathAppDef = UiAppDef.define({
   description: 'Приложение UI набора из двух модулей.',
   set: PathSetDef,
   channel: DIALOG_CHANNEL,
-  stories: [],
+  stories: [NotesStoryDef],
   entries: {
     start: {
       label: 'Список',
@@ -850,7 +870,7 @@ describe('Conversation — когда путь меняется', () => {
     expect(labelsOf(placeOf(messenger))).not.toContain('Назад');
   });
 
-  test('выход сторис и «В начало» сбрасывают путь', async () => {
+  test('выход сторис с целью home и «В начало» сбрасывают путь', async () => {
     const s = sceneOf({ messenger: editingMessenger() });
     await s.enter('start');
     await s.press('Профиль');
@@ -1017,6 +1037,28 @@ describe('ConversationPath — предел элемента', () => {
       v.parse(v.array(Step), same).map((step) => step.address.screen),
     ).toEqual([LIST, PROFILE]);
     expect(path.toJSON()).toEqual([list]);
+  });
+});
+
+describe('ConversationPath — срез до экрана', () => {
+  const stepOf = (screen: string): InstanceJson => ({
+    address: { screen, params: {} },
+    state: {},
+    revision: 1,
+  });
+
+  test('экран из пути — путь обрезан до него, сам он снят: true', () => {
+    const path = new ConversationPath([stepOf(LIST), stepOf(PROFILE)]);
+
+    expect(path.cut(PROFILE)).toBe(true);
+    expect(path.toJSON()).toEqual([stepOf(LIST)]);
+  });
+
+  test('экрана нет в пути — путь прежний: false', () => {
+    const path = new ConversationPath([stepOf(LIST)]);
+
+    expect(path.cut(NOTES)).toBe(false);
+    expect(path.toJSON()).toEqual([stepOf(LIST)]);
   });
 });
 
