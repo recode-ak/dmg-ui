@@ -196,17 +196,17 @@ describe('Telegram: перекрытые экраны — ключевые по�
     }
   });
 
-  test('ушедший экран: одна отключённая кнопка с подписью нажатого, текст не правится', async () => {
+  test('ушедший экран: прежний текст и строка «Вы выбрали», клавиатуры нет', async () => {
     const request = await preview().retired(
       TaskListScreenDef,
       'full',
       'Выполнить выбранные',
     );
 
-    expect(request.reply_markup).toEqual({
-      inline_keyboard: [[{ text: 'Выполнить выбранные', disabled: {} }]],
-    });
-    expect(request).not.toHaveProperty('text');
+    expect(
+      request.text.endsWith('\n-----\nВы выбрали: Выполнить выбранные'),
+    ).toBe(true);
+    expect(request).not.toHaveProperty('reply_markup');
   });
 });
 

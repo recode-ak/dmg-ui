@@ -467,7 +467,7 @@ describe('Conversation — вход и нажатие по записи', () => 
     expect(text(lastShown(s.messenger))).toBe('Главная: задач 2, отметок 0');
   });
 
-  test('неизвестная ссылка — «Такого варианта нет.» и ответ на нажатие', async () => {
+  test('неизвестная ссылка — «Эта кнопка устарела.» и ответ на нажатие', async () => {
     const s = sceneOf();
     await s.conversation.receive(s.signals.enter('start'));
 
@@ -479,13 +479,13 @@ describe('Conversation — вход и нажатие по записи', () => 
       op: 'answered',
       peer: PEER,
       press: 'p-unknown',
-      text: 'Такого варианта нет.',
+      text: 'Эта кнопка устарела.',
     });
     expect(answered(s.messenger)).toEqual(['p-unknown']);
     expect(acted(s.kit)).toBe(0);
   });
 
-  test('ссылка закрытого экрана — «Экран уже закрыт.», ядро не вызвано', async () => {
+  test('ссылка закрытого экрана — «Эта кнопка устарела.», ядро не вызвано', async () => {
     const s = sceneOf();
     await s.conversation.receive(s.signals.enter('start'));
     const save = refOf(s.messenger, 'Сохранить');
@@ -502,7 +502,7 @@ describe('Conversation — вход и нажатие по записи', () => 
         op: 'answered',
         peer: PEER,
         press: 'p-closed',
-        text: 'Экран уже закрыт.',
+        text: 'Эта кнопка устарела.',
       },
     ]);
     expect(text(lastShown(s.messenger))).toBe('Другой экран');
@@ -580,7 +580,7 @@ describe('Conversation — очередь и отсев повтора', () => {
       'sent: Главная: задач 2, отметок 0',
       'edited: Главная: задач 2, отметок 0',
       'answered: p-first',
-      'answered: p-second — Такого варианта нет.',
+      'answered: p-second — Эта кнопка устарела.',
     ]);
   });
 

@@ -61,7 +61,7 @@ const ENTRY_POINTS = [
   { entry: 'assigned', via: 'command', key: 'assigned' },
 ];
 const TITLE = 'Сыр *острый* _[1](x)_ <b>&';
-const CLOSED = 'Экран уже закрыт.';
+const CLOSED = 'Эта кнопка устарела.';
 const tmp = useTempDir('dmg-ui-telegram-story-');
 
 const places: PersonPlaces = {
@@ -305,7 +305,7 @@ describe('сторис на Telegram', () => {
     expect(assignedOfB?.keyboard.length).toBeGreaterThan(0);
 
     // 4. «Дальше» правит то же сообщение; повтор прежней «Дальше» — ответ
-    // «Экран уже закрыт.».
+    // «Эта кнопка устарела.».
     const next = await a.press('Дальше');
     expect(a.calls().at(-1)).toMatchObject({
       method: 'editMessageText',
@@ -423,7 +423,7 @@ describe('сторис на Telegram', () => {
     expect(a.place().text).toContain(TITLE);
   });
 
-  test('ушедший экран после нажатия: текст прежний, одна отключённая кнопка с подписью нажатого; новый экран — клавиатура без disabled', async () => {
+  test('ушедший экран после нажатия: прежний текст и строка «Вы выбрали: Назад», клавиатура снята; новый экран — клавиатура с callback_data', async () => {
     const w = world();
     const { a } = w;
     await firstSteps(w);
@@ -431,7 +431,7 @@ describe('сторис на Telegram', () => {
     const page = a.place();
 
     // Сообщение нельзя править — показ новым сообщением, прежнее уходит
-    // с отключённой кнопкой нажатого.
+    // с дописанной строкой выбора и без клавиатуры.
     w.api.failNext({
       error_code: 400,
       description: "Bad Request: message can't be edited",
@@ -441,9 +441,9 @@ describe('сторис на Telegram', () => {
     const retired = a
       .lines()
       .find((line) => line.message_id === page.message_id);
-    expect(retired?.text).toBe(page.text);
+    expect(retired?.text).toBe(`${page.text}\n-----\nВы выбрали: Назад`);
     expect(retired?.entities).toEqual(page.entities);
-    expect(retired?.keyboard).toEqual([[{ text: 'Назад', disabled: {} }]]);
+    expect(retired?.keyboard).toEqual([]);
     expect(a.place().message_id).toBeGreaterThan(page.message_id);
     expect(a.place().text).toContain('Хлеб');
     for (const button of a.place().keyboard.flat()) {

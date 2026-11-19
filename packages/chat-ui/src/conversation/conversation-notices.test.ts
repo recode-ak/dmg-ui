@@ -325,7 +325,7 @@ describe.each(MESSENGERS)('уведомление беседы (%s)', (name, mak
     expect(back.path).toBeUndefined();
   });
 
-  test('ссылка вытеснена из таблицы — «Такого варианта нет.», экран прежний', async () => {
+  test('ссылка вытеснена из таблицы — «Эта кнопка устарела.», экран прежний', async () => {
     const s = sceneOf(make);
     await s.enter('start');
     await s.notify(assigned('e-0'));

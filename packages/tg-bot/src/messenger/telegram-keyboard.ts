@@ -8,8 +8,7 @@ import { ACCENT_STYLES, TELEGRAM_LIMITS } from './telegram.const';
 /**
  * Инлайн-клавиатура из вариантов сообщения (D-UI-61): по кнопке в строке,
  * `text` — подпись как есть, `callback_data` — ссылка беседы как есть,
- * `style` — из акцента. Ушедший экран — одна отключённая кнопка с
- * подписью нажатого.
+ * `style` — из акцента.
  */
 export class TelegramKeyboard {
   private static readonly bytes = new TextLength('utf8');
@@ -18,13 +17,6 @@ export class TelegramKeyboard {
 
   static of(options: readonly MessageOption[]): InlineKeyboardMarkup {
     return new TelegramKeyboard(options).markup();
-  }
-
-  /** Клавиатура ушедшего экрана: одна отключённая кнопка; `style` не ставим (допущение D-UI-67). */
-  static retired(label: string): InlineKeyboardMarkup {
-    return {
-      inline_keyboard: [[{ text: label.toWellFormed(), disabled: {} }]],
-    };
   }
 
   /**

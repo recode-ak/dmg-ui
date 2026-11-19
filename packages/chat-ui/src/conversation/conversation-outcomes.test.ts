@@ -783,7 +783,7 @@ describe.each(MESSENGERS)(
         expect(s.conversation.screen()?.address.screen).toBe(LOBBY);
       });
 
-      test('ссылка погашенного экрана — «Экран уже закрыт.», порт и ядро больше не вызваны', async () => {
+      test('ссылка погашенного экрана — «Эта кнопка устарела.», порт и ядро больше не вызваны', async () => {
         const s = sceneOf({ messenger: make(), exits: 'accept' });
         await s.enter('desk');
         const stay = refOf(s.messenger, 'Остаться');
@@ -793,7 +793,7 @@ describe.each(MESSENGERS)(
 
         const press = await s.pressRef(stay);
 
-        reacted(s, from, press, 'Экран уже закрыт.');
+        reacted(s, from, press, 'Эта кнопка устарела.');
         expect(s.taken).toHaveLength(1);
         expect(s.world.calls).toEqual([]);
         expect(s.kit.observer.records).toHaveLength(records);
@@ -988,7 +988,7 @@ describe.each(MESSENGERS)(
       expect(second.kit.ucs.names()).toEqual([]);
     });
 
-    test('unavailable: closed — реакция «Экран уже закрыт.»', async () => {
+    test('unavailable: closed — реакция «Эта кнопка устарела.»', async () => {
       const s = sceneOf({ messenger: make() });
       await s.enter('desk');
       s.runtime.opened.at(-1)?.close();
@@ -996,7 +996,7 @@ describe.each(MESSENGERS)(
 
       const press = await s.press('Остаться');
 
-      reacted(s, from, press, 'Экран уже закрыт.');
+      reacted(s, from, press, 'Эта кнопка устарела.');
       expect(s.world.calls).toEqual([]);
     });
 
@@ -1110,13 +1110,13 @@ describe.each(MESSENGERS)(
       expect(opened).toHaveLength(3);
     });
 
-    test('неизвестная ссылка — реакция «Такого варианта нет.»; ответ один, положение не сбито', async () => {
+    test('неизвестная ссылка — реакция «Эта кнопка устарела.»; ответ один, положение не сбито', async () => {
       const s = sceneOf({ messenger: make() });
       await s.enter('desk');
       const from = s.messenger.journal.length;
 
       const press = await s.pressRef('zzzzz9');
-      reacted(s, from, press, 'Такого варианта нет.');
+      reacted(s, from, press, 'Эта кнопка устарела.');
       const next = s.messenger.journal.length;
       await s.press('Остаться');
 

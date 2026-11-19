@@ -23,6 +23,7 @@
 
 - [Решения](docs/decisions.md): реестр D-UI-N — поставка, манифесты, граф, исполнитель, уведомления, граница с клиентом
 - [Технический долг](debt.md): DEBT-UI-N — открытое в пакете и триггеры
+- [К обсуждению](discussion.md): пожелания и идеи без решения
 - [Учебный набор UI](packages/core/testing/example/example-ui.set.ts): `ExampleUiSetDef`; привязка к диалогу — в [Пакете канала](docs/guides/channel-package.md), к страничному каналу — в [Web-канале](docs/guides/web-channel.md)
 - [Мессенджер Telegram](docs/guides/telegram.md#2-сборка): `TelegramMessenger` поверх узкого порта Bot API, подставной порт `MemoryBotApi`
 - [Меню и граф Telegram](docs/guides/telegram.md#5-точки-входа-и-меню): `TelegramMenu`, `TelegramGraphProvider` и правила TG-01…TG-06

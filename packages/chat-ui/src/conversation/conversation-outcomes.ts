@@ -193,11 +193,8 @@ export class ConversationOutcomes {
         'Conversation: ссылка на действие, которого нет у экрана',
       );
     }
-    await this.parts.output.react(
-      reason === 'closed'
-        ? CONVERSATION_TEXTS.closed
-        : CONVERSATION_TEXTS.unavailable,
-    );
+    if (reason === 'closed') await this.parts.output.closed();
+    else await this.parts.output.react(CONVERSATION_TEXTS.unavailable);
   }
 
   /** Исход, которого беседа не знает (новый в ядре), — дефект беседы, бросок (ERR-06); в тексте — только вид. */

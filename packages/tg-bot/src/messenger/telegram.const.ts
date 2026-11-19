@@ -23,9 +23,10 @@ export const TELEGRAM_CAPABILITIES: MessengerCapabilities = {
   },
 };
 
-/** Тексты Telegram: заглушка пустого текста (Bot API требует 1–4096). */
+/** Тексты Telegram: заглушка пустого текста (Bot API требует 1–4096) и подпись строки выбора. */
 export const TELEGRAM_TEXTS = {
   empty: '…',
+  chosen: 'Вы выбрали: ',
 } as const;
 
 /** Акцент варианта → цвет кнопки (D-UI-67): `positive` — `success`. */
@@ -66,6 +67,9 @@ export const POSITIVE_INTEGER = /^[1-9][0-9]*$/;
 
 /** Каноническое десятичное целое < 0: группа и супергруппа. */
 export const NEGATIVE_INTEGER = /^-[1-9][0-9]*$/;
+
+/** Разделитель между текстом ушедшего экрана и строкой выбора. */
+export const CHOSEN_SEPARATOR = '\n-----\n';
 
 /** Предпросмотр ссылок выключен у всех сообщений. */
 export const NO_PREVIEW = { is_disabled: true } as const;

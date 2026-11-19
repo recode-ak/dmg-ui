@@ -10,7 +10,7 @@ import {
 } from 'dmg-ui/chat-ui';
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import {
-  type EditMessageReplyMarkupParams,
+  type EditMessageTextParams,
   type SendMessageParams,
   TELEGRAM_CAPABILITIES,
   TelegramMessenger,
@@ -47,12 +47,12 @@ export class ExampleTelegramPreview {
     return sent.params;
   }
 
-  /** Запрос `editMessageReplyMarkup` ушедшего экрана: нажат вариант с подписью `label`. */
+  /** Запрос `editMessageText` ушедшего экрана (прежний текст и строка выбора): нажат вариант с подписью `label`. */
   async retired(
     def: AnyScreenDef,
     example: string,
     label: string,
-  ): Promise<EditMessageReplyMarkupParams> {
+  ): Promise<EditMessageTextParams> {
     const { api, messenger, message } = await this.shown(def, example);
     const chosen = message.options.find((option) => option.label === label);
     if (chosen === undefined) {
@@ -60,7 +60,7 @@ export class ExampleTelegramPreview {
     }
     await messenger.retire(String(EXAMPLE_CHAT), '1', message, chosen.ref);
     const edited = api.journal.find(
-      (call) => call.method === 'editMessageReplyMarkup',
+      (call) => call.method === 'editMessageText',
     );
     if (edited === undefined) {
       throw new Error(`ExampleTelegramPreview: ${def.name} не закрыт`);

@@ -133,7 +133,7 @@ export type RefEntry =
       readonly address: AddressJson;
       readonly label: string;
     }
-  /** «Назад» живого экрана `screen`: с другого экрана — «Экран уже закрыт.». */
+  /** «Назад» живого экрана `screen`: с другого экрана — «Эта кнопка устарела.». */
   | {
       readonly ref: string;
       readonly kind: 'back';
@@ -333,6 +333,16 @@ export type ConversationContexts = {
   context(trace: Trace): Promise<RenderContext>;
 };
 
+/**
+ * Замена текстов, которые беседа отвечает на устаревшую кнопку: `closed` —
+ * кнопка ушедшего экрана, `unknownRef` — ссылки нет в таблице беседы. Только
+ * текст собеседнику: записи лога остаются прежними.
+ */
+export type ConversationTextOverrides = {
+  readonly closed?: string;
+  readonly unknownRef?: string;
+};
+
 /** Всё, что нужно одной беседе одного собеседника; собирает узел бесед. */
 export type ConversationSpec = {
   readonly app: AnyUiAppDef;
@@ -355,6 +365,8 @@ export type ConversationSpec = {
   readonly shown?: () => void;
   /** Приёмник выходов сторис; нет — выход ведёт во вход «в начало». */
   readonly exits?: ConversationExits;
+  /** Замена текстов устаревшей кнопки собеседнику; нет — тексты беседы. */
+  readonly texts?: ConversationTextOverrides;
 };
 
 /** Узел бесед одного приложения мессенджера. */
@@ -385,4 +397,6 @@ export type ConversationsSpec<U extends Identified> = {
   readonly epochs?: () => string;
   /** Приёмник выходов сторис вне набора UI (D-UI-90); нет — выход ведёт во вход «в начало». */
   readonly exits?: ConversationExits;
+  /** Замена текстов устаревшей кнопки собеседнику (D-UI-92); нет — «Эта кнопка устарела.». */
+  readonly texts?: ConversationTextOverrides;
 };

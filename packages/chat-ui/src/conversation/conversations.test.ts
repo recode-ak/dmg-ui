@@ -50,6 +50,7 @@ import type {
   ConversationSignal,
   ConversationSnapshot,
   ConversationsSpec,
+  ConversationTextOverrides,
 } from './conversation.types';
 import { ConversationSnapshotSchema } from './conversation-snapshot';
 import type { ConversationStore } from './conversation-store.types';
@@ -136,6 +137,7 @@ type NodeOptions = {
   readonly callers?: ConversationsSpec<ExampleUser>['callers'];
   readonly epochs?: () => string;
   readonly exits?: ConversationExits;
+  readonly texts?: ConversationTextOverrides;
 };
 
 const world = () => {
@@ -189,6 +191,7 @@ const world = () => {
       ...(options.limit === undefined ? {} : { limit: options.limit }),
       epochs: options.epochs ?? epochs,
       ...(options.exits === undefined ? {} : { exits: options.exits }),
+      ...(options.texts === undefined ? {} : { texts: options.texts }),
     });
     return { conversations, messenger, logger };
   };
@@ -892,7 +895,7 @@ describe('Conversations — независимость, лог и settled', () =
       'refmarkq7',
       A,
       card.params.taskId,
-      'Экран уже закрыт',
+      'Эта кнопка устарела',
       ...shown,
     ]) {
       expect(log).not.toContain(mark);
@@ -1710,7 +1713,7 @@ describe('Conversations — выход сторис приёмнику', () => {
     ]);
   });
 
-  test('снимок без экрана; после пересборки узла прежняя ссылка — «Экран уже закрыт.»', async () => {
+  test('снимок без экрана; после пересборки узла прежняя ссылка — «Эта кнопка устарела.»', async () => {
     const { w, first, taken, create } = await exited();
     expect((await snapshotOf(w.store)).screen).toBeUndefined();
     await first.conversations.close();
@@ -1725,10 +1728,101 @@ describe('Conversations — выход сторис приёмнику', () => {
         op: 'answered',
         peer: WHO_A.peer,
         press: 'p-old',
-        text: 'Экран уже закрыт.',
+        text: 'Эта кнопка устарела.',
       },
     ]);
     expect(sent(second.messenger)).toEqual([]);
     expect(taken).toHaveLength(1);
+  });
+});
+
+describe('Conversations — тексты устаревшей кнопки', () => {
+  const STALE = 'Эта кнопка устарела.';
+
+  /** Три задачи: на странице две, есть «Дальше». */
+  const threeTasks = async (w: ReturnType<typeof world>) => {
+    await w.create('Хлеб');
+    await w.create('Молоко');
+    await w.create('Сыр');
+    await w.bus.delivered();
+  };
+
+  /** Нажатия по ссылке ушедшего экрана и по неизвестной ссылке; текст ответа каждого. */
+  const staleReactions = async (texts?: ConversationTextOverrides) => {
+    const w = world();
+    await threeTasks(w);
+    const node = w.node(texts === undefined ? {} : { texts });
+    await node.conversations.receive(w.signals.enter('start'));
+    const old = refOf(node.messenger, 'Дальше');
+    await node.conversations.receive(w.signals.press(old, 'p-next'));
+    const reactionTo = async (ref: string, press: string) => {
+      const from = node.messenger.journal.length;
+      await node.conversations.receive(w.signals.press(ref, press));
+      return node.messenger.journal.slice(from);
+    };
+    return {
+      closed: await reactionTo(old, 'p-closed'),
+      unknown: await reactionTo('zzzzz9', 'p-unknown'),
+    };
+  };
+
+  test('ссылка ушедшего экрана (closed) — ответ «Эта кнопка устарела.»', async () => {
+    const { closed } = await staleReactions();
+
+    expect(closed).toEqual([
+      { op: 'answered', peer: WHO_A.peer, press: 'p-closed', text: STALE },
+    ]);
+  });
+
+  test('неизвестная ссылка (unknownRef) — ответ «Эта кнопка устарела.»', async () => {
+    const { unknown } = await staleReactions();
+
+    expect(unknown).toEqual([
+      { op: 'answered', peer: WHO_A.peer, press: 'p-unknown', text: STALE },
+    ]);
+  });
+
+  test('texts заменяет оба текста: closed и unknownRef — каждый свой', async () => {
+    const { closed, unknown } = await staleReactions({
+      closed: 'Экран закрыт-a1',
+      unknownRef: 'Нет такой-a1',
+    });
+
+    expect(closed).toEqual([
+      {
+        op: 'answered',
+        peer: WHO_A.peer,
+        press: 'p-closed',
+        text: 'Экран закрыт-a1',
+      },
+    ]);
+    expect(unknown).toEqual([
+      {
+        op: 'answered',
+        peer: WHO_A.peer,
+        press: 'p-unknown',
+        text: 'Нет такой-a1',
+      },
+    ]);
+  });
+
+  test('texts частичный: заменён только closed — unknownRef прежний', async () => {
+    const { closed, unknown } = await staleReactions({ closed: 'Закрыт-a2' });
+
+    expect(closed).toMatchObject([{ op: 'answered', text: 'Закрыт-a2' }]);
+    expect(unknown).toMatchObject([{ op: 'answered', text: STALE }]);
+  });
+
+  test('texts не попадает в записи лога: текст замены в лог не идёт', async () => {
+    const w = world();
+    await threeTasks(w);
+    const node = w.node({ texts: { closed: 'Закрыт-лог-a3' } });
+    await node.conversations.receive(w.signals.enter('start'));
+    const old = refOf(node.messenger, 'Дальше');
+    await node.conversations.receive(w.signals.press(old, 'p-next'));
+
+    await node.conversations.receive(w.signals.press(old, 'p-closed'));
+
+    expect(JSON.stringify(node.logger.records)).not.toContain('Закрыт-лог-a3');
   });
 });

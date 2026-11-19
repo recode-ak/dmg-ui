@@ -39,7 +39,7 @@ import { TelegramMessenger } from './telegram-messenger';
 
 // Мессенджер Telegram поверх порта Bot API: показ и уведомление —
 // `sendMessage`, правка на месте с откатом новым сообщением, уход экрана —
-// снятие клавиатуры или отключённая кнопка нажатого, ответ на нажатие. Собеседник — только
+// снятие клавиатуры, а с нажатым — правка текста строкой «Вы выбрали», ответ на нажатие. Собеседник — только
 // целое положительное число (личный чат), `callback_data` — не длиннее 64
 // байт: иначе отказ без вызова API. Отказ Bot API — значение, бросок порта —
 // недоставка и `error` с именем ошибки; методы не бросают, лог без данных.
@@ -71,6 +71,9 @@ const TASK: FormattedText = [
 ];
 
 const HELLO = message('Привет');
+
+/** Строка выбора, которую уход экрана дописывает к тексту. */
+const CHOSEN_LINE = (label: string) => `\n-----\nВы выбрали: ${label}`;
 
 /** Мессенджер на подставном порту с журналом и логгером в памяти. */
 const setup = () => {
@@ -520,32 +523,28 @@ describe('TelegramMessenger — уход экрана', () => {
     });
   });
 
-  test('retire с chosen — один editMessageReplyMarkup с одной отключённой кнопкой (подпись нажатого); текст не правится, callback_data нет', async () => {
+  test('retire с chosen — editMessageText: прежний текст с сущностями и строка «Вы выбрали: <подпись>» после разделителя, клавиатура снята', async () => {
     const { api, messenger } = setup();
     const shown = message(TASK, OPTIONS);
     await messenger.show(PEER, shown);
 
     expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(ok());
-    expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
-    expect(markupEdits(api)).toEqual([
-      {
-        chat_id: CHAT,
-        message_id: 1,
-        reply_markup: {
-          inline_keyboard: [[{ text: 'Сделано', disabled: {} }]],
-        },
-      },
-    ]);
+    expect(methods(api)).toEqual(['sendMessage', 'editMessageText']);
+    expect(textEdits(api)[0]).toMatchObject({
+      chat_id: CHAT,
+      message_id: 1,
+      text: `Задача Хлеб${CHOSEN_LINE('Сделано')}`,
+      entities: [{ type: 'bold', offset: 7, length: 4 }],
+    });
+    expect(textEdits(api)[0]?.reply_markup).toBeUndefined();
     const line = api.chat(CHAT)[0];
-    expect(line?.text).toBe('Задача Хлеб');
-    expect(line?.entities).toEqual([{ type: 'bold', offset: 7, length: 4 }]);
-    expect(line?.keyboard).toEqual([[{ text: 'Сделано', disabled: {} }]]);
-    expect(line?.keyboard.flat()[0]).not.toHaveProperty('callback_data');
+    expect(line?.text).toBe('Задача Хлеб\n-----\nВы выбрали: Сделано');
+    expect(line?.text).not.toContain('Отмена');
+    expect(line?.keyboard).toEqual([]);
     expect(line?.edits).toBe(1);
-    expect(JSON.stringify(api.journal)).not.toContain('Вы выбрали');
   });
 
-  test('retire с chosen: акцент нажатого варианта на отключённую кнопку не идёт — поля style нет', async () => {
+  test('retire с chosen: подпись нажатого — с акцентом или без, строка одна и та же; клавиатуры и кнопок disabled нет', async () => {
     const { api, messenger } = setup();
     const shown = message(TASK, [
       { ref: 'r1', label: 'Удалить', accent: 'danger' },
@@ -555,12 +554,43 @@ describe('TelegramMessenger — уход экрана', () => {
 
     await messenger.retire(PEER, '1', shown, 'r1');
 
-    expect(api.chat(CHAT)[0]?.keyboard).toEqual([
-      [{ text: 'Удалить', disabled: {} }],
-    ]);
+    expect(api.chat(CHAT)[0]?.text).toBe(
+      'Задача Хлеб\n-----\nВы выбрали: Удалить',
+    );
+    expect(api.chat(CHAT)[0]?.keyboard).toEqual([]);
+    expect(JSON.stringify(api.journal.slice(1))).not.toContain('"disabled"');
   });
 
-  test('retire с chosen, текст ровно 4096 — кнопка ставится, отката на снятие клавиатуры нет', async () => {
+  test('retire с chosen, текст после добавления строки ровно 4096 — строка добавляется', async () => {
+    const { api, messenger } = setup();
+    const tail = CHOSEN_LINE('Сделано');
+    const body = 'x'.repeat(4096 - tail.length);
+    const full = message(body, OPTIONS);
+    await messenger.show(PEER, full);
+
+    expect(await messenger.retire(PEER, '1', full, 'r1')).toEqual(ok());
+    expect(methods(api)).toEqual(['sendMessage', 'editMessageText']);
+    expect(api.chat(CHAT)[0]).toMatchObject({
+      text: `${body}${tail}`,
+      keyboard: [],
+    });
+    expect(api.chat(CHAT)[0]?.text.length).toBe(4096);
+  });
+
+  test('retire с chosen, текст после добавления строки 4097 — только снятие клавиатуры, текст прежний', async () => {
+    const { api, messenger } = setup();
+    const tail = CHOSEN_LINE('Сделано');
+    const body = 'x'.repeat(4097 - tail.length);
+    const full = message(body, OPTIONS);
+    await messenger.show(PEER, full);
+
+    expect(await messenger.retire(PEER, '1', full, 'r1')).toEqual(ok());
+    expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
+    expect(markupEdits(api)[0]).toEqual({ chat_id: CHAT, message_id: 1 });
+    expect(api.chat(CHAT)[0]).toMatchObject({ text: body, keyboard: [] });
+  });
+
+  test('retire с chosen, текст ровно 4096 — только снятие клавиатуры', async () => {
     const { api, messenger } = setup();
     const full = message('x'.repeat(4096), OPTIONS);
     await messenger.show(PEER, full);
@@ -569,11 +599,11 @@ describe('TelegramMessenger — уход экрана', () => {
     expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
     expect(api.chat(CHAT)[0]).toMatchObject({
       text: 'x'.repeat(4096),
-      keyboard: [[{ text: 'Сделано', disabled: {} }]],
+      keyboard: [],
     });
   });
 
-  test('retire с chosen вне вариантов — прежнее снятие клавиатуры: без reply_markup, кнопки нет', async () => {
+  test('retire с chosen вне вариантов — только снятие клавиатуры: текст прежний, строки выбора нет', async () => {
     const { api, messenger } = setup();
     const shown = message(TASK, OPTIONS);
     await messenger.show(PEER, shown);
@@ -587,7 +617,7 @@ describe('TelegramMessenger — уход экрана', () => {
     });
   });
 
-  test('retire с chosen: отказ 400 — rejected и warn; отката на строку выбора нет', async () => {
+  test('retire с chosen: отказ 400 — rejected и warn; отката на снятие клавиатуры нет', async () => {
     const { api, logger, messenger } = setup();
     const shown = message(TASK, OPTIONS);
     await messenger.show(PEER, shown);
@@ -599,11 +629,11 @@ describe('TelegramMessenger — уход экрана', () => {
     expect(await messenger.retire(PEER, '1', shown, 'r1')).toEqual(
       err({ reason: 'rejected' }),
     );
-    expect(methods(api)).toEqual(['sendMessage', 'editMessageReplyMarkup']);
+    expect(methods(api)).toEqual(['sendMessage', 'editMessageText']);
     expect(logger.records).toHaveLength(1);
     expect(logger.records[0]).toMatchObject({
       level: 'warn',
-      meta: { method: 'editMessageReplyMarkup', error_code: 400 },
+      meta: { method: 'editMessageText', error_code: 400 },
     });
   });
 
@@ -625,20 +655,18 @@ describe('TelegramMessenger — уход экрана', () => {
     );
     expect(errors(logger)).toHaveLength(1);
     expect(errors(logger)[0]).toMatchObject({
-      meta: { method: 'editMessageReplyMarkup', name: 'TypeError' },
+      meta: { method: 'editMessageText', name: 'TypeError' },
     });
   });
 
-  test('подпись отключённой кнопки: одиночный суррогат — U+FFFD, как у обычной кнопки', async () => {
+  test('подпись в строке выбора: одиночный суррогат — U+FFFD', async () => {
     const { api, messenger } = setup();
     const shown = message(TASK, [{ ref: 'r1', label: 'а\uD800б' }]);
     await messenger.show(PEER, shown);
 
     await messenger.retire(PEER, '1', shown, 'r1');
 
-    expect(markupEdits(api)[0]?.reply_markup).toEqual({
-      inline_keyboard: [[{ text: 'а\uFFFDб', disabled: {} }]],
-    });
+    expect(textEdits(api)[0]?.text).toBe(`Задача Хлеб${CHOSEN_LINE('а�б')}`);
   });
 
   test('повторный уход — «message is not modified»: ok у обоих видов ухода', async () => {
@@ -724,7 +752,7 @@ describe('TelegramMessenger — строки как есть, пустой те�
       'editMessageText',
       'sendMessage',
       'editMessageReplyMarkup',
-      'editMessageReplyMarkup',
+      'editMessageText',
       'answerCallbackQuery',
     ]);
     for (const call of api.journal) {
@@ -825,11 +853,7 @@ describe('TelegramMessenger — operation в записях лога', () => {
     ['show', (m) => m.show(PEER, RICH), 'sendMessage'],
     ['notify', (m) => m.notify(PEER, RICH), 'sendMessage'],
     ['update', (m) => m.update(PEER, '1', RICH), 'editMessageText'],
-    [
-      'retire',
-      (m) => m.retire(PEER, '1', RICH, SECRET_REF),
-      'editMessageReplyMarkup',
-    ],
+    ['retire', (m) => m.retire(PEER, '1', RICH, SECRET_REF), 'editMessageText'],
   ];
 
   /** Сообщение 1 уже в чате: правка и уход есть что править. */

@@ -73,7 +73,7 @@ export class ExampleProbe {
     return results;
   }
 
-  /** Убирает варианты показанного сообщения пробы «ушедший экран» (Е7): остаётся серая кнопка с подписью выбранного. */
+  /** Убирает варианты показанного сообщения пробы «ушедший экран» (Е7): текст остаётся со строкой «Вы выбрали: <подпись>», клавиатура снята. */
   async retire(id: string): Promise<ProbeResult> {
     const probeCase = ExampleProbe.caseOf(id);
     const shown = id === RETIRING_PROBE ? this.shown : undefined;

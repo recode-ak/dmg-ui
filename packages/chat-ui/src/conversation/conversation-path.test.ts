@@ -1021,7 +1021,7 @@ describe('ConversationPath — предел элемента', () => {
 });
 
 describe('Conversation — «Назад» и закрытые экраны', () => {
-  test('«Назад» старого экрана — «Экран уже закрыт.»', async () => {
+  test('«Назад» старого экрана — «Эта кнопка устарела.»', async () => {
     const s = sceneOf({ messenger: editingMessenger() });
     await s.enter('start');
     await s.press('Профиль');
@@ -1032,13 +1032,13 @@ describe('Conversation — «Назад» и закрытые экраны', () 
     const press = await s.pressRef(stale);
 
     expect(s.messenger.journal.slice(from)).toEqual([
-      { op: 'answered', peer: PEER, press, text: 'Экран уже закрыт.' },
+      { op: 'answered', peer: PEER, press, text: 'Эта кнопка устарела.' },
     ]);
     expect(s.conversation.screen()?.address.screen).toBe(NOTES);
     expect(screensOf(s.conversation)).toEqual([LIST, PROFILE]);
   });
 
-  test('после «Назад» у экрана новый номер: ссылки его прежнего показа — «Экран уже закрыт.»', async () => {
+  test('после «Назад» у экрана новый номер: ссылки его прежнего показа — «Эта кнопка устарела.»', async () => {
     const s = sceneOf({ messenger: editingMessenger() });
     await s.enter('start');
     const mark = refOf(s.messenger, 'Пометить');
@@ -1052,7 +1052,7 @@ describe('Conversation — «Назад» и закрытые экраны', () 
 
     expect(restored).toBeGreaterThan(serial);
     expect(s.messenger.journal.slice(from)).toEqual([
-      { op: 'answered', peer: PEER, press, text: 'Экран уже закрыт.' },
+      { op: 'answered', peer: PEER, press, text: 'Эта кнопка устарела.' },
     ]);
     expect(s.conversation.screen()).toMatchObject({
       address: { screen: LIST },

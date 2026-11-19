@@ -80,7 +80,7 @@ export class ConversationScreens {
     return this.live;
   }
 
-  /** Живой экран с номером `serial`; чужой — «Экран уже закрыт.», ядро не вызывается. */
+  /** Живой экран с номером `serial`; чужой — «Эта кнопка устарела.», ядро не вызывается. */
   async onScreen(
     serial: Serial,
   ): Promise<
@@ -88,7 +88,7 @@ export class ConversationScreens {
   > {
     const live = this.live;
     if (live !== undefined && live.serial === serial) return live;
-    await this.parts.output.react(CONVERSATION_TEXTS.closed);
+    await this.parts.output.closed();
     return undefined;
   }
 
@@ -255,11 +255,11 @@ export class ConversationScreens {
     await this.parts.output.view(live.serial, messages, composed.history, send);
   }
 
-  /** Страница вариантов живого экрана `serial` («Ещё»); чужой экран — «Экран уже закрыт.». */
+  /** Страница вариантов живого экрана `serial` («Ещё»); чужой экран — «Эта кнопка устарела.». */
   async turn(serial: Serial, page: number): Promise<void> {
     const live = this.live;
     if (live === undefined || live.serial !== serial) {
-      await this.parts.output.react(CONVERSATION_TEXTS.closed);
+      await this.parts.output.closed();
       return;
     }
     live.page = page;

@@ -93,7 +93,7 @@ describe('ExampleProbe — набор на подставном порту', () 
 });
 
 describe('ExampleProbe — проба «ушедший экран» (Е7)', () => {
-  test('после retire уходит editMessageReplyMarkup с одной отключённой кнопкой без callback_data', async () => {
+  test('после retire уходит editMessageText со строкой «Вы выбрали», клавиатуры нет', async () => {
     const w = probe();
     await w.probe.run(caseId(7));
     const sent = w.api.journal.filter((call) => call.method === 'sendMessage');
@@ -103,14 +103,13 @@ describe('ExampleProbe — проба «ушедший экран» (Е7)', () =
     await w.probe.retire(caseId(7));
 
     const edit = w.api.journal.at(-1);
-    expect(edit?.method).toBe('editMessageReplyMarkup');
+    expect(edit?.method).toBe('editMessageText');
     expect(edit?.params).toMatchObject({
       chat_id: CHAT,
       message_id: w.api.chat(CHAT)[0]?.message_id,
     });
-    const buttons = w.api.chat(CHAT)[0]?.keyboard.flat() ?? [];
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0]).toHaveProperty('disabled');
-    expect(buttons[0]).not.toHaveProperty('callback_data');
+    const line = w.api.chat(CHAT)[0];
+    expect(line?.text).toContain('\n-----\nВы выбрали: ');
+    expect(line?.keyboard).toEqual([]);
   });
 });

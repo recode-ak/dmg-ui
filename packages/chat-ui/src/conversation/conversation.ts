@@ -88,6 +88,7 @@ export class Conversation {
         peer: spec.peer,
         replies: this.replies,
         log: this.log,
+        ...(spec.texts === undefined ? {} : { texts: spec.texts }),
       },
       snapshot?.screen,
     );
@@ -307,7 +308,7 @@ export class Conversation {
   private async press(ref: string, trace: Trace): Promise<void> {
     const entry = this.refs.entry(ref);
     if (entry === undefined) {
-      await this.output.react(CONVERSATION_TEXTS.unknownRef);
+      await this.output.unknownRef();
       return;
     }
     // Шаг черновика — его дело; любой другой вариант черновик сбрасывает.

@@ -141,7 +141,7 @@ export type MessengerPort = {
     message: Message,
     send?: SendOptions,
   ): Promise<Delivery<Updated>>;
-  /** Варианты сообщения больше не действуют: убрать, отключить или ничего; `message` — вид после ухода с прежними вариантами; `chosen` — ref нажатого. */
+  /** Варианты сообщения больше не действуют: убрать варианты, отметить нажатое или ничего; `message` — вид после ухода с прежними вариантами; `chosen` — ref нажатого. */
   retire(
     peer: string,
     handle: MessageHandle,

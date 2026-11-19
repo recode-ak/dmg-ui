@@ -348,7 +348,7 @@ describe.each(MESSENGERS)('сторис на беседе (%s)', (name, make) =>
     });
     expect(textOf(a.place())).toContain('Сыр');
     await a.pressRef(next);
-    expect(a.reaction()).toContain('Экран уже закрыт');
+    expect(a.reaction()).toContain('Эта кнопка устарела');
 
     // 5. «Назад» — первая страница.
     await a.press('Назад');

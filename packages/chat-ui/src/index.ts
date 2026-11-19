@@ -26,6 +26,7 @@ export type {
   ConversationSignal,
   ConversationSnapshot,
   ConversationsSpec,
+  ConversationTextOverrides,
   DraftJson,
   LiveScreenJson,
   RefEntry,

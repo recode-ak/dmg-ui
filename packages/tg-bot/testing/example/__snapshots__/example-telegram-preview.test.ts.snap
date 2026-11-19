@@ -186,16 +186,16 @@ exports[`снимки запросов Telegram assignedTasks two — общее
 exports[`снимки запросов Telegram запрос retire ушедшего экрана 1`] = `
 {
   "chat_id": 1,
-  "message_id": 1,
-  "reply_markup": {
-    "inline_keyboard": [
-      [
-        {
-          "disabled": {},
-          "text": "Выполнить выбранные",
-        },
-      ],
-    ],
+  "link_preview_options": {
+    "is_disabled": true,
   },
+  "message_id": 1,
+  "text": 
+"Мои задачи
+[x] Хлеб
+[ ] Молоко — выполнена
+-----
+Вы выбрали: Выполнить выбранные"
+,
 }
 `;

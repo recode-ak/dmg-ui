@@ -6,8 +6,10 @@ import type {
   MessengerPort,
   SendOptions,
 } from '../messenger/messenger.types';
+import { CONVERSATION_TEXTS } from './conversation.const';
 import type {
   ConversationSignal,
+  ConversationTextOverrides,
   LiveScreenJson,
   PlaceJson,
   Serial,
@@ -23,6 +25,8 @@ type OutputParts = {
   readonly peer: string;
   readonly replies: ConversationReplies;
   readonly log: ConversationLog;
+  /** Замена текстов устаревшей кнопки собеседнику. */
+  readonly texts?: ConversationTextOverrides;
 };
 
 /** Доставленное сообщение показа: handle и сообщение со ссылками. */
@@ -116,6 +120,18 @@ export class ConversationOutput {
       return;
     }
     await this.note(text);
+  }
+
+  /** Нажатие по закрытому экрану: ответ «кнопка устарела» (текст может заменить приложение). */
+  async closed(): Promise<void> {
+    await this.react(this.parts.texts?.closed ?? CONVERSATION_TEXTS.closed);
+  }
+
+  /** Нажатие по неизвестной ссылке: ответ «кнопка устарела» (текст может заменить приложение). */
+  async unknownRef(): Promise<void> {
+    await this.react(
+      this.parts.texts?.unknownRef ?? CONVERSATION_TEXTS.unknownRef,
+    );
   }
 
   /**
