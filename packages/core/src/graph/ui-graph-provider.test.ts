@@ -20,9 +20,15 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
-import { ExampleStubAppDef } from '../../testing/ui-app-fixture';
+import {
+  ExampleMenuStubAppDef,
+  ExampleMenuTrimmedStubAppDef,
+  ExampleStubAppDef,
+} from '../../testing/ui-app-fixture';
 import { ArchReport, UiScene } from '../../testing/ui-arch';
 import { type AnyScreenDef, ScreenDef } from '../manifest/screen-def';
+import { StoryTree } from '../manifest/story-tree';
+import type { StoryBranch } from '../manifest/story-tree.types';
 import { UiModuleDef } from '../manifest/ui-module-def';
 import { UiSetDef } from '../manifest/ui-set-def';
 import { UiGraphProvider } from './ui-graph-provider';
@@ -285,6 +291,11 @@ describe('UiGraphProvider: свойства узлов', () => {
     expect(props('exampleStub')).toEqual({
       set: 'exampleUi',
       channel: 'dmg-ui-stub',
+      roots: [
+        'exampleUi/todo/planTasks',
+        'exampleUi/todo/finishTasks',
+        'exampleUi/todo/followAssigned',
+      ],
       entries: [
         {
           name: 'start',
@@ -822,5 +833,155 @@ describe('UiGraphProvider: связи, доступ и правила стори
     });
 
     expect(graphOf(scene).outgoing('miniConsole', 'omits')).toEqual([]);
+  });
+});
+
+describe('UiGraphProvider: дерево приложения — roots и согласие с рёбрами', () => {
+  const START_WORK = 'exampleUi/todo/startWork';
+  const menuGraph = new AppGraph({
+    def: ExampleAppDef,
+    providers: [
+      new UiGraphProvider({
+        set: ExampleUiSetDef,
+        apps: [ExampleMenuStubAppDef, ExampleMenuTrimmedStubAppDef],
+      }),
+    ],
+  }).build();
+  const apps = [
+    ['exampleMenuStub', ExampleMenuStubAppDef],
+    ['exampleMenuTrimmedStub', ExampleMenuTrimmedStubAppDef],
+  ] as const;
+  const leadsOf = (g: typeof menuGraph) =>
+    new Set(
+      g
+        .edges()
+        .filter((e) => e.kind === 'leads')
+        .map((e) => `${e.from} -> ${e.to}`),
+    );
+  const pairsOf = (branches: readonly StoryBranch[]): string[] =>
+    branches.flatMap((b) => [
+      ...b.children.map((c) => `${b.id} -> ${c.id}`),
+      ...pairsOf(b.children),
+    ]);
+
+  test('props.roots приложения с меню — корень startWork', () => {
+    expect(menuGraph.node('exampleMenuStub')?.props).toMatchObject({
+      roots: [START_WORK],
+    });
+  });
+
+  test('props.roots урезанного приложения с меню — тоже startWork', () => {
+    expect(menuGraph.node('exampleMenuTrimmedStub')?.props).toMatchObject({
+      roots: [START_WORK],
+    });
+  });
+
+  test('props.roots приложения без меню — все три сторис задач в порядке приложения', () => {
+    expect(props('exampleStub')).toMatchObject({
+      roots: [
+        'exampleUi/todo/planTasks',
+        'exampleUi/todo/finishTasks',
+        'exampleUi/todo/followAssigned',
+      ],
+    });
+  });
+
+  test('приложение без сторис: roots — пустой массив, ключ есть', () => {
+    const scene = new UiScene({ screens: [UiScene.screen('a')] });
+    const built = new AppGraph(scene.arch()).build();
+
+    expect(built.node('miniConsole')?.props).toHaveProperty('roots', []);
+  });
+
+  for (const [id, app] of apps) {
+    test(`${id}: roots равны корням дерева`, () => {
+      expect(menuGraph.node(id)?.props).toMatchObject({
+        roots: StoryTree.of(app)
+          .roots()
+          .map((b) => b.id),
+      });
+    });
+
+    test(`${id}: каждая пара «родитель → ребёнок» дерева — ребро leads`, () => {
+      const edges = leadsOf(menuGraph);
+      const pairs = pairsOf(StoryTree.of(app).roots());
+
+      expect(pairs).not.toEqual([]);
+      for (const pair of pairs) expect(edges.has(pair)).toBe(true);
+    });
+
+    test(`${id}: каждый omitted дерева — ребро omits от приложения`, () => {
+      const omits = menuGraph.outgoing(id, 'omits').map((e) => e.to);
+
+      expect(
+        StoryTree.of(app)
+          .omitted()
+          .map((o) => o.id)
+          .toSorted(),
+      ).toEqual(omits.toSorted());
+    });
+  }
+
+  test('урезанный состав: omits — viewUser, полный состав — без omits', () => {
+    expect(menuGraph.outgoing('exampleMenuStub', 'omits')).toEqual([]);
+    expect(
+      menuGraph.outgoing('exampleMenuTrimmedStub', 'omits').map((e) => e.to),
+    ).toEqual(['exampleUi/users/viewUser']);
+  });
+
+  test('сцена с циклом: roots графа равны корням дерева', () => {
+    const a = UiScene.screen('aScreen');
+    const b = UiScene.screen('bScreen');
+    const storyB: ReturnType<typeof UiScene.story> = UiScene.story('b', [b], {
+      leads: () => [storyA],
+    });
+    const storyA: ReturnType<typeof UiScene.story> = UiScene.story('a', [a], {
+      leads: () => [storyB],
+    });
+    const scene = new UiScene({
+      screens: [a, b],
+      stories: [storyA, storyB],
+      appStories: [storyB, storyA],
+    });
+    const built = new AppGraph(scene.arch()).build();
+
+    expect(built.node('miniConsole')?.props).toMatchObject({
+      roots: ['miniUi/todo/b'],
+    });
+  });
+});
+
+describe('UiGraphProvider: вид поля читается из JSON Schema', () => {
+  const props0 = (g: typeof graph, id: string) => {
+    const found = g.node(id);
+    if (!found) throw new Error(`нет узла ${id}`);
+    return found.props;
+  };
+  test('число, булево, дата и выбор — type, format и enum схемы входа', () => {
+    const input = v.object({
+      count: v.pipe(v.number(), v.description('Число')),
+      done: v.pipe(v.boolean(), v.description('Признак')),
+      day: v.pipe(v.string(), v.isoDate(), v.description('Дата')),
+      level: v.pipe(v.picklist(['low', 'high']), v.description('Уровень')),
+    });
+    const screen = UiScene.screen('a', {
+      actions: {
+        go: { label: 'Идти', description: 'Ввод.', input },
+      },
+    });
+    const built = new AppGraph(
+      new UiScene({ screens: [screen] }).arch(),
+    ).build();
+
+    const properties = (
+      props0(built, 'miniUi/todo/a/go') as unknown as {
+        input: { properties: Record<string, Record<string, unknown>> };
+      }
+    ).input.properties;
+
+    expect(properties.count).toMatchObject({ type: 'number' });
+    expect(properties.done).toMatchObject({ type: 'boolean' });
+    expect(properties.day).toMatchObject({ type: 'string', format: 'date' });
+    expect(properties.level).toMatchObject({ enum: ['low', 'high'] });
   });
 });

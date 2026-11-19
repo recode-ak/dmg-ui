@@ -10,6 +10,7 @@ import type { AnyScreenDef } from '../manifest/screen-def.types';
 import type { ScreenExit } from '../manifest/screen-exit';
 import type { ScreenLocal } from '../manifest/screen-local';
 import type { AnyStoryDef, OutcomeSpec } from '../manifest/story-def.types';
+import { StoryTree } from '../manifest/story-tree';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiModuleDef } from '../manifest/ui-module-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
@@ -172,6 +173,9 @@ export class UiNodes {
     const props: UiAppProps = {
       set: this.ids.set(),
       channel: app.channel,
+      roots: StoryTree.of(app)
+        .roots()
+        .map((branch) => branch.id),
       entries: Object.entries(app.entries).map(([name, entry]) => ({
         name,
         label: entry.label,

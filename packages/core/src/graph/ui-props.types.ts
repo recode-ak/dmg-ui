@@ -103,6 +103,8 @@ export type UiAppProps = {
   /** `id` набора UI. */
   readonly set: string;
   readonly channel: string;
+  /** `id` корневых сторис дерева приложения (`StoryTree`); без сторис — пусто. */
+  readonly roots: readonly string[];
   readonly entries: readonly UiEntryProps[];
 };
 

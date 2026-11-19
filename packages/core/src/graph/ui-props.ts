@@ -84,6 +84,7 @@ export const UI_PROPS = {
   uiApp: v.strictObject({
     set: v.string(),
     channel: v.string(),
+    roots: v.array(v.string()),
     entries: v.array(entry),
   }),
   refreshedBy: v.strictObject({

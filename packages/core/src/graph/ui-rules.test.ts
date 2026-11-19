@@ -5,9 +5,9 @@ import { UiRules } from './ui-rules';
 // Граф учебного примера без нарушений — `testing/example/example-graph.test.ts`.
 
 describe('UiRules', () => {
-  test('правила идут в порядке ID: UI-01…UI-25', () => {
+  test('правила идут в порядке ID: UI-01…UI-27', () => {
     const expected = Array.from(
-      { length: 25 },
+      { length: 27 },
       (_, i) => `UI-${String(i + 1).padStart(2, '0')}`,
     );
 

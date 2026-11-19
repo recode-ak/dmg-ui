@@ -97,6 +97,7 @@ describe('PackageManifest', () => {
         'ScreenPreview',
         'ScreenRuntime',
         'StoryDef',
+        'StoryTree',
         'UiAppDef',
         'UiIds',
         'UiModuleDef',

@@ -63,6 +63,11 @@ export {
   type StorySpec,
 } from './manifest/story-def';
 export {
+  type OmittedStory,
+  type StoryBranch,
+  StoryTree,
+} from './manifest/story-tree';
+export {
   type AnyUiAppDef,
   type EntrySpec,
   type NormalizedEntry,

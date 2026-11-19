@@ -17,6 +17,7 @@ import { SchemaFieldTextsRule } from './rules/schema-field-texts.rule';
 import { ScreenUsesHiddenRule } from './rules/screen-uses-hidden.rule';
 import { ScreenWithoutPresentationRule } from './rules/screen-without-presentation.rule';
 import { ScreenWithoutStoryRule } from './rules/screen-without-story.rule';
+import { SensitiveExamplesRule } from './rules/sensitive-examples.rule';
 import { StoryCallersRule } from './rules/story-callers.rule';
 import { StoryFormRule } from './rules/story-form.rule';
 import { StoryLeadsRule } from './rules/story-leads.rule';
@@ -24,6 +25,7 @@ import { StrictParamsRule } from './rules/strict-params.rule';
 import { TransitionOutsideAppRule } from './rules/transition-outside-app.rule';
 import { TransitionOutsideStoryRule } from './rules/transition-outside-story.rule';
 import { UnreachableScreenRule } from './rules/unreachable-screen.rule';
+import { UnsupportedFieldKindRule } from './rules/unsupported-field-kind.rule';
 import { VisibleWithoutScreenRule } from './rules/visible-without-screen.rule';
 
 /** Правила графа ядра UI. */
@@ -31,7 +33,7 @@ export class UiRules {
   private constructor(private readonly set: AnyUiSetDef) {}
 
   /**
-   * Правила по порядку ID: UI-01…UI-25. Набор нужен только UI-20 (примеры
+   * Правила по порядку ID: UI-01…UI-27. Набор нужен только UI-20 (примеры
    * проверяются схемами valibot); `UiIds` здесь не строится и не бросает.
    */
   static of(set: AnyUiSetDef): readonly GraphRule[] {
@@ -65,6 +67,8 @@ export class UiRules {
       new StoryFormRule(),
       new StoryLeadsRule(),
       new ExitTargetsRule(),
+      new SensitiveExamplesRule(),
+      new UnsupportedFieldKindRule(),
     ];
   }
 }

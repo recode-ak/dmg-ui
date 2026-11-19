@@ -1,3 +1,5 @@
+import type { UnsupportedField } from './json-schema-view.types';
+
 /**
  * Чтение JSON Schema, пришедшей в `props` узла графа: тип, строгость и поля
  * без `description`. Схема — произвольный объект, поэтому каждый шаг сужается
@@ -37,6 +39,49 @@ export class JsonSchemaView {
     const items = this.schema.items;
     if (JsonSchemaView.isRecord(items)) {
       found.push(...new JsonSchemaView(items).undescribed(`${prefix}[]`));
+    }
+    return found;
+  }
+
+  /**
+   * Пути чувствительных полей (`sensitive: true`), у которых есть `examples`:
+   * обход `properties` и `items` рекурсивно, путь — как у `undescribed`.
+   * Обёртки `anyOf` / `oneOf` не разбираются.
+   */
+  sensitiveWithExamples(prefix = ''): string[] {
+    const found: string[] = [];
+    const properties = JsonSchemaView.record(this.schema.properties);
+    for (const [name, child] of Object.entries(properties)) {
+      if (!JsonSchemaView.isRecord(child)) continue;
+      const path = prefix === '' ? name : `${prefix}.${name}`;
+      if (child.sensitive === true && child.examples !== undefined) {
+        found.push(path);
+      }
+      found.push(...new JsonSchemaView(child).sensitiveWithExamples(path));
+    }
+    const items = this.schema.items;
+    if (JsonSchemaView.isRecord(items)) {
+      const path = `${prefix}[]`;
+      if (items.sensitive === true && items.examples !== undefined) {
+        found.push(path);
+      }
+      found.push(...new JsonSchemaView(items).sensitiveWithExamples(path));
+    }
+    return found;
+  }
+
+  /**
+   * Поля первого уровня вида `array` или `object`: ввода человека для них
+   * нет. `anyOf` / `oneOf` / `$ref` не разбираются.
+   */
+  unsupportedFields(): UnsupportedField[] {
+    const found: UnsupportedField[] = [];
+    const properties = JsonSchemaView.record(this.schema.properties);
+    for (const [name, child] of Object.entries(properties)) {
+      if (!JsonSchemaView.isRecord(child)) continue;
+      if (child.type === 'array' || child.type === 'object') {
+        found.push({ name, kind: child.type });
+      }
     }
     return found;
   }
