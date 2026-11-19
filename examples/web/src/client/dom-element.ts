@@ -18,7 +18,15 @@ export const h = <K extends ElementTag>(
   const element = document.createElement(tag);
   if (props.class !== undefined) element.className = props.class;
   if (props.type !== undefined) element.setAttribute('type', props.type);
+  if (props.id !== undefined) element.setAttribute('id', props.id);
   if (props.name !== undefined) element.setAttribute('name', props.name);
+  if (props.title !== undefined) element.setAttribute('title', props.title);
+  if (props.min !== undefined) element.setAttribute('min', String(props.min));
+  if (props.max !== undefined) element.setAttribute('max', String(props.max));
+  if (props.step !== undefined) {
+    element.setAttribute('step', String(props.step));
+  }
+  if (props.novalidate === true) element.setAttribute('novalidate', '');
   if (props.disabled === true) element.setAttribute('disabled', '');
   if (props.draggable !== undefined) {
     element.setAttribute('draggable', String(props.draggable));

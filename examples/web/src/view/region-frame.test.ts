@@ -5,6 +5,7 @@ import type { PageViewState } from 'dmg-ui/web-ui';
 import {
   exampleWorld,
   openTab,
+  personOf,
   settle,
   TOKEN_ANNA,
   TOKEN_BORIS,
@@ -44,7 +45,10 @@ const controls = (model: RegionModel): boolean[] => {
         ...body.forms.map((form) => form.enabled),
       ];
     case 'assigned':
-      return body.rows.flatMap((row) => [row.openable, row.selectable]);
+      return [
+        ...body.rows.flatMap((row) => [row.openable, row.selectable]),
+        ...body.actions.map((action) => action.enabled),
+      ];
     case 'user':
     case 'menu':
       return [];
@@ -376,5 +380,137 @@ describe('RegionFrame — что переносится из состояния'
     });
 
     expect(model.issues).toEqual(['Что-то не так']);
+  });
+});
+
+/** Анна с открытой «Хлеб», назначенной себе; «Назначенные мне» в окне, строка отмечена — действие доступно. */
+const assignedWorld = async () => {
+  const { w, a, frame } = await world(['Хлеб']);
+  await a.client.submit('side', 'assign', {
+    assigneeId: personOf('anna').uuid,
+  });
+  await settle(w, a);
+  await a.client.openLink({ screen: ASSIGNED_ID, params: {} });
+  await a.client.local('modal', 'toggle', { taskId: 'Хлеб' });
+  await settle(w, a);
+  return { w, a, frame };
+};
+
+describe('RegionFrame — «Назначенные мне»: действия под приглушением', () => {
+  /** Действие `completeSelected` тела «Назначенные мне»; нет — бросок. */
+  const completeSelected = (model: RegionModel) => {
+    if (model.body?.kind !== 'assigned') throw new Error('нужно тело assigned');
+    const found = model.body.actions.find((x) => x.name === 'completeSelected');
+    if (found === undefined) throw new Error('нет completeSelected');
+    return found;
+  };
+
+  const states = [
+    ['нет связи', { stale: 'offline' }],
+    ['ожидаемый итог', { expected: true }],
+  ] as const;
+
+  test('в готовом виде действие выбранного доступно: управление не пустое', async () => {
+    const { a, frame } = await assignedWorld();
+
+    const model = frame.next(a.client.region('modal'));
+
+    expect(model.body?.kind).toBe('assigned');
+    expect(completeSelected(model).enabled).toBe(true);
+  });
+
+  for (const [name, mark] of states) {
+    test(`${name}: строки и все действия «Назначенные мне» выключены, включая «Выполнить выбранные»`, async () => {
+      const { a, frame } = await assignedWorld();
+
+      const model = frame.next({ ...a.client.region('modal'), ...mark });
+
+      expect(model.busy).toBe(true);
+      expect(completeSelected(model).enabled).toBe(false);
+      expect(controls(model).every((enabled) => !enabled)).toBe(true);
+    });
+  }
+
+  test('загрузка другого экрана: прежние «Назначенные мне» без управления, действия тоже', async () => {
+    const { a, frame } = await assignedWorld();
+    frame.next(a.client.region('modal'));
+
+    const model = frame.next({
+      status: 'loading',
+      address: { screen: CARD_ID, params: { taskId: testUuid(5) } },
+      refreshing: false,
+      issues: [],
+    });
+
+    expect(model.body?.kind).toBe('assigned');
+    expect(completeSelected(model).enabled).toBe(false);
+    expect(controls(model).every((enabled) => !enabled)).toBe(true);
+  });
+});
+
+describe('RegionFrame — приглушённая область хранит причины вида', () => {
+  const listBody = (model: RegionModel) => {
+    if (model.body?.kind !== 'list') throw new Error('ожидалось тело list');
+    return model.body;
+  };
+
+  test('нет связи: серые «Дальше» и «Назад» сохраняют reason, «Закрыть» причины не получает', async () => {
+    const { a, frame } = await world(['Хлеб', 'Молоко']);
+
+    const model = frame.next({ ...a.client.region('main'), stale: 'offline' });
+    const { actions } = listBody(model);
+    const named = (name: string) => actions.find((x) => x.name === name);
+
+    expect(named('next')).toMatchObject({
+      enabled: false,
+      reason: 'Дальше задач нет',
+    });
+    expect(named('prev')).toMatchObject({
+      enabled: false,
+      reason: 'Это первая страница',
+    });
+    expect(named('close')?.enabled).toBe(false);
+    expect(named('close')).not.toHaveProperty('reason');
+  });
+
+  test('ожидаемый итог: форма, отключённая видом, сохраняет reason', async () => {
+    const { a, frame } = await world();
+    const state = a.client.region('main');
+
+    const model = frame.next({ ...state, expected: true });
+    const create = listBody(model).forms.find((x) => x.name === 'create');
+
+    expect(create).toMatchObject({
+      enabled: false,
+      reason: 'Слишком много открытых задач',
+    });
+  });
+
+  test('загрузка: прежнее тело держит reason отключённых', async () => {
+    const { a, frame } = await world();
+    frame.next(a.client.region('main'));
+
+    const model = frame.next({
+      status: 'loading',
+      address: { screen: CARD_ID, params: { taskId: testUuid(5) } },
+      refreshing: false,
+      issues: [],
+    });
+    const create = listBody(model).forms.find((x) => x.name === 'create');
+
+    expect(create).toMatchObject({
+      enabled: false,
+      reason: 'Слишком много открытых задач',
+    });
+  });
+
+  test('приглушённое доступное — enabled false, причины нет', async () => {
+    const { a, frame } = await world(['Хлеб', 'Молоко']);
+
+    const model = frame.next({ ...a.client.region('main'), stale: 'offline' });
+    const create = listBody(model).forms.find((x) => x.name === 'create');
+
+    expect(create?.enabled).toBe(false);
+    expect(create).not.toHaveProperty('reason');
   });
 });

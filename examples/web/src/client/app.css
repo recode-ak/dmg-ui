@@ -226,12 +226,41 @@ body {
   gap: 4px;
 }
 
+.field label {
+  display: grid;
+  gap: 4px;
+}
+
+/* Чекбокс с подписью — в строку. */
+.field label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .field .label {
   font-size: 0.9rem;
   color: var(--muted);
 }
 
+.help,
+.reason {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+/* Отключённое с причиной: кнопка остаётся на клавиатуре, причина — под ней. */
+.action {
+  display: grid;
+  gap: 2px;
+  max-width: 100%;
+}
+
 input[type="text"],
+input[type="number"],
+input[type="date"],
 select {
   font: inherit;
   padding: 6px 8px;
@@ -259,9 +288,14 @@ button.primary {
 }
 
 button:disabled,
+button[aria-disabled="true"],
 input:disabled,
 select:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button[aria-disabled="true"] {
   cursor: not-allowed;
 }
 

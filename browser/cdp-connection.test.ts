@@ -41,6 +41,8 @@ const startServer = () => {
           );
         } else if (request.method === 'hang') {
           // Ответа нет: запрос остаётся ожидающим.
+        } else if (request.method === 'garbage') {
+          ws.send('{"id":1,"result":{"перемешано');
         } else if (request.method === 'drop') {
           ws.close();
         } else if (request.method === 'emit') {
@@ -104,6 +106,24 @@ describe('CdpConnection', () => {
       'rejected',
       'rejected',
     ]);
+  });
+
+  test('испорченное сообщение: ожидающие получают понятный отказ, дальше соединение закрыто', async () => {
+    const connection = await CdpConnection.open(startServer());
+    stops.push(() => connection.close());
+
+    const outcomes = await Promise.allSettled([
+      connection.send('hang'),
+      connection.send('garbage'),
+    ]);
+
+    for (const outcome of outcomes) {
+      expect(outcome.status).toBe('rejected');
+      expect(String((outcome as PromiseRejectedResult).reason)).toContain(
+        'DevTools: испорченное сообщение «{"id":1,"result":{"перемешано»',
+      );
+    }
+    await expect(connection.send('echo')).rejects.toThrow('закрыто');
   });
 
   test('once ловит событие своей сессии, чужие пропускает', async () => {

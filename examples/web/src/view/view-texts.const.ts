@@ -29,3 +29,9 @@ export const PERSON_FIELD = 'assigneeId';
 
 /** Действия, которые пример выполняет жестом строки, а не кнопкой или формой. */
 export const GESTURE_ACTIONS: readonly string[] = ['open'];
+
+/** Подписи строки подсказки поля. */
+export const FIELD_TEXTS = {
+  example: 'Пример',
+  limits: 'Пределы',
+} as const;

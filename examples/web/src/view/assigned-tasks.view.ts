@@ -2,11 +2,15 @@ import { AssignedTasksScreenDef } from 'dmg-ui/testing';
 import { ExampleScreenView } from './example-screen-view';
 import { EMPTY_TEXTS } from './view-texts.const';
 
-const ASSIGNED_ACTIONS: readonly string[] = ['openAssignee', 'close'];
+const ASSIGNED_ACTIONS: readonly string[] = [
+  'openAssignee',
+  'close',
+  'completeSelected',
+];
 
 /**
- * «Назначенные мне»: поручения со статусом; кнопки — только «Карточка
- * исполнителя» и «Закрыть». Выполнение и выбор строк — за показом списка.
+ * «Назначенные мне»: поручения со статусом; у открытых — галочка;
+ * кнопки — «Карточка исполнителя», «Закрыть» и «Выполнить выбранные».
  */
 export const AssignedTasksView = ExampleScreenView.for(
   AssignedTasksScreenDef,
@@ -18,8 +22,8 @@ export const AssignedTasksView = ExampleScreenView.for(
         uuid: task.uuid,
         title: task.title,
         done: task.status === 'done',
-        selected: false,
-        selectable: false,
+        selected: view.state?.selected?.includes(task.uuid) ?? false,
+        selectable: task.status === 'open',
         openable: false,
       })),
       ...(tasks.length === 0 ? { empty: EMPTY_TEXTS.assigned } : {}),

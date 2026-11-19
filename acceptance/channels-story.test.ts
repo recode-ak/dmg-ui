@@ -621,8 +621,8 @@ describe('сценарий 5 — поле входа: подпись, подск
   ].join('\n');
   const THREE = ['Хлеб', 'Молоко', 'Сыр'];
 
-  /** Узел графа: свойства схемы входа действия `action` списка. */
-  const graphInput = (action: string) => {
+  /** Узел графа: свойства схемы входа действия `action` экрана `screen` (по умолчанию списка). */
+  const graphInput = (action: string, screen = 'taskList') => {
     const graph = new AppGraph({
       def: ExampleAppDef,
       providers: [
@@ -632,7 +632,7 @@ describe('сценарий 5 — поле входа: подпись, подск
         }),
       ],
     }).build();
-    const props = graph.node(`exampleUi/todo/taskList/${action}`)?.props;
+    const props = graph.node(`exampleUi/todo/${screen}/${action}`)?.props;
     return v.parse(
       v.object({
         input: v.object({
@@ -773,6 +773,163 @@ describe('сценарий 5 — поле входа: подпись, подск
     });
     const asked = v.parse(Draft, await w.store.load('peer-a')).draft.fields;
     expect(asked[0]).toEqual(onPage);
+  });
+
+  describe('действие remind карточки: булево и дата', () => {
+    // Поля `urgent` (булево) и `remindOn` (дата) — действие без UC; каналы
+    // узнают о них только из вида: подсказка, пример и «Да»/«Нет» одни и те же.
+    const URGENT_QUESTION =
+      'Выберите: Срочно\nСрочное напоминание придёт сразу';
+    const DATE_QUESTION = [
+      'Введите: Когда',
+      'День напоминания',
+      'Пример: 2026-12-31',
+    ].join('\n');
+    const DATE_ISSUE = 'Дата в виде ГГГГ-ММ-ДД';
+    const MUTATING = [
+      'createTask',
+      'completeTask',
+      'completeTasks',
+      'assignTask',
+    ];
+
+    /** Беседа A на карточке «Хлеб». */
+    const dialogCard = async (name: string) => {
+      const w = worldOf(name);
+      await w.ownTask(TITLE);
+      const a = w.person(A);
+      await a.enter('start');
+      await a.press('Открыть задачу');
+      await a.press(TITLE);
+      return { w, a };
+    };
+
+    /** Страница A: список в `main`, карточка «Хлеб» в `side`. */
+    const pageCard = async (name: string) => {
+      const w = worldOf(name);
+      const tab = await w.tab(A);
+      await w.ownTask(TITLE);
+      await tab.client.route('/');
+      await tab.client.submit('main', 'open', { taskId: TITLE });
+      await tab.wire.settled();
+      return { w, tab };
+    };
+
+    /** Поля действия `remind` в виде соседней области страницы. */
+    const remindFields = (tab: PageTab) =>
+      tab.client
+        .region('side')
+        .view?.actions.find((action) => action.name === 'remind')?.fields ?? [];
+
+    test('вид полей: в беседе (черновик) и на странице одинаков — подпись, подсказка, пример, kind', async () => {
+      const d = await dialogCard('remind-dialog-view');
+      await d.a.press('Напомнить');
+      const asked = v.parse(Draft, await d.w.store.load('peer-a')).draft.fields;
+      const p = await pageCard('remind-pages-view');
+
+      const onPage = remindFields(p.tab);
+
+      expect(onPage).toMatchObject([
+        {
+          name: 'urgent',
+          label: 'Срочно',
+          kind: 'boolean',
+          optional: false,
+          hint: 'Срочное напоминание придёт сразу',
+        },
+        {
+          name: 'remindOn',
+          label: 'Когда',
+          kind: 'date',
+          optional: false,
+          hint: 'День напоминания',
+          example: '2026-12-31',
+        },
+      ]);
+      expect(onPage[0]).not.toHaveProperty('example');
+      expect(asked).toEqual([...onPage]);
+    });
+
+    test('беседа: «Срочно» — вопрос с подсказкой и кнопками «Да» и «Нет»; «Когда» — подсказка и пример', async () => {
+      const d = await dialogCard('remind-dialog-ask');
+
+      await d.a.press('Напомнить');
+      const urgent = d.a.liveText();
+      const urgentOptions = d.a.labels();
+      await d.a.press('Да');
+      const when = d.a.text();
+
+      expect(urgent).toBe(URGENT_QUESTION);
+      expect(urgentOptions).toEqual(expect.arrayContaining(['Да', 'Нет']));
+      expect(when).toBe(DATE_QUESTION);
+    });
+
+    test('беседа: «завтра» — замечание схемы перед вопросом; «2026-12-31» — карточка, UC не вызван', async () => {
+      const d = await dialogCard('remind-dialog-date');
+      await d.a.press('Напомнить');
+      await d.a.press('Да');
+
+      await d.a.say('завтра');
+      const noted = d.a.text();
+      const before = d.w.calls.length;
+      await d.a.say('2026-12-31');
+      await d.a.settled();
+
+      expect(noted).toBe(`${DATE_ISSUE}\n\n${DATE_QUESTION}`);
+      expect(d.a.labels()).toEqual(
+        expect.arrayContaining(['Напомнить', 'К списку']),
+      );
+      for (const uc of MUTATING)
+        expect(d.w.calls.slice(before)).not.toContain(uc);
+    });
+
+    test('страница: «завтра» — rejected тем же текстом схемы у поля remindOn', async () => {
+      const p = await pageCard('remind-pages-reject');
+
+      const outcome = await p.tab.client.submit('side', 'remind', {
+        urgent: 'Да',
+        remindOn: 'завтра',
+      });
+
+      expect(outcome).toMatchObject({ kind: 'rejected' });
+      expect(p.tab.client.region('side').issues).toEqual([
+        { field: 'remindOn', text: DATE_ISSUE },
+      ]);
+    });
+
+    test('страница: верные значения — остаётся на карточке (stayed), замечаний нет, UC не вызван', async () => {
+      const p = await pageCard('remind-pages-ok');
+      const before = p.w.calls.length;
+
+      const outcome = await p.tab.client.submit('side', 'remind', {
+        urgent: 'Да',
+        remindOn: '2026-12-31',
+      });
+      await p.tab.wire.settled();
+
+      expect(outcome).toMatchObject({ kind: 'stayed' });
+      expect(p.tab.client.region('side').issues).toEqual([]);
+      for (const uc of MUTATING)
+        expect(p.w.calls.slice(before)).not.toContain(uc);
+    });
+
+    test('граф: hint, title и examples полей remind — те же, что в виде полей каналов', async () => {
+      const p = await pageCard('remind-graph');
+      const [urgent, remindOn] = remindFields(p.tab);
+
+      const input = graphInput('remind', 'taskCard');
+
+      expect(input.urgent).toMatchObject({
+        title: urgent?.label,
+        hint: urgent?.hint,
+      });
+      expect(input.urgent).not.toHaveProperty('examples');
+      expect(input.remindOn).toMatchObject({
+        title: remindOn?.label,
+        hint: remindOn?.hint,
+        examples: [remindOn?.example],
+      });
+    });
   });
 
   test('граф: hint, title, пределы и пример полей part и title — те же, что в виде полей каналов', async () => {

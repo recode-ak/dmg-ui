@@ -1,7 +1,20 @@
+import type {
+  AccessibleNode,
+  AxNode,
+  KeyDescription,
+  PageKey,
+} from './browser-page.types';
 import type { CdpConnection } from './cdp-connection';
 
 /** Сколько `waitFor`, `waitUntil` и `back` ждут события страницы, мс. */
 const WAIT_MS = 5_000;
+
+/** Клавиши протокола DevTools: Enter и пробел несут текст, поэтому вызывают `click` кнопки. */
+const KEYS: Readonly<Record<PageKey, KeyDescription>> = {
+  Tab: { key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 },
+  Enter: { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' },
+  Space: { key: ' ', code: 'Space', windowsVirtualKeyCode: 32, text: ' ' },
+};
 
 type EvaluateResult<T> = {
   readonly result: { readonly value?: T };
@@ -13,7 +26,8 @@ type EvaluateResult<T> = {
 
 /**
  * Вкладка Chrome: переход, «Назад», выполнение кода в странице, ожидание
- * элемента или условия, клик по селектору и по тексту кнопки.
+ * элемента или условия, клик по селектору и по тексту кнопки, клавиатура и
+ * дерево доступности.
  */
 export class BrowserPage {
   private constructor(
@@ -210,5 +224,79 @@ export class BrowserPage {
       if (element === null) throw new Error('Нет элемента: ' + ${quoted});
       return element.innerText;
     })()`);
+  }
+
+  /** Нажимает клавишу в странице (`Input.dispatchKeyEvent`): нажатие и отпускание; возвращается, когда обработчики отработали. */
+  async press(key: PageKey): Promise<void> {
+    const { text, ...description } = KEYS[key];
+    const base = { ...description, ...(text === undefined ? {} : { text }) };
+    await this.connection.send(
+      'Input.dispatchKeyEvent',
+      { type: text === undefined ? 'rawKeyDown' : 'keyDown', ...base },
+      this.sessionId,
+    );
+    await this.connection.send(
+      'Input.dispatchKeyEvent',
+      { type: 'keyUp', ...description },
+      this.sessionId,
+    );
+  }
+
+  /**
+   * Нажимает Tab, пока фокус не окажется на элементе по селектору, не более
+   * `max` раз. Фокус уже там — без нажатий. Не дошёл — бросок с селектором и
+   * числом нажатий.
+   */
+  async tabTo(selector: string, max = 40): Promise<void> {
+    const matches = () =>
+      this.evaluate<boolean>(
+        `document.activeElement?.matches(${JSON.stringify(selector)}) === true`,
+      );
+    for (let pressed = 0; pressed < max; pressed += 1) {
+      if (await matches()) return;
+      await this.press('Tab');
+    }
+    if (await matches()) return;
+    throw new Error(`Tab не дошёл до ${selector} за ${max} нажатий`);
+  }
+
+  /**
+   * Узел дерева доступности элемента по селектору: роль, имя, описание,
+   * отключён ли, доступен ли с клавиатуры. Нет элемента — бросок с
+   * селектором. Вызывать последовательно: параллельные запросы ломают
+   * идентификаторы узлов.
+   */
+  async accessibility(selector: string): Promise<AccessibleNode> {
+    const { root } = await this.connection.send<{
+      root: { nodeId: number };
+    }>('DOM.getDocument', { depth: 0 }, this.sessionId);
+    const { nodeId } = await this.connection.send<{ nodeId: number }>(
+      'DOM.querySelector',
+      { nodeId: root.nodeId, selector },
+      this.sessionId,
+    );
+    if (nodeId === 0) throw new Error(`Нет элемента: ${selector}`);
+    const { nodes } = await this.connection.send<{
+      nodes: readonly AxNode[];
+    }>(
+      'Accessibility.getPartialAXTree',
+      { nodeId, fetchRelatives: false },
+      this.sessionId,
+    );
+    const node = nodes[0];
+    if (node === undefined) {
+      throw new Error(`Нет узла доступности: ${selector}`);
+    }
+    const flag = (name: string) =>
+      node.properties?.some(
+        (property) => property.name === name && property.value.value === true,
+      ) ?? false;
+    return {
+      role: node.role?.value ?? '',
+      name: node.name?.value ?? '',
+      description: node.description?.value ?? '',
+      disabled: flag('disabled'),
+      focusable: flag('focusable'),
+    };
   }
 }

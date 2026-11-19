@@ -19,7 +19,7 @@ exports[`ExamplePreview через DialogRenderer — снимки пример�
 "Задача: Молоко
 Статус: выполнена
 
-[К списку] [Назначить] [🚫 Выполнить]"
+[К списку] [Назначить] [🚫 Выполнить] [🚫 Напомнить]"
 `;
 
 exports[`ExamplePreview через DialogRenderer — снимки примеров assignedTasks two 1`] = `

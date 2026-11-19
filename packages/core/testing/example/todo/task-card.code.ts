@@ -23,8 +23,8 @@ type CardData = DataOf<Card>;
 
 /**
  * Код карточки задачи; экран без состояния — `initialState` не нужен.
- * «Выполнить» и «Назначить» решает Policy задачи (`canManage`) над
- * `TaskAr.readonly` из state, «Выполнить» — ещё и статус задачи.
+ * «Выполнить», «Назначить» и «Напомнить» решает Policy задачи (`canManage`) над
+ * `TaskAr.readonly` из state, «Выполнить» и «Напомнить» — ещё и статус задачи; «Напомнить» без UC.
  */
 export class TaskCardScreenCode extends ScreenCode<Card, ExampleUser> {
   override readonly actions: Partial<ActionSteps<Card, ExampleUser>> = {
@@ -40,11 +40,19 @@ export class TaskCardScreenCode extends ScreenCode<Card, ExampleUser> {
       }),
       done: ({ params }) => TaskCardScreenDef.at(params),
     },
+    remind: { done: ({ params }) => TaskCardScreenDef.at(params) },
   };
 
   override readonly availability: Partial<AvailabilityFns<Card, ExampleUser>> =
     {
       complete: ({ data, subject }) => {
+        const task = TaskAr.readonly(data);
+        return Availability.all(
+          Availability.policy(TaskPolicy.rules.canManage, subject, { task }),
+          Availability.when(task.isOpen(), 'Задача уже выполнена'),
+        );
+      },
+      remind: ({ data, subject }) => {
         const task = TaskAr.readonly(data);
         return Availability.all(
           Availability.policy(TaskPolicy.rules.canManage, subject, { task }),

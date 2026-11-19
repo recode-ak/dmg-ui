@@ -44,9 +44,12 @@ export class ExampleGestures {
     );
   }
 
-  /** Отметить или снять отметку со строки списка по `uuid`. */
-  toggleTask(taskId: string): Promise<LocalOutcome | undefined> {
-    return this.run(() => this.client.local('main', 'toggle', { taskId }));
+  /** Отметить или снять отметку со строки по `uuid`; область — `main` или окно `modal`. */
+  toggleTask(
+    taskId: string,
+    region: PageRegionName = 'main',
+  ): Promise<LocalOutcome | undefined> {
+    return this.run(() => this.client.local(region, 'toggle', { taskId }));
   }
 
   /** Форма действия: все поля разом. */

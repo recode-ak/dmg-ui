@@ -158,6 +158,12 @@ exports[`снимки запросов Telegram taskCard done 1`] = `
           "text": "🚫 Выполнить",
         },
       ],
+      [
+        {
+          "callback_data": "4",
+          "text": "🚫 Напомнить",
+        },
+      ],
     ],
   },
   "text": 
@@ -201,6 +207,12 @@ exports[`снимки запросов Telegram taskCard open — с датой 
         {
           "callback_data": "3",
           "text": "Назначить",
+        },
+      ],
+      [
+        {
+          "callback_data": "4",
+          "text": "Напомнить",
         },
       ],
     ],

@@ -1,4 +1,5 @@
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
+import { ControlIds } from '../view/control-ids';
 import type { DraftKey } from '../view/form-drafts.types';
 import type {
   ActionModel,
@@ -11,9 +12,13 @@ import type {
 import type { BodyDomSpec } from './body-dom.types';
 import { CLIENT_TEXTS } from './client-texts.const';
 import { h } from './dom-element';
+import type { ElementProps } from './dom-element.types';
 
 /** Читатель значения поля формы в момент отправки. */
 type FieldReader = { readonly name: string; readonly read: () => string };
+
+/** Общие свойства элемента ввода: имя, отключение, ключ фокуса, связь с подсказкой. */
+type ControlProps = Pick<ElementProps, 'name' | 'disabled' | 'data' | 'aria'>;
 
 /**
  * Построение тела области из модели: строки, карточка, зона «Выполнено»,
@@ -67,19 +72,20 @@ export class BodyDom {
   private rows(
     rows: readonly TaskRowModel[],
     model: RegionModel,
-    interactive: boolean,
+    withOpen: boolean,
   ): HTMLElement {
     return h(
       'ul',
       { class: 'rows' },
-      rows.map((row) => this.row(row, model, interactive)),
+      rows.map((row) => this.row(row, model, withOpen)),
     );
   }
 
+  /** `withOpen` — у строки есть кнопка «Открыть» и перетаскивание; галочка — всегда. */
   private row(
     row: TaskRowModel,
     model: RegionModel,
-    interactive: boolean,
+    withOpen: boolean,
   ): HTMLElement {
     const title = h('span', {
       class: row.done ? 'title done' : 'title',
@@ -88,8 +94,7 @@ export class BodyDom {
     const status = row.done
       ? h('span', { class: 'status', text: CLIENT_TEXTS.done })
       : undefined;
-    if (!interactive) return h('li', { class: 'row' }, [title, status]);
-    const { gestures, drag } = this.spec;
+    const { gestures, drag, name } = this.spec;
     const toggle = h('input', {
       type: 'checkbox',
       checked: row.selected,
@@ -97,8 +102,9 @@ export class BodyDom {
       data: { 'focus-key': `toggle:${row.uuid}` },
     });
     toggle.addEventListener('change', () => {
-      void gestures.toggleTask(row.uuid);
+      void gestures.toggleTask(row.uuid, name);
     });
+    if (!withOpen) return h('li', { class: 'row' }, [toggle, title, status]);
     const revision = model.revision;
     const open = h('button', {
       type: 'button',
@@ -155,16 +161,40 @@ export class BodyDom {
     return h(
       'div',
       { class: 'actions' },
-      actions.map((action) =>
-        h('button', {
-          type: 'button',
-          text: action.label,
-          disabled: !action.enabled || model.revision === undefined,
-          data: { 'focus-key': `action:${action.name}` },
-          click: () => run(action.name),
-        }),
-      ),
+      actions.map((action) => this.action(action, model, run)),
     );
+  }
+
+  /**
+   * Кнопка действия. Отключённое видом (`reason`) — фокусируемая, с видимой
+   * причиной и без `click`; пауза без причины — нативно отключённая.
+   */
+  private action(
+    action: ActionModel,
+    model: RegionModel,
+    run: (name: string) => void,
+  ): HTMLElement {
+    const data = { 'focus-key': `action:${action.name}` };
+    if (action.reason === undefined) {
+      return h('button', {
+        type: 'button',
+        text: action.label,
+        disabled: !action.enabled || model.revision === undefined,
+        data,
+        click: () => run(action.name),
+      });
+    }
+    const id = ControlIds.reason(this.spec.name, action.name);
+    return h('div', { class: 'action' }, [
+      h('button', {
+        type: 'button',
+        text: action.label,
+        title: action.reason,
+        aria: { disabled: 'true', describedby: id },
+        data,
+      }),
+      h('p', { class: 'reason', id, text: action.reason }),
+    ]);
   }
 
   /** Кнопка действия без полей по ревизии показанного вида. */
@@ -191,17 +221,31 @@ export class BodyDom {
       };
       return this.field(form, field, key, readers);
     });
+    const { reason } = form;
+    const id = ControlIds.reason(this.spec.name, form.name);
+    // Одна ветка: с причиной — фокусируемая кнопка и текст, иначе нативный `disabled`.
+    const gate =
+      reason === undefined
+        ? { props: { disabled: !form.enabled }, note: undefined }
+        : {
+            props: {
+              title: reason,
+              aria: { disabled: 'true', describedby: id },
+            },
+            note: h('p', { class: 'reason', id, text: reason }),
+          };
     const submit = h('button', {
       type: 'submit',
       class: form.primary ? 'primary' : '',
       text: form.label,
-      disabled: !form.enabled,
+      ...gate.props,
       data: { 'focus-key': `submit:${form.name}` },
     });
-    const element = h('form', { class: 'form' }, [
+    const element = h('form', { class: 'form', novalidate: true }, [
       ...fields,
       this.issues(form.issues),
       submit,
+      gate.note,
     ]);
     element.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -244,41 +288,70 @@ export class BodyDom {
     key: DraftKey,
     readers: FieldReader[],
   ): HTMLElement {
-    const { drafts } = this.spec;
+    const { drafts, name } = this.spec;
     const value = drafts.value(key, field.value);
-    const data = { 'focus-key': `field:${form.name}:${field.name}` };
-    let control: HTMLInputElement | HTMLSelectElement;
-    if (field.widget === 'text') {
-      control = h('input', {
-        type: 'text',
-        name: field.name,
-        value,
-        disabled: !form.enabled,
-        data,
-      });
-      control.addEventListener('input', () => drafts.track(key, control.value));
-    } else {
-      control = h(
-        'select',
-        { name: field.name, value, disabled: !form.enabled, data },
-        this.options(field),
-      );
-      control.addEventListener('change', () =>
-        drafts.track(key, control.value),
-      );
-    }
-    const input = control;
-    readers.push({ name: field.name, read: () => input.value });
-    return h('label', { class: 'field' }, [
-      h('span', {
-        class: 'label',
-        text: field.optional
-          ? `${field.label}${CLIENT_TEXTS.optional}`
-          : field.label,
-      }),
-      control,
+    const helpId = ControlIds.help(name, form.name, field.name);
+    const common = {
+      name: field.name,
+      disabled: !form.enabled,
+      data: { 'focus-key': `field:${form.name}:${field.name}` },
+      ...(field.help === undefined ? {} : { aria: { describedby: helpId } }),
+    };
+    const input = this.control(field, common, value, key);
+    readers.push({ name: field.name, read: input.read });
+    return h('div', { class: 'field' }, [
+      h('label', {}, [
+        h('span', {
+          class: 'label',
+          text: field.optional
+            ? `${field.label}${CLIENT_TEXTS.optional}`
+            : field.label,
+        }),
+        input.element,
+      ]),
+      field.help === undefined
+        ? undefined
+        : h('p', { class: 'help', id: helpId, text: field.help }),
       this.issues(field.issues),
     ]);
+  }
+
+  /** Элемент ввода по виджету модели и читатель его значения. */
+  private control(
+    field: FieldModel,
+    common: ControlProps,
+    value: string,
+    key: DraftKey,
+  ): { element: HTMLElement; read: () => string } {
+    const { drafts } = this.spec;
+    if (field.widget === 'checkbox') {
+      if (field.checkbox === undefined) {
+        throw new Error(`Поле ${field.name}: чекбокс без модели checkbox`);
+      }
+      const { on, off } = field.checkbox;
+      const box = h('input', {
+        ...common,
+        type: 'checkbox',
+        checked: value === on,
+      });
+      box.addEventListener('change', () =>
+        drafts.track(key, box.checked ? on : off),
+      );
+      return { element: box, read: () => (box.checked ? on : off) };
+    }
+    if (field.widget === 'choice' || field.widget === 'person') {
+      const select = h('select', { ...common, value }, this.options(field));
+      select.addEventListener('change', () => drafts.track(key, select.value));
+      return { element: select, read: () => select.value };
+    }
+    const input = h('input', {
+      ...common,
+      type: field.widget === 'text' ? 'text' : field.widget,
+      value,
+      ...(field.bounds ?? {}),
+    });
+    input.addEventListener('input', () => drafts.track(key, input.value));
+    return { element: input, read: () => input.value };
   }
 
   /** Варианты выбора: подписи (`choice`) или люди примера по `uuid` (`person`). */

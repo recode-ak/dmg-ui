@@ -58,7 +58,7 @@ const edgeProps = (kind: string, from: string, to: string) =>
     ?.props;
 
 describe('UiGraphProvider: узлы', () => {
-  test('33 узла набора и приложения UI в каноническом порядке', () => {
+  test('34 узла набора и приложения UI в каноническом порядке', () => {
     expect(own.map((node) => node.id)).toEqual([
       'exampleStub',
       'exampleUi',
@@ -80,6 +80,7 @@ describe('UiGraphProvider: узлы', () => {
       `${CARD}/assign`,
       `${CARD}/back`,
       `${CARD}/complete`,
+      `${CARD}/remind`,
       COMPLETED,
       SCREEN,
       `${SCREEN}/close`,
@@ -107,7 +108,7 @@ describe('UiGraphProvider: узлы', () => {
         ]),
       ),
     ).toEqual({ uiSet: 1, uiModule: 2, screen: 5, story: 5, notification: 2 });
-    expect(count('action')).toBe(17);
+    expect(count('action')).toBe(18);
     expect(count('uiApp')).toBe(1);
   });
 
@@ -642,7 +643,7 @@ describe('UiGraphProvider: действия в графе', () => {
     const json = appGraph().document(UI_VERSION).toJSON();
     const create = json.nodes.find((n) => n.id === `${SCREEN}/create`);
 
-    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(17);
+    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(18);
     expect(create).toMatchObject({
       kind: 'action',
       label: 'Создать задачу',

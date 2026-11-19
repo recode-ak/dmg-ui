@@ -4,6 +4,9 @@ import type {
   CdpPending,
 } from './cdp-connection.types';
 
+/** Сколько знаков испорченного сообщения попадает в текст ошибки. */
+const MESSAGE_PREVIEW = 80;
+
 /** Соединение с браузером по протоколу DevTools: запросы с номерами и события по сессиям. */
 export class CdpConnection {
   private nextId = 1;
@@ -18,7 +21,10 @@ export class CdpConnection {
 
   /** Открывает соединение; пока сокет не открылся, ждёт, при ошибке — бросок. */
   static async open(url: string): Promise<CdpConnection> {
-    const socket = new WebSocket(url);
+    // Сжатие `permessage-deflate` клиента Bun 1.4.4 портит кадры: два сообщения
+    // DevTools перемешиваются, разбор падает. Выключено; вернуть, когда Bun
+    // починит (проверка — 30 прогонов `bun run browser`).
+    const socket = new WebSocket(url, { perMessageDeflate: false });
     await new Promise<void>((resolve, reject) => {
       socket.addEventListener('open', () => resolve(), { once: true });
       socket.addEventListener(
@@ -88,7 +94,20 @@ export class CdpConnection {
   }
 
   private receive(data: unknown): void {
-    const message = JSON.parse(String(data)) as CdpMessage;
+    const text = String(data);
+    let message: CdpMessage;
+    try {
+      message = JSON.parse(text) as CdpMessage;
+    } catch {
+      // Молчаливый бросок в обработчике сокета оставил бы лишь «закрыто».
+      this.fail(
+        new Error(
+          `DevTools: испорченное сообщение «${text.slice(0, MESSAGE_PREVIEW)}»`,
+        ),
+      );
+      this.socket.close();
+      return;
+    }
     if (message.id !== undefined) {
       this.answer(message.id, message);
       return;
@@ -117,10 +136,9 @@ export class CdpConnection {
     }
   }
 
-  /** Сокет закрыт: все ожидающие запросы и события получают отказ. */
-  private fail(): void {
+  /** Соединение закрыто (или испорчено): все ожидающие запросы и события получают отказ. */
+  private fail(error = new Error('Соединение DevTools закрыто')): void {
     this.closed = true;
-    const error = new Error('Соединение DevTools закрыто');
     for (const waiting of this.pending.values()) waiting.reject(error);
     this.pending.clear();
     for (const listener of this.listeners) listener.reject(error);

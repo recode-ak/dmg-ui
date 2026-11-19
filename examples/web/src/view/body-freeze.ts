@@ -25,7 +25,11 @@ export class BodyFreeze {
           forms: this.forms(body.forms),
         };
       case 'assigned':
-        return { ...body, rows: this.rows(body.rows) };
+        return {
+          ...body,
+          rows: this.rows(body.rows),
+          actions: this.actions(body.actions),
+        };
       case 'user':
       case 'menu':
         return body;

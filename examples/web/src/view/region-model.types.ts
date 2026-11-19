@@ -8,11 +8,28 @@ export type ActionModel = {
   readonly name: string;
   readonly label: string;
   readonly enabled: boolean;
+  /** Причина отключения из вида; ключа нет у доступного и у приглушённого без причины. */
+  readonly reason?: string;
+};
+
+/** Границы числового поля: `step` — 1 у целого, иначе `'any'`. */
+export type FieldBounds = {
+  readonly min?: number;
+  readonly max?: number;
+  readonly step: number | 'any';
+};
+
+/** Чекбокс булева поля: что отправлять при отметке и без неё. */
+export type CheckboxModel = {
+  readonly on: string;
+  readonly off: string;
+  readonly checked: boolean;
 };
 
 /**
  * Поле формы. `choice` — выбор по подписям (значение формы — подпись),
- * `person` — выбор из людей примера (значение — `uuid`), `text` — строка.
+ * `person` — выбор из людей примера (значение — `uuid`), `text` — строка,
+ * `number` и `date` — числовой и календарный ввод, `checkbox` — булево.
  */
 export type FieldModel = {
   readonly name: string;
@@ -20,7 +37,17 @@ export type FieldModel = {
   readonly value: string;
   readonly optional: boolean;
   readonly choices?: readonly string[];
-  readonly widget: 'text' | 'choice' | 'person';
+  readonly widget:
+    | 'text'
+    | 'choice'
+    | 'person'
+    | 'number'
+    | 'date'
+    | 'checkbox';
+  /** Подсказка, пример и пределы одной строкой. */
+  readonly help?: string;
+  readonly bounds?: FieldBounds;
+  readonly checkbox?: CheckboxModel;
   readonly issues: readonly string[];
 };
 
@@ -30,6 +57,7 @@ export type FormModel = {
   readonly name: string;
   readonly label: string;
   readonly enabled: boolean;
+  readonly reason?: string;
   readonly primary: boolean;
   readonly fields: readonly FieldModel[];
   readonly issues: readonly string[];
@@ -69,7 +97,7 @@ export type CardBody = ScreenControls & {
   readonly dropEnabled: boolean;
 };
 
-/** Тело «Назначенные мне»: строки без выбора и кнопки перехода и закрытия. */
+/** Тело «Назначенные мне»: строки с галочкой у открытых и действия экрана. */
 export type AssignedBody = {
   readonly kind: 'assigned';
   readonly rows: readonly TaskRowModel[];

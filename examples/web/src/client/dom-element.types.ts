@@ -24,8 +24,18 @@ export type ElementTag =
  */
 export type ElementProps = {
   readonly class?: string;
-  readonly type?: 'button' | 'submit' | 'text' | 'checkbox';
+  readonly type?: 'button' | 'submit' | 'text' | 'checkbox' | 'number' | 'date';
+  /** Идентификатор — из имён Def и области (`ControlIds`), не из текстов людей. */
+  readonly id?: string;
   readonly name?: string;
+  /** Всплывающая подсказка (`title`). */
+  readonly title?: string;
+  /** Границы и шаг числового поля. */
+  readonly min?: number;
+  readonly max?: number;
+  readonly step?: number | 'any';
+  /** Форма без проверки браузера: замечания даёт схема ядра. */
+  readonly novalidate?: boolean;
   readonly value?: string;
   readonly checked?: boolean;
   readonly disabled?: boolean;

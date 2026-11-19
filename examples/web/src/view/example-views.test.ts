@@ -285,6 +285,7 @@ describe('экран «Мои задачи» — модель', () => {
     );
 
     expect(form(forms, 'create').enabled).toBe(false);
+    expect(form(forms, 'create').reason).toBe('Слишком много открытых задач');
     expect(form(forms, 'create').fields).toHaveLength(1);
   });
 
@@ -393,17 +394,59 @@ describe('экран «Задача» — модель', () => {
     expect(action(card.actions, 'complete').enabled).toBe(false);
   });
 
-  test('форма «Назначить»: поле «assigneeId» — выбор человека', async () => {
+  test('формы карточки — «Назначить» и «Напомнить»; в «Назначить» поле «assigneeId» — выбор человека', async () => {
     const { a, side } = await listed();
 
     const { forms } = bodyOf(side.next(a.client.region('side')), 'card');
 
-    expect(names(forms)).toEqual(['assign']);
+    expect(names(forms)).toEqual(['assign', 'remind']);
     expect(form(forms, 'assign').fields[0]).toMatchObject({
       name: 'assigneeId',
       widget: 'person',
       optional: false,
       value: '',
+    });
+  });
+
+  test('форма «Напомнить»: «Срочно» — чекбокс «Да»/«Нет» без отметки, «Когда» — дата с подсказкой и примером', async () => {
+    const { a, side } = await listed();
+
+    const { forms } = bodyOf(side.next(a.client.region('side')), 'card');
+    const remind = form(forms, 'remind');
+
+    expect(remind).toMatchObject({ label: 'Напомнить', enabled: true });
+    expect(remind.fields).toHaveLength(2);
+    expect(remind.fields[0]).toMatchObject({
+      name: 'urgent',
+      label: 'Срочно',
+      widget: 'checkbox',
+      optional: false,
+      checkbox: { on: 'Да', off: 'Нет', checked: false },
+      help: 'Срочное напоминание придёт сразу',
+    });
+    expect(remind.fields[1]).toMatchObject({
+      name: 'remindOn',
+      label: 'Когда',
+      widget: 'date',
+      optional: false,
+      value: '',
+      help: 'День напоминания; Пример: 2026-12-31',
+    });
+  });
+
+  test('выполненная задача: «Напомнить» отключена с причиной «Задача уже выполнена»', async () => {
+    const { a, side } = await listed();
+    await a.client.submit('side', 'complete', {});
+
+    const card = bodyOf(side.next(a.client.region('side')), 'card');
+
+    expect(form(card.forms, 'remind')).toMatchObject({
+      enabled: false,
+      reason: 'Задача уже выполнена',
+    });
+    expect(action(card.actions, 'complete')).toMatchObject({
+      enabled: false,
+      reason: 'Задача уже выполнена',
     });
   });
 });
@@ -422,7 +465,7 @@ describe('экран «Назначенные мне» — модель', () => 
     expect(body.empty).toBe('Поручений нет.');
   });
 
-  test('назначенная задача — строка без управления', async () => {
+  test('назначенная открытая задача — строка с галочкой: выбираема, не открываема, не отмечена', async () => {
     const { w, a } = await listed();
     const b = await openTab(w, TOKEN_BORIS, 'b');
     await b.client.route('/assigned');
@@ -441,7 +484,7 @@ describe('экран «Назначенные мне» — модель', () => 
       title: 'Молоко',
       done: false,
       selected: false,
-      selectable: false,
+      selectable: true,
       openable: false,
     });
     expect(body.empty).toBeUndefined();
@@ -469,7 +512,7 @@ describe('экран «Начать работу» — модель', () => {
 });
 
 describe('экран «Назначенные мне» — действия тела', () => {
-  test('у тела — действия «openAssignee» и «close»; выполнение и выбор строк остаются за показом списка', async () => {
+  test('у тела — действия «openAssignee», «close» и «completeSelected»', async () => {
     const { w, a } = await listed();
     const b = await openTab(w, TOKEN_BORIS, 'b');
     await b.client.route('/assigned');
@@ -483,6 +526,161 @@ describe('экран «Назначенные мне» — действия те
     expect(model.body?.kind).toBe('assigned');
     expect(actionNamesOf(model)).toContain('openAssignee');
     expect(actionNamesOf(model)).toContain('close');
-    expect(actionNamesOf(model)).not.toContain('completeSelected');
+    expect(actionNamesOf(model)).toContain('completeSelected');
+  });
+
+  test('до отметки «Выполнить выбранные» отключена с причиной «Отметьте открытые задачи»', async () => {
+    const { w, a } = await listed();
+    const b = await openTab(w, TOKEN_BORIS, 'b');
+    await b.client.route('/assigned');
+    await a.client.submit('side', 'assign', {
+      assigneeId: personOf('boris').uuid,
+    });
+    await settle(w, a, b);
+
+    const { actions } = bodyOf(
+      new RegionFrame().next(b.client.region('main')),
+      'assigned',
+    );
+
+    expect(action(actions, 'completeSelected')).toMatchObject({
+      enabled: false,
+      reason: 'Отметьте открытые задачи',
+    });
+  });
+});
+
+/** Анна с открытой задачей «Хлеб» и вкладка Анны, на которой «Назначенные мне» открыты в `region`. */
+const selfAssigned = async (region: 'main' | 'modal') => {
+  const w = exampleWorld(tmp().path);
+  const a = await openTab(w, TOKEN_ANNA, 'a');
+  await a.client.route('/');
+  await a.client.submit('main', 'create', { title: 'Хлеб' });
+  await a.client.submit('main', 'open', { taskId: 'Хлеб' });
+  await a.client.submit('side', 'assign', {
+    assigneeId: personOf('anna').uuid,
+  });
+  await settle(w, a);
+  if (region === 'main') {
+    const other = await openTab(w, TOKEN_ANNA, 'a2');
+    await other.client.route('/assigned');
+    await settle(w, a, other);
+    return { w, a, tab: other, frame: new RegionFrame() };
+  }
+  await a.client.openLink({
+    screen: 'exampleUi/todo/assignedTasks',
+    params: {},
+  });
+  await settle(w, a);
+  return { w, a, tab: a, frame: new RegionFrame() };
+};
+
+describe.each(['main', 'modal'] as const)(
+  'экран «Назначенные мне» в области %s — выбор и выполнение своих поручений',
+  (region) => {
+    test('у Анны с задачей, назначенной себе: строка выбираема, до отметки действие серое с причиной', async () => {
+      const { tab, frame } = await selfAssigned(region);
+
+      const body = bodyOf(frame.next(tab.client.region(region)), 'assigned');
+
+      expect(rowOf(body.rows, 'Хлеб')).toMatchObject({
+        selected: false,
+        selectable: true,
+        openable: false,
+      });
+      expect(action(body.actions, 'completeSelected')).toMatchObject({
+        enabled: false,
+        reason: 'Отметьте открытые задачи',
+      });
+    });
+
+    test('отметка включает «Выполнить выбранные»: строка отмечена, причины нет', async () => {
+      const { tab, frame } = await selfAssigned(region);
+
+      await tab.client.local(region, 'toggle', { taskId: 'Хлеб' });
+      const body = bodyOf(frame.next(tab.client.region(region)), 'assigned');
+
+      expect(rowOf(body.rows, 'Хлеб').selected).toBe(true);
+      expect(action(body.actions, 'completeSelected').enabled).toBe(true);
+      expect(action(body.actions, 'completeSelected')).not.toHaveProperty(
+        'reason',
+      );
+    });
+
+    test('подтверждение выполняет: запрос подтверждения, затем строка «выполнена» и уже не выбираема', async () => {
+      const { w, a, tab, frame } = await selfAssigned(region);
+      await tab.client.local(region, 'toggle', { taskId: 'Хлеб' });
+
+      await tab.client.submit(region, 'completeSelected', {});
+      const asked = frame.next(tab.client.region(region));
+      await tab.client.confirm(region);
+      await settle(w, a, tab);
+      const body = bodyOf(frame.next(tab.client.region(region)), 'assigned');
+
+      expect(asked.confirm).toBeDefined();
+      expect(rowOf(bodyOf(asked, 'assigned').rows, 'Хлеб').selected).toBe(true);
+      expect(rowOf(body.rows, 'Хлеб')).toMatchObject({
+        done: true,
+        selectable: false,
+      });
+    });
+  },
+);
+
+describe('экран «Назначенные мне» — чужое поручение', () => {
+  /** Борис создал «Сыр» и назначил Анне; «Назначенные мне» Анны в основной области. */
+  const foreign = async () => {
+    const w = exampleWorld(tmp().path);
+    const b = await openTab(w, TOKEN_BORIS, 'b');
+    await b.client.route('/');
+    await b.client.submit('main', 'create', { title: 'Сыр' });
+    await b.client.submit('main', 'open', { taskId: 'Сыр' });
+    await b.client.submit('side', 'assign', {
+      assigneeId: personOf('anna').uuid,
+    });
+    const a = await openTab(w, TOKEN_ANNA, 'a');
+    await a.client.route('/assigned');
+    await settle(w, a, b);
+    return { a, frame: new RegionFrame() };
+  };
+
+  test('до отметки действие серое с причиной; после отметки чужого поручения «Выполнить выбранные» скрыто', async () => {
+    const { a, frame } = await foreign();
+
+    const before = bodyOf(frame.next(a.client.region('main')), 'assigned');
+    await a.client.local('main', 'toggle', { taskId: 'Сыр' });
+    const after = bodyOf(frame.next(a.client.region('main')), 'assigned');
+
+    expect(rowOf(before.rows, 'Сыр').selectable).toBe(true);
+    expect(action(before.actions, 'completeSelected').enabled).toBe(false);
+    expect(rowOf(after.rows, 'Сыр').selected).toBe(true);
+    expect(names(after.actions)).not.toContain('completeSelected');
+  });
+});
+
+describe('экран «Мои задачи» — причины отключённых действий', () => {
+  test('«Выполнить выбранные» без выбора — серая с причиной вида', async () => {
+    const { a, frame } = await listed();
+
+    const { actions } = bodyOf(frame.next(a.client.region('main')), 'list');
+
+    expect(action(actions, 'completeSelected')).toMatchObject({
+      enabled: false,
+      reason: 'Отметьте открытые задачи',
+    });
+  });
+
+  test('после отметки «Выполнить выбранные» доступна и без причины; «Закрыть» — без причины', async () => {
+    const { a, frame } = await listed();
+    const first = bodyOf(frame.next(a.client.region('main')), 'list');
+    await a.client.local('main', 'toggle', {
+      taskId: rowOf(first.rows, 'Молоко').uuid,
+    });
+
+    const { actions } = bodyOf(frame.next(a.client.region('main')), 'list');
+
+    expect(action(actions, 'completeSelected').enabled).toBe(true);
+    expect(action(actions, 'completeSelected')).not.toHaveProperty('reason');
+    expect(action(actions, 'close')).not.toHaveProperty('reason');
   });
 });

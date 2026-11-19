@@ -587,6 +587,14 @@ describe('ExampleGestures — делегирование порту клиент
     expect(calls).toEqual([['local', 'main', 'toggle', { taskId: ID }]]);
   });
 
+  test('toggleTask(uuid, modal): local в области modal, не в main', async () => {
+    const { calls, port } = recording();
+
+    await new ExampleGestures(port, () => {}).toggleTask(ID, 'modal');
+
+    expect(calls).toEqual([['local', 'modal', 'toggle', { taskId: ID }]]);
+  });
+
   test('submitForm и runAction: submit с значениями формы; без полей — пустые значения', async () => {
     const { calls, port } = recording();
     const g = new ExampleGestures(port, () => {});
