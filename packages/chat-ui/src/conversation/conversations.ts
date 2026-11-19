@@ -281,6 +281,7 @@ export class Conversations<U extends Identified>
       ucs: session,
       refresh: session,
       observer,
+      app,
     });
     const conversation = new Conversation(
       {

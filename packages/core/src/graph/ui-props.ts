@@ -43,6 +43,7 @@ export const UI_PROPS = {
     goal: v.string(),
     start: v.string(),
     outcomes: v.array(outcome),
+    access: v.optional(nested),
   }),
   screen: v.strictObject({
     params: nested,

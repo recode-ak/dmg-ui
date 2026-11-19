@@ -3,9 +3,11 @@ import { UiGraphReader } from '../ui-graph-reader';
 import { UI_EDGE_KINDS, UI_NODE_KINDS } from '../ui-kinds';
 
 /**
- * UI-05: переход и вход приложения UI ведут на экран из его сторис. Пара
- * (экран, цель) называется один раз; цель входа — только если перехода на
- * неё нет.
+ * UI-05: переход и вход приложения UI ведут на экран из его сторис. Переход
+ * в отрезанную ветку — на старт сторис из связей сторис приложения с
+ * экраном-источником, которой в приложении нет (`omits`), — не нарушение;
+ * вход туда — нарушение. Пара (экран, цель) называется один раз; цель входа —
+ * только если перехода на неё нет.
  */
 export class TransitionOutsideAppRule implements GraphRule {
   readonly id = 'UI-05';
@@ -15,8 +17,17 @@ export class TransitionOutsideAppRule implements GraphRule {
     const found: string[] = [];
     for (const { node: app } of reader.apps()) {
       const inside = reader.appScreens(app.id);
+      const stories = new Set(reader.appStories(app.id));
+      const omitted = new Set(reader.targets(app.id, UI_EDGE_KINDS.omits));
       const outside = (to: string) =>
         reader.kindOf(to) === UI_NODE_KINDS.screen && !inside.has(to);
+      const cut = (screen: string, to: string) =>
+        reader
+          .ledTo(
+            reader.storiesOf(screen).filter((story) => stories.has(story)),
+            to,
+          )
+          .some((lead) => omitted.has(lead));
       const reported = new Set<string>();
       const named = new Set<string>();
       for (const screen of reader.inGraphOrder(inside)) {
@@ -25,12 +36,12 @@ export class TransitionOutsideAppRule implements GraphRule {
             action.node.id,
             UI_EDGE_KINDS.leadsTo,
           )) {
-            if (!outside(to)) continue;
+            if (!outside(to) || cut(screen.id, to)) continue;
             reported.add(to);
             if (named.has(`${screen.id} ${to}`)) continue;
             named.add(`${screen.id} ${to}`);
             found.push(
-              `приложение ${app.id}: экран ${screen.id} ведёт на ${to}, которого нет в его сторис`,
+              `приложение ${app.id}: экран ${screen.id} ведёт на ${to}, которого нет в его сторис и не заявлен в связях сторис`,
             );
           }
         }

@@ -546,12 +546,13 @@ describe('PG-06: маршрут не пересекается с общим пу
     ]);
   });
 
-  test('/todo/:x на учебном наборе — строка на каждый из трёх экранов, порядок по id', () => {
+  test('/todo/:x на учебном наборе — строка на каждый из четырёх экранов модуля, порядок по id', () => {
     const report = examplePages(route('wide', '/todo/:x', 'start'));
 
     expect(report.code).toBe(1);
     expect(report.rule('PG-06')).toEqual([
       'PG-06: маршрут examplePages/wide: шаблон /todo/:x совпадает с общим путём экрана exampleUi/todo/assignedTasks (/todo/assignedTasks)',
+      'PG-06: маршрут examplePages/wide: шаблон /todo/:x совпадает с общим путём экрана exampleUi/todo/mainMenu (/todo/mainMenu)',
       'PG-06: маршрут examplePages/wide: шаблон /todo/:x совпадает с общим путём экрана exampleUi/todo/taskCard (/todo/taskCard)',
       'PG-06: маршрут examplePages/wide: шаблон /todo/:x совпадает с общим путём экрана exampleUi/todo/taskList (/todo/taskList)',
     ]);
@@ -562,6 +563,7 @@ describe('PG-06: маршрут не пересекается с общим пу
 
     expect(report.rule('PG-06')).toEqual([
       'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/assignedTasks (/todo/assignedTasks)',
+      'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/mainMenu (/todo/mainMenu)',
       'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/taskCard (/todo/taskCard)',
       'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/taskList (/todo/taskList)',
       'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/users/userCard (/users/userCard)',
@@ -820,6 +822,7 @@ describe('Два приложения web в одном поставщике г�
       'exampleUi/todo/taskCard',
       'exampleUi/todo/taskCompleted',
       'exampleUi/todo/taskList',
+      'exampleUi/users/userCard',
     ]);
     expect(from('leanPages')).toEqual(SECOND_PRESENTED);
   });

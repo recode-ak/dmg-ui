@@ -10,8 +10,8 @@ describe('UiModuleDef', () => {
       label: 'Задачи',
       description: 'Экраны, сторис и уведомления модуля задач.',
       visible: false,
-      screens: ['taskList', 'taskCard', 'assignedTasks'],
-      stories: ['planTasks', 'finishTasks', 'followAssigned'],
+      screens: ['taskList', 'taskCard', 'assignedTasks', 'mainMenu'],
+      stories: ['planTasks', 'finishTasks', 'followAssigned', 'startWork'],
       notifications: ['taskAssigned', 'taskCompleted'],
     });
   });

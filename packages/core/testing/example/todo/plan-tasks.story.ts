@@ -1,7 +1,11 @@
+import { TaskRules } from 'dmg-core/testing/example';
 import { StoryDef } from 'dmg-ui';
 import { TaskListScreenDef } from './task-list.screen';
 
-/** Сторис «Планирование задач»: список — общий экран с `finishTasks`. */
+/**
+ * Сторис «Планирование задач»: список — общий экран с `finishTasks`. Правило
+ * лимита открытых задач — то же, что проверяет `createTask`.
+ */
 export const PlanTasksStoryDef = StoryDef.define({
   name: 'planTasks',
   label: 'Планирование задач',
@@ -22,4 +26,5 @@ export const PlanTasksStoryDef = StoryDef.define({
       exits: [TaskListScreenDef.exits.closed],
     },
   },
+  rules: [TaskRules.rules.withinOpenLimit],
 });

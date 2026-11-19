@@ -16,7 +16,7 @@ describe('UI-03: переход ведёт на экран с общей сто�
 
     expect(report.code).toBe(1);
     expect(report.rule('UI-03')).toEqual([
-      'UI-03: действие miniUi/todo/a/go ведёт на экран miniUi/todo/b, с которым у экрана нет общей сторис',
+      'UI-03: действие miniUi/todo/a/go ведёт на экран miniUi/todo/b, с которым у экрана нет общей сторис и который не старт сторис из связей сторис',
     ]);
   });
 
@@ -37,5 +37,31 @@ describe('UI-03: переход ведёт на экран с общей сто�
     });
 
     expect(scene.report().rule('UI-03')).toEqual([]);
+  });
+
+  test('без нарушения: цель — старт сторис из связей сторис источника', () => {
+    const t = UiScene.story('t', [b]);
+    const scene = new UiScene({
+      screens: [a, b],
+      stories: [UiScene.story('s1', [a], { leads: () => [t] }), t],
+      entries: { start: UiScene.entry(b) },
+    });
+
+    expect(scene.report().rule('UI-03')).toEqual([]);
+  });
+
+  test('нарушение: цель — не старт сторис из связей источника', () => {
+    const c = UiScene.screen('c');
+    const t = UiScene.story('t', [b, c], { start: b });
+    const toC = UiScene.screen('toC', { actions: { go: UiScene.jump(c) } });
+    const scene = new UiScene({
+      screens: [toC, b, c],
+      stories: [UiScene.story('s1', [toC], { leads: () => [t] }), t],
+      entries: { start: UiScene.entry(b) },
+    });
+
+    expect(scene.report().rule('UI-03')).toEqual([
+      'UI-03: действие miniUi/todo/toC/go ведёт на экран miniUi/todo/c, с которым у экрана нет общей сторис и который не старт сторис из связей сторис',
+    ]);
   });
 });

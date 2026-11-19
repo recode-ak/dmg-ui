@@ -73,6 +73,25 @@ export class UiGraphReader {
     );
   }
 
+  /** Сторис из связей сторис (рёбра `leads`). */
+  leadsOf(storyId: string): string[] {
+    return this.targets(storyId, UI_EDGE_KINDS.leads);
+  }
+
+  /** `id` стартового экрана сторис; нет узла или свойства не по схеме — `undefined`. */
+  startOf(storyId: string): string | undefined {
+    const node = this.graph.node(storyId);
+    if (node?.kind !== UI_NODE_KINDS.story) return undefined;
+    return UiGraphReader.parse(UI_PROPS.story, node)?.start;
+  }
+
+  /** Сторис из связей сторис `storyIds`, чей стартовый экран — `to`. */
+  ledTo(storyIds: readonly string[], to: string): string[] {
+    return storyIds
+      .flatMap((story) => this.leadsOf(story))
+      .filter((lead) => this.startOf(lead) === to);
+  }
+
   /** Сторис приложения UI. */
   appStories(appId: string): string[] {
     return this.appIncludes(appId, UI_NODE_KINDS.story);

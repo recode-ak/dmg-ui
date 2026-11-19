@@ -24,6 +24,7 @@ import {
 } from '../../testing/example';
 import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { CutKit } from '../../testing/ui-cut-scene';
 import {
   RuntimeKit,
   requestTrace,
@@ -570,5 +571,26 @@ describe('ScreenInstance.local', () => {
     });
 
     expect(outcome).toEqual({ kind: 'unavailable', reason: 'disabled' });
+  });
+});
+
+describe('ScreenInstance.act — отрезанная ветка приложения', () => {
+  test('действие, ведущее только в сторис вне приложения, — unavailable/unknown', async () => {
+    const hub = await new CutKit().open();
+
+    const outcome = await hub.act({ action: 'toGhost', revision: 1, trace });
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'unknown' });
+  });
+
+  test('остальные действия экрана исполняются: moved на экран приложения', async () => {
+    const hub = await new CutKit().open();
+
+    const outcome = await hub.act({ action: 'toInside', revision: 1, trace });
+
+    expect(outcome).toEqual({
+      kind: 'moved',
+      address: { screen: 'miniUi/todo/inside', params: {} },
+    });
   });
 });

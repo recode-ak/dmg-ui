@@ -12,6 +12,12 @@ export const EMPTY_TEXTS = {
   assigned: 'Поручений нет.',
 } as const;
 
+/** Тексты карточки пользователя. */
+export const USER_TEXTS = {
+  active: 'Учётная запись активна',
+  inactive: 'Учётная запись не активна',
+} as const;
+
 /** Запись входящих, которую нельзя показать: неизвестный id или данные не по схеме. */
 export const NOTE_UNSHOWN = 'Уведомление не показано';
 

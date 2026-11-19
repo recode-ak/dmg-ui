@@ -37,8 +37,11 @@ import {
   CARD_ID,
   ExampleUiSetDef,
   exampleCodes,
+  FinishTasksStoryDef,
+  FollowAssignedStoryDef,
   LIST_ID,
   MemoryUiObserver,
+  PlanTasksStoryDef,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
@@ -5502,5 +5505,57 @@ describe('PageClient — ожидаемый итог в двух областя�
     expect(await carding).toMatchObject({ kind: 'stayed' });
     expect(client.region('side').expected).toBeUndefined();
     expect(statusOf(client.region('side'))).toBe('done');
+  });
+});
+
+describe('PageClient — отрезанная ветка приложения', () => {
+  /** Страничное приложение без сторис карточки пользователя. */
+  const TrimmedPagesAppDef = UiAppDef.define({
+    name: 'trimmedPages',
+    label: 'Урезанное приложение',
+    description: 'Страницы без просмотра карточки пользователя.',
+    set: ExampleUiSetDef,
+    channel: PAGE_CHANNEL,
+    stories: [PlanTasksStoryDef, FinishTasksStoryDef, FollowAssignedStoryDef],
+    entries: ExamplePagesAppDef.entries,
+  });
+  const ROW = {
+    uuid: TASK_A,
+    ownerId: testUuid(9),
+    title: 'Хлеб',
+    status: 'open',
+    assignment: {
+      assigneeId: testUuid(1),
+      assignedAt: '2026-01-01T00:00:00.000Z',
+    },
+  };
+  const client = async () => {
+    let requests = 0;
+    const page = new PageClient({
+      app: TrimmedPagesAppDef,
+      codes: exampleCodes(),
+      routes: examplePageRoutes,
+      end: new StubEnd().answer('listAssignedTasks', ok([ROW])),
+      observer: new MemoryUiObserver(),
+      clock: new ManualPageClock(),
+      requestIds: () => {
+        requests += 1;
+        return `r-${requests}`;
+      },
+    });
+    await page.route('/assigned');
+    return page;
+  };
+
+  test('у «Назначенные мне» нет действия карточки исполнителя', async () => {
+    const actions = (await client()).region('main').view?.actions;
+
+    expect(actions?.map((action) => action.name)).toEqual(['close']);
+  });
+
+  test('сигнал по отрезанному действию — unavailable/unknown', async () => {
+    const outcome = await (await client()).submit('main', 'openAssignee', {});
+
+    expect(outcome).toEqual({ kind: 'unavailable', reason: 'unknown' });
   });
 });

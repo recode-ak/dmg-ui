@@ -1,7 +1,8 @@
-import { StoryDef } from 'dmg-ui';
+import { type AnyStoryDef, StoryDef } from 'dmg-ui';
+import { ViewUserStoryDef } from '../users/view-user.story';
 import { AssignedTasksScreenDef } from './assigned-tasks.screen';
 
-/** Сторис «Поручения»: исполнитель смотрит назначенные ему задачи. */
+/** Сторис «Поручения»: исполнитель смотрит назначенные ему задачи и свою карточку. */
 export const FollowAssignedStoryDef = StoryDef.define({
   name: 'followAssigned',
   label: 'Поручения',
@@ -17,4 +18,5 @@ export const FollowAssignedStoryDef = StoryDef.define({
       exits: [AssignedTasksScreenDef.exits.closed],
     },
   },
+  leads: (): readonly AnyStoryDef[] => [ViewUserStoryDef],
 });

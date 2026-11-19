@@ -3,6 +3,7 @@ import type { Address } from '../address/address';
 import { AddressCodec } from '../address/address-codec';
 import type { AddressRejection } from '../address/address-codec.types';
 import { UiIds } from '../address/ui-ids';
+import { AppReach } from '../manifest/app-reach';
 import { ScreenInstance } from './screen-instance';
 import { MAX_REVISION } from './screen-runtime.const';
 import type { OpenOptions, ScreenRuntimeSpec } from './screen-runtime.types';
@@ -12,26 +13,33 @@ export type { OpenOptions, ScreenRuntimeSpec } from './screen-runtime.types';
 
 /**
  * Исполнитель экранов одной личности (сессии канала): открывает и
- * восстанавливает экземпляры. Знает манифесты, код и два порта; вызывающий,
- * шина и приложение ему не видны.
+ * восстанавливает экземпляры. Знает манифесты, код, два порта и состав
+ * приложения UI (`AppReach`); вызывающий и шина ему не видны.
  */
 export class ScreenRuntime {
   private readonly spec: ScreenRuntimeSpec;
   private readonly ids: UiIds;
   private readonly codec: AddressCodec;
   private readonly calls: UcCalls;
+  private readonly reach: AppReach;
 
-  /** Загрузчики другого набора — ошибка сборки, бросок. */
+  /** Загрузчики или приложение другого набора — ошибка сборки, бросок. */
   constructor(spec: ScreenRuntimeSpec) {
     if (spec.codes.set !== spec.set) {
       throw new Error(
         `ScreenRuntime: загрузчики кода набора ${spec.codes.set.name}, а исполнитель — ${spec.set.name}`,
       );
     }
+    if (spec.app !== undefined && spec.app.set !== spec.set) {
+      throw new Error(
+        `ScreenRuntime: приложение ${spec.app.name} набора ${spec.app.set.name}, а исполнитель — ${spec.set.name}`,
+      );
+    }
     this.spec = spec;
     this.ids = new UiIds(spec.set);
     this.codec = new AddressCodec(spec.set);
     this.calls = new UcCalls(spec.set);
+    this.reach = AppReach.of(spec.app);
   }
 
   /** Новый экземпляр по адресу; отказ загрузки — в его виде. */
@@ -82,6 +90,7 @@ export class ScreenRuntime {
         codec: this.codec,
         context,
         calls: this.calls,
+        reach: this.reach,
         ucs,
         refresh,
         observer,

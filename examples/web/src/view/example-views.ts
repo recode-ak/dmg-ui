@@ -7,6 +7,7 @@ import type { AnyExampleScreen } from './example-views.types';
 import { TaskCardView } from './task-card.view';
 import { TaskListView } from './task-list.view';
 import { TaskAssignedView, TaskCompletedView } from './task-notes.view';
+import { UserCardView } from './user-card.view';
 
 export { ExampleScreenView } from './example-screen-view';
 
@@ -83,11 +84,12 @@ export class ExampleViews {
   }
 }
 
-/** Готовый реестр примера: три экрана и два уведомления учебного набора. */
+/** Готовый реестр примера: четыре экрана и два уведомления учебного набора; меню не показывается. */
 export const exampleWebViews = ExampleViews.of(ExampleUiSetDef, [
   TaskListView,
   TaskCardView,
   AssignedTasksView,
+  UserCardView,
   TaskAssignedView,
   TaskCompletedView,
 ]);

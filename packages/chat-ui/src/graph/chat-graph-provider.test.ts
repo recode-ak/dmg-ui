@@ -43,6 +43,7 @@ import {
   TaskAssignedView,
   TaskCompletedView,
 } from '../../testing/example/task-notes.view';
+import { UserCardView } from '../../testing/example/user-card.view';
 import type { ChatCommunitySpec } from '../community/community.types';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
 import { ChatViews } from '../view/chat-views';
@@ -65,13 +66,14 @@ const DIALOG = 'exampleDialog';
 const WINDOWED_APP = 'exampleWindowed';
 const CARD = 'exampleUi/todo/taskCard';
 
-/** Цели `presents` учебного примера: все экраны и уведомления набора. */
+/** Цели `presents` учебного примера: экраны и уведомления реестра — все, кроме меню. */
 const PRESENTED = [
   'exampleUi/todo/assignedTasks',
   'exampleUi/todo/taskAssigned',
   CARD,
   'exampleUi/todo/taskCompleted',
   'exampleUi/todo/taskList',
+  'exampleUi/users/userCard',
 ];
 
 type EntryPoint = {
@@ -181,8 +183,9 @@ describe('ChatGraphProvider на графе примера', () => {
     const presents = built.edges().filter((edge) => edge.kind === 'presents');
 
     expect(targets(built, DIALOG, 'presents')).toEqual(PRESENTED);
+    expect(targets(built, 'exampleTrimmed', 'presents')).toEqual(PRESENTED);
     expect(targets(built, WINDOWED_APP, 'presents')).toEqual(PRESENTED);
-    expect(presents).toHaveLength(2 * PRESENTED.length);
+    expect(presents).toHaveLength(3 * PRESENTED.length);
     expect(new Set(presents.map((edge) => edge.provider))).toEqual(
       new Set(['dmg-ui-chat']),
     );
@@ -287,6 +290,7 @@ describe('ChatGraphProvider на графе примера', () => {
 
     expect(messengers).toEqual([
       { id: 'exampleDialog/messenger', props: EDITING },
+      { id: 'exampleTrimmed/messenger', props: EDITING },
       { id: 'exampleWindowed/messenger', props: WINDOWED },
     ]);
     expect(
@@ -299,7 +303,7 @@ describe('ChatGraphProvider на графе примера', () => {
 });
 
 describe('ChatGraphProvider — перекрытый реестр', () => {
-  test('presents у перекрытого реестра (views.over) — те же пять целей без повторов', () => {
+  test('presents у перекрытого реестра (views.over) — те же шесть целей без повторов', () => {
     const own = exampleDialogViews.over([
       ScreenPresenter.for(TaskCardScreenDef, () => 'Своя карточка'),
       ScreenPresenter.for(TaskListScreenDef, () => 'Свой список'),
@@ -322,6 +326,7 @@ describe('ChatGraphProvider — экран без представления', (
     const views = ChatViews.of(ExampleUiSetDef, [
       TaskListView,
       AssignedTasksView,
+      UserCardView,
       TaskAssignedView,
       TaskCompletedView,
     ]);

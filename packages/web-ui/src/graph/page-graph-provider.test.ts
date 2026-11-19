@@ -185,13 +185,14 @@ describe('PageGraphProvider: рёбра', () => {
     ]);
   });
 
-  test('presents — от examplePages к каждому экрану и уведомлению, пять рёбер', () => {
+  test('presents — от examplePages к каждому экрану и уведомлению реестра, шесть рёбер', () => {
     expect(ownEdges('presents')).toEqual([
       'examplePages -> exampleUi/todo/assignedTasks',
       'examplePages -> exampleUi/todo/taskAssigned',
       'examplePages -> exampleUi/todo/taskCard',
       'examplePages -> exampleUi/todo/taskCompleted',
       'examplePages -> exampleUi/todo/taskList',
+      'examplePages -> exampleUi/users/userCard',
     ]);
   });
 });

@@ -3,6 +3,7 @@ import * as v from 'valibot';
 import {
   AssignedTasksScreenDef,
   ExampleUiSetDef,
+  MainMenuScreenDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
@@ -10,6 +11,7 @@ import {
   UserCardScreenDef,
 } from '../../testing/example';
 import { AssignedTasksScreenCode } from '../../testing/example/todo/assigned-tasks.code';
+import { MainMenuScreenCode } from '../../testing/example/todo/main-menu.code';
 import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.code';
 import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
 import { TaskCompletedNotificationCode } from '../../testing/example/todo/task-completed.code';
@@ -26,6 +28,7 @@ const others = [
     AssignedTasksScreenDef,
     async () => new AssignedTasksScreenCode(),
   ),
+  CodeLoader.screen(MainMenuScreenDef, async () => new MainMenuScreenCode()),
   CodeLoader.screen(UserCardScreenDef, async () => new UserCardScreenCode()),
   CodeLoader.notification(
     TaskAssignedNotificationDef,
@@ -77,7 +80,7 @@ describe('CodeLoaders', () => {
     ];
 
     expect(() => CodeLoaders.of(ExampleUiSetDef, only)).toThrow(
-      'taskCard, assignedTasks, taskAssigned, taskCompleted',
+      'taskCard, assignedTasks, mainMenu, taskAssigned, taskCompleted',
     );
   });
 

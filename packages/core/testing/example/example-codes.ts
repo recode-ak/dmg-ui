@@ -2,6 +2,7 @@ import { CodeLoader, CodeLoaders } from 'dmg-ui';
 import type { ExampleCodeOverrides } from './example-codes.types';
 import { ExampleUiSetDef } from './example-ui.set';
 import { AssignedTasksScreenDef } from './todo/assigned-tasks.screen';
+import { MainMenuScreenDef } from './todo/main-menu.screen';
 import { TaskAssignedNotificationDef } from './todo/task-assigned.notification';
 import { TaskCardScreenDef } from './todo/task-card.screen';
 import { TaskCompletedNotificationDef } from './todo/task-completed.notification';
@@ -35,6 +36,12 @@ export const exampleCodes = (over: ExampleCodeOverrides = {}): CodeLoaders =>
         new (
           await import('./todo/assigned-tasks.code')
         ).AssignedTasksScreenCode(),
+    ),
+    CodeLoader.screen(
+      MainMenuScreenDef,
+      async () =>
+        over.menu ??
+        new (await import('./todo/main-menu.code')).MainMenuScreenCode(),
     ),
     CodeLoader.screen(
       UserCardScreenDef,

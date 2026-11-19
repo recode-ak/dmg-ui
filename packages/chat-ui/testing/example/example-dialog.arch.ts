@@ -6,6 +6,7 @@ import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import { MemoryMessenger } from '../messengers/memory-messenger';
 import { ExampleDialogAppDef } from './example-dialog.app';
 import { exampleDialogViews } from './example-dialog.views';
+import { ExampleTrimmedDialogAppDef } from './example-trimmed.app';
 import { ExampleWindowedAppDef } from './example-windowed.app';
 
 /** Примеры учебного набора для CH-01: собираются до графа (`await` на верхнем уровне). */
@@ -15,22 +16,35 @@ const examples = await ChatExamples.collect({
 });
 
 /**
- * Граф учебного примера: домен `ExampleArch`, поставщик `dmg-ui` с двумя
+ * Граф учебного примера: домен `ExampleArch`, поставщик `dmg-ui` с тремя
  * приложениями и один поставщик общей части мессенджеров — `exampleDialog`
- * на мессенджере с правкой, `exampleWindowed` — без правки, с окном; у
- * каждого входа — точка входа (CH-02).
+ * и урезанное `exampleTrimmed` на мессенджере с правкой, `exampleWindowed` —
+ * без правки, с окном; у каждого входа — точка входа (CH-02).
  */
 export const ExampleDialogArch: ArchApp = {
   ...ExampleArch,
   providers: [
     new UiGraphProvider({
       set: ExampleUiSetDef,
-      apps: [ExampleDialogAppDef, ExampleWindowedAppDef],
+      apps: [
+        ExampleDialogAppDef,
+        ExampleTrimmedDialogAppDef,
+        ExampleWindowedAppDef,
+      ],
     }),
     new ChatGraphProvider({
       apps: [
         {
           app: ExampleDialogAppDef,
+          views: exampleDialogViews,
+          capabilities: MemoryMessenger.editing().capabilities,
+          entryPoints: [
+            { entry: 'start', via: 'message', key: 'start' },
+            { entry: 'assigned', via: 'message', key: 'assigned' },
+          ],
+        },
+        {
+          app: ExampleTrimmedDialogAppDef,
           views: exampleDialogViews,
           capabilities: MemoryMessenger.editing().capabilities,
           entryPoints: [

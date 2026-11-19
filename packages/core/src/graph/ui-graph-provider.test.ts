@@ -7,6 +7,8 @@ import {
   ExampleAppDef,
   GetTaskUcDef,
   TaskEvents,
+  TaskPolicy,
+  TaskRules,
 } from 'dmg-core/testing/example';
 import { ScreenProvider } from 'dmg-core/testing/example/screen/screen-provider';
 import { TasksScreenDef } from 'dmg-core/testing/example/screen/tasks.screen';
@@ -36,6 +38,7 @@ const SCREEN = 'exampleUi/todo/taskList';
 const CARD = 'exampleUi/todo/taskCard';
 const ASSIGNED = 'exampleUi/todo/assignedTasks';
 const COMPLETED = 'exampleUi/todo/taskCompleted';
+const MENU = 'exampleUi/todo/mainMenu';
 
 const pairs = (kind: string) =>
   ownEdges
@@ -48,16 +51,22 @@ const edgeProps = (kind: string, from: string, to: string) =>
     ?.props;
 
 describe('UiGraphProvider: узлы', () => {
-  test('25 узлов набора и приложения UI в каноническом порядке', () => {
+  test('31 узел набора и приложения UI в каноническом порядке', () => {
     expect(own.map((node) => node.id)).toEqual([
       'exampleStub',
       'exampleUi',
       'exampleUi/todo',
       ASSIGNED,
       `${ASSIGNED}/close`,
+      `${ASSIGNED}/openAssignee`,
       'exampleUi/todo/finishTasks',
       'exampleUi/todo/followAssigned',
+      MENU,
+      `${MENU}/assigned`,
+      `${MENU}/close`,
+      `${MENU}/tasks`,
       'exampleUi/todo/planTasks',
+      'exampleUi/todo/startWork',
       'exampleUi/todo/taskAssigned',
       CARD,
       `${CARD}/assign`,
@@ -88,8 +97,8 @@ describe('UiGraphProvider: узлы', () => {
           count(k),
         ]),
       ),
-    ).toEqual({ uiSet: 1, uiModule: 2, screen: 4, story: 4, notification: 2 });
-    expect(count('action')).toBe(11);
+    ).toEqual({ uiSet: 1, uiModule: 2, screen: 5, story: 5, notification: 2 });
+    expect(count('action')).toBe(15);
     expect(count('uiApp')).toBe(1);
   });
 
@@ -146,13 +155,16 @@ describe('UiGraphProvider: узлы', () => {
       'entry',
       'includes',
       'invokes',
+      'leads',
       'leadsTo',
       'links',
       'notifiedBy',
+      'omits',
       'presents',
       'reads',
       'recipients',
       'refreshedBy',
+      'requires',
     ]);
   });
 });
@@ -289,23 +301,26 @@ describe('UiGraphProvider: свойства узлов', () => {
 });
 
 describe('UiGraphProvider: рёбра', () => {
-  test('рёбра поставщика: 35 штук, по видам', () => {
+  test('рёбра поставщика: 45 штук, по видам', () => {
     const counts: Record<string, number> = {};
     for (const edge of ownEdges)
       counts[edge.kind] = (counts[edge.kind] ?? 0) + 1;
 
-    expect(ownEdges).toHaveLength(35);
+    expect(ownEdges).toHaveLength(45);
     expect(counts).toEqual({
-      includes: 10,
+      includes: 11,
+      leads: 4,
+      requires: 1,
       entry: 2,
       reads: 6,
       invokes: 4,
-      leadsTo: 2,
+      leadsTo: 5,
       refreshedBy: 5,
       notifiedBy: 2,
       links: 2,
       recipients: 1,
       catches: 1,
+      omits: 1,
     });
   });
 
@@ -320,8 +335,22 @@ describe('UiGraphProvider: рёбра', () => {
       `exampleUi/todo/finishTasks -> ${SCREEN}`,
       `exampleUi/todo/followAssigned -> ${ASSIGNED}`,
       `exampleUi/todo/planTasks -> ${SCREEN}`,
+      `exampleUi/todo/startWork -> ${MENU}`,
       'exampleUi/users/viewUser -> exampleUi/users/userCard',
     ]);
+  });
+
+  test('leads, requires и omits — связи сторис, правило домена, отрезанная сторис', () => {
+    expect(pairs('leads')).toEqual([
+      'exampleUi/todo/followAssigned -> exampleUi/users/viewUser',
+      'exampleUi/todo/startWork -> exampleUi/todo/finishTasks',
+      'exampleUi/todo/startWork -> exampleUi/todo/followAssigned',
+      'exampleUi/todo/startWork -> exampleUi/todo/planTasks',
+    ]);
+    expect(pairs('requires')).toEqual([
+      'exampleUi/todo/planTasks -> example/todo/task/withinOpenLimit',
+    ]);
+    expect(pairs('omits')).toEqual(['exampleStub -> exampleUi/users/viewUser']);
   });
 
   test('entry — приложение → экраны входов', () => {
@@ -354,6 +383,9 @@ describe('UiGraphProvider: рёбра', () => {
 
   test('leadsTo — действие → экран, переход на свой экран без ребра', () => {
     expect(pairs('leadsTo')).toEqual([
+      `${ASSIGNED}/openAssignee -> exampleUi/users/userCard`,
+      `${MENU}/assigned -> ${ASSIGNED}`,
+      `${MENU}/tasks -> ${SCREEN}`,
       `${CARD}/back -> ${SCREEN}`,
       `${SCREEN}/open -> ${CARD}`,
     ]);
@@ -478,7 +510,7 @@ describe('UiGraphProvider: действия в графе', () => {
     const json = appGraph().document(UI_VERSION).toJSON();
     const create = json.nodes.find((n) => n.id === `${SCREEN}/create`);
 
-    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(11);
+    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(15);
     expect(create).toMatchObject({
       kind: 'action',
       label: 'Создать задачу',
@@ -585,5 +617,89 @@ describe('UiGraphProvider: ошибки UiIds в графе', () => {
     expect(report.rule('ARC-13')).toEqual([
       expect.stringContaining('граф приложения example не собран'),
     ]);
+  });
+});
+
+describe('UiGraphProvider: связи, доступ и правила сторис', () => {
+  const card = UiScene.screen('card');
+  const view = UiScene.story('view', [card]);
+  const jump = { actions: { open: UiScene.jump(card) } };
+  const [plan, done] = [
+    UiScene.screen('planScreen', jump),
+    UiScene.screen('doneScreen', jump),
+  ];
+  const lead = { leads: () => [view] };
+  const planStory = UiScene.story('plan', [plan], lead);
+  const doneStory = UiScene.story('done', [done], lead);
+  const stories = [planStory, doneStory, view];
+  const graphOf = (scene: UiScene) => new AppGraph(scene.arch()).build();
+  const both = () =>
+    graphOf(new UiScene({ screens: [plan, done, card], stories }));
+  const ids = (edges: readonly { from: string; to: string }[]) =>
+    edges.map((edge) => `${edge.from} -> ${edge.to}`).toSorted();
+
+  test('связь — ребро leads от каждого источника; у сторис из двух мест один узел', () => {
+    const built = both();
+    const nodes = built.nodes().filter((n) => n.id === 'miniUi/todo/view');
+
+    expect(nodes).toHaveLength(1);
+    expect(ids(built.incoming('miniUi/todo/view', 'leads'))).toEqual([
+      'miniUi/todo/done -> miniUi/todo/view',
+      'miniUi/todo/plan -> miniUi/todo/view',
+    ]);
+    expect(built.edges().filter((e) => e.kind === 'leads')).toHaveLength(2);
+  });
+
+  test('правило сторис — ребро requires к правилу домена, не внешнее', () => {
+    const story = UiScene.story('limited', [card], {
+      rules: [TaskRules.rules.withinOpenLimit],
+    });
+    const built = graphOf(new UiScene({ screens: [card], stories: [story] }));
+
+    expect(ids(built.outgoing('miniUi/todo/limited', 'requires'))).toEqual([
+      'miniUi/todo/limited -> example/todo/task/withinOpenLimit',
+    ]);
+    expect(built.externals()).toEqual([]);
+  });
+
+  test('access — свойство узла сторис: свёрнутое правило домена', () => {
+    const managed = UiScene.story('managed', [card], {
+      access: TaskPolicy.rules.canManage,
+    });
+    const plain = UiScene.story('plain', [card]);
+    const built = graphOf(
+      new UiScene({ screens: [card], stories: [managed, plain] }),
+    );
+
+    expect(built.node('miniUi/todo/managed')?.props).toMatchObject({
+      access: TaskPolicy.rules.canManage.normalize(),
+    });
+    expect(built.node('miniUi/todo/plain')?.props).not.toHaveProperty('access');
+  });
+
+  test('приложение без цели связи — ребро omits к ней, переход виден как leadsTo', () => {
+    const scene = new UiScene({
+      screens: [plan, done, card],
+      stories,
+      appStories: [planStory],
+    });
+    const built = graphOf(scene);
+
+    expect(ids(built.outgoing('miniConsole', 'omits'))).toEqual([
+      'miniConsole -> miniUi/todo/view',
+    ]);
+    expect(
+      ids(built.outgoing('miniUi/todo/planScreen/open', 'leadsTo')),
+    ).toEqual(['miniUi/todo/planScreen/open -> miniUi/todo/card']);
+  });
+
+  test('приложение с обеими сторис — рёбер omits нет', () => {
+    const scene = new UiScene({
+      screens: [plan, done, card],
+      stories,
+      appStories: [planStory, view],
+    });
+
+    expect(graphOf(scene).outgoing('miniConsole', 'omits')).toEqual([]);
   });
 });

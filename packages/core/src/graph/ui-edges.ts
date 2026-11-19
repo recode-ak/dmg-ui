@@ -1,11 +1,18 @@
-import type { AnyErrorDef, AnyEventDef, AnyUseCaseDef } from 'dmg-core';
+import type {
+  AnyDomainRule,
+  AnyErrorDef,
+  AnyEventDef,
+  AnyUseCaseDef,
+} from 'dmg-core';
 import { DomainIds, type GraphEdgeInput } from 'dmg-core/graph';
 import type { UiIds } from '../address/ui-ids';
 import type { UiTarget } from '../address/ui-ids.types';
+import { AppReach } from '../manifest/app-reach';
 import type { AnyNotificationDef } from '../manifest/notification-def.types';
 import type { RefreshOn } from '../manifest/refresh-on';
 import type { ScreenAction } from '../manifest/screen-action';
 import type { AnyScreenDef } from '../manifest/screen-def.types';
+import type { AnyStoryDef } from '../manifest/story-def.types';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import { UI_EDGE_KINDS } from './ui-kinds';
@@ -35,11 +42,7 @@ export class UiEdges {
       known.set(`${edge.kind} ${edge.from} ${edge.to}`, edge);
     };
     for (const module of this.set.modules) {
-      for (const story of module.stories) {
-        for (const screen of story.screens) {
-          put(this.edge('includes', this.ids.story(story), screen));
-        }
-      }
+      for (const story of module.stories) this.storyEdges(story).forEach(put);
       for (const screen of module.screens) {
         this.screenEdges(screen).forEach(put);
       }
@@ -51,10 +54,24 @@ export class UiEdges {
     return [...known.values()];
   }
 
+  /** Экраны сторис, связи с другими сторис и доменные правила. */
+  private storyEdges(story: AnyStoryDef): GraphEdgeInput[] {
+    const from = this.ids.story(story);
+    return [
+      ...story.screens.map((screen) => this.edge('includes', from, screen)),
+      ...story.leads().map((lead) => this.edge('leads', from, lead)),
+      ...story.rules.map((rule) => this.rule(from, rule)),
+    ];
+  }
+
+  /** Состав приложения; `omits` — сторис из связей, не вошедшие в него. */
   private appEdges(app: AnyUiAppDef): GraphEdgeInput[] {
     const from = this.ids.app(app);
     return [
       ...app.stories.map((story) => this.edge('includes', from, story)),
+      ...AppReach.of(app)
+        .omitted()
+        .map((story) => this.edge('omits', from, story)),
       ...app.notifications.map((n) => this.edge('includes', from, n)),
       ...Object.values(app.entries).map((entry) =>
         this.edge('entry', from, entry.address.screen),
@@ -144,6 +161,14 @@ export class UiEdges {
     event: AnyEventDef,
   ): GraphEdgeInput {
     return { kind: UI_EDGE_KINDS[kind], from, to: this.domain.event(event) };
+  }
+
+  private rule(from: string, rule: AnyDomainRule): GraphEdgeInput {
+    return {
+      kind: UI_EDGE_KINDS.requires,
+      from,
+      to: this.domain.rule(rule),
+    };
   }
 
   private error(from: string, error: AnyErrorDef): GraphEdgeInput {

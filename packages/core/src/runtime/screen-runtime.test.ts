@@ -18,6 +18,7 @@ import {
 import * as v from 'valibot';
 import {
   CARD_ID,
+  ExampleUiSetDef,
   exampleCodes,
   LIST_ID,
   LIST_START,
@@ -26,9 +27,14 @@ import {
   type TaskListScreenDef,
 } from '../../testing/example';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { MemoryUiObserver } from '../../testing/memory-ui-observer';
+import { UiScene } from '../../testing/ui-arch';
+import { CutKit } from '../../testing/ui-cut-scene';
 import {
   RuntimeKit,
   requestTrace,
+  StubRefreshPort,
+  StubUcPort,
   TASKS,
 } from '../../testing/ui-runtime-fixture';
 import type { AddressRejection } from '../address/address-codec.types';
@@ -39,6 +45,7 @@ import { ScreenCode } from '../screen/screen-code';
 import type { LoadContext } from '../screen/screen-code.types';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 import type { ScreenInstance } from './screen-instance';
+import { ScreenRuntime } from './screen-runtime';
 
 // Открытие и восстановление экземпляра экрана: загрузка через порт, отказ
 // загрузки, дефекты кода экрана, снимок и восстановление. Порты — заглушки
@@ -408,6 +415,22 @@ describe('ScreenRuntime — сборка и загрузчик', () => {
     );
   });
 
+  test('приложение другого набора — бросок с именами приложения и наборов', () => {
+    const { app } = new UiScene({ screens: [UiScene.screen('a')] });
+
+    expect(
+      () =>
+        new ScreenRuntime({
+          set: ExampleUiSetDef,
+          codes: exampleCodes(),
+          ucs: new StubUcPort(),
+          refresh: new StubRefreshPort(),
+          observer: new MemoryUiObserver(),
+          app,
+        }),
+    ).toThrow(/miniConsole.*miniUi.*exampleUi/);
+  });
+
   test('сбой загрузчика кода — open отклонён', async () => {
     const codes = CodeLoaders.of(CommandReadSetDef, [
       CodeLoader.screen(CommandReadScreenDef, async () => {
@@ -422,5 +445,23 @@ describe('ScreenRuntime — сборка и загрузчик', () => {
     );
 
     await expect(opening).rejects.toThrow('нет сети');
+  });
+});
+
+describe('ScreenRuntime: состав приложения', () => {
+  const names = async (kit: CutKit) =>
+    (await kit.open()).view().actions.map((action) => action.name);
+
+  test('вид не содержит действие, ведущее только в сторис вне приложения', async () => {
+    expect(await names(new CutKit())).toEqual(['toInside']);
+  });
+
+  test('основное действие отрезано — в виде его нет; без приложения — есть', async () => {
+    expect((await new CutKit().open()).view().primary).toBeUndefined();
+    expect((await new CutKit(false).open()).view().primary).toBe('toGhost');
+  });
+
+  test('без приложения в исполнителе действия не отрезаются', async () => {
+    expect(await names(new CutKit(false))).toEqual(['toGhost', 'toInside']);
   });
 });

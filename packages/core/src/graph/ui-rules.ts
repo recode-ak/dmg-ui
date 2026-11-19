@@ -18,6 +18,7 @@ import { ScreenWithoutPresentationRule } from './rules/screen-without-presentati
 import { ScreenWithoutStoryRule } from './rules/screen-without-story.rule';
 import { StoryCallersRule } from './rules/story-callers.rule';
 import { StoryFormRule } from './rules/story-form.rule';
+import { StoryLeadsRule } from './rules/story-leads.rule';
 import { StrictParamsRule } from './rules/strict-params.rule';
 import { TransitionOutsideAppRule } from './rules/transition-outside-app.rule';
 import { TransitionOutsideStoryRule } from './rules/transition-outside-story.rule';
@@ -29,7 +30,7 @@ export class UiRules {
   private constructor(private readonly set: AnyUiSetDef) {}
 
   /**
-   * Правила по порядку ID: UI-01…UI-23. Набор нужен только UI-20 (примеры
+   * Правила по порядку ID: UI-01…UI-24. Набор нужен только UI-20 (примеры
    * проверяются схемами valibot); `UiIds` здесь не строится и не бросает.
    */
   static of(set: AnyUiSetDef): readonly GraphRule[] {
@@ -61,6 +62,7 @@ export class UiRules {
       new LocalActionNamesRule(),
       new OrphanReferenceRule(),
       new StoryFormRule(),
+      new StoryLeadsRule(),
     ];
   }
 }

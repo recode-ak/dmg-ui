@@ -11,6 +11,8 @@ export const TASK_A = '5e3d1c2b-7a6f-4e8d-b9c0-a1f2e3d4c5b6';
 export const TASK_B = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
 /** Владелец задач примеров. */
 export const OWNER = '1b2c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d';
+/** Исполнитель поручений примеров — вызывающий «Назначенные мне». */
+export const ASSIGNEE = '7c6b5a49-3827-4f16-a5e4-d3c2b1a09f8e';
 
 /** Строк списка задач на одной странице: открытых задач не больше трёх — вторая страница достижима. */
 export const TASK_PAGE_SIZE = 2;

@@ -91,7 +91,13 @@ export class ScreenInstance {
     );
     const node = spec.ids.screen(spec.address.screen);
     const json = spec.codec.encode(spec.address);
-    const views = new InstanceViews(spec.unit, node, json, spec.context);
+    const views = new InstanceViews(
+      spec.unit,
+      node,
+      json,
+      spec.context,
+      spec.reach,
+    );
     const inbox = new SignalInbox();
     const unwatch = spec.refresh.watch(json, inbox.listener);
     const loaded = await ScreenInstance.load(
@@ -134,6 +140,7 @@ export class ScreenInstance {
         context: this.spec.context,
         request,
         calls: this.spec.calls,
+        reach: this.spec.reach,
         actionNode: node,
         ucs: this.spec.ucs,
         codec: this.spec.codec,

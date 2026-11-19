@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { CoreErrors, ErrorDef } from 'dmg-core';
+import { CoreErrors, DomainRuleDef, ErrorDef, ok } from 'dmg-core';
+import { TaskErrors, TaskRules } from 'dmg-core/testing/example';
 import { UiScene } from '../../../testing/ui-arch';
 
 const OutErrors = ErrorDef.define('OUT', {
@@ -32,5 +33,46 @@ describe('UI-22: ссылки только на Def набора UI и доме�
     const report = run({ catches: [CoreErrors.UNAUTHORIZED] });
 
     expect(report.rule('UI-22')).toEqual([]);
+  });
+
+  test('нарушение: сторис требует правило, которого не проверяет ни один UC', () => {
+    const stray = DomainRuleDef.define({
+      name: 'stray',
+      label: 'Ничейное правило',
+      description: 'Правило, на которое не ссылается ни один UC.',
+      error: TaskErrors.TOO_MANY_OPEN,
+      check: () => ok(),
+    });
+    const a = UiScene.screen('a');
+    const story = UiScene.story('s', [a], { rules: [stray] });
+
+    const report = new UiScene({ screens: [a], stories: [story] }).report();
+
+    expect(report.rule('UI-22')).toEqual([
+      'UI-22: сторис miniUi/todo/s требует правило «stray», которого нет в графе: его не проверяет ни один UC',
+    ]);
+  });
+
+  test('без нарушения: правило сторис проверяет UC домена', () => {
+    const a = UiScene.screen('a');
+    const story = UiScene.story('s', [a], {
+      rules: [TaskRules.rules.withinOpenLimit],
+    });
+
+    const report = new UiScene({ screens: [a], stories: [story] }).report();
+
+    expect(report.rule('UI-22')).toEqual([]);
+  });
+
+  test('нарушение: связь ведёт на сторис вне набора', () => {
+    const [a, b] = [UiScene.screen('a'), UiScene.screen('b')];
+    const ghost = UiScene.story('ghost', [b]);
+    const story = UiScene.story('s', [a], { leads: () => [ghost] });
+
+    const report = new UiScene({ screens: [a], stories: [story] }).report();
+
+    expect(report.rule('UI-22')).toContain(
+      'UI-22: miniUi/todo/s ссылается на story «ghost» вне набора UI и домена',
+    );
   });
 });

@@ -2,6 +2,7 @@ import type { TraceJson } from 'dmg-core';
 import type { Address } from '../address/address';
 import type { AddressCodec } from '../address/address-codec';
 import type { UiIds } from '../address/ui-ids';
+import type { AppReach } from '../manifest/app-reach';
 import type { RenderContext } from './context.types';
 import type { Refusal } from './outcome.types';
 import type { RefreshPort, UcPort } from './ports.types';
@@ -17,6 +18,8 @@ export type ScreenInstanceSpec = {
   readonly codec: AddressCodec;
   readonly context: RenderContext;
   readonly calls: UcCalls;
+  /** Состав приложения UI: отрезанные действия не показываются и не исполняются. */
+  readonly reach: AppReach;
   readonly ucs: UcPort;
   readonly refresh: RefreshPort;
   readonly observer: UiObserver;

@@ -42,6 +42,7 @@ import {
   TaskAssignedView,
   TaskCompletedView,
 } from '../../../testing/example/task-notes.view';
+import { UserCardView } from '../../../testing/example/user-card.view';
 import { DIALOG_CHANNEL } from '../../dialog';
 import type { MessengerCapabilities } from '../../messenger/messenger.types';
 import { ChatViews } from '../../view/chat-views';
@@ -579,6 +580,7 @@ describe('CH-01: граница с другими правилами', () => {
     const views = ChatViews.of(ExampleUiSetDef, [
       TaskListView,
       AssignedTasksView,
+      UserCardView,
       TaskAssignedView,
       TaskCompletedView,
     ]);

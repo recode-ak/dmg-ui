@@ -1,5 +1,6 @@
 import type { NotificationCode, ScreenCode } from 'dmg-ui';
 import type { AssignedTasksScreenDef } from './todo/assigned-tasks.screen';
+import type { MainMenuScreenDef } from './todo/main-menu.screen';
 import type { TaskAssignedNotificationDef } from './todo/task-assigned.notification';
 import type { TaskCardScreenDef } from './todo/task-card.screen';
 import type { TaskCompletedNotificationDef } from './todo/task-completed.notification';
@@ -11,6 +12,7 @@ export type ExampleCodeOverrides = {
   readonly list?: ScreenCode<typeof TaskListScreenDef>;
   readonly card?: ScreenCode<typeof TaskCardScreenDef>;
   readonly assigned?: ScreenCode<typeof AssignedTasksScreenDef>;
+  readonly menu?: ScreenCode<typeof MainMenuScreenDef>;
   readonly user?: ScreenCode<typeof UserCardScreenDef>;
   readonly assignedNote?: NotificationCode<typeof TaskAssignedNotificationDef>;
   readonly completedNote?: NotificationCode<

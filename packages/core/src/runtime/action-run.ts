@@ -24,7 +24,8 @@ export type {
 } from './action-run.types';
 
 /**
- * Одно исполнение действия строго по порядку: закрыт → ревизия → имя →
+ * Одно исполнение действия строго по порядку: закрыт → ревизия → имя (и
+ * состав приложения: отрезанное действие — неизвестное) →
  * «только чтение» → доступность → подтверждение → вход → `command` → UC →
  * `done`/`caught` → проверка перехода. Не бросает: бросок кода экрана,
  * необъявленный переход или выход — дефект и отказ `SERVER_INTERNAL`.
@@ -47,7 +48,9 @@ export class ActionRun {
       return this.end({ kind: 'stale', revision });
     }
     const action = unit.action(request.action);
-    if (action === undefined) return this.unavailable('unknown');
+    if (action === undefined || this.spec.reach.cuts(unit.def, action)) {
+      return this.unavailable('unknown');
+    }
     if (context.readOnly && action.uc !== undefined) {
       return this.unavailable('readOnly');
     }

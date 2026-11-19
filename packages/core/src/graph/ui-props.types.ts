@@ -1,3 +1,4 @@
+import type { NormalizedRule } from 'dmg-core';
 import type { NormalizedSchema } from '../manifest/normalized.types';
 
 /** Тексты элемента `props`: исход, выход, локальное действие, вход, подтверждение. */
@@ -46,6 +47,8 @@ export type UiStoryProps = {
   /** `id` экрана старта. */
   readonly start: string;
   readonly outcomes: readonly UiOutcomeProps[];
+  /** Правило доступа, свёрнутое, как `policy` UC; без доступа ключа нет. */
+  readonly access?: NormalizedRule;
 };
 
 /** `props` узла `screen`; порядок ключей фиксирован. */

@@ -40,6 +40,9 @@ export const UI_EDGE_KINDS = {
   links: 'links',
   catches: 'catches',
   presents: 'presents',
+  leads: 'leads',
+  requires: 'requires',
+  omits: 'omits',
 } as const;
 
 /** Виды узлов и рёбер ядра UI и схемы их свойств; данные, как `DOMAIN_KINDS`. */
@@ -148,6 +151,24 @@ export const UI_KINDS: GraphKinds = {
       label: 'Показывает',
       description:
         'Приложение UI показывает экран, уведомление или набор целиком; ставит пакет канала.',
+    },
+    {
+      kind: UI_EDGE_KINDS.leads,
+      label: 'Ведёт в сторис',
+      description:
+        'Сторис ведёт в другую сторис: переход на её стартовый экран.',
+    },
+    {
+      kind: UI_EDGE_KINDS.requires,
+      label: 'Требует правило',
+      description:
+        'Сторис показывает человеку доменное правило, которое проверяет UC.',
+    },
+    {
+      kind: UI_EDGE_KINDS.omits,
+      label: 'Не включает сторис',
+      description:
+        'Приложение UI не включает сторис из связей своих сторис: переходы в неё отрезаны.',
     },
   ],
 };

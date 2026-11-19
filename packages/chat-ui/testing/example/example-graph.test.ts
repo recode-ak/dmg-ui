@@ -3,9 +3,10 @@ import { AppGraph } from 'dmg-core/graph';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import { ExampleDialogArch } from './example-dialog.arch';
 
-// Граф учебного примера (критерий фазы): `ExampleArch` + поставщик `dmg-ui`
-// + представления канала и точки входа двух приложений — без нарушений
-// (правила ядра, CH-01, CH-02). Получатель `taskCompleted` —
+// Граф учебного примера: `ExampleArch` + поставщик `dmg-ui` + представления
+// канала и точки входа трёх приложений — без нарушений (правила ядра, CH-01,
+// CH-02). Приложения без карточки пользователя отрезают её ребром `omits`.
+// Получатель `taskCompleted` —
 // системный query UC на ребре `recipients`, не чтение (UI-12, D-UI-23).
 
 const TASK_COMPLETED = 'exampleUi/todo/taskCompleted';
@@ -22,6 +23,17 @@ describe('граф учебного примера', () => {
       'arch:check example: нарушений — 0',
       'arch:check: нарушений нет',
     ]);
+  });
+
+  test('omits: карточку пользователя отрезают только приложения без viewUser', () => {
+    const omits = (app: string) =>
+      graph()
+        .outgoing(app, 'omits')
+        .map((edge) => edge.to);
+
+    expect(omits('exampleDialog')).toEqual([]);
+    expect(omits('exampleTrimmed')).toEqual(['exampleUi/users/viewUser']);
+    expect(omits('exampleWindowed')).toEqual(['exampleUi/users/viewUser']);
   });
 
   test('taskCompleted: recipients — getTaskAssignee, reads — listAssignedTasks', () => {

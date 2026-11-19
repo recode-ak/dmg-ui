@@ -90,6 +90,9 @@ export class UiNodes {
           exit: exit.name,
         })),
       })),
+      ...(story.access === undefined
+        ? {}
+        : { access: story.access.normalize() }),
     };
     return {
       kind: UI_NODE_KINDS.story,

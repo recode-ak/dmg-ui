@@ -26,6 +26,8 @@ export class BodyFreeze {
         };
       case 'assigned':
         return { ...body, rows: this.rows(body.rows) };
+      case 'user':
+        return body;
     }
   }
 

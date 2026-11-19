@@ -53,10 +53,11 @@ describe('вход dmg-ui/chat-ui', () => {
 });
 
 describe('вход dmg-ui/chat-ui/testing', () => {
-  it('состав — привязка учебного примера к диалогу (два приложения) и подставной мессенджер', async () => {
+  it('состав — привязка учебного примера к диалогу (три приложения) и подставной мессенджер', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui/testing')).sort()).toEqual([
       'ExampleDialogAppDef',
       'ExampleDialogArch',
+      'ExampleTrimmedDialogAppDef',
       'ExampleWindowedAppDef',
       'MemoryMessenger',
       'exampleDialogViews',

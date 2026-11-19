@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import { useTempDir } from 'dmg-core/testing';
+import { ScreenPreview } from 'dmg-ui';
 import {
   ExampleUiSetDef,
+  exampleCodes,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskListScreenDef,
+  UserCardScreenDef,
 } from 'dmg-ui/testing';
 import { UiScene } from 'dmg-ui/testing/fixtures';
 import { PageNotePresenter } from 'dmg-ui/web-ui';
@@ -43,6 +46,7 @@ const ID = {
   assigned: 'exampleUi/todo/assignedTasks',
   assignedNote: 'exampleUi/todo/taskAssigned',
   completedNote: 'exampleUi/todo/taskCompleted',
+  user: 'exampleUi/users/userCard',
 };
 
 const BODY: ScreenBody = { kind: 'assigned', rows: [] };
@@ -52,11 +56,11 @@ describe('ExampleViews.of — реестр', () => {
     expect(exampleWebViews.set).toBe(ExampleUiSetDef);
   });
 
-  test('presented() по составу равен текстовому реестру: три экрана и два уведомления', () => {
+  test('presented() по составу равен текстовому реестру: четыре экрана и два уведомления', () => {
     expect([...exampleWebViews.presented()].sort()).toEqual(
       [...examplePageViews.presented()].sort(),
     );
-    expect(exampleWebViews.presented()).toHaveLength(5);
+    expect(exampleWebViews.presented()).toHaveLength(6);
   });
 
   test('экран находится по id', () => {
@@ -116,6 +120,31 @@ describe('ExampleViews.of — реестр', () => {
     ]);
 
     expect([...views.presented()].sort()).toEqual([ID.card, ID.list]);
+  });
+});
+
+describe('карточка пользователя — модель тела', () => {
+  test('пример active: учётная запись и строка активности, без управления', async () => {
+    const view = await new ScreenPreview({
+      set: ExampleUiSetDef,
+      codes: exampleCodes(),
+    }).screen(UserCardScreenDef, 'active', {
+      locale: 'ru-RU',
+      timeZone: 'Asia/Oral',
+      delegate: false,
+      readOnly: false,
+    });
+
+    const body = exampleWebViews
+      .screen(ID.user)
+      .body(view, { actions: [], forms: [] });
+
+    expect(body).toEqual({
+      kind: 'user',
+      // `userId` примера `active` — владелец задач учебного набора.
+      userId: '1b2c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d',
+      status: 'Учётная запись активна',
+    });
   });
 });
 

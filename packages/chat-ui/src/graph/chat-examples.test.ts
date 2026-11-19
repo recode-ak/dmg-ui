@@ -191,6 +191,7 @@ describe('ChatExamples.collect — примеры набора', () => {
     expect(examples.set).toBe(ExampleUiSetDef);
     expect(screens.map(({ id, name }) => `${id} ${name}`).sort()).toEqual([
       `${ASSIGNED} two`,
+      'exampleUi/todo/mainMenu start',
       `${CARD} done`,
       `${CARD} open`,
       `${LIST} empty`,
@@ -244,7 +245,7 @@ describe('ChatExamples.collect — примеры набора', () => {
 
     const examples = await collectExample(context);
 
-    expect(examples.screens()).toHaveLength(6);
+    expect(examples.screens()).toHaveLength(7);
     for (const { view } of examples.screens()) {
       expect(view.context).toEqual(context);
     }

@@ -76,8 +76,15 @@ export type AssignedBody = {
   readonly empty?: string;
 };
 
+/** Тело «Пользователь»: учётная запись и текст её активности, без управления. */
+export type UserBody = {
+  readonly kind: 'user';
+  readonly userId: string;
+  readonly status: string;
+};
+
 /** Тело экрана по виду. */
-export type ScreenBody = ListBody | CardBody | AssignedBody;
+export type ScreenBody = ListBody | CardBody | AssignedBody | UserBody;
 
 /**
  * Модель области — то, что видит человек; данные JSON. `busy` — область

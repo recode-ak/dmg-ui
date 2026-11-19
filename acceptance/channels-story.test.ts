@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { Trace } from 'dmg-core';
 import {
   AwaitingBus,
   MemoryLogger,
@@ -9,17 +10,22 @@ import {
   useTempDir,
 } from 'dmg-core/testing';
 import {
+  AssignTaskUcDef,
+  CreateTaskUcDef,
   ExampleApp,
   ListTasksUcDef,
   TodoModuleDef,
 } from 'dmg-core/testing/example';
+import type { AnyUiAppDef } from 'dmg-ui';
 import {
   type ConversationSignal,
   Conversations,
   MemoryConversationStore,
+  PlainText,
 } from 'dmg-ui/chat-ui';
 import {
   ExampleDialogAppDef,
+  ExampleTrimmedDialogAppDef,
   exampleDialogViews,
   MemoryMessenger,
 } from 'dmg-ui/chat-ui/testing';
@@ -34,17 +40,21 @@ import {
   exampleCodes,
   MemoryUiObserver,
 } from 'dmg-ui/testing';
-import { T0 } from 'dmg-ui/testing/fixtures';
+import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import { PageClient, PageHost, PageWire } from 'dmg-ui/web-ui';
 import { ExamplePagesAppDef, examplePageRoutes } from 'dmg-ui/web-ui/testing';
+import * as v from 'valibot';
 
 // Приёмка нейтральности ядра: один сценарий сторис
 // `finishTasks` — создать задачу, открыть карточку, выполнить — на двух
 // каналах, диалоговом (беседа на подставном мессенджере) и страничном, над
 // одним кодом, экранами и сторис. Лог операций не сравнивается: страничный
-// канал держит открытым и перечитывает список.
+// канал держит открытым и перечитывает список. Состав приложения: в беседе
+// без карточки пользователя у «Назначенные мне» нет перехода к исполнителю,
+// на странице и в основной беседе он открывает карточку исполнителя.
 
 const A = testUuid(1);
+const B = testUuid(2);
 const WHO_A = { peer: 'peer-a', sender: 'sender-a' } as const;
 const places: PersonPlaces = {
   place: async () => ({ locale: 'ru-RU', timeZone: 'Asia/Oral' }),
@@ -57,7 +67,7 @@ const base = (name: string) => {
   const bus = new AwaitingBus();
   const context = { bus, logger: new MemoryLogger() };
   const example = new ExampleApp(
-    { mode: 'test', dataDir: join(tmp().path, name), users: [A] },
+    { mode: 'test', dataDir: join(tmp().path, name), users: [A, B] },
     { ...context, clock: () => T0 },
   );
   const dispatch = new ApiAppDispatch(example.api);
@@ -95,23 +105,32 @@ const tasksOf = async (example: ExampleApp) => {
   return result.value.map((t) => ({ title: t.title, status: t.status }));
 };
 
-/** Ссылка варианта `label` живого места — последнего неушедшего сообщения с вариантами. */
-const refOf = (messenger: MemoryMessenger, label: string): string => {
-  const place = [...messenger.chat(WHO_A.peer)]
+/** Живое место беседы A — последнее неушедшее сообщение с вариантами. */
+const livePlace = (messenger: MemoryMessenger) =>
+  [...messenger.chat(WHO_A.peer)]
     .reverse()
     .find((line) => !line.retired && line.message.options.length > 0);
-  const option = place?.message.options.find((o) => o.label === label);
+
+/** Ссылка варианта `label` живого места. */
+const refOf = (messenger: MemoryMessenger, label: string): string => {
+  const option = livePlace(messenger)?.message.options.find(
+    (o) => o.label === label,
+  );
   if (option === undefined) throw new Error(`нет варианта «${label}»`);
   return option.ref;
 };
 
-/** Сценарий на диалоговом канале: беседа на подставном мессенджере. */
-const onDialog = async () => {
-  const w = base('dialog');
+/** Подписи вариантов живого места. */
+const labelsOf = (messenger: MemoryMessenger): string[] =>
+  livePlace(messenger)?.message.options.map((o) => o.label) ?? [];
+
+/** Беседа A на подставном мессенджере в приложении `app`. */
+const dialogOf = (app: AnyUiAppDef, name: string) => {
+  const w = base(name);
   const codes = exampleCodes();
   const messenger = MemoryMessenger.editing();
   const conversations = new Conversations({
-    app: ExampleDialogAppDef,
+    app,
     codes,
     server: w.server,
     views: exampleDialogViews,
@@ -126,7 +145,7 @@ const onDialog = async () => {
     requestIds: counter(),
   });
   new UiNotifier({
-    app: ExampleDialogAppDef,
+    app,
     codes,
     dispatch: w.dispatch,
     callers: w.example.callers,
@@ -147,7 +166,17 @@ const onDialog = async () => {
       ref: refOf(messenger, label),
       press: `p-${ids}`,
     });
-  await send({ ...head(), kind: 'enter', entry: 'start' });
+  const enter = (entry: string) => send({ ...head(), kind: 'enter', entry });
+  return { w, messenger, conversations, send, press, enter, head };
+};
+
+/** Сценарий на диалоговом канале: беседа на подставном мессенджере. */
+const onDialog = async () => {
+  const { w, conversations, send, press, enter, head } = dialogOf(
+    ExampleDialogAppDef,
+    'dialog',
+  );
+  await enter('start');
   await send({ ...head(), kind: 'text', text: TITLE });
   await press('Открыть задачу');
   await press(TITLE);
@@ -157,13 +186,13 @@ const onDialog = async () => {
   return w;
 };
 
-/** Сценарий на страничном канале. */
-const onPages = async () => {
-  const w = base('pages');
+/** Страничный канал: вкладка A, подключённая к хосту приложения `app`. */
+const pagesOf = async (app: AnyUiAppDef, name: string) => {
+  const w = base(name);
   const codes = exampleCodes();
   const tokens = new Map([['tA', A]]);
   const host = new PageHost({
-    app: ExamplePagesAppDef,
+    app,
     server: w.server,
     tokens: async (token) => tokens.get(token),
     callers: w.example.callers,
@@ -171,7 +200,7 @@ const onPages = async () => {
     logger: w.context.logger,
   });
   new UiNotifier({
-    app: ExamplePagesAppDef,
+    app,
     codes,
     dispatch: w.dispatch,
     callers: w.example.callers,
@@ -183,13 +212,19 @@ const onPages = async () => {
   const connected = await wire.connect('tA');
   if (!connected.ok) throw new Error('connect(tA): отказ');
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app,
     codes,
     routes: examplePageRoutes,
     end: connected.value,
     observer: w.observer,
     requestIds: counter(),
   });
+  return { w, wire, client };
+};
+
+/** Сценарий на страничном канале. */
+const onPages = async () => {
+  const { w, wire, client } = await pagesOf(ExamplePagesAppDef, 'pages');
   await client.route('/');
   await client.submit('main', 'create', { title: TITLE });
   await client.submit('main', 'open', { taskId: TITLE });
@@ -244,4 +279,109 @@ test('приложения каналов делят сторис и набор'
 test('в привязках каналов нет кода, экранов и сторис примера', () => {
   expect(exampleOnly('packages/chat-ui/testing/example')).toEqual([]);
   expect(exampleOnly('packages/web-ui/testing/example')).toEqual([]);
+});
+
+const CARD = 'Карточка исполнителя';
+const USER_CARD = 'exampleUi/users/userCard';
+const OutcomeRecord = v.object({
+  op: v.string(),
+  caller: v.object({ kind: v.string() }),
+  result: v.object({ ok: v.boolean() }),
+});
+
+type World = ReturnType<typeof base>;
+
+/** B создаёт задачу и назначает её на A: у A одно поручение. */
+const assignToA = async (w: World) => {
+  const asB = async (requestId: string) => {
+    const trace = Trace.fromRequest({ requestId });
+    const caller = await w.example.callers.resolve(B, trace);
+    if (!caller.ok) throw new Error('вызывающий B не найден');
+    return { caller: caller.value, trace };
+  };
+  const first = await asB('r-b-create');
+  const task = await w.example.api.dispatch(
+    TodoModuleDef,
+    CreateTaskUcDef.command({ title: TITLE }),
+    first.caller,
+    first.trace,
+  );
+  if (!task.ok) throw new Error('createTask: отказ');
+  const second = await asB('r-b-assign');
+  const assigned = await w.example.api.dispatch(
+    TodoModuleDef,
+    AssignTaskUcDef.command({ taskId: task.value.taskId, assigneeId: A }),
+    second.caller,
+    second.trace,
+  );
+  if (!assigned.ok) throw new Error('assignTask: отказ');
+  await w.bus.delivered();
+};
+
+/**
+ * Результаты `getUser` от человека из лога операций мира `name`: `ok` по
+ * порядку; вызовы резолвера вызывающего (`system`) не считаются.
+ */
+const getUserResults = (name: string) =>
+  oplogRecords(join(tmp().path, name))
+    .map((record) => v.parse(OutcomeRecord, record))
+    .filter(
+      (record) => record.op === 'getUser' && record.caller.kind === 'user',
+    )
+    .map((record) => record.result.ok);
+
+test('беседа без viewUser: у «Назначенные мне» нет карточки исполнителя', async () => {
+  const d = dialogOf(ExampleTrimmedDialogAppDef, 'dialog-trimmed');
+  await assignToA(d.w);
+
+  await d.enter('assigned');
+
+  expect(labelsOf(d.messenger)).toContain('Закрыть');
+  expect(labelsOf(d.messenger)).not.toContain(CARD);
+});
+
+test('страница: у «Назначенные мне» есть действие карточки исполнителя', async () => {
+  const { w, client } = await pagesOf(ExamplePagesAppDef, 'pages-assigned');
+  await assignToA(w);
+
+  await client.route('/assigned');
+
+  const actions = client.region('main').view?.actions.map((a) => a.name);
+  expect(actions).toContain('openAssignee');
+});
+
+test('страница: нажатие открывает карточку исполнителя с активной учётной записью', async () => {
+  const { w, wire, client } = await pagesOf(ExamplePagesAppDef, 'pages-card');
+  await assignToA(w);
+  await client.route('/assigned');
+
+  const outcome = await client.submit('main', 'openAssignee', {});
+  await wire.settled();
+
+  expect(outcome).toMatchObject({ kind: 'moved' });
+  const card = (['main', 'side', 'modal'] as const)
+    .map((region) => client.region(region))
+    .find((state) => state.view?.screen === USER_CARD);
+  expect(card?.view?.data).toMatchObject({ userId: A, active: true });
+});
+
+test('основная беседа: нажатие открывает карточку исполнителя', async () => {
+  const d = dialogOf(ExampleDialogAppDef, 'dialog-card');
+  await assignToA(d.w);
+  await d.enter('assigned');
+
+  await d.press(CARD);
+  await d.conversations.settled();
+
+  expect(
+    d.w.observer.records.filter(
+      (r) =>
+        r.kind === 'outcome' && r.outcome === 'moved' && r.to === USER_CARD,
+    ),
+  ).toHaveLength(1);
+  expect(getUserResults('dialog-card')).toEqual([true]);
+  const card = livePlace(d.messenger)?.message.text;
+  expect(card === undefined ? '' : PlainText.of(card)).toContain(
+    'Учётная запись активна',
+  );
 });

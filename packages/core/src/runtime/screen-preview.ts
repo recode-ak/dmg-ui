@@ -1,6 +1,7 @@
 import { Address } from '../address/address';
 import { AddressCodec } from '../address/address-codec';
 import { UiIds } from '../address/ui-ids';
+import { AppReach } from '../manifest/app-reach';
 import type { AnyNotificationDef } from '../manifest/notification-def.types';
 import type { AnyScreenDef } from '../manifest/screen-def.types';
 import type { CodeLoaders } from './code-loaders';
@@ -21,7 +22,8 @@ export type {
 /**
  * Вид экрана и данные уведомления по именованному примеру Def — для
  * каталога, снимков и тестов представлений. Порты, наблюдатель и `load`
- * кода не зовутся; ошибка в примере — бросок `CodeDefect`.
+ * кода не зовутся; ошибка в примере — бросок `CodeDefect`. Приложения UI у
+ * превью нет: действия составом приложения не отрезаются.
  */
 export class ScreenPreview {
   private readonly codes: CodeLoaders;
@@ -57,6 +59,7 @@ export class ScreenPreview {
       this.ids.screen(def),
       address,
       context,
+      AppReach.of(undefined),
     );
     return views.view(0, views.ready(frame));
   }

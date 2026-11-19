@@ -170,6 +170,12 @@ exports[`снимки запросов Telegram assignedTasks two — общее
       [
         {
           "callback_data": "1",
+          "text": "Карточка исполнителя",
+        },
+      ],
+      [
+        {
+          "callback_data": "2",
           "text": "Закрыть",
         },
       ],

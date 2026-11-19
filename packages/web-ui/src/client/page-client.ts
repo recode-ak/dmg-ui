@@ -182,6 +182,7 @@ export class PageClient {
       ucs: this.ports,
       refresh: this.ports,
       observer: spec.observer,
+      app,
       ...(spec.faults === undefined ? {} : { faults: spec.faults }),
     });
     this.codec = new AddressCodec(app.set);

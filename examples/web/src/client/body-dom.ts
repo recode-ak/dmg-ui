@@ -51,6 +51,11 @@ export class BodyDom {
             ? []
             : [h('p', { class: 'empty', text: body.empty })]),
         ];
+      case 'user':
+        return [
+          h('p', { class: 'title', text: body.userId }),
+          h('p', { class: 'status', text: body.status }),
+        ];
     }
   }
 

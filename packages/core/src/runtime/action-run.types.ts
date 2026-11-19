@@ -1,5 +1,6 @@
 import type { TraceJson } from 'dmg-core';
 import type { AddressCodec } from '../address/address-codec';
+import type { AppReach } from '../manifest/app-reach';
 import type { RenderContext } from './context.types';
 import type { InstanceRecords } from './instance-records';
 import type { ActionOutcome } from './outcome.types';
@@ -32,6 +33,8 @@ export type ActionRunSpec = {
   readonly request: ActRequest;
   /** Сборка `UcCall`: модуль UC и причина из следа запроса. */
   readonly calls: UcCalls;
+  /** Состав приложения UI: отрезанное действие — как неизвестное. */
+  readonly reach: AppReach;
   /** `id` действия — узел записей наблюдателя. */
   readonly actionNode: string;
   readonly ucs: UcPort;
