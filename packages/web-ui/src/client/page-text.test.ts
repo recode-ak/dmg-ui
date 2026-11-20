@@ -10,9 +10,9 @@ import {
   TaskCardScreenDef,
 } from 'dmg-ui/testing';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
-  examplePageViews,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
+  examplePagesViews,
 } from '../../testing';
 import type {
   ClientMessage as ClientMsg,
@@ -92,15 +92,15 @@ class StubEnd implements ClientEnd {
 const page = (placements?: readonly PagePlacement[]) => {
   const end = new StubEnd();
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
     end,
     observer: new MemoryUiObserver(),
     reviveSubject,
     ...(placements === undefined ? {} : { placements }),
   });
-  return { end, client, text: new PageText(client, examplePageViews) };
+  return { end, client, text: new PageText(client, examplePagesViews) };
 };
 
 describe('PageText', () => {

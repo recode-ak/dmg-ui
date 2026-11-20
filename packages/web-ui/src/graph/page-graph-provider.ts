@@ -10,15 +10,15 @@ import { UiIds } from 'dmg-ui';
 import { UI_EDGE_KINDS } from 'dmg-ui/graph';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
 import type { AnyPageRouteDef } from '../url/page-route-def.types';
-import { EntryRouteRule } from './entry-route.rule';
 import type { PageAppSpec, PageGraphSpec } from './page-graph-provider.types';
 import { PAGE_EDGE_KINDS, PAGE_KINDS, PAGE_NODE_KINDS } from './page-kinds';
-import { RouteCommonRule } from './route-common.rule';
-import { RouteEntryRule } from './route-entry.rule';
-import { RouteOverlapRule } from './route-overlap.rule';
-import { RouteParamsRule } from './route-params.rule';
-import { RoutePathRule } from './route-path.rule';
-import { ScreenUrlRule } from './screen-url.rule';
+import { EntryRouteRule } from './rules/entry-route.rule';
+import { RouteCommonRule } from './rules/route-common.rule';
+import { RouteEntryRule } from './rules/route-entry.rule';
+import { RouteOverlapRule } from './rules/route-overlap.rule';
+import { RouteParamsRule } from './rules/route-params.rule';
+import { RoutePathRule } from './rules/route-path.rule';
+import { ScreenUrlRule } from './rules/screen-url.rule';
 
 export type {
   PageAppSpec,

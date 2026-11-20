@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { useTempDir } from 'dmg-core/testing';
 import { Browser } from './browser';
 import type { BrowserPage } from './browser-page';
-import { ExampleWebFixture } from './example-web-fixture';
+import { ExampleWebFixture } from './example-web.fixture';
 
 // «Назад» браузера и закрытие окна в настоящем Chrome: стек «список → меню →
 // окно». Один человек, одна вкладка: меню открывается ссылкой внутри

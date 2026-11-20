@@ -8,7 +8,7 @@ import {
 import { ExampleApp } from 'dmg-core/testing/example';
 import { Conversations, MemoryConversationStore } from 'dmg-ui/chat-ui';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
 } from 'dmg-ui/chat-ui/testing';
 import {
@@ -144,7 +144,7 @@ const world = () => {
   const node = () => {
     const messenger = new TelegramMessenger({ api, logger });
     const conversations = new Conversations({
-      app: ExampleDialogAppDef,
+      app: ExampleDialogUiAppDef,
       codes,
       server,
       views: exampleDialogViews,
@@ -176,7 +176,7 @@ const world = () => {
   /** Уведомления уходят в беседу получателя: доставка — узел бесед. */
   const notifications = () =>
     new UiNotifier({
-      app: ExampleDialogAppDef,
+      app: ExampleDialogUiAppDef,
       codes,
       dispatch,
       callers: example.callers,
@@ -585,7 +585,7 @@ describe('сторис на Telegram — личность непрозрачна
     }
     expect(
       records.some(
-        (r) => r.trace.channel?.name === ExampleDialogAppDef.channel,
+        (r) => r.trace.channel?.name === ExampleDialogUiAppDef.channel,
       ),
     ).toBe(true);
   });

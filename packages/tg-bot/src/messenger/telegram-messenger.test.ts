@@ -20,7 +20,7 @@ import {
   TextBuilder,
 } from 'dmg-ui/chat-ui';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
 } from 'dmg-ui/chat-ui/testing';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
@@ -1044,7 +1044,7 @@ describe('TelegramMessenger — в узле бесед', () => {
       context: { bus, logger },
     });
     return new Conversations({
-      app: ExampleDialogAppDef,
+      app: ExampleDialogUiAppDef,
       codes: exampleCodes(),
       server,
       views,

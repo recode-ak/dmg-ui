@@ -8,14 +8,11 @@ import { VIEW_TEXTS } from '../../view/view.const';
 import type { ChatExamples } from '../chat-examples';
 import { CHAT_NODE_KINDS } from '../chat-kinds';
 import { NOT_COMPOSED } from './example-limits.const';
-import type {
-  ExampleLimitsSpec,
-  NoticeLink,
-} from './example-limits.rule.types';
+import type { ExampleLimitsSpec, NoticeLink } from './example-limits.types';
 import { NotificationLimits } from './notification-limits';
 import { ScreenLimits } from './screen-limits';
 
-export type { ExampleLimitsSpec } from './example-limits.rule.types';
+export type { ExampleLimitsSpec } from './example-limits.types';
 
 /**
  * CH-01 (D-UI-58): примеры экранов и уведомлений, которые приложение

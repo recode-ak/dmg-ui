@@ -12,7 +12,7 @@ import {
   RuntimeKit,
   refreshSignal,
   requestTrace,
-} from '../../testing/ui-runtime-fixture';
+} from '../../testing/ui-runtime.fixture';
 import { ScreenRuntime } from './screen-runtime';
 
 // Исполнитель работает через JSON-провод (как браузер за сервером) —

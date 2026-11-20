@@ -1,4 +1,4 @@
-import { examplePageRoutes } from 'dmg-ui/web-ui/testing';
+import { examplePagesRoutes } from 'dmg-ui/web-ui/testing';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
 import type { ExamplePerson } from '../common/example-people.types';
 import { EXAMPLE_PATHS } from '../common/example-web.const';
@@ -30,7 +30,7 @@ export class PageShell {
 
   protected app(person: ExamplePerson): string {
     const others = EXAMPLE_PEOPLE.filter(({ key }) => key !== person.key);
-    const links = examplePageRoutes
+    const links = examplePagesRoutes
       .filter((route) => route.visible)
       .map(
         (route) =>

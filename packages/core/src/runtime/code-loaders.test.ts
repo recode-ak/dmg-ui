@@ -17,7 +17,7 @@ import { TaskCardScreenCode } from '../../testing/example/todo/task-card.scode';
 import { TaskCompletedNotificationCode } from '../../testing/example/todo/task-completed.ncode';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { UserCardScreenCode } from '../../testing/example/users/user-card.scode';
-import { RuntimeKit } from '../../testing/ui-runtime-fixture';
+import { RuntimeKit } from '../../testing/ui-runtime.fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 

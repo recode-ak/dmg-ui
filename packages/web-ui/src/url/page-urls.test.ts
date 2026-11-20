@@ -19,8 +19,8 @@ import {
   TaskListScreenDef,
 } from 'dmg-ui/testing';
 import * as v from 'valibot';
-import { ExamplePagesAppDef, examplePageRoutes } from '../../testing';
-import { RoutedAppDef } from '../../testing/routed-pages.app';
+import { ExamplePagesUiAppDef, examplePagesRoutes } from '../../testing';
+import { RoutedPagesUiAppDef } from '../../testing/routed-pages.ui-app';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { type PageRoute, type PageUrlRejection, PageUrls } from './page-urls';
 
@@ -36,7 +36,7 @@ const CARD_PREFIX = '/todo/taskCard?taskId=';
 
 /** Кодек приложения страниц учебного примера с его маршрутами. */
 const exampleUrls = () =>
-  new PageUrls({ app: ExamplePagesAppDef, routes: examplePageRoutes });
+  new PageUrls({ app: ExamplePagesUiAppDef, routes: examplePagesRoutes });
 
 /** Разбор, который обязан пройти: адрес или падение теста с причиной отказа. */
 const parsed = (urls: PageUrls, url: string): Address => {
@@ -58,11 +58,14 @@ const ROUTED: readonly PageRoute[] = [
   { path: '/task/:taskId', entry: 'card' },
 ];
 
-const routedUrls = () => new PageUrls({ app: RoutedAppDef, routes: ROUTED });
+const routedUrls = () =>
+  new PageUrls({ app: RoutedPagesUiAppDef, routes: ROUTED });
 
 /** Сборка кодека на приложении с маршрутами `routes`. */
-const build = (routes: readonly PageRoute[], app: AnyUiAppDef = RoutedAppDef) =>
-  new PageUrls({ app, routes });
+const build = (
+  routes: readonly PageRoute[],
+  app: AnyUiAppDef = RoutedPagesUiAppDef,
+) => new PageUrls({ app, routes });
 
 describe('PageUrls — круг адрес → URL → адрес на учебном примере', () => {
   const rows: [string, Address, string][] = [
@@ -93,7 +96,7 @@ describe('PageUrls — круг адрес → URL → адрес на учеб�
 });
 
 describe('PageUrls — каждый пример каждого экрана набора выражается URL', () => {
-  const screens = ExamplePagesAppDef.set.modules.flatMap((m) => m.screens);
+  const screens = ExamplePagesUiAppDef.set.modules.flatMap((m) => m.screens);
   const examples = screens.flatMap((def) =>
     Object.entries(def.examples ?? {}).map(
       ([name, example]) =>

@@ -12,8 +12,8 @@ import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import {
-  ExampleDialogAppDef,
-  ExampleWindowedAppDef,
+  ExampleDialogUiAppDef,
+  ExampleWindowedUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
 } from '../../../testing';
@@ -41,14 +41,14 @@ const point = (entry: string, key = entry) => ({
 });
 
 const dialog = (entryPoints?: ChatAppSpec['entryPoints']): ChatAppSpec => ({
-  app: ExampleDialogAppDef,
+  app: ExampleDialogUiAppDef,
   views: exampleDialogViews,
   capabilities: EDITING,
   ...(entryPoints ? { entryPoints } : {}),
 });
 
 const windowed = (entryPoints?: ChatAppSpec['entryPoints']): ChatAppSpec => ({
-  app: ExampleWindowedAppDef,
+  app: ExampleWindowedUiAppDef,
   views: exampleDialogViews,
   capabilities: WINDOWED,
   ...(entryPoints ? { entryPoints } : {}),

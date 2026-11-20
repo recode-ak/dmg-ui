@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import * as v from 'valibot';
 import { ExampleUiSetDef } from '../../../testing/example';
-import { ExampleMenuStubAppDef } from '../../../testing/ui-app-fixture';
+import { ExampleMenuStubUiAppDef } from '../../../testing/ui-app.fixture';
 import { ArchReport, UiScene } from '../../../testing/ui-arch';
 
 const TEXTS = { label: 'Подпись', description: 'Описание.' };
@@ -111,7 +111,7 @@ describe('UI-27: вид поля входа поддержан вводом че
 
   test('учебный набор: правило не срабатывает', () => {
     const report = ArchReport.of(
-      UiScene.appOf(ExampleUiSetDef, [ExampleMenuStubAppDef]),
+      UiScene.appOf(ExampleUiSetDef, [ExampleMenuStubUiAppDef]),
     );
 
     expect(report.rule('UI-27')).toEqual([]);

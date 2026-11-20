@@ -135,7 +135,7 @@ create: ({ data }) =>
 
 **Страница.** Кнопка серая и стоит на месте, причина — под кнопкой и в подсказке при наведении; Tab достигает её, Enter и пробел ничего не отправляют; форма «Создать» при пределе — `available: false` с причиной, отправка — `unavailable` (D-UI-106). Скрытого на странице просто нет.
 
-Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 4», «предел открытых», «возврат доступности»; [telegram-disabled.story.test.ts](../../packages/tg-bot/testing/telegram-disabled.story.test.ts) — «нажатие — ровно один answerCallbackQuery», «причина длиннее 200»; [example-web-disabled.browser.test.ts](../../browser/example-web-disabled.browser.test.ts) — «Enter и пробел на кнопке с причиной»
+Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 4», «предел открытых», «возврат доступности»; [telegram-disabled-story.test.ts](../../packages/tg-bot/testing/telegram-disabled-story.test.ts) — «нажатие — ровно один answerCallbackQuery», «причина длиннее 200»; [example-web-disabled.browser.test.ts](../../browser/example-web-disabled.browser.test.ts) — «Enter и пробел на кнопке с причиной»
 
 Решения: D-UI-98, D-UI-105, D-UI-106.
 
@@ -154,7 +154,7 @@ export const FollowAssignedStoryDef = StoryDef.define({
 ```
 
 ```ts
-// из: packages/chat-ui/testing/example/example-trimmed.app.ts
+// из: packages/chat-ui/testing/example/example-trimmed.ui-app.ts
 stories: [
   StartWorkStoryDef,
   PlanTasksStoryDef,
@@ -194,7 +194,7 @@ tasks: {
 
 **Страница.** «Назад» — «Назад» браузера: шаг истории при уходе вглубь, замена при листании («Дальше» записей не прибавляет); открытие панели и окна — запись с пометкой `over`, «Назад» закрывает слой и не уходит со страницы (D-UI-97, D-UI-104).
 
-Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 2», «сценарий 6», «в конце; три», «листание — замена записи истории»; [telegram-back.story.test.ts](../../packages/tg-bot/testing/telegram-back.story.test.ts) — «/back с путём»; [example-web-back.browser.test.ts](../../browser/example-web-back.browser.test.ts) — «запись не добавляется; ещё»
+Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 2», «сценарий 6», «в конце; три», «листание — замена записи истории»; [telegram-back-story.test.ts](../../packages/tg-bot/testing/telegram-back-story.test.ts) — «/back с путём»; [example-web-back.browser.test.ts](../../browser/example-web-back.browser.test.ts) — «запись не добавляется; ещё»
 
 Решения: D-UI-53, D-UI-97, D-UI-104, D-UI-108.
 
@@ -205,7 +205,7 @@ tasks: {
 **Как объявить.** Для беседы объявлять нечего: окна в ней нет, карточка — следующий экран. Для страницы окно — размещение экрана в области `modal`; приложение и умолчание канала («из корня — в панель») не меняются, размещение передаёт сборка вкладки:
 
 ```ts
-// из: packages/web-ui/testing/example/example-pages.placements.ts
+// из: packages/web-ui/testing/example/example-window.placements.ts
 export const exampleWindowPlacements: readonly PagePlacement[] = [
   { screen: TaskCardScreenDef, region: 'modal' },
 ];
@@ -251,7 +251,7 @@ jumpTo: {
 
 **Страница.** Поле числа — `type=number`, `min=1`, `max=99`, `step=1` из пределов схемы, подсказка связана с полем; булево в карточке задачи — чекбокс «Срочно» с подсказкой, дата — поле даты «Когда»; отказ схемы — замечание у поля, форма и введённое остались.
 
-Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 5», «поле part: вид», «вопрос с подсказкой, примером и пределами»; [telegram-fields.story.test.ts](../../packages/tg-bot/testing/telegram-fields.story.test.ts) — «вопрос: подпись и подсказка»; [example-web-fields.browser.test.ts](../../browser/example-web-fields.browser.test.ts) — «type=number, min=1, max=99, step=1»
+Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 5», «поле part: вид», «вопрос с подсказкой, примером и пределами»; [telegram-fields-story.test.ts](../../packages/tg-bot/testing/telegram-fields-story.test.ts) — «вопрос: подпись и подсказка»; [example-web-fields.browser.test.ts](../../browser/example-web-fields.browser.test.ts) — «type=number, min=1, max=99, step=1»
 
 Решения: D-UI-47, D-UI-100, D-UI-106.
 
@@ -275,7 +275,7 @@ jumpTo: {
 
 **Страница.** Кнопка «Справка» у заголовка области: достижима Tab, `aria-expanded` — `false`, затем по Enter блок под заголовком с разделами «Что можно сделать» и «Куда можно пойти».
 
-Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 7», «справка показывает подсказку сторис followAssigned»; [telegram-help.story.test.ts](../../packages/tg-bot/testing/telegram-help.story.test.ts) — «справка — ровно один sendMessage», «длинная справка»; [example-web-help.browser.test.ts](../../browser/example-web-help.browser.test.ts) — «справка области на странице в Chrome»
+Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 7», «справка показывает подсказку сторис followAssigned»; [telegram-help-story.test.ts](../../packages/tg-bot/testing/telegram-help-story.test.ts) — «справка — ровно один sendMessage», «длинная справка»; [example-web-help.browser.test.ts](../../browser/example-web-help.browser.test.ts) — «справка области на странице в Chrome»
 
 Решения: D-UI-107.
 
@@ -310,15 +310,15 @@ jumpTo: {
 | Подсказка и вид поля | `v.title`, `fieldHint`, `v.examples`, пределы (D-UI-100, D-UI-106) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «поле part: вид» |
 | Список, страница, фильтр | параметры экрана в адресе (D-UI-76); в примере — страница | есть; фильтра в примере нет | Проверено: [page-urls.test.ts](../../packages/web-ui/src/url/page-urls.test.ts) — «круг адрес → URL → адрес» |
 | Список и карточка рядом | области страницы (D-UI-78) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «карточка в side» |
-| «Назад» как возврат, а не отмена | шаг и замена (D-UI-97), автокнопка беседы (D-UI-53, D-UI-108), гонки (D-UI-104) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 6»; [telegram-back.story.test.ts](../../packages/tg-bot/testing/telegram-back.story.test.ts) — «/back с путём» |
+| «Назад» как возврат, а не отмена | шаг и замена (D-UI-97), автокнопка беседы (D-UI-53, D-UI-108), гонки (D-UI-104) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 6»; [telegram-back-story.test.ts](../../packages/tg-bot/testing/telegram-back-story.test.ts) — «/back с путём» |
 | Ссылка, перезагрузка | адрес в URL, запись истории (D-UI-76, D-UI-81) | есть | Проверено: [page-client.test.ts](../../packages/web-ui/src/client/page-client.test.ts) — «перезагрузка на промежуточной записи» |
-| Чужое изменение, устаревшее действие | `refresh` экрана по событию, ревизия, «Экран обновился.» (D-UI-92) | есть | Проверено: [telegram-disabled.story.test.ts](../../packages/tg-bot/testing/telegram-disabled.story.test.ts) — «действие стало доступным» |
+| Чужое изменение, устаревшее действие | `refresh` экрана по событию, ревизия, «Экран обновился.» (D-UI-92) | есть | Проверено: [telegram-disabled-story.test.ts](../../packages/tg-bot/testing/telegram-disabled-story.test.ts) — «действие стало доступным» |
 | Показ итога до ответа сервера | `PageOverlay` (D-UI-84) | есть | Проверено: [page-overlay.test.ts](../../packages/web-ui/src/client/page-overlay.test.ts) — «наложение и снятие» |
 | Мастер из шагов | поля входа по шагам, состояние экрана | есть; общий черновик на несколько экранов отложен | Проверено: [conversation-steps.test.ts](../../packages/chat-ui/src/conversation/conversation-steps.test.ts) — «дальше по шагам»; [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «замечание схемы перед вопросом» |
 | Выбор с возвратом значения | — | отложено | — |
 | Файл во входе | — | нет | — |
 | Кнопка-ссылка наружу | — | DEBT-UI-46 | — |
-| Справка по экрану и общая | `ScreenHelp`, `hint` (D-UI-107) | есть | Проверено: [telegram-help.story.test.ts](../../packages/tg-bot/testing/telegram-help.story.test.ts) — «справка — ровно один sendMessage» |
+| Справка по экрану и общая | `ScreenHelp`, `hint` (D-UI-107) | есть | Проверено: [telegram-help-story.test.ts](../../packages/tg-bot/testing/telegram-help-story.test.ts) — «справка — ровно один sendMessage» |
 | «Вперёд» в беседе и Telegram | — (автокнопка «Назад» есть) | отложено | — |
 | Смена человека | решает проект-потребитель; перезагрузка страницы (D-UI-88, D-UI-109) | решает проект | — |
 | Доступность сторис ядром | — | DEBT-UI-53 | — |

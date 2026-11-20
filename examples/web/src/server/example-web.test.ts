@@ -3,8 +3,8 @@ import { MemoryLogger, useTempDir } from 'dmg-core/testing';
 import { exampleCodes, MemoryUiObserver } from 'dmg-ui/testing';
 import { PageClient, PageWire, type ViewSource } from 'dmg-ui/web-ui';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
   exampleSubjectWire,
 } from 'dmg-ui/web-ui/testing';
 import * as v from 'valibot';
@@ -45,9 +45,9 @@ const tab = async (
   const connected = await wire.connect(token);
   if (!connected.ok) throw new Error(`connect(${token}): отказ`);
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
     end: connected.value,
     observer: new MemoryUiObserver(),
     reviveSubject: exampleSubjectWire.revive,

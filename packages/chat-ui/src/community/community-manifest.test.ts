@@ -9,7 +9,7 @@ import {
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import * as v from 'valibot';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
 } from '../../testing';
@@ -86,13 +86,13 @@ const thrown = (build: () => unknown): string => {
 };
 
 const manifestOf = (community: ChatCommunitySpec) => () =>
-  new CommunityManifest(ExampleDialogAppDef, community);
+  new CommunityManifest(ExampleDialogUiAppDef, community);
 
 const providerOf = (community: ChatCommunitySpec) => () =>
   new ChatGraphProvider({
     apps: [
       {
-        app: ExampleDialogAppDef,
+        app: ExampleDialogUiAppDef,
         views: exampleDialogViews,
         capabilities: MemoryMessenger.editing().capabilities,
         community,

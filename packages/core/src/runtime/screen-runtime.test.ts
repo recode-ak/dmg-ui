@@ -37,7 +37,7 @@ import {
   StubRefreshPort,
   StubUcPort,
   TASKS,
-} from '../../testing/ui-runtime-fixture';
+} from '../../testing/ui-runtime.fixture';
 import type { AddressRejection } from '../address/address-codec.types';
 import { ScreenDef } from '../manifest/screen-def';
 import { UiModuleDef } from '../manifest/ui-module-def';
@@ -50,7 +50,7 @@ import { ScreenRuntime } from './screen-runtime';
 
 // Открытие и восстановление экземпляра экрана: загрузка через порт, отказ
 // загрузки, дефекты кода экрана, снимок и восстановление. Порты — заглушки
-// `ui-runtime-fixture.ts` на учебном примере.
+// `ui-runtime.fixture.ts` на учебном примере.
 
 type ListLoad = LoadContext<typeof TaskListScreenDef>;
 

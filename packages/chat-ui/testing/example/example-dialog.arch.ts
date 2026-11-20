@@ -5,10 +5,10 @@ import { ChatExamples, ChatGraphProvider } from 'dmg-ui/chat-ui';
 import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef, exampleCodes, exampleSubject } from 'dmg-ui/testing';
 import { MemoryMessenger } from '../messengers/memory-messenger';
-import { ExampleDialogAppDef } from './example-dialog.app';
+import { ExampleDialogUiAppDef } from './example-dialog.ui-app';
 import { exampleDialogViews } from './example-dialog.views';
-import { ExampleTrimmedDialogAppDef } from './example-trimmed.app';
-import { ExampleWindowedAppDef } from './example-windowed.app';
+import { ExampleTrimmedUiAppDef } from './example-trimmed.ui-app';
+import { ExampleWindowedUiAppDef } from './example-windowed.ui-app';
 
 /**
  * Контекст примеров: место примеров по умолчанию и субъект примеров — без
@@ -41,15 +41,15 @@ export const ExampleDialogArch: ArchApp = {
     new UiGraphProvider({
       set: ExampleUiSetDef,
       apps: [
-        ExampleDialogAppDef,
-        ExampleTrimmedDialogAppDef,
-        ExampleWindowedAppDef,
+        ExampleDialogUiAppDef,
+        ExampleTrimmedUiAppDef,
+        ExampleWindowedUiAppDef,
       ],
     }),
     new ChatGraphProvider({
       apps: [
         {
-          app: ExampleDialogAppDef,
+          app: ExampleDialogUiAppDef,
           views: exampleDialogViews,
           capabilities: MemoryMessenger.editing().capabilities,
           entryPoints: [
@@ -59,7 +59,7 @@ export const ExampleDialogArch: ArchApp = {
           ],
         },
         {
-          app: ExampleTrimmedDialogAppDef,
+          app: ExampleTrimmedUiAppDef,
           views: exampleDialogViews,
           capabilities: MemoryMessenger.editing().capabilities,
           entryPoints: [
@@ -69,7 +69,7 @@ export const ExampleDialogArch: ArchApp = {
           ],
         },
         {
-          app: ExampleWindowedAppDef,
+          app: ExampleWindowedUiAppDef,
           views: exampleDialogViews,
           capabilities: MemoryMessenger.windowed(() => 0).capabilities,
           entryPoints: [{ entry: 'start', via: 'message', key: 'start' }],

@@ -14,7 +14,7 @@ import { TodoUiModuleDef } from '../../testing/example/todo/todo.ui-module';
 import {
   StubCallerSource,
   StubTransport,
-} from '../../testing/ui-server-fixture';
+} from '../../testing/ui-server.fixture';
 import { UiSetDef } from '../manifest/ui-set-def';
 import { ModuleApiDispatch } from './module-api-dispatch';
 import { UiServer } from './ui-server';

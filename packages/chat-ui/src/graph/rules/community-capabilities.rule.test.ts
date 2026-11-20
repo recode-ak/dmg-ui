@@ -17,8 +17,8 @@ import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import {
-  ExampleDialogAppDef,
-  ExampleWindowedAppDef,
+  ExampleDialogUiAppDef,
+  ExampleWindowedUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
 } from '../../../testing';
@@ -84,18 +84,18 @@ const dialog = (
   community?: ChatCommunitySpec,
   capabilities: MessengerCapabilities = EDITING,
 ): ChatAppSpec => ({
-  app: ExampleDialogAppDef,
+  app: ExampleDialogUiAppDef,
   views: exampleDialogViews,
   capabilities,
-  entryPoints: pointsOf(ExampleDialogAppDef),
+  entryPoints: pointsOf(ExampleDialogUiAppDef),
   ...(community ? { community } : {}),
 });
 
 const windowed = (community?: ChatCommunitySpec): ChatAppSpec => ({
-  app: ExampleWindowedAppDef,
+  app: ExampleWindowedUiAppDef,
   views: exampleDialogViews,
   capabilities: WINDOWED,
-  entryPoints: pointsOf(ExampleWindowedAppDef),
+  entryPoints: pointsOf(ExampleWindowedUiAppDef),
   ...(community ? { community } : {}),
 });
 
@@ -328,7 +328,7 @@ describe('CH-03: свойства и охват', () => {
       providers: [
         new UiGraphProvider({
           set: ExampleUiSetDef,
-          apps: [ExampleDialogAppDef, ExampleWindowedAppDef],
+          apps: [ExampleDialogUiAppDef, ExampleWindowedUiAppDef],
         }),
         new ChatGraphProvider({ apps: [dialog()], examples: EXAMPLES }),
         stub({

@@ -32,9 +32,9 @@ import {
 } from 'dmg-ui/web-ui';
 import * as v from 'valibot';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
-  examplePageViews,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
+  examplePagesViews,
   exampleSubjectWire,
 } from './index';
 
@@ -64,9 +64,9 @@ const tab = async (host: PageServerPort, token: string, prefix: string) => {
   if (!connected.ok) throw new Error(`connect(${token}): отказ`);
   let requests = 0;
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
     end: connected.value,
     observer: new MemoryUiObserver(),
     reviveSubject: exampleSubjectWire.revive,
@@ -75,7 +75,7 @@ const tab = async (host: PageServerPort, token: string, prefix: string) => {
       return `${prefix}-${requests}`;
     },
   });
-  return { wire, client, text: new PageText(client, examplePageViews) };
+  return { wire, client, text: new PageText(client, examplePagesViews) };
 };
 
 /** Приложение, сервер, хост канала, уведомитель и две вкладки. */
@@ -93,7 +93,7 @@ const world = async () => {
     ['tB', B],
   ]);
   const host = new PageHost({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     server,
     tokens: async (token) => tokens.get(token),
     callers: example.callers,
@@ -102,7 +102,7 @@ const world = async () => {
     subjectToWire: exampleSubjectWire.toWire,
   });
   new UiNotifier({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
     dispatch,
     callers: example.callers,

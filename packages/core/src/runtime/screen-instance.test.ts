@@ -32,7 +32,7 @@ import {
   RuntimeKit,
   requestTrace,
   testRenderContext,
-} from '../../testing/ui-runtime-fixture';
+} from '../../testing/ui-runtime.fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { Availability } from '../screen/availability';
 import { ScreenCode } from '../screen/screen-code';

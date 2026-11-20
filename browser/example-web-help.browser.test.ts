@@ -7,7 +7,7 @@ import {
 } from 'dmg-ui/testing';
 import { Browser } from './browser';
 import type { BrowserPage } from './browser-page';
-import { ExampleWebFixture } from './example-web-fixture';
+import { ExampleWebFixture } from './example-web.fixture';
 
 // Справка области в настоящем Chrome: кнопка «Справка» у заголовка области
 // достижима с клавиатуры, в дереве доступности — кнопка с именем и признаком

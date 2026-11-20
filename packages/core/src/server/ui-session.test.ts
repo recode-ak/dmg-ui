@@ -15,12 +15,12 @@ import {
   TASK_A,
   TASK_B,
 } from '../../testing/example';
-import { requestTrace } from '../../testing/ui-runtime-fixture';
+import { requestTrace } from '../../testing/ui-runtime.fixture';
 import {
   envelopeOf,
   StubCallerSource,
   StubTransport,
-} from '../../testing/ui-server-fixture';
+} from '../../testing/ui-server.fixture';
 import { AddressCodec, type AddressJson } from '../address/address-codec';
 import type { RefreshSignal } from '../runtime/ports.types';
 import { ModuleApiDispatch } from './module-api-dispatch';

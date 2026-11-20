@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { resolve } from 'node:path';
 import { CoreImportScanner } from './core-import-scanner';
+import type { ImportZone } from './core-import-scanner.types';
 import { SourceFile, SourceTree } from './source-tree';
 
 const ROOT = resolve(import.meta.dir, '..');
@@ -170,7 +171,7 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
 
   describe('учебный пример — относительные только внутри example/', () => {
     it('заглушки тестов ядра (testing/ui-*.ts) в примере — нарушение', () => {
-      const text = "import { RuntimeKit } from '../../ui-runtime-fixture';";
+      const text = "import { RuntimeKit } from '../../ui-runtime.fixture';";
 
       expect(
         scan(text, 'packages/core/testing/example/todo/task-list.scode.ts'),
@@ -316,5 +317,33 @@ describe('CoreImportScanner — browser/ (клиент DevTools и раннер)
 
     expect(files.length).toBeGreaterThan(0);
     expect(CoreImportScanner.standard().scan(files)).toEqual([]);
+  });
+});
+
+describe('CoreImportScanner — зоны видят файлы репо', () => {
+  // Зона без файлов ничего не защищает: после переноса каталогов она молча
+  // стала бы пустой. Зоны и их проверка — protected, доступ через индекс.
+  class Probe extends CoreImportScanner {
+    emptyZones(files: readonly SourceFile[]): string[] {
+      return this.zones
+        .filter((zone) => !files.some((f) => this.inZone(zone, f.path)))
+        .map((zone) => zone.include.join(', '));
+    }
+
+    zoneCount(): number {
+      return this.zones.length;
+    }
+  }
+
+  it('каждая зона standard() захватывает хотя бы один файл репо', () => {
+    const files = ['packages', 'examples', 'acceptance', 'browser'].flatMap(
+      (dir) => SourceTree.read(ROOT, dir),
+    );
+    const probe = new Probe(
+      Reflect.get(CoreImportScanner.standard(), 'zones') as ImportZone[],
+    );
+
+    expect(probe.zoneCount()).toBeGreaterThan(0);
+    expect(probe.emptyZones(files)).toEqual([]);
   });
 });

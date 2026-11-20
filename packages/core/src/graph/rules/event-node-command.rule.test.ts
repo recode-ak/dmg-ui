@@ -9,7 +9,7 @@ import { UiScene } from '../../../testing/ui-arch';
 import {
   type SignalSpec,
   StubSignalProvider,
-} from '../../../testing/ui-graph-fixture';
+} from '../../../testing/ui-graph.fixture';
 
 const scene = new UiScene({ screens: [UiScene.screen('a')] });
 const run = (spec: SignalSpec) =>

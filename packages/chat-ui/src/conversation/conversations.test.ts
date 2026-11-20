@@ -32,7 +32,7 @@ import {
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
   type MessengerEntry,
@@ -109,7 +109,7 @@ const cardApp = (taskId: string): AnyUiAppDef =>
     label: 'Пример с карточкой',
     description: 'Учебное приложение со входом на карточку задачи.',
     set: ExampleUiSetDef,
-    channel: ExampleDialogAppDef.channel,
+    channel: ExampleDialogUiAppDef.channel,
     stories: [],
     entries: {
       start: {
@@ -175,7 +175,7 @@ const world = () => {
     const messenger = options.messenger ?? MemoryMessenger.editing();
     const logger = new MemoryLogger();
     const conversations = new Conversations({
-      app: options.app ?? ExampleDialogAppDef,
+      app: options.app ?? ExampleDialogUiAppDef,
       codes: exampleCodes(),
       server,
       views: exampleDialogViews,

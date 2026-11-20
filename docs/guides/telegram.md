@@ -78,7 +78,7 @@ const communities = new Communities({ app, community, messenger, dispatch, conte
 const telegram = new TelegramUpdates({ conversations, messenger, logger, entryPoints, bot, communities });
 ```
 
-Образец — [telegram-community.story.test.ts](../../packages/tg-bot/testing/telegram-community.story.test.ts).
+Образец — [telegram-community-story.test.ts](../../packages/tg-bot/testing/telegram-community-story.test.ts).
 
 - **Бот — администратор группы.** `chat_member` — единственный источник `joined` и `left`; он приходит, только если бот администратор и `chat_member` есть в `allowed_updates`. Без этого событий входа и выхода не будет. `my_chat_member` (бота добавили или убрали) и `chat_join_request` приходят всегда.
 - **Эхо бота.** `chat_member` с `from.id` равным `bot` (собственные ban, unban, approve) — ничего и без записи, иначе исключение вызвало бы `left` и петлю. Опора — вывод «`from` — бот при действиях самого бота»; в документации Bot API прямо не сказан (раздел «Что не проверено»).
@@ -160,9 +160,9 @@ const telegram = new TelegramUpdates({ conversations, messenger, logger, entryPo
 
 - **`MemoryBotApi`** (`dmg-ui/tg-bot/testing`) — `BotApi` в памяти с журналом вызовов; ведёт себя как Bot API: правка неизвестного сообщения — 400, правка тем же — 400 «message is not modified». `failNext`, `throwNext`, `failOn(метод, отказ)` — отказ или бросок следующего вызова; `holdOn(метод)` держит вызов до `release` — очередь сообщества без таймеров. `chat(chatId)` — сообщения глазами собеседника. Операции группы и `setMyCommands` — запись в журнал и `ok`, модели членства нет (D-UI-63).
 - **`TestUpdates`** — построитель апдейтов: `text`, `press`, `groupText`, `joined`, `left`, `botAdded`, `botRemoved`, `joinRequest`.
-- **Сцены:** [telegram-story.test.ts](../../packages/tg-bot/testing/telegram-story.test.ts) — диалог, уведомление и меню; [telegram-back.story.test.ts](../../packages/tg-bot/testing/telegram-back.story.test.ts) — «Назад», `/back` и подписи без повторов; [telegram-community.story.test.ts](../../packages/tg-bot/testing/telegram-community.story.test.ts) — сообщество.
+- **Сцены:** [telegram-story.test.ts](../../packages/tg-bot/testing/telegram-story.test.ts) — диалог, уведомление и меню; [telegram-back-story.test.ts](../../packages/tg-bot/testing/telegram-back-story.test.ts) — «Назад», `/back` и подписи без повторов; [telegram-community-story.test.ts](../../packages/tg-bot/testing/telegram-community-story.test.ts) — сообщество.
 - **Адаптер на loopback.** Тест адаптера и опроса идёт на `127.0.0.1` с поддельным сервером Bot API: проверяется тело запроса на проводе, отказы, сбой транспорта без токена; внешней сети нет (D-UI-68).
-- **Что показывает пример** (D-UI-105, D-UI-106, D-UI-107, D-UI-108): отключённое действие с тостом, подсказку поля, `/help` отдельным сообщением, автокнопку «Назад» и `/back`, «К моим задачам». С одним аккаунтом «К моим задачам» достижимо самоназначением: «Хлеб» → «Назначить» → свой uuid → `/assigned` → «Карточка исполнителя». Тест «подписи без повторов» — в приёмке и `telegram-back.story.test.ts`.
+- **Что показывает пример** (D-UI-105, D-UI-106, D-UI-107, D-UI-108): отключённое действие с тостом, подсказку поля, `/help` отдельным сообщением, автокнопку «Назад» и `/back`, «К моим задачам». С одним аккаунтом «К моим задачам» достижимо самоназначением: «Хлеб» → «Назначить» → свой uuid → `/assigned` → «Карточка исполнителя». Тест «подписи без повторов» — в приёмке и `telegram-back-story.test.ts`.
 - **Браузерные тесты** Telegram не касаются: правило, когда они нужны, — [Web-канал, раздел 15](./web-channel.md#15-как-тестировать). Что закрыто в Telegram по задачам фронта — [Задачи фронта](./frontend-tasks.md).
 - **Пример `examples/tg-bot`** запускается на живом Telegram: запуск, переменные, чек-лист ручной проверки, проба `bun run example:tg:probe <chat_id>` — в [README примера](../../examples/tg-bot/README.md). Консоль при обычной работе молчит (в ней только `warn` и `error`, ERR-07); что уходит в Telegram, показывает трасса `EXAMPLE_TG_TRACE` — файл JSON-строк по вызову, в нём тексты и id людей, в git он не попадает. `.env.development` Bun читает без настроек.
 

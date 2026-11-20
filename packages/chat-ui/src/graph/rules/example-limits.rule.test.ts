@@ -31,18 +31,16 @@ import {
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import {
-  ExampleDialogAppDef,
-  ExampleWindowedAppDef,
+  ExampleDialogUiAppDef,
+  ExampleWindowedUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
 } from '../../../testing';
 import { AssignedTasksView } from '../../../testing/example/assigned-tasks.view';
 import { MainMenuView } from '../../../testing/example/main-menu.view';
+import { TaskAssignedView } from '../../../testing/example/task-assigned.view';
+import { TaskCompletedView } from '../../../testing/example/task-completed.view';
 import { TaskListView } from '../../../testing/example/task-list.view';
-import {
-  TaskAssignedView,
-  TaskCompletedView,
-} from '../../../testing/example/task-notes.view';
 import { UserCardView } from '../../../testing/example/user-card.view';
 import { DIALOG_CHANNEL } from '../../dialog';
 import type { MessengerCapabilities } from '../../messenger/messenger.types';
@@ -138,11 +136,11 @@ const exampleScene = (
     ExampleUiSetDef,
     [
       {
-        app: ExampleDialogAppDef,
+        app: ExampleDialogUiAppDef,
         views: exampleDialogViews,
         capabilities: EDITING,
       },
-      { app: ExampleWindowedAppDef, views, capabilities },
+      { app: ExampleWindowedUiAppDef, views, capabilities },
     ],
     EXAMPLES,
   );
@@ -590,7 +588,7 @@ describe('CH-01: граница с другими правилами', () => {
     const report = ArchReport.of(
       sceneOf(
         ExampleUiSetDef,
-        [{ app: ExampleDialogAppDef, views, capabilities: EDITING }],
+        [{ app: ExampleDialogUiAppDef, views, capabilities: EDITING }],
         EXAMPLES,
       ),
     );

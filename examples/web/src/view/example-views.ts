@@ -1,14 +1,7 @@
 import { type AnyUiSetDef, UiIds } from 'dmg-ui';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { type AnyPageNotePresenter, PageNotePresenter } from 'dmg-ui/web-ui';
-import { AssignedTasksView } from './assigned-tasks.view';
 import { ExampleScreenView } from './example-screen-view';
 import type { AnyExampleScreen } from './example-views.types';
-import { MainMenuView } from './main-menu.view';
-import { TaskCardView } from './task-card.view';
-import { TaskListView } from './task-list.view';
-import { TaskAssignedView, TaskCompletedView } from './task-notes.view';
-import { UserCardView } from './user-card.view';
 
 export { ExampleScreenView } from './example-screen-view';
 
@@ -84,14 +77,3 @@ export class ExampleViews {
     map.set(id, presenter);
   }
 }
-
-/** Готовый реестр примера: пять экранов и два уведомления учебного набора; меню — только заголовок. */
-export const exampleWebViews = ExampleViews.of(ExampleUiSetDef, [
-  TaskListView,
-  TaskCardView,
-  AssignedTasksView,
-  UserCardView,
-  MainMenuView,
-  TaskAssignedView,
-  TaskCompletedView,
-]);

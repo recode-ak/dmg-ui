@@ -3,21 +3,21 @@ import { ExampleArch } from 'dmg-core/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { PageGraphProvider } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef } from './example-pages.app';
-import { examplePageRoutes } from './example-pages.routes';
-import { examplePageViews } from './example-pages.views';
+import { examplePagesRoutes } from './example-pages.routes';
+import { ExamplePagesUiAppDef } from './example-pages.ui-app';
+import { examplePagesViews } from './example-pages.views';
 
 /** Граф учебного примера на страницах: домен `ExampleArch`, поставщик `dmg-ui` и поставщик страничного канала. */
 export const ExamplePagesArch: ArchApp = {
   ...ExampleArch,
   providers: [
-    new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExamplePagesAppDef] }),
+    new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExamplePagesUiAppDef] }),
     new PageGraphProvider({
       apps: [
         {
-          app: ExamplePagesAppDef,
-          views: examplePageViews,
-          routes: examplePageRoutes,
+          app: ExamplePagesUiAppDef,
+          views: examplePagesViews,
+          routes: examplePagesRoutes,
         },
       ],
     }),

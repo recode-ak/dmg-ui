@@ -31,19 +31,17 @@ import {
 import { ArchReport, StubViewProvider } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import {
-  ExampleDialogAppDef,
   ExampleDialogArch,
-  ExampleWindowedAppDef,
+  ExampleDialogUiAppDef,
+  ExampleWindowedUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
 } from '../../testing';
 import { AssignedTasksView } from '../../testing/example/assigned-tasks.view';
 import { MainMenuView } from '../../testing/example/main-menu.view';
+import { TaskAssignedView } from '../../testing/example/task-assigned.view';
+import { TaskCompletedView } from '../../testing/example/task-completed.view';
 import { TaskListView } from '../../testing/example/task-list.view';
-import {
-  TaskAssignedView,
-  TaskCompletedView,
-} from '../../testing/example/task-notes.view';
 import { UserCardView } from '../../testing/example/user-card.view';
 import type { ChatCommunitySpec } from '../community/community.types';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
@@ -103,13 +101,13 @@ const pointsOf = (app: AnyUiAppDef): readonly EntryPoint[] =>
   Object.keys(app.entries).map((entry) => point(entry));
 
 const dialogSpec = (capabilities = EDITING): AppSpec => ({
-  app: ExampleDialogAppDef,
+  app: ExampleDialogUiAppDef,
   views: exampleDialogViews,
   capabilities,
 });
 
 const windowedSpec = (views = exampleDialogViews): AppSpec => ({
-  app: ExampleWindowedAppDef,
+  app: ExampleWindowedUiAppDef,
   views,
   capabilities: WINDOWED,
 });
@@ -339,7 +337,7 @@ describe('ChatGraphProvider — экран без представления', (
       TaskCompletedView,
     ]);
     const app = sceneOf([
-      { app: ExampleDialogAppDef, views, capabilities: EDITING },
+      { app: ExampleDialogUiAppDef, views, capabilities: EDITING },
     ]);
 
     const report = ArchReport.of(app);
@@ -492,7 +490,7 @@ describe('ChatGraphProvider — ошибки сборки', () => {
         new ChatGraphProvider({
           apps: [
             {
-              app: ExampleDialogAppDef,
+              app: ExampleDialogUiAppDef,
               views: ChatViews.of(OtherSetDef, []),
               capabilities: EDITING,
             },

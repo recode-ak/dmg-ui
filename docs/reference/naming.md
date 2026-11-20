@@ -1,6 +1,6 @@
 # Структура и именование UI
 
-**Назначение:** как раскладывать и называть файлы UI: набор UI, UI-модуль, сторис, экран, уведомление, код, приложение UI, представления канала, пакет канала. Общие правила кода и имён — те же, что в `dmg-core` (`node_modules/dmg-core/docs/reference/naming.md` §4, правило CODE-01): kebab-case файлов, суффикс вида, тест рядом, `<файл>.types.ts`, PascalCase, `undefined`, `private`. Здесь — только то, что добавляет UI. Образец — учебный набор [packages/core/testing/example](../../packages/core/testing/example/) и привязки каналов `packages/{chat-ui,tg-bot,web-ui}/testing/example`. Часть файлов пакетов каналов ещё названа иначе (`.app.ts`, `.telegram-view.ts`, `*-fixture.ts`, `.schema.ts`, тесты тем без головы вроде `page-socket.test.ts`); при расхождении правило — этот документ. Проверка имён — правило `NM-01`, класс `UiFileNames` (§7).
+**Назначение:** как раскладывать и называть файлы UI: набор UI, UI-модуль, сторис, экран, уведомление, код, приложение UI, представления канала, пакет канала. Общие правила кода и имён — те же, что в `dmg-core` (`node_modules/dmg-core/docs/reference/naming.md` §4, правило CODE-01): kebab-case файлов, суффикс вида, тест рядом, `<файл>.types.ts`, PascalCase, `undefined`, `private`. Здесь — только то, что добавляет UI. Образец — учебный набор [packages/core/testing/example](../../packages/core/testing/example/) и привязки каналов `packages/{chat-ui,tg-bot,web-ui}/testing/example`. Проверка имён — правило `NM-01`, класс `UiFileNames` (§7).
 
 ---
 
@@ -25,8 +25,8 @@
 | Маршруты страничного канала | `.routes.ts` | массив `PageRouteDef` | `<имя>Routes` | `example-pages.routes.ts` → `examplePagesRoutes` | сторона канала | `<имя>.ui-app.ts` | `apps[].routes` `PageGraphProvider` во входе графа `.graph.ts`; `PageClientSpec.routes` |
 | Размещения областей | `.placements.ts` | `readonly PagePlacement[]` | `<имя>Placements` | `example-window.placements.ts` → `exampleWindowPlacements` | сторона канала | — | `PageClientSpec.placements` |
 | Привязка субъекта к проводу | `.wire.ts` | `{ toWire, revive }` | `<имя>Wire` | `example-subject.wire.ts` → `exampleSubjectWire` | сторона канала | — | `PageHostSpec.subjectToWire` (`toWire`), `PageClientSpec.reviveSubject` (`revive`) |
-| Вход графа (как в `dmg-core`, D-96, D-97) | `.graph.ts` | `GraphApp` — `{ def, providers }`, экспорт по имени и по умолчанию | `<Имя>Graph` | `example-dialog.graph.ts` → `ExampleDialogGraph` | сторона канала | `<имя>.arch.ts`; обычно `<имя>.ui-app.ts`, `<имя>.views.ts` | `def` — `AppDef` домена; `providers` — `UiGraphProvider({ set, apps })` и поставщик графа канала (`apps[].app`, `apps[].views`, `apps[].routes`) |
-| Сборка для `arch:check` | `.arch.ts` | `ArchApp` | `<Имя>Arch` | `example-dialog.arch.ts` → `ExampleDialogArch` | сторона канала | `<имя>.graph.ts` | разворачивает вход графа (`{ ...<Имя>Graph, layout }`); вход `arch:check` (`reportArchCheck`) |
+| Вход графа (как в `dmg-core`, D-96, D-97) | `.graph.ts` | `GraphApp` — `{ def, providers }`, экспорт по имени и по умолчанию | `<Имя>Graph` | `example-dialog.graph.ts` → `ExampleDialogGraph` | сторона канала | `<имя>.arch.ts`; обычно `<имя>.ui-app.ts`, `<имя>.views.ts` | `def` — `AppDef` домена; `providers` — `UiGraphProvider({ set, apps })` и поставщик графа канала (`apps[].app`, `apps[].views`, `apps[].routes`). В учебных примерах поставщиков собирает `.arch.ts`; вход графа — когда проект запускает `dmg-core graph` |
+| Сборка для `arch:check` | `.arch.ts` | `ArchApp` | `<Имя>Arch` | `example-dialog.arch.ts` → `ExampleDialogArch` | сторона канала | `<имя>.graph.ts` | разворачивает вход графа (`{ ...<Имя>Graph, layout }`); вход `arch:check` (`reportArchCheck`). В учебных примерах поставщиков собирает сам `.arch.ts`, без `.graph.ts` |
 
 `Def` и классы — PascalCase (`<Имя><Вид>Def`, `<Имя>View`, `<Имя>Graph`, `<Имя>Arch`); коллекции и привязки (`.views`, `.routes`, `.placements`, `.wire`) — значения, а не `Def`, поэтому camelCase от `<имя>` и слово вида. Один файл — один экспорт вида: у файла и у экспорта одно `<имя>` (`task-assigned.view.ts` → `TaskAssignedView`).
 
@@ -73,8 +73,7 @@ packages/<канал>/
       <имя>.ui-app.ts               UiAppDef канала
       <имя>.views.ts                набор представлений канала
       <имя>.view.ts                 представление экрана или уведомления (пара по имени с манифестом набора)
-      <имя>.graph.ts                вход графа: AppDef домена + поставщики UI и канала
-      <имя>.arch.ts                 ArchApp: вход графа + раскладка
+      <имя>.arch.ts                 ArchApp: поставщики UI и канала + раскладка (в учебном примере — без `.graph.ts`)
       <имя>.routes.ts, .placements.ts, .wire.ts    только страничный канал
       __snapshots__/                снимки превью
     <тема>-story.test.ts            сквозной сценарий канала на подставном порте
@@ -108,7 +107,7 @@ checks/                              проверки репо, не поста�
 
 - `<файл>.test.ts` — тест файла (`task-list.scode.test.ts`, `entry-point.rule.test.ts`);
 - `<файл>.<грань>.test.ts` — грань теста файла, грань — kebab-слово без точки (`example-tokens.guard.test.ts`, `package-manifest.web-ui.test.ts`);
-- `<тема>-<что>.test.ts` — тест темы: `<тема>` — собственный дефисный префикс имени теста, и в том же каталоге есть голова — `<тема>.ts` или `<тема>.<вид>.ts` (`conversation-help.test.ts` при `conversation.ts`, `cart-list-help.test.ts` при `cart-list.screen.ts`). Головой не служат `.types.ts`, `.const.ts`, `.fixture.ts`, `.test-kit.ts`, тесты и файлы-сводки `.ui-module.ts`, `.set.ts`: иначе `<m>.ui-module.ts` дал бы голову любому `<m>-….test.ts` в папке модуля. Префикс соседних файлов тему не задаёт — `page-socket.test.ts` при одних `page-host.ts` и `page-client.ts` не по форме;
+- `<тема>-<что>.test.ts` — тест темы: `<тема>` — собственный дефисный префикс имени теста, и в том же каталоге есть голова — `<тема>.ts` или `<тема>.<вид>.ts` (`conversation-help.test.ts` при `conversation.ts`, `cart-list-help.test.ts` при `cart-list.screen.ts`). Головой не служат `.types.ts`, `.const.ts`, `.fixture.ts`, `.test-kit.ts`, тесты и файлы-сводки `.ui-module.ts`, `.set.ts`: иначе `<m>.ui-module.ts` дал бы голову любому `<m>-….test.ts` в папке модуля. Префикс соседних файлов тему не задаёт — `cart-sync.test.ts` при одних `cart-host.ts` и `cart-client.ts` не по форме;
 - `readme.test.ts` — проверка README своего каталога или каталога выше (`examples/web/src/readme.test.ts` → `examples/web/README.md`);
 - сквозной сценарий без одного файла — только прямо в каталоге `testing/`, `acceptance/`, `browser/` или `checks/` (не в его подкаталоге); сценарий канала — `<тема>-story.test.ts` (`telegram-story.test.ts`). `<имя>.story.test.ts` — только тест файла `<имя>.story.ts`.
 
@@ -172,6 +171,8 @@ describe('имена файлов UI (NM-01)', () => {
   });
 });
 ```
+
+В репо `dmg-ui` примеры — зоны целиком: набор ядра — `sets`; `testing` каждого канала и `src` примеров — `channels`; приёмка, `browser`, `checks`, код ядра и `src` пакетов — `others`; каталоги `packages`, `examples`, `acceptance`, `checks`, `browser` — `tests`. Так пакет проверяет на себе то же, что требует от потребителя (`checks/repo-file-names.test.ts`).
 
 Ограничения — в [rules.md](./rules.md#ограничения-правил): псевдоним базы, `export default class`, перенос перед `.define` и `export { X }` объявлением не считаются, объявление внутри строки — считается; `.rule.ts` и `name` манифеста не проверяются.
 

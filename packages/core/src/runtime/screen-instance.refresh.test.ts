@@ -11,7 +11,7 @@ import {
   refreshSignal,
   requestTrace,
   TASKS,
-} from '../../testing/ui-runtime-fixture';
+} from '../../testing/ui-runtime.fixture';
 import type { ViewChange } from './outcome.types';
 import type { ScreenInstance } from './screen-instance';
 

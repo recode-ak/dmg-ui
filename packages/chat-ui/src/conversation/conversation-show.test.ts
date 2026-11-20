@@ -33,7 +33,7 @@ import {
 import { RuntimeKit, T0, testRenderContext } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
 } from '../../testing';
@@ -1108,7 +1108,7 @@ describe('Conversation — перекрытие представлений по�
     const nodeOf = (registry: ChatViews) => {
       const messenger = MemoryMessenger.editing();
       const conversations = new Conversations({
-        app: ExampleDialogAppDef,
+        app: ExampleDialogUiAppDef,
         codes: exampleCodes(),
         server,
         views: registry,
@@ -1178,7 +1178,7 @@ describe('Conversation — акцент варианта', () => {
     const nodeOf = (registry: ChatViews) => {
       const messenger = MemoryMessenger.editing();
       const conversations = new Conversations({
-        app: ExampleDialogAppDef,
+        app: ExampleDialogUiAppDef,
         codes: exampleCodes(),
         server,
         views: registry,
@@ -1248,7 +1248,7 @@ describe('Conversations — место в снимке и размер пока�
     const messenger = MemoryMessenger.editing();
     const nodeOf = () =>
       new Conversations({
-        app: ExampleDialogAppDef,
+        app: ExampleDialogUiAppDef,
         codes: exampleCodes(),
         server,
         views: huge,

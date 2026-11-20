@@ -23,7 +23,7 @@ describe('CoreImportScanner — учебный пример (packages/core/testi
     "import fs from 'node:fs';",
     "import { ScreenDef } from '../../../src/manifest/screen-def';",
     "import { DialogChannel } from 'dmg-ui/chat-ui';",
-    "import { ExampleDialogAppDef } from 'dmg-ui/chat-ui/testing';",
+    "import { ExampleDialogUiAppDef } from 'dmg-ui/chat-ui/testing';",
   ]) {
     it(`${text} в примере — нарушение`, () => {
       expect(scan(text, EXAMPLE)).toHaveLength(1);

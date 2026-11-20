@@ -15,10 +15,10 @@ import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import * as v from 'valibot';
 import {
-  ExamplePagesAppDef,
   ExamplePagesArch,
-  examplePageRoutes,
-  examplePageViews,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
+  examplePagesViews,
 } from '../../testing';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';
@@ -44,7 +44,7 @@ const SecondAppDef = UiAppDef.define({
   set: ExampleUiSetDef,
   channel: PAGE_CHANNEL,
   stories: [],
-  entries: ExamplePagesAppDef.entries,
+  entries: ExamplePagesUiAppDef.entries,
 });
 
 /** Другой набор UI с одним экраном: приложение и реестр представлений «не того» набора. */
@@ -103,7 +103,7 @@ describe('PageGraphProvider: узлы', () => {
   test('канал и поставщик называются dmg-ui-pages', () => {
     expect(PAGE_CHANNEL).toBe('dmg-ui-pages');
     expect(PAGE_VERSION).toBe(PACKAGE_VERSION);
-    expect(ExamplePagesAppDef.channel).toBe(PAGE_CHANNEL);
+    expect(ExamplePagesUiAppDef.channel).toBe(PAGE_CHANNEL);
   });
 
   test('маршруты tasks, assigned и menu — узлы вида pageRoute под приложением examplePages', () => {
@@ -133,7 +133,7 @@ describe('PageGraphProvider: узлы', () => {
   });
 
   test('подпись, описание и видимость узла — из PageRouteDef', () => {
-    const route = examplePageRoutes.find((r) => r.name === 'tasks');
+    const route = examplePagesRoutes.find((r) => r.name === 'tasks');
 
     expect(graph().node(TASKS)).toMatchObject({
       label: route?.label,
@@ -146,9 +146,9 @@ describe('PageGraphProvider: узлы', () => {
     const provider = new PageGraphProvider({
       apps: [
         {
-          app: ExamplePagesAppDef,
-          views: examplePageViews,
-          routes: examplePageRoutes,
+          app: ExamplePagesUiAppDef,
+          views: examplePagesViews,
+          routes: examplePagesRoutes,
         },
       ],
     });
@@ -165,9 +165,9 @@ describe('PageGraphProvider: узлы', () => {
     const provider = new PageGraphProvider({
       apps: [
         {
-          app: ExamplePagesAppDef,
-          views: examplePageViews,
-          routes: examplePageRoutes,
+          app: ExamplePagesUiAppDef,
+          views: examplePagesViews,
+          routes: examplePagesRoutes,
         },
       ],
     });
@@ -220,13 +220,13 @@ describe('PageGraphProvider: вход не объявлен приложение
       providers: [
         new UiGraphProvider({
           set: ExampleUiSetDef,
-          apps: [ExamplePagesAppDef],
+          apps: [ExamplePagesUiAppDef],
         }),
         new PageGraphProvider({
           apps: [
             {
-              app: ExamplePagesAppDef,
-              views: examplePageViews,
+              app: ExamplePagesUiAppDef,
+              views: examplePagesViews,
               routes: [ghost],
             },
           ],
@@ -244,12 +244,12 @@ describe('PageGraphProvider: вход не объявлен приложение
 
 describe('PageGraphProvider: сборка — броски только структуры спеки', () => {
   const spec = (
-    app: AnyUiAppDef = ExamplePagesAppDef,
-    views: PagePresentedViews = examplePageViews,
+    app: AnyUiAppDef = ExamplePagesUiAppDef,
+    views: PagePresentedViews = examplePagesViews,
   ) => ({
     app,
     views,
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
   });
 
   test('приложение указано дважды — бросок', () => {
@@ -262,7 +262,7 @@ describe('PageGraphProvider: сборка — броски только стру
     expect(
       () =>
         new PageGraphProvider({
-          apps: [spec(ExamplePagesAppDef, OTHER_VIEWS)],
+          apps: [spec(ExamplePagesUiAppDef, OTHER_VIEWS)],
         }),
     ).toThrow(
       'PageGraphProvider: реестр представлений приложения examplePages — не для набора приложения',
@@ -299,8 +299,8 @@ describe('PageGraphProvider: сборка — броски только стру
         new PageGraphProvider({
           apps: [
             {
-              app: ExamplePagesAppDef,
-              views: examplePageViews,
+              app: ExamplePagesUiAppDef,
+              views: examplePagesViews,
               routes: [first, second],
             },
           ],
@@ -314,8 +314,8 @@ describe('PageGraphProvider: сборка — броски только стру
         spec(),
         {
           app: SecondAppDef,
-          views: examplePageViews,
-          routes: examplePageRoutes,
+          views: examplePagesViews,
+          routes: examplePagesRoutes,
         },
       ],
     });

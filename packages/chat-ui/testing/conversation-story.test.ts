@@ -31,7 +31,7 @@ import {
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
   type MessengerEntry,
@@ -105,7 +105,7 @@ const world = (messenger: MemoryMessenger) => {
   // выданный после его обработки (один след на сигнал).
   const requests: string[] = [];
   const conversations = new Conversations({
-    app: ExampleDialogAppDef,
+    app: ExampleDialogUiAppDef,
     codes,
     server,
     views: exampleDialogViews,
@@ -124,7 +124,7 @@ const world = (messenger: MemoryMessenger) => {
     },
   });
   new UiNotifier({
-    app: ExampleDialogAppDef,
+    app: ExampleDialogUiAppDef,
     codes,
     dispatch,
     callers: example.callers,

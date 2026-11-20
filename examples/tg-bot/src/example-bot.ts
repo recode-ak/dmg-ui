@@ -1,7 +1,7 @@
 import type { ExampleUser } from 'dmg-core/testing/example';
 import { ExampleApp } from 'dmg-core/testing/example';
 import { Conversations, MemoryConversationStore } from 'dmg-ui/chat-ui';
-import { ExampleDialogAppDef } from 'dmg-ui/chat-ui/testing';
+import { ExampleDialogUiAppDef } from 'dmg-ui/chat-ui/testing';
 import {
   ApiAppDispatch,
   type PersonPlaces,
@@ -63,7 +63,7 @@ export class ExampleBot {
     const observer = { record: () => {} };
     const messenger = new TelegramMessenger({ api, logger });
     this.conversations = new Conversations({
-      app: ExampleDialogAppDef,
+      app: ExampleDialogUiAppDef,
       codes,
       server,
       views: exampleTelegramViews,
@@ -86,11 +86,11 @@ export class ExampleBot {
     this.menu = new TelegramMenu({
       api,
       logger,
-      app: ExampleDialogAppDef,
+      app: ExampleDialogUiAppDef,
       entryPoints: ENTRY_POINTS,
     });
     this.notifier = new UiNotifier({
-      app: ExampleDialogAppDef,
+      app: ExampleDialogUiAppDef,
       codes,
       dispatch,
       callers: example.callers,

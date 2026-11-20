@@ -11,7 +11,7 @@ import {
 } from '../entries/telegram-entries.const';
 import { TelegramEntryTable } from '../entries/telegram-entry-table';
 import { TelegramCommunitySignals } from './telegram-community-signals';
-import { PressIdSchema, TelegramUpdateSchema } from './telegram-update.schema';
+import { PressIdSchema, TelegramUpdateSchema } from './telegram-update-schema';
 import {
   ATTACHMENT_FIELDS,
   BOT_COMMAND,

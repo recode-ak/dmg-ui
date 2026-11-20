@@ -17,7 +17,7 @@ import {
   TOKEN_BORIS,
 } from '../testing/example-world';
 import { ExampleGestures, type GesturePort } from './example-gestures';
-import { exampleWebViews } from './example-views';
+import { exampleWebViews } from './example-web.views';
 import { completed } from './expected';
 import { InboxModel } from './inbox-model';
 import { RegionFrame } from './region-frame';

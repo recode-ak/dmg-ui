@@ -12,7 +12,7 @@ import type {
   JoinRequestSchema,
   MemberStatusSchema,
   TelegramMessageSchema,
-} from './telegram-update.schema';
+} from './telegram-update-schema';
 
 /** Сборка перевода апдейтов: таблица точек входа проекта и id бота (`getMe`). */
 export type TelegramSignalsSpec = {

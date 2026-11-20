@@ -3,7 +3,7 @@ import { ArchReport, UiScene } from '../../../testing/ui-arch';
 import {
   StubSignalProvider,
   StubViewProvider,
-} from '../../../testing/ui-graph-fixture';
+} from '../../../testing/ui-graph.fixture';
 import { UiAppDef } from '../../manifest/ui-app-def';
 
 const a = UiScene.screen('a');

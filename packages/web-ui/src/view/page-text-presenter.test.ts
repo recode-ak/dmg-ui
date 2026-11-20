@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { InstanceView } from 'dmg-ui';
 import { LIST_ID, TASK_A } from 'dmg-ui/testing';
-import { examplePageViews } from '../../testing';
+import { examplePagesViews } from '../../testing';
 import { ViewCell } from '../client/view-cell';
 import type { PageTextTarget } from './page-region-presenter.types';
 import { PageRenderer } from './page-renderer';
@@ -57,7 +57,7 @@ const READY: PageViewState = {
 
 const OFFLINE = 'Нет связи — переподключаемся';
 
-const renderer = new PageRenderer(examplePageViews);
+const renderer = new PageRenderer(examplePagesViews);
 
 /** Представление на ячейке: записи цели и отписка. */
 const shown = (initial: PageViewState) => {
@@ -68,7 +68,7 @@ const shown = (initial: PageViewState) => {
       writes.push(text);
     },
   };
-  const off = new PageTextPresenter(examplePageViews).show(cell, target);
+  const off = new PageTextPresenter(examplePagesViews).show(cell, target);
   return { cell, writes, off };
 };
 

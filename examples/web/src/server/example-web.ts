@@ -3,7 +3,10 @@ import { ExampleApp, type ExampleUser } from 'dmg-core/testing/example';
 import { ApiAppDispatch, UiNotifier, UiServer } from 'dmg-ui/server';
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import { PageHost } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef, exampleSubjectWire } from 'dmg-ui/web-ui/testing';
+import {
+  ExamplePagesUiAppDef,
+  exampleSubjectWire,
+} from 'dmg-ui/web-ui/testing';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
 import { DelayedDispatch } from './delayed-dispatch';
 import { PLACES } from './example-web.const';
@@ -46,7 +49,7 @@ export class ExampleWeb {
       context,
     });
     const host = new PageHost({
-      app: ExamplePagesAppDef,
+      app: ExamplePagesUiAppDef,
       server,
       tokens: spec.tokens,
       callers: example.callers,
@@ -56,7 +59,7 @@ export class ExampleWeb {
     });
     // Уведомитель берёт обычный вызов: задержка касается только действий человека.
     const notifier = new UiNotifier({
-      app: ExamplePagesAppDef,
+      app: ExamplePagesUiAppDef,
       codes: exampleCodes(),
       dispatch,
       callers: example.callers,

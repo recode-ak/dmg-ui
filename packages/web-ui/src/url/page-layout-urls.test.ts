@@ -7,7 +7,7 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
-import { RoutedAppDef } from '../../testing/routed-pages.app';
+import { RoutedPagesUiAppDef } from '../../testing/routed-pages.ui-app';
 import { PageLayoutUrls } from './page-layout-urls';
 import { type PageRoute, type PageUrlRejection, PageUrls } from './page-urls';
 
@@ -24,7 +24,7 @@ const ROUTED: readonly PageRoute[] = [
   { path: '/task/:taskId', entry: 'card' },
 ];
 
-const urls = () => new PageUrls({ app: RoutedAppDef, routes: ROUTED });
+const urls = () => new PageUrls({ app: RoutedPagesUiAppDef, routes: ROUTED });
 const layout = (linked: readonly string[]) =>
   new PageLayoutUrls(urls(), linked);
 
@@ -394,7 +394,7 @@ describe('PageLayoutUrls.url — страж своего URL', () => {
   /** Кодек со сломанным инвариантом: адрес карточки даёт строку `bad`. */
   class CrookedUrls extends PageUrls {
     constructor(private readonly bad: string) {
-      super({ app: RoutedAppDef, routes: ROUTED });
+      super({ app: RoutedPagesUiAppDef, routes: ROUTED });
     }
 
     override url(address: Address): string | undefined {

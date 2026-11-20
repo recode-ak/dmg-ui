@@ -12,8 +12,8 @@ import {
   PageSocketEnd,
 } from 'dmg-ui/web-ui';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
   exampleSubjectWire,
 } from 'dmg-ui/web-ui/testing';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
@@ -362,9 +362,9 @@ describe('сокет — ворота', () => {
       if (!res.ok) throw new Error('отказ соединения');
       let n = 0;
       const client = new PageClient({
-        app: ExamplePagesAppDef,
+        app: ExamplePagesUiAppDef,
         codes: exampleCodes(),
-        routes: examplePageRoutes,
+        routes: examplePagesRoutes,
         end: res.value,
         placements: [{ screen: AssignedTasksScreenDef, region: 'modal' }],
         observer: new MemoryUiObserver(),

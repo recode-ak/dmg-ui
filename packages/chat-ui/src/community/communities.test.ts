@@ -29,7 +29,7 @@ import {
 import { ApiAppDispatch, type UcDispatch, type UcRequest } from 'dmg-ui/server';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import { ExampleDialogAppDef, MemoryMessenger } from '../../testing';
+import { ExampleDialogUiAppDef, MemoryMessenger } from '../../testing';
 import {
   MAX_PEER_LENGTH,
   MAX_SIGNAL_ID,
@@ -316,7 +316,7 @@ const sceneOf = (options: SceneOptions = {}) => {
   ]);
   let requests = 0;
   const communities = new Communities<ExampleUser>({
-    app: ExampleDialogAppDef,
+    app: ExampleDialogUiAppDef,
     community: options.community ?? COMMUNITY,
     messenger,
     dispatch,
@@ -434,7 +434,7 @@ describe('Communities — сигнал вызывает объявленный U
       trace: {
         cause: { kind: 'request', requestId: 'q-1' },
         correlationId: 'q-1',
-        channel: { name: ExampleDialogAppDef.channel },
+        channel: { name: ExampleDialogUiAppDef.channel },
       },
       result: expect.objectContaining({ ok: true }),
     });
@@ -487,12 +487,12 @@ describe('Communities — сигнал вызывает объявленный U
       {
         cause: { kind: 'request', requestId: 'q-1' },
         correlationId: 'q-1',
-        channel: { name: ExampleDialogAppDef.channel },
+        channel: { name: ExampleDialogUiAppDef.channel },
       },
       {
         cause: { kind: 'request', requestId: 'q-2' },
         correlationId: 'q-2',
-        channel: { name: ExampleDialogAppDef.channel },
+        channel: { name: ExampleDialogUiAppDef.channel },
       },
     ]);
   });
@@ -1420,7 +1420,7 @@ describe('Communities — сборка', () => {
   test('манифест не прошёл CommunityManifest — бросок тем же текстом', () => {
     const community = { signals: [GONE, GONE] };
     const text = thrown(
-      () => new CommunityManifest(ExampleDialogAppDef, community),
+      () => new CommunityManifest(ExampleDialogUiAppDef, community),
     );
 
     expect(text).not.toBe('');

@@ -204,12 +204,12 @@ export type WebUiUrlTypes = [
 describe('вход dmg-ui/web-ui/testing', () => {
   it('состав — привязка учебного примера к страничному каналу, его субъект на проводе, подставные часы и история', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui/testing')).sort()).toEqual([
-      'ExamplePagesAppDef',
       'ExamplePagesArch',
+      'ExamplePagesUiAppDef',
       'ManualPageClock',
       'MemoryPageHistory',
-      'examplePageRoutes',
-      'examplePageViews',
+      'examplePagesRoutes',
+      'examplePagesViews',
       'exampleSubjectWire',
       'exampleWindowPlacements',
     ]);

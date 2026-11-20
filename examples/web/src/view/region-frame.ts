@@ -4,9 +4,9 @@ import {
   type PageFormSet,
   type PageViewState,
 } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef } from 'dmg-ui/web-ui/testing';
+import { ExamplePagesUiAppDef } from 'dmg-ui/web-ui/testing';
 import { BodyFreeze } from './body-freeze';
-import { exampleWebViews } from './example-views';
+import { exampleWebViews } from './example-web.views';
 import { HelpLines } from './help-lines';
 import { RegionControls } from './region-controls';
 import type { RegionMark, RegionModel, ScreenBody } from './region-model.types';
@@ -41,7 +41,7 @@ export class RegionFrame {
    * `app` — приложение, по которому строится справка (то же, что получил
    * `PageClient`), или готовый `ScreenHelp`; по умолчанию — учебное.
    */
-  constructor(app: AnyUiAppDef | ScreenHelp = ExamplePagesAppDef) {
+  constructor(app: AnyUiAppDef | ScreenHelp = ExamplePagesUiAppDef) {
     this.help = app instanceof ScreenHelp ? app : new ScreenHelp(app);
   }
 

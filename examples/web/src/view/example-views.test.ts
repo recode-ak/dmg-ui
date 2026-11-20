@@ -11,7 +11,7 @@ import {
 } from 'dmg-ui/testing';
 import { UiScene } from 'dmg-ui/testing/fixtures';
 import { PageNotePresenter } from 'dmg-ui/web-ui';
-import { examplePageViews } from 'dmg-ui/web-ui/testing';
+import { examplePagesViews } from 'dmg-ui/web-ui/testing';
 import {
   exampleWorld,
   openTab,
@@ -20,11 +20,8 @@ import {
   TOKEN_ANNA,
   TOKEN_BORIS,
 } from '../testing/example-world';
-import {
-  ExampleScreenView,
-  ExampleViews,
-  exampleWebViews,
-} from './example-views';
+import { ExampleScreenView, ExampleViews } from './example-views';
+import { exampleWebViews } from './example-web.views';
 import { RegionFrame } from './region-frame';
 import type {
   ActionModel,
@@ -58,7 +55,7 @@ describe('ExampleViews.of — реестр', () => {
 
   test('presented() по составу равен текстовому реестру: пять экранов и два уведомления', () => {
     expect([...exampleWebViews.presented()].sort()).toEqual(
-      [...examplePageViews.presented()].sort(),
+      [...examplePagesViews.presented()].sort(),
     );
     expect(exampleWebViews.presented()).toHaveLength(7);
   });

@@ -11,11 +11,11 @@ import {
   ViewUserStoryDef,
 } from '../../testing/example';
 import {
-  ExampleMenuStubAppDef,
-  ExampleMenuTrimmedStubAppDef,
-} from '../../testing/ui-app-fixture';
+  ExampleMenuStubUiAppDef,
+  ExampleMenuTrimmedStubUiAppDef,
+} from '../../testing/ui-app.fixture';
 import { UiScene } from '../../testing/ui-arch';
-import { RuntimeKit } from '../../testing/ui-runtime-fixture';
+import { RuntimeKit } from '../../testing/ui-runtime.fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import { ScreenCode } from '../screen/screen-code';
@@ -29,7 +29,7 @@ import { CodeLoader, CodeLoaders } from './code-loaders';
 const open = (kit: RuntimeKit) =>
   kit.runtime.open(MainMenuScreenDef.at({}), RuntimeKit.options());
 const menuKit = () =>
-  new RuntimeKit(exampleCodes(), ExampleUiSetDef, ExampleMenuStubAppDef);
+  new RuntimeKit(exampleCodes(), ExampleUiSetDef, ExampleMenuStubUiAppDef);
 
 describe('меню в приложении: подсказка двери из сторис-цели', () => {
   test('«Назначенные мне» — подсказка сторис followAssigned', async () => {
@@ -82,7 +82,7 @@ describe('«Назначенные мне»: карточка исполните
   };
 
   test('карточка в составе приложения — подсказка сторис viewUser', async () => {
-    const actions = await assignedOf(ExampleMenuStubAppDef);
+    const actions = await assignedOf(ExampleMenuStubUiAppDef);
 
     const card = actions.find((a) => a.name === 'openAssignee');
 
@@ -91,7 +91,7 @@ describe('«Назначенные мне»: карточка исполните
   });
 
   test('приложение без viewUser — действия openAssignee нет: отрезанное подсказки не даёт', async () => {
-    const actions = await assignedOf(ExampleMenuTrimmedStubAppDef);
+    const actions = await assignedOf(ExampleMenuTrimmedStubUiAppDef);
 
     expect(actions.map((a) => a.name)).not.toContain('openAssignee');
     expect(actions.map((a) => a.name)).toContain('close');

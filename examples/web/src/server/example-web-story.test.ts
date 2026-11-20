@@ -18,8 +18,8 @@ import {
   type ViewSource,
 } from 'dmg-ui/web-ui';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
   exampleSubjectWire,
   ManualPageClock,
   MemoryPageHistory,
@@ -28,7 +28,7 @@ import * as v from 'valibot';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
 import { EXAMPLE_COOKIE, EXAMPLE_PATHS } from '../common/example-web.const';
 import { ExampleGestures } from '../view/example-gestures';
-import { exampleWebViews } from '../view/example-views';
+import { exampleWebViews } from '../view/example-web.views';
 import { InboxModel } from '../view/inbox-model';
 import { ExampleWebServer } from './example-web-server';
 
@@ -116,9 +116,9 @@ const tab = async (
   if (!res.ok) throw new Error(`соединение ${key}: отказ`);
   let n = 0;
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
     end: res.value,
     placements: PLACEMENTS,
     observer: new MemoryUiObserver(),
@@ -148,9 +148,9 @@ const reconnecting = async (s: Started, key: string, prefix: string) => {
   const end = await reconnector.connect();
   let n = 0;
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
     end,
     placements: PLACEMENTS,
     observer: new MemoryUiObserver(),

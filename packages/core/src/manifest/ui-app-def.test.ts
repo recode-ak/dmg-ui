@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { LIST_START } from '../../testing/example';
-import { ExampleStubAppDef } from '../../testing/ui-app-fixture';
+import { ExampleStubUiAppDef } from '../../testing/ui-app.fixture';
 
 describe('UiAppDef', () => {
   test('форма: набор, канал, сторис, уведомления и входы с адресом', () => {
-    expect(ExampleStubAppDef.normalize()).toEqual({
+    expect(ExampleStubUiAppDef.normalize()).toEqual({
       dmg: 'uiApp',
       name: 'exampleStub',
       label: 'Учебное приложение в подставном канале',

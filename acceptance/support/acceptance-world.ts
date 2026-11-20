@@ -27,7 +27,7 @@ import {
   MemoryConversationStore,
 } from 'dmg-ui/chat-ui';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
 } from 'dmg-ui/chat-ui/testing';
@@ -53,8 +53,8 @@ import {
   PageWire,
 } from 'dmg-ui/web-ui';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
   exampleSubjectWire,
 } from 'dmg-ui/web-ui/testing';
 import { DialogPerson, type Who } from './dialog-person';
@@ -90,7 +90,7 @@ export type WorldOptions = {
   /** Каталог данных приложения мира (отдельный на мир). */
   readonly dataDir: string;
   readonly codes?: ReturnType<typeof exampleCodes>;
-  /** Приложение беседы; по умолчанию — `ExampleDialogAppDef`. */
+  /** Приложение беседы; по умолчанию — `ExampleDialogUiAppDef`. */
   readonly dialogApp?: AnyUiAppDef;
   /** Порт выхода беседы: принять ли выход. */
   readonly exits?: (exit: ConversationExit) => boolean;
@@ -171,7 +171,7 @@ export class AcceptanceWorld {
     });
     const exits = options.exits;
     this.conversations = new Conversations({
-      app: options.dialogApp ?? ExampleDialogAppDef,
+      app: options.dialogApp ?? ExampleDialogUiAppDef,
       codes: this.codes(),
       server: this.server,
       views: exampleDialogViews,
@@ -203,7 +203,7 @@ export class AcceptanceWorld {
     if (!this.dialogNotifier) {
       this.dialogNotifier = true;
       new UiNotifier({
-        app: this.options.dialogApp ?? ExampleDialogAppDef,
+        app: this.options.dialogApp ?? ExampleDialogUiAppDef,
         codes: this.codes(),
         dispatch: this.inner,
         callers: this.callers,
@@ -231,7 +231,7 @@ export class AcceptanceWorld {
   private pages(): PageHost<ExampleUser> {
     if (this.host !== undefined) return this.host;
     const host = new PageHost({
-      app: ExamplePagesAppDef,
+      app: ExamplePagesUiAppDef,
       server: this.server,
       tokens: async (token) => TOKEN_OWNERS.get(token),
       callers: this.callers,
@@ -240,7 +240,7 @@ export class AcceptanceWorld {
       subjectToWire: exampleSubjectWire.toWire,
     });
     new UiNotifier({
-      app: ExamplePagesAppDef,
+      app: ExamplePagesUiAppDef,
       codes: this.codes(),
       dispatch: this.inner,
       callers: this.callers,
@@ -260,9 +260,9 @@ export class AcceptanceWorld {
     const connected = await wire.connect(token);
     if (!connected.ok) throw new Error(`connect(${token}): отказ`);
     const client = new PageClient({
-      app: ExamplePagesAppDef,
+      app: ExamplePagesUiAppDef,
       codes: this.codes(),
-      routes: examplePageRoutes,
+      routes: examplePagesRoutes,
       end: connected.value,
       observer: this.observer,
       reviveSubject: exampleSubjectWire.revive,

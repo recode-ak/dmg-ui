@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { F } from 'dmg-core';
 import * as v from 'valibot';
 import { ExampleUiSetDef } from '../../../testing/example';
-import { ExampleMenuStubAppDef } from '../../../testing/ui-app-fixture';
+import { ExampleMenuStubUiAppDef } from '../../../testing/ui-app.fixture';
 import { ArchReport, UiScene } from '../../../testing/ui-arch';
 import { fieldHint } from '../../schema/field-hint';
 
@@ -117,7 +117,7 @@ describe('UI-26: у поля с F.sensitive нет examples', () => {
 
   test('учебный набор: правило не срабатывает', () => {
     const report = ArchReport.of(
-      UiScene.appOf(ExampleUiSetDef, [ExampleMenuStubAppDef]),
+      UiScene.appOf(ExampleUiSetDef, [ExampleMenuStubUiAppDef]),
     );
 
     expect(report.rule('UI-26')).toEqual([]);

@@ -21,10 +21,10 @@ import {
   TaskListScreenDef,
 } from '../../testing/example';
 import {
-  ExampleMenuStubAppDef,
-  ExampleMenuTrimmedStubAppDef,
-  ExampleStubAppDef,
-} from '../../testing/ui-app-fixture';
+  ExampleMenuStubUiAppDef,
+  ExampleMenuTrimmedStubUiAppDef,
+  ExampleStubUiAppDef,
+} from '../../testing/ui-app.fixture';
 import { ArchReport, UiScene } from '../../testing/ui-arch';
 import { type AnyScreenDef, ScreenDef } from '../manifest/screen-def';
 import { StoryTree } from '../manifest/story-tree';
@@ -35,7 +35,7 @@ import { UiGraphProvider } from './ui-graph-provider';
 import { UI_VERSION } from './ui-kinds';
 
 const provider = () =>
-  new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleStubAppDef] });
+  new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleStubUiAppDef] });
 const appGraph = () =>
   new AppGraph({ def: ExampleAppDef, providers: [provider()] });
 const graph = appGraph().build();
@@ -847,13 +847,13 @@ describe('UiGraphProvider: дерево приложения — roots и сог
     providers: [
       new UiGraphProvider({
         set: ExampleUiSetDef,
-        apps: [ExampleMenuStubAppDef, ExampleMenuTrimmedStubAppDef],
+        apps: [ExampleMenuStubUiAppDef, ExampleMenuTrimmedStubUiAppDef],
       }),
     ],
   }).build();
   const apps = [
-    ['exampleMenuStub', ExampleMenuStubAppDef],
-    ['exampleMenuTrimmedStub', ExampleMenuTrimmedStubAppDef],
+    ['exampleMenuStub', ExampleMenuStubUiAppDef],
+    ['exampleMenuTrimmedStub', ExampleMenuTrimmedStubUiAppDef],
   ] as const;
   const leadsOf = (g: typeof menuGraph) =>
     new Set(

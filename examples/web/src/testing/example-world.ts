@@ -22,13 +22,13 @@ import {
   PageWire,
 } from 'dmg-ui/web-ui';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
   exampleSubjectWire,
 } from 'dmg-ui/web-ui/testing';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
 import { PLACES } from '../server/example-web.const';
-import { EXAMPLE_PLACEMENTS } from '../view/example-placements.const';
+import { exampleWebPlacements } from '../view/example-web.placements';
 
 // Мир для тестов моделей представлений: учебное приложение во временном
 // каталоге, сервер UI, хост канала, уведомитель и вкладки на проводе в
@@ -72,7 +72,7 @@ export const exampleWorld = (dataDir: string, wrap?: DispatchWrap) => {
     [TOKEN_BORIS, boris.uuid],
   ]);
   const host = new PageHost({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     server,
     tokens: async (token) => tokens.get(token),
     callers: example.callers,
@@ -81,7 +81,7 @@ export const exampleWorld = (dataDir: string, wrap?: DispatchWrap) => {
     subjectToWire: exampleSubjectWire.toWire,
   });
   new UiNotifier({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
     dispatch,
     callers: example.callers,
@@ -114,11 +114,11 @@ export const openTab = async (
   const end: ClientEnd = connected.value;
   let requests = 0;
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
     end,
-    placements: EXAMPLE_PLACEMENTS,
+    placements: exampleWebPlacements,
     observer: new MemoryUiObserver(),
     reviveSubject: exampleSubjectWire.revive,
     ...(faults === undefined ? {} : { faults }),

@@ -9,10 +9,10 @@ import type {
   Updated,
 } from 'dmg-ui/chat-ui';
 import * as v from 'valibot';
-import { SentMessageSchema } from '../bot-api/bot-api.schema';
 import type { BotApi } from '../bot-api/bot-api.types';
 import { BotApiCaller } from '../bot-api/bot-api-caller';
 import type { BotApiOutcome } from '../bot-api/bot-api-caller.types';
+import { SentMessageSchema } from '../bot-api/bot-api-schema';
 import { TelegramCommunity } from '../community/telegram-community';
 import { TelegramLog } from '../telegram-log';
 import type { TelegramOperation } from '../telegram-log.types';

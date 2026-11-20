@@ -6,7 +6,7 @@ import type { DeliveredNotification } from 'dmg-ui/server';
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import { RuntimeKit, T0, testRenderContext } from 'dmg-ui/testing/fixtures';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
   type MessengerEntry,
@@ -102,7 +102,7 @@ const sceneOf = (
   let epochs = 0;
   const conversation = new Conversation(
     {
-      app: ExampleDialogAppDef,
+      app: ExampleDialogUiAppDef,
       runtime: kit.runtime,
       contexts: { context: async () => testRenderContext },
       traces: new DialogTraces(() => {

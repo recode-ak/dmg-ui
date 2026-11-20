@@ -55,10 +55,10 @@ describe('вход dmg-ui/chat-ui', () => {
 describe('вход dmg-ui/chat-ui/testing', () => {
   it('состав — привязка учебного примера к диалогу (три приложения) и подставной мессенджер', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui/testing')).sort()).toEqual([
-      'ExampleDialogAppDef',
       'ExampleDialogArch',
-      'ExampleTrimmedDialogAppDef',
-      'ExampleWindowedAppDef',
+      'ExampleDialogUiAppDef',
+      'ExampleTrimmedUiAppDef',
+      'ExampleWindowedUiAppDef',
       'MemoryMessenger',
       'exampleDialogViews',
     ]);
@@ -70,7 +70,7 @@ describe('вход dmg-ui/testing/fixtures', () => {
     expect(Object.keys(await import('dmg-ui/testing/fixtures')).sort()).toEqual(
       [
         'ArchReport',
-        'ExampleStubAppDef',
+        'ExampleStubUiAppDef',
         'RuntimeKit',
         'StubViewProvider',
         'T0',

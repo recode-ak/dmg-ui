@@ -52,9 +52,9 @@ import {
 } from 'dmg-ui/testing';
 import * as v from 'valibot';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
-  examplePageViews,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
+  examplePagesViews,
   ManualPageClock,
   MemoryPageHistory,
 } from '../../testing';
@@ -268,9 +268,9 @@ const tab = (
   const faults: UiFault[] = [];
   const clock = new ManualPageClock();
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes,
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
     end,
     observer,
     clock,
@@ -285,7 +285,7 @@ const tab = (
     ...(placements === undefined ? {} : { placements }),
     ...(history === undefined ? {} : { history }),
   });
-  const text = new PageText(client, examplePageViews);
+  const text = new PageText(client, examplePagesViews);
   return { client, end, observer, faults, text, clock };
 };
 
@@ -5809,7 +5809,7 @@ describe('PageClient — отрезанная ветка приложения', 
       FinishTasksStoryDef,
       FollowAssignedStoryDef,
     ],
-    entries: ExamplePagesAppDef.entries,
+    entries: ExamplePagesUiAppDef.entries,
   });
   const ROW = {
     ...stateOf(TASK_A, 'Хлеб', 'open'),
@@ -5821,7 +5821,7 @@ describe('PageClient — отрезанная ветка приложения', 
     const page = new PageClient({
       app: TrimmedPagesAppDef,
       codes: exampleCodes(),
-      routes: examplePageRoutes,
+      routes: examplePagesRoutes,
       end: new StubEnd().answer('listAssignedTasks', ok([ROW])),
       observer: new MemoryUiObserver(),
       clock: new ManualPageClock(),

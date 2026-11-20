@@ -13,8 +13,8 @@ import {
 } from 'dmg-ui/testing';
 import * as v from 'valibot';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
   ManualPageClock,
   MemoryPageHistory,
 } from '../../testing';
@@ -125,9 +125,9 @@ const booted = async (stepPlace?: (address: AddressJson) => string) => {
   const end = answered();
   const faults: UiFault[] = [];
   const client = new PageClient({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     codes: exampleCodes(),
-    routes: examplePageRoutes,
+    routes: examplePagesRoutes,
     end,
     observer: new MemoryUiObserver(),
     clock: new ManualPageClock(),

@@ -21,7 +21,7 @@ import {
 } from 'dmg-ui/server';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { exampleUser, oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
-import { ExamplePagesAppDef } from '../../testing';
+import { ExamplePagesUiAppDef } from '../../testing';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import type { ServerMessage as ServerMsg } from '../wire/page-messages.types';
 import { MAX_CLIENT_TEXT, MAX_SERVER_TEXT } from '../wire/page-wire.const';
@@ -88,7 +88,7 @@ const world = (spec: WorldSpec = {}) => {
   });
   const places = new JournalPlaces();
   const host = new PageHost({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     server,
     tokens: spec.tokens ?? (async (token) => TOKENS.get(token)),
     callers: spec.callers ?? example.callers,

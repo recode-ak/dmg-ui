@@ -14,7 +14,7 @@ import type { ExampleUser } from 'dmg-core/testing/example';
 import {
   exampleUser,
   StubRecipientCallers,
-} from '../../testing/ui-server-fixture';
+} from '../../testing/ui-server.fixture';
 import { RenderContexts } from './render-contexts';
 import type { PersonPlaces, RecipientCallers } from './server.types';
 

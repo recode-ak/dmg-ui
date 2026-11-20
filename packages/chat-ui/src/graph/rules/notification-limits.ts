@@ -5,7 +5,7 @@ import type {
 } from '../../messenger/messenger.types';
 import { ExampleFit } from './example-fit';
 import { STUB_REF } from './example-limits.const';
-import type { NoticeLink } from './example-limits.rule.types';
+import type { NoticeLink } from './example-limits.types';
 
 /**
  * Мера уведомления для CH-01 — как его строит беседа (`notice`): текст

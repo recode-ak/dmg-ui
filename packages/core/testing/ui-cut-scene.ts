@@ -10,7 +10,7 @@ import {
 import * as v from 'valibot';
 import { MemoryUiObserver } from './memory-ui-observer';
 import { UiScene } from './ui-arch';
-import { RuntimeKit, StubRefreshPort, StubUcPort } from './ui-runtime-fixture';
+import { RuntimeKit, StubRefreshPort, StubUcPort } from './ui-runtime.fixture';
 
 // Сцена отрезанной ветки для тестов исполнителя: экран `hub` ведёт на `inside`
 // (сторис приложения) и на `ghost` (сторис, связанная с приложением, но в него

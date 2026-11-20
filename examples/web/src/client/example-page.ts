@@ -7,15 +7,15 @@ import {
   PageSystemClock,
 } from 'dmg-ui/web-ui';
 import {
-  ExamplePagesAppDef,
-  examplePageRoutes,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
   exampleSubjectWire,
 } from 'dmg-ui/web-ui/testing';
 import type { ExampleRegion } from '../common/example-web.types';
 import { ExampleGestures } from '../view/example-gestures';
-import { EXAMPLE_PLACEMENTS } from '../view/example-placements.const';
 import { ExampleStepPlace } from '../view/example-step-place';
-import { exampleWebViews } from '../view/example-views';
+import { exampleWebPlacements } from '../view/example-web.placements';
+import { exampleWebViews } from '../view/example-web.views';
 import { FormDrafts } from '../view/form-drafts';
 import { LinkClick } from '../view/link-click';
 import { RegionFrame } from '../view/region-frame';
@@ -40,7 +40,7 @@ export class ExamplePage {
   private readonly models = new Map<ExampleRegion, RegionModel>();
 
   /** Приложение страницы: одно для клиента и для справки областей. */
-  private readonly app = ExamplePagesAppDef;
+  private readonly app = ExamplePagesUiAppDef;
 
   constructor(private readonly env: ExamplePageEnv) {}
 
@@ -64,9 +64,9 @@ export class ExamplePage {
     const client = new PageClient({
       app: this.app,
       codes: exampleCodes(),
-      routes: examplePageRoutes,
+      routes: examplePagesRoutes,
       end,
-      placements: EXAMPLE_PLACEMENTS,
+      placements: exampleWebPlacements,
       observer: { record: () => {} },
       faults: () => env.log(CONSOLE_FAULT),
       history: new PageBrowserHistory(env.browser),

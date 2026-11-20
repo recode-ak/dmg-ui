@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { ActionField, InstanceView } from 'dmg-ui';
 import { LIST_ID } from 'dmg-ui/testing';
-import { examplePageViews } from '../../testing';
+import { examplePagesViews } from '../../testing';
 import { PageRenderer } from './page-renderer';
 
 // Строка поля формы в тексте страницы: подпись, необязательность, вид ввода
@@ -29,7 +29,7 @@ const viewOf = (fields: readonly ActionField[]): InstanceView => ({
   locals: [],
 });
 
-const renderer = new PageRenderer(examplePageViews);
+const renderer = new PageRenderer(examplePagesViews);
 
 /** Строки поля в тексте вида — между заголовком формы и её кнопкой. */
 const fieldLines = (fields: readonly ActionField[]): string[] =>

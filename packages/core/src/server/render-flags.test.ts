@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { DelegateCaller, SystemCaller, UserCaller } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
-import { exampleUser } from '../../testing/ui-server-fixture';
+import { exampleUser } from '../../testing/ui-server.fixture';
 import { RenderFlags } from './render-flags';
 
 // Признаки рендера из вызывающего: заместитель и

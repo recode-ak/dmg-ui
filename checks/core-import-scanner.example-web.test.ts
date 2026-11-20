@@ -69,7 +69,7 @@ describe('CoreImportScanner — каталоги примера, едущие в
       "import { PageClient } from 'dmg-ui/web-ui';",
       "import { ListTasksUcDef } from 'dmg-core/testing/example';",
       "import { taskRow } from 'dmg-ui/testing';",
-      "import { examplePageRoutes } from 'dmg-ui/web-ui/testing';",
+      "import { examplePagesRoutes } from 'dmg-ui/web-ui/testing';",
       "import { RegionModel } from './region-model.types';",
       "import { EXAMPLE_PEOPLE } from '../common/example-people.const';",
     ].join('\n');
@@ -85,7 +85,7 @@ describe('CoreImportScanner — каталоги примера, едущие в
       "import { PageClient } from 'dmg-ui/web-ui';",
       "import { ListTasksUcDef } from 'dmg-core/testing/example';",
       "import { taskRow } from 'dmg-ui/testing';",
-      "import { examplePageRoutes } from 'dmg-ui/web-ui/testing';",
+      "import { examplePagesRoutes } from 'dmg-ui/web-ui/testing';",
       "import { dom } from './dom-element';",
       "import { RegionFrame } from '../view/region-frame';",
       "import { EXAMPLE_PEOPLE } from '../common/example-people.const';",
@@ -128,7 +128,7 @@ describe('CoreImportScanner — сервер примера (examples/web/src/se
       "import { ExampleApp } from 'dmg-core/testing';",
       "import { ScreenRuntime } from 'dmg-ui';",
       "import { PageHost } from 'dmg-ui/web-ui';",
-      "import { examplePageRoutes } from 'dmg-ui/web-ui/testing';",
+      "import { examplePagesRoutes } from 'dmg-ui/web-ui/testing';",
       "import { ExampleArch } from 'dmg-ui/testing';",
       "import { fixtures } from 'dmg-ui/testing/fixtures';",
       "import { ExampleWeb } from './example-web';",
@@ -185,7 +185,7 @@ describe('CoreImportScanner — общая фикстура примера (exam
       "import { PageHost } from 'dmg-ui/web-ui';",
       "import { PLACES } from '../server/example-web.const';",
       "import { EXAMPLE_PEOPLE } from '../common/example-people.const';",
-      "import { EXAMPLE_PLACEMENTS } from '../view/example-placements.const';",
+      "import { exampleWebPlacements } from '../view/example-web.placements';",
     ].join('\n');
 
     expect(scan(text, FIXTURE)).toEqual([]);

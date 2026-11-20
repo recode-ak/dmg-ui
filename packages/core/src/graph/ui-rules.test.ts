@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { ExampleUiSetDef } from '../../testing/example';
 import { UiRules } from './ui-rules';
 
-// Граф учебного примера без нарушений — `testing/example/example-graph.test.ts`.
+// Граф учебного примера без нарушений — `testing/example/example-dialog.arch.test.ts`.
 
 describe('UiRules', () => {
   test('правила идут в порядке ID: UI-01…UI-27', () => {

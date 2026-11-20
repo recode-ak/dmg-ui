@@ -1,7 +1,7 @@
 import { PageRouteDef } from 'dmg-ui/web-ui';
 
 /** Маршруты учебного примера: путь страницы — вход приложения UI. */
-export const examplePageRoutes = [
+export const examplePagesRoutes = [
   PageRouteDef.define({
     name: 'tasks',
     label: 'Мои задачи',

@@ -8,7 +8,7 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
-import { ExampleStubAppDef } from '../../testing/ui-app-fixture';
+import { ExampleStubUiAppDef } from '../../testing/ui-app.fixture';
 import { NotificationDef } from '../manifest/notification-def';
 import { ScreenDef } from '../manifest/screen-def';
 import { StoryDef } from '../manifest/story-def';
@@ -102,7 +102,7 @@ describe('UiIds', () => {
   });
 
   test('id приложения UI — его имя, без набора', () => {
-    expect(ids.app(ExampleStubAppDef)).toBe('exampleStub');
+    expect(ids.app(ExampleStubUiAppDef)).toBe('exampleStub');
   });
 
   test('сторис с именем экрана в одном модуле — бросок с именем', () => {

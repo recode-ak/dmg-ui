@@ -4,11 +4,11 @@ import { ModuleApi } from 'dmg-core/app';
 import { AwaitingBus, MemoryLogger } from 'dmg-core/testing';
 import { TodoModuleDef } from 'dmg-core/testing/example';
 import { ExampleUiSetDef, OWNER } from '../../testing/example';
-import { TASKS } from '../../testing/ui-runtime-fixture';
+import { TASKS } from '../../testing/ui-runtime.fixture';
 import {
   StubCallerSource,
   StubTransport,
-} from '../../testing/ui-server-fixture';
+} from '../../testing/ui-server.fixture';
 import { ModuleApiDispatch } from './module-api-dispatch';
 import { UiServer } from './ui-server';
 

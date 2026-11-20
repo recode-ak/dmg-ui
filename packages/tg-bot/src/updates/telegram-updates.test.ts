@@ -13,7 +13,7 @@ import {
   MemoryConversationStore,
 } from 'dmg-ui/chat-ui';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
 } from 'dmg-ui/chat-ui/testing';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
@@ -405,7 +405,7 @@ describe('TelegramUpdates — вход, которого нет в таблиц�
     );
     const messenger = new TelegramMessenger({ api, logger });
     const conversations = new Conversations({
-      app: ExampleDialogAppDef,
+      app: ExampleDialogUiAppDef,
       codes: exampleCodes(),
       server: new UiServer({
         set: ExampleUiSetDef,

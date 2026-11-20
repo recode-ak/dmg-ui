@@ -7,8 +7,8 @@ import { ExampleAppDef } from 'dmg-core/testing/example';
 import { type HelpSheet, ScreenHelp } from 'dmg-ui';
 import type { ConversationExit } from 'dmg-ui/chat-ui';
 import {
-  ExampleDialogAppDef,
-  ExampleTrimmedDialogAppDef,
+  ExampleDialogUiAppDef,
+  ExampleTrimmedUiAppDef,
 } from 'dmg-ui/chat-ui/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
 import {
@@ -26,7 +26,7 @@ import {
 import { oplogRecords } from 'dmg-ui/testing/fixtures';
 import type { PageHistoryEntry, PagePlacement } from 'dmg-ui/web-ui';
 import {
-  ExamplePagesAppDef,
+  ExamplePagesUiAppDef,
   exampleWindowPlacements,
   MemoryPageHistory,
 } from 'dmg-ui/web-ui/testing';
@@ -517,7 +517,7 @@ describe('сценарий 2 — «Назначенные мне» → карт�
 describe('сценарий 3 — беседа без viewUser, экран тот же', () => {
   test('беседа без viewUser: у «Назначенные мне» нет карточки исполнителя', async () => {
     const w = worldOf('dialog-trimmed', {
-      dialogApp: ExampleTrimmedDialogAppDef,
+      dialogApp: ExampleTrimmedUiAppDef,
     });
     const a = w.person(A);
     await w.assignToA();
@@ -540,7 +540,7 @@ describe('сценарий 3 — беседа без viewUser, экран тот
   });
 
   test('приложения беседы — основное и без карточки пользователя — делят один набор', () => {
-    expect(ExampleTrimmedDialogAppDef.set).toBe(ExampleDialogAppDef.set);
+    expect(ExampleTrimmedUiAppDef.set).toBe(ExampleDialogUiAppDef.set);
   });
 });
 
@@ -694,7 +694,7 @@ describe('сценарий 5 — поле входа: подпись, подск
       providers: [
         new UiGraphProvider({
           set: ExampleUiSetDef,
-          apps: [ExamplePagesAppDef],
+          apps: [ExamplePagesUiAppDef],
         }),
       ],
     }).build();
@@ -1206,8 +1206,8 @@ describe('сценарий 7 — справка по живому экрану: 
       const tab = await w.tab(A);
       await tab.client.route(route);
       const view = mainView(tab);
-      const page = new ScreenHelp(ExamplePagesAppDef).of(view);
-      const dialog = new ScreenHelp(ExampleDialogAppDef).of(view);
+      const page = new ScreenHelp(ExamplePagesUiAppDef).of(view);
+      const dialog = new ScreenHelp(ExampleDialogUiAppDef).of(view);
 
       await a.enter(entry);
       await a.help();
@@ -1259,7 +1259,7 @@ describe('сценарий 7 — справка по живому экрану: 
 
     await b.help();
 
-    const sheet = new ScreenHelp(ExamplePagesAppDef).of(mainView(tab));
+    const sheet = new ScreenHelp(ExamplePagesUiAppDef).of(mainView(tab));
     const names = [...sheet.items, ...sheet.leads].map((item) => item.name);
     expect(b.text()).toContain('Справка: Назначенные мне');
     expect(b.text()).not.toContain(COMPLETE_ALL);
@@ -1292,7 +1292,7 @@ describe('сценарий 7 — справка по живому экрану: 
 
     await a.help();
 
-    const sheet = new ScreenHelp(ExamplePagesAppDef).of(mainView(tab));
+    const sheet = new ScreenHelp(ExamplePagesUiAppDef).of(mainView(tab));
     const reasons = sheet.items.filter(
       (item) => item.disabled === READ_ONLY_TEXT,
     );
@@ -1307,7 +1307,7 @@ describe('сценарий 7 — справка по живому экрану: 
 
   test('отрезанное составом: в приложении без viewUser «Карточка исполнителя» не названа, в основном — названа с подсказкой сторис', async () => {
     const trimmed = worldOf('help-trimmed', {
-      dialogApp: ExampleTrimmedDialogAppDef,
+      dialogApp: ExampleTrimmedUiAppDef,
     });
     const full = worldOf('help-full');
     const t = trimmed.person(A);
@@ -1381,12 +1381,6 @@ describe('нейтральность — один код экранов на д�
         : [],
     );
 
-  /** Файлы каталога привязки, которые принадлежат только примеру. */
-  const exampleOnly = (dir: string) =>
-    readdirSync(join(import.meta.dir, '..', dir)).filter((name) =>
-      /\.(scode|ncode|screen|story|notification)\.ts$/.test(name),
-    );
-
   test('сторис finishTasks: записи исходов наблюдателя двух каналов равны', async () => {
     const dialog = await onDialog();
     const pages = await onPages();
@@ -1404,20 +1398,15 @@ describe('нейтральность — один код экранов на д�
   });
 
   test('приложения каналов делят сторис и набор', () => {
-    expect(ExamplePagesAppDef.stories).toHaveLength(
-      ExampleDialogAppDef.stories.length,
+    expect(ExamplePagesUiAppDef.stories).toHaveLength(
+      ExampleDialogUiAppDef.stories.length,
     );
     expect(
-      ExamplePagesAppDef.stories.every(
-        (story, index) => story === ExampleDialogAppDef.stories[index],
+      ExamplePagesUiAppDef.stories.every(
+        (story, index) => story === ExampleDialogUiAppDef.stories[index],
       ),
     ).toBe(true);
-    expect(ExamplePagesAppDef.set).toBe(ExampleDialogAppDef.set);
-  });
-
-  test('в привязках каналов нет кода, экранов и сторис примера', () => {
-    expect(exampleOnly('packages/chat-ui/testing/example')).toEqual([]);
-    expect(exampleOnly('packages/web-ui/testing/example')).toEqual([]);
+    expect(ExamplePagesUiAppDef.set).toBe(ExampleDialogUiAppDef.set);
   });
 
   test('беседа, порт выхода: принятый выход при непустом пути сбрасывает путь', async () => {

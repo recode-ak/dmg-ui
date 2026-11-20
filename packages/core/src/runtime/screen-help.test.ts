@@ -10,7 +10,7 @@ import {
   StartWorkStoryDef,
   TaskListScreenDef,
 } from '../../testing/example';
-import { ExampleMenuStubAppDef } from '../../testing/ui-app-fixture';
+import { ExampleMenuStubUiAppDef } from '../../testing/ui-app.fixture';
 import { UiScene } from '../../testing/ui-arch';
 import { UiIds } from '../address/ui-ids';
 import type { ActionView, InstanceView, LocalView } from './outcome.types';
@@ -59,7 +59,7 @@ const viewOf = (
   ...over,
 });
 
-const help = new ScreenHelp(ExampleMenuStubAppDef);
+const help = new ScreenHelp(ExampleMenuStubUiAppDef);
 const menu = (
   actions: readonly ActionView[],
   over: Partial<InstanceView> = {},
@@ -317,7 +317,7 @@ describe('ScreenHelp.general: корни приложения без access', ()
 
   test('учебное приложение: корень startWork — в leads с подписью и подсказкой, items пуст', () => {
     expect(help.general()).toStrictEqual({
-      title: ExampleMenuStubAppDef.label,
+      title: ExampleMenuStubUiAppDef.label,
       items: [],
       leads: [
         {
@@ -330,7 +330,7 @@ describe('ScreenHelp.general: корни приложения без access', ()
   });
 
   test('заголовок — подпись приложения', () => {
-    expect(help.general().title).toBe(ExampleMenuStubAppDef.label);
+    expect(help.general().title).toBe(ExampleMenuStubUiAppDef.label);
     expect(new ScreenHelp(sceneOf([fresh('solo')]).app).general().title).toBe(
       'Минимальное приложение',
     );

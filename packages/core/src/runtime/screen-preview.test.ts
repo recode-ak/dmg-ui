@@ -15,7 +15,7 @@ import {
 } from '../../testing/example';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { UiScene } from '../../testing/ui-arch';
-import { testRenderContext } from '../../testing/ui-runtime-fixture';
+import { testRenderContext } from '../../testing/ui-runtime.fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { fieldHint } from '../schema/field-hint';
 import { CodeDefect } from '../screen/code-defect';

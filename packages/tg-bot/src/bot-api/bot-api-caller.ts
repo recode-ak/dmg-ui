@@ -1,10 +1,10 @@
 import * as v from 'valibot';
 import type { TelegramLog } from '../telegram-log';
 import type { TelegramOperation } from '../telegram-log.types';
-import { BotApiAnswerSchema } from './bot-api.schema';
 import type { BotApiMethod, BotApiResult } from './bot-api.types';
 import type { BotApiOutcome } from './bot-api-caller.types';
 import { BotApiFailure } from './bot-api-failure';
+import { BotApiAnswerSchema } from './bot-api-schema';
 
 /**
  * Вызов порта Bot API (D-UI-61): ответ сверен схемой; отказ (кроме «not

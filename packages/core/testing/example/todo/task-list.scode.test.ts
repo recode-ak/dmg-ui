@@ -4,7 +4,7 @@ import { testUuid } from 'dmg-core/testing';
 import { ListTasksUcDef } from 'dmg-core/testing/example';
 import type { InstanceView } from 'dmg-ui';
 import { type TaskStateRow, taskState } from '../../task-state';
-import { RuntimeKit, requestTrace } from '../../ui-runtime-fixture';
+import { RuntimeKit, requestTrace } from '../../ui-runtime.fixture';
 import { LIST_ID, TASK_A, TASK_B } from './example-tasks';
 import { TaskListScreenDef } from './task-list.screen';
 

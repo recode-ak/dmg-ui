@@ -9,9 +9,9 @@ import {
   ViewUserStoryDef,
 } from '../../testing/example';
 import {
-  ExampleMenuStubAppDef,
-  ExampleMenuTrimmedStubAppDef,
-} from '../../testing/ui-app-fixture';
+  ExampleMenuStubUiAppDef,
+  ExampleMenuTrimmedStubUiAppDef,
+} from '../../testing/ui-app.fixture';
 import { UiScene } from '../../testing/ui-arch';
 import { UiIds } from '../address/ui-ids';
 import type { AnyStoryDef } from './story-def.types';
@@ -24,8 +24,8 @@ import type { StoryBranch } from './story-tree.types';
 const exampleIds = new UiIds(ExampleUiSetDef);
 const idOf = (story: AnyStoryDef) => exampleIds.story(story);
 
-const full = StoryTree.of(ExampleMenuStubAppDef);
-const trimmed = StoryTree.of(ExampleMenuTrimmedStubAppDef);
+const full = StoryTree.of(ExampleMenuStubUiAppDef);
+const trimmed = StoryTree.of(ExampleMenuTrimmedStubUiAppDef);
 
 const sceneOf = (links: Record<string, readonly string[]>, inApp: string[]) => {
   const names = [

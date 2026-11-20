@@ -4,7 +4,7 @@ import {
   RuntimeKit,
   requestTrace,
   testRenderContext,
-} from '../../ui-runtime-fixture';
+} from '../../ui-runtime.fixture';
 import { ExampleUiSetDef, exampleCodes } from '../index';
 import { ASSIGNED_ID, LIST_ID } from './example-tasks';
 import { MainMenuScreenDef } from './main-menu.screen';

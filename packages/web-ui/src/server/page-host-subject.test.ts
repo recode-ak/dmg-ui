@@ -16,7 +16,7 @@ import {
 } from 'dmg-ui/server';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { exampleUser, T0 } from 'dmg-ui/testing/fixtures';
-import { ExamplePagesAppDef, exampleSubjectWire } from '../../testing';
+import { ExamplePagesUiAppDef, exampleSubjectWire } from '../../testing';
 import type { ServerMessage as ServerMsg } from '../wire/page-messages.types';
 import { PageHost } from './page-host';
 import { HOST_LOGS } from './page-server.const';
@@ -65,7 +65,7 @@ const hostOf = (
     context,
   });
   return new PageHost<ExampleUser>({
-    app: ExamplePagesAppDef,
+    app: ExamplePagesUiAppDef,
     server,
     tokens: async (token) =>
       token === 'tA' ? A : token === 'tB' ? B : undefined,

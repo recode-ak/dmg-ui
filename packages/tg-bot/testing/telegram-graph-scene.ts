@@ -12,7 +12,7 @@ import {
   type MessengerCapabilities,
 } from 'dmg-ui/chat-ui';
 import {
-  ExampleDialogAppDef,
+  ExampleDialogUiAppDef,
   exampleDialogViews,
 } from 'dmg-ui/chat-ui/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
@@ -60,7 +60,7 @@ export type TelegramSceneSpec = {
 
 /** Сцена `arch:check`: `exampleDialog` в мессенджере и оба поставщика — `dmg-ui-chat` и `dmg-ui-tg`. */
 export const telegramScene = (spec: TelegramSceneSpec): ArchApp => {
-  const app = spec.app ?? ExampleDialogAppDef;
+  const app = spec.app ?? ExampleDialogUiAppDef;
   const apps: readonly ChatAppSpec[] = spec.bare
     ? []
     : [

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { AwaitingBus, MemoryLogger, useTempDir } from 'dmg-core/testing';
-import { ExampleDialogAppDef } from 'dmg-ui/chat-ui/testing';
+import { ExampleDialogUiAppDef } from 'dmg-ui/chat-ui/testing';
 import {
   TaskAssignedNotificationDef,
   TaskListScreenDef,
@@ -184,7 +184,7 @@ describe('ExampleBot — меню и уведомления', () => {
   test('у каждого входа приложения беседы есть точка в ENTRY_POINTS: человек доходит до каждого входа', () => {
     const covered = new Set<string>(ENTRY_POINTS.map((point) => point.entry));
 
-    const missing = Object.keys(ExampleDialogAppDef.entries).filter(
+    const missing = Object.keys(ExampleDialogUiAppDef.entries).filter(
       (entry) => !covered.has(entry),
     );
 
@@ -203,7 +203,7 @@ describe('ExampleBot — меню и уведомления', () => {
     const expected = ENTRY_POINTS.filter((point) => point.via === 'menu').map(
       (point) => ({
         command: point.key,
-        description: ExampleDialogAppDef.entries[point.entry]?.label ?? '',
+        description: ExampleDialogUiAppDef.entries[point.entry]?.label ?? '',
       }),
     );
     expect(expected.length).toBeGreaterThan(0);

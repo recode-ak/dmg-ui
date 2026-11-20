@@ -7,7 +7,7 @@ import {
 } from 'dmg-core/testing/example';
 import type { InstanceView } from 'dmg-ui';
 import { type TaskStateRow, taskState } from '../../task-state';
-import { RuntimeKit, requestTrace } from '../../ui-runtime-fixture';
+import { RuntimeKit, requestTrace } from '../../ui-runtime.fixture';
 import { AssignedTasksScreenDef } from './assigned-tasks.screen';
 import { TASK_A } from './example-tasks';
 

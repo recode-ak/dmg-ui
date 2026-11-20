@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { ErrorDef, err, ok } from 'dmg-core';
 import { GetUserUcDef, UserErrors } from 'dmg-core/testing/example';
-import { RuntimeKit, requestTrace } from '../../ui-runtime-fixture';
+import { RuntimeKit, requestTrace } from '../../ui-runtime.fixture';
 import { LIST_ID, OWNER } from '../todo/example-tasks';
 import { UserCardScreenDef } from './user-card.screen';
 

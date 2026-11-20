@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { AwaitingBus, MemoryLogger, useTempDir } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
 import { ExampleUiSetDef, OWNER, TASK_A } from '../../testing/example';
-import { T0 } from '../../testing/ui-server-fixture';
+import { T0 } from '../../testing/ui-server.fixture';
 import { ApiAppDispatch } from './api-app-dispatch';
 import { UiServer } from './ui-server';
 

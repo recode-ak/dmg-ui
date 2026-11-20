@@ -3,8 +3,11 @@ import { ExampleArch } from 'dmg-core/testing';
 import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { PageGraphProvider } from 'dmg-ui/web-ui';
-import { ExamplePagesAppDef, examplePageRoutes } from 'dmg-ui/web-ui/testing';
-import { exampleWebViews } from '../view/example-views';
+import {
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
+} from 'dmg-ui/web-ui/testing';
+import { exampleWebViews } from '../view/example-web.views';
 
 /**
  * Граф примера для браузера: домен учебного приложения, поставщик `dmg-ui` и
@@ -16,13 +19,13 @@ import { exampleWebViews } from '../view/example-views';
 export const ExampleWebArch: ArchApp = {
   ...ExampleArch,
   providers: [
-    new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExamplePagesAppDef] }),
+    new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExamplePagesUiAppDef] }),
     new PageGraphProvider({
       apps: [
         {
-          app: ExamplePagesAppDef,
+          app: ExamplePagesUiAppDef,
           views: exampleWebViews,
-          routes: examplePageRoutes,
+          routes: examplePagesRoutes,
         },
       ],
     }),
