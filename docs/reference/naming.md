@@ -1,6 +1,6 @@
 # Структура и именование UI
 
-**Назначение:** как раскладывать и называть файлы UI: набор UI, UI-модуль, сторис, экран, уведомление, код, приложение UI, представления канала, пакет канала. Общие правила кода и имён — те же, что в `dmg-core` (`node_modules/dmg-core/docs/reference/naming.md` §4, правило CODE-01): kebab-case файлов, суффикс вида, тест рядом, `<файл>.types.ts`, PascalCase, `undefined`, `private`. Здесь — только то, что добавляет UI. Образец — учебный набор [packages/core/testing/example](../../packages/core/testing/example/) и привязки каналов `packages/{chat-ui,tg-bot,web-ui}/testing/example`. Часть файлов образца ещё названа иначе (`.code.ts`, `.app.ts`, `.telegram-view.ts`, `*-fixture.ts`, `.schema.ts`); при расхождении правило — этот документ.
+**Назначение:** как раскладывать и называть файлы UI: набор UI, UI-модуль, сторис, экран, уведомление, код, приложение UI, представления канала, пакет канала. Общие правила кода и имён — те же, что в `dmg-core` (`node_modules/dmg-core/docs/reference/naming.md` §4, правило CODE-01): kebab-case файлов, суффикс вида, тест рядом, `<файл>.types.ts`, PascalCase, `undefined`, `private`. Здесь — только то, что добавляет UI. Образец — учебный набор [packages/core/testing/example](../../packages/core/testing/example/) и привязки каналов `packages/{chat-ui,tg-bot,web-ui}/testing/example`. Часть файлов пакетов каналов ещё названа иначе (`.app.ts`, `.telegram-view.ts`, `*-fixture.ts`, `.schema.ts`, тесты тем без головы вроде `page-socket.test.ts`); при расхождении правило — этот документ. Проверка имён — правило `NM-01`, класс `UiFileNames` (§7).
 
 ---
 
@@ -108,9 +108,9 @@ checks/                              проверки репо, не поста�
 
 - `<файл>.test.ts` — тест файла (`task-list.scode.test.ts`, `entry-point.rule.test.ts`);
 - `<файл>.<грань>.test.ts` — грань теста файла, грань — kebab-слово без точки (`example-tokens.guard.test.ts`, `package-manifest.web-ui.test.ts`);
-- `<тема>-<что>.test.ts` — тест темы, где `<тема>` — префикс имени файла в том же каталоге (`conversation-help.test.ts` при `conversation.ts`, `page-socket.test.ts` при `page-*.ts`);
+- `<тема>-<что>.test.ts` — тест темы: `<тема>` — собственный дефисный префикс имени теста, и в том же каталоге есть голова — `<тема>.ts` или `<тема>.<вид>.ts` (`conversation-help.test.ts` при `conversation.ts`, `cart-list-help.test.ts` при `cart-list.screen.ts`). Головой не служат `.types.ts`, `.const.ts`, `.fixture.ts`, `.test-kit.ts`, тесты и файлы-сводки `.ui-module.ts`, `.set.ts`: иначе `<m>.ui-module.ts` дал бы голову любому `<m>-….test.ts` в папке модуля. Префикс соседних файлов тему не задаёт — `page-socket.test.ts` при одних `page-host.ts` и `page-client.ts` не по форме;
 - `readme.test.ts` — проверка README своего каталога или каталога выше (`examples/web/src/readme.test.ts` → `examples/web/README.md`);
-- сквозной сценарий без одного файла — только в `testing/`, `acceptance/`, `browser/`, `checks/`; сценарий канала — `<тема>-story.test.ts` (`telegram-story.test.ts`). `<имя>.story.test.ts` — только тест файла `<имя>.story.ts`.
+- сквозной сценарий без одного файла — только прямо в каталоге `testing/`, `acceptance/`, `browser/` или `checks/` (не в его подкаталоге); сценарий канала — `<тема>-story.test.ts` (`telegram-story.test.ts`). `<имя>.story.test.ts` — только тест файла `<имя>.story.ts`.
 
 Место фикстур и снимков:
 
@@ -123,7 +123,59 @@ checks/                              проверки репо, не поста�
 
 Генератора видов UI пока нет. Форма для шаблонов — таблица §1: суффикс, базовый класс, имя, папка, парные файлы, точка регистрации, образец в учебном наборе. Образец каждого вида — одна минимальная запись в учебном наборе; точки регистрации — поля родителя или аргументы фабрики из колонки «Точка регистрации» (`UiModuleDef.screens`, `UiSetDef.modules`, `UiAppDef.stories`, `CodeLoaders.of`, `ChatViews.of` / `PageViews.of`, `providers` входа графа).
 
-## 7. Отличия от `dmg-core`
+## 7. Проверка
+
+Правило `NM-01` ([rules.md](./rules.md), [D-UI-112](../decisions.md)) проверяет класс `UiFileNames` из `dmg-ui/testing`. Класс диск не читает: принимает файлы `{ path, text }[]` (путь от корня проекта через `/`) и возвращает нарушения `{ file, line, text }[]`. Чтение и обход каталогов — у потребителя, вызов — в его тесте (`bun test`), а не в `arch:check`.
+
+Конфигурация — каталоги от корня проекта, зона — префикс пути; файл вне всех зон не проверяется, зона без файлов — нарушение:
+
+| Поле | Что лежит | Что проверяется |
+|---|---|---|
+| `sets` | корни наборов UI (§2) | суффикс, имя, место: виды набора — в `<корень>/<m>/` при `<m>/<m>.ui-module.ts`, `.set` — в корне; виды канала в наборе — нарушение; тест рядом (§5) |
+| `channels` | каталоги стороны канала (§3) | суффикс, имя; виды набора в канале — нарушение; тест рядом (§5) |
+| `others` | прочий код UI без раскладки по папкам (приёмка, подмены кода) | суффикс и имя, место — нет |
+| `tests` | дополнительные каталоги с тестами вне `sets` и `channels` (сквозные, исполнитель) | только тест рядом (§5) |
+
+Что проверяется:
+
+| Проверка | Нарушение | Откуда вид |
+|---|---|---|
+| `суффикс` | объявление одного вида в файле с суффиксом другого; суффикс из словаря без своего объявления | объявление в тексте без комментариев: `export const X = <База>.define(` для `UiSetDef`, `UiModuleDef`, `UiAppDef`, `StoryDef`, `ScreenDef`, `NotificationDef`; `export [abstract] class X extends ScreenCode` или `NotificationCode`; у `.view`, `.views`, `.routes`, `.placements`, `.wire`, `.graph`, `.arch` базы нет — вид только по суффиксу |
+| `имя` | суффикс верный, имя не `<Имя><Вид>` (или `<имя><Вид>` у коллекций канала) от `<имя>` файла | таблица §1 |
+| `место` | вид набора вне `<набор>/<m>/` или глубже; `.set` не в корне набора; `.ui-module` не `<m>/<m>.ui-module.ts`; в папке `<m>` есть виды набора, а `<m>.ui-module.ts` нет; вид канала в наборе или наоборот | суффикс и путь против `sets` и `channels` |
+| `тест` | тест не по формам §5; `<имя>.story.test.ts` без `<имя>.story.ts` | файлы того же каталога |
+| `вид файла` | объявления двух видов или два объявления одного вида | как у `суффикс` |
+| `зона` | в каталоге конфигурации нет ни одного файла | список файлов |
+
+Одна проблема файла — одна строка: при неверном суффиксе имя и место не проверяются. Строка нарушения — строка объявления, иначе 1. Словарь открытый: файл с суффиксом вне §1 и без объявления вида (`shop-bot.community.ts`) не флагируется. Вид тестов, `*.fixture.ts` и `*.test-kit.ts` не проверяется; `*.browser.test.ts` вне проверки теста рядом.
+
+Тест потребителя — набор и канал; тесты в них проверяются без поля `tests`:
+
+```ts
+import { describe, expect, it } from 'bun:test';
+import { UiFileNames } from 'dmg-ui/testing';
+
+/** Все `.ts` каталога: путь от корня проекта и текст. */
+const read = async (dir: string) =>
+  Promise.all(
+    [...new Bun.Glob('**/*.ts').scanSync(dir)].map(async (file) => ({
+      path: `${dir}/${file}`,
+      text: await Bun.file(`${dir}/${file}`).text(),
+    })),
+  );
+
+describe('имена файлов UI (NM-01)', () => {
+  it('набор UI и канал названы по naming.md', async () => {
+    const names = new UiFileNames({ sets: ['ui/shop/src'], channels: ['runners/web/src/ui'] });
+    const files = [...(await read('ui/shop/src')), ...(await read('runners/web/src/ui'))];
+    expect(names.check(files)).toEqual([]);
+  });
+});
+```
+
+Ограничения — в [rules.md](./rules.md#ограничения-правил): псевдоним базы, `export default class`, перенос перед `.define` и `export { X }` объявлением не считаются, объявление внутри строки — считается; `.rule.ts` и `name` манифеста не проверяются.
+
+## 8. Отличия от `dmg-core`
 
 Дополнения, которых `dmg-core` не описывает:
 
@@ -131,4 +183,5 @@ checks/                              проверки репо, не поста�
 - пара манифеста и представления — по `<имя>` между пакетами набора и канала, а не по одинаковому пути контракта и реализации (MAN-10);
 - коллекции и привязки канала — camelCase-значения `<имя>Views`, `<имя>Routes`, `<имя>Placements`, `<имя>Wire`, а не константы UPPER_SNAKE и не группы `<Агрегат>Events`;
 - `.rule.ts`, `.const.ts`, `-schema.ts`;
-- грань теста `<файл>.<грань>.test.ts`, тест темы `<тема>-<что>.test.ts`, `readme.test.ts`, `.browser.test.ts`.
+- грань теста `<файл>.<грань>.test.ts`, тест темы `<тема>-<что>.test.ts`, `readme.test.ts`, `.browser.test.ts`;
+- проверка имён — тестом потребителя (`UiFileNames`, `NM-01`, §7): суффикс ↔ вид объявления ↔ имя, папка UI-модуля и тест рядом; `arch:check` `dmg-core` этого не проверяет.

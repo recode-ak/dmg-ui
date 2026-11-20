@@ -16,7 +16,7 @@ type Assigned = typeof AssignedTasksScreenDef;
  * выбранные» всем. Единственная подмена кода экрана в приёмке: нужна, чтобы
  * проверить, что сервер перепроверяет Policy самого UC, а не верит виду.
  */
-export class LiarAssignedCode extends ScreenCode<Assigned> {
+export class LiarAssignedScreenCode extends ScreenCode<Assigned> {
   override readonly locals = {
     toggle: (
       state: StateOf<Assigned>,

@@ -81,7 +81,7 @@ describe('RuleCatalog.checkRules — все префиксы репо', () => {
   it('префиксы в id правил кода — ровно RULE_PREFIXES: новый префикс регистрируется', () => {
     const inCode = new Set(
       TextTree.read(ROOT, 'packages', ['.ts'])
-        .filter((f) => f.path.endsWith('.rule.ts'))
+        .filter((f) => !f.path.endsWith('.test.ts'))
         .flatMap((f) =>
           f.lines().flatMap((text) => {
             const prefix = /\bid\s*=\s*'([A-Z]+)-\d{2}'/.exec(text)?.[1];
@@ -175,7 +175,7 @@ describe('каталог правил и решения репо', () => {
   const notSelf = (files: SourceFile[]) =>
     files.filter((f) => !SELF.includes(f.path));
 
-  it('правила UI-NN, PG-NN, CH-NN и TG-NN в коде и в docs/reference/rules.md совпадают', () => {
+  it('правила UI-NN, PG-NN, CH-NN, TG-NN и NM-NN в коде и в docs/reference/rules.md совпадают', () => {
     const code = TextTree.read(ROOT, 'packages', ['.ts']).filter(
       (f) => !f.path.endsWith('.test.ts'),
     );

@@ -13,7 +13,7 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { UiScene } from '../../testing/ui-arch';
 import { testRenderContext } from '../../testing/ui-runtime-fixture';
 import { ScreenDef } from '../manifest/screen-def';

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { TaskListScreenDef } from '../../testing/example';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { ScreenCode } from '../screen/screen-code';
 import type { ActionSteps } from '../screen/screen-code.types';
 import { ScreenUnit } from './screen-unit';

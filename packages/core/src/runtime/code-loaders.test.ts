@@ -10,13 +10,13 @@ import {
   TaskListScreenDef,
   UserCardScreenDef,
 } from '../../testing/example';
-import { AssignedTasksScreenCode } from '../../testing/example/todo/assigned-tasks.code';
-import { MainMenuScreenCode } from '../../testing/example/todo/main-menu.code';
-import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.code';
-import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
-import { TaskCompletedNotificationCode } from '../../testing/example/todo/task-completed.code';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
-import { UserCardScreenCode } from '../../testing/example/users/user-card.code';
+import { AssignedTasksScreenCode } from '../../testing/example/todo/assigned-tasks.scode';
+import { MainMenuScreenCode } from '../../testing/example/todo/main-menu.scode';
+import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.ncode';
+import { TaskCardScreenCode } from '../../testing/example/todo/task-card.scode';
+import { TaskCompletedNotificationCode } from '../../testing/example/todo/task-completed.ncode';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
+import { UserCardScreenCode } from '../../testing/example/users/user-card.scode';
 import { RuntimeKit } from '../../testing/ui-runtime-fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { CodeLoader, CodeLoaders } from './code-loaders';

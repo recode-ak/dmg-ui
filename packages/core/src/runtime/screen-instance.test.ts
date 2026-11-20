@@ -23,8 +23,8 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
-import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { TaskCardScreenCode } from '../../testing/example/todo/task-card.scode';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { taskState } from '../../testing/task-state';
 import { UiScene } from '../../testing/ui-arch';
 import { CutKit } from '../../testing/ui-cut-scene';

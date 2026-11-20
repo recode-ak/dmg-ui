@@ -13,7 +13,7 @@ import {
   TASK_B,
   type TaskListScreenDef,
 } from '../../testing/example';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { RuntimeKit, requestTrace } from '../../testing/ui-runtime-fixture';
 import type { StateOf } from '../manifest/screen-def.types';
 import type { ScreenInstance } from './screen-instance';
@@ -60,7 +60,7 @@ class LeakyToggle extends TaskListScreenCode {
 const defectsOf = (kit: RuntimeKit) =>
   kit.observer.records.filter((entry) => entry.kind === 'defect');
 
-describe('UiObserver — записи экрана', () => {
+describe('InstanceRecords — записи наблюдателя экрана', () => {
   test('opened → acted → outcome: id действия, след и один экземпляр', async () => {
     const { kit, list } = await listWithCreate();
 

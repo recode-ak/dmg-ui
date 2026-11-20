@@ -3,12 +3,13 @@ import type { Violation } from './violation.types';
 
 /**
  * Префиксы правил репо: `UI` — ядро, `PG` — страничный канал `web-ui`, `CH` —
- * общая часть мессенджеров, `TG` — Telegram. Общий шаблон `[A-Z]+-NN` нельзя: заголовки
+ * общая часть мессенджеров, `TG` — Telegram, `NM` — имена файлов UI (проверка
+ * `UiFileNames` в тестах, не правило графа). Общий шаблон `[A-Z]+-NN` нельзя: заголовки
  * `rules.md` упоминают ID платформы (`ARC-13`).
  */
-export const RULE_PREFIXES = ['UI', 'PG', 'CH', 'TG'] as const;
+export const RULE_PREFIXES = ['UI', 'PG', 'CH', 'TG', 'NM'] as const;
 
-/** Номер правила с префиксом репо: `(UI|PG|CH|TG)-NN`. */
+/** Номер правила с префиксом репо: `(UI|PG|CH|TG|NM)-NN`. */
 const RULE_ID = `(?:${RULE_PREFIXES.join('|')})-\\d{2}`;
 
 /** Сверка текстов: правила в коде и в `rules.md` (префиксы `RULE_PREFIXES`), ссылки `D-UI-<n>` и `decisions.md`, нумерация `debt.md`. Код пакета не импортирует. */

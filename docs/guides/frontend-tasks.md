@@ -47,7 +47,7 @@ export const PlanTasksStoryDef = StoryDef.define({
 Решение о двери — в коде экрана, ответом `Availability` (сценарий 3). «Карточка исполнителя» есть только у того, у кого есть субъект:
 
 ```ts
-// из: packages/core/testing/example/todo/assigned-tasks.code.ts
+// из: packages/core/testing/example/todo/assigned-tasks.scode.ts
 openAssignee: ({ data, subject }) =>
   subject === undefined
     ? Availability.hidden()
@@ -82,7 +82,7 @@ completeSelected: {
 ```
 
 ```ts
-// из: packages/core/testing/example/todo/task-list.code.ts
+// из: packages/core/testing/example/todo/task-list.scode.ts
 completeSelected: ({ data, state, subject }) =>
   Availability.given(
     new TaskSelection(data.tasks, state.selected).openTasks(),
@@ -122,7 +122,7 @@ completeSelected: ({ data, state, subject }) =>
 Причину пишет не экран: доменное правило отвечает текстом своей ошибки, правило вида «нет прав» — скрывает.
 
 ```ts
-// из: packages/core/testing/example/todo/task-list.code.ts
+// из: packages/core/testing/example/todo/task-list.scode.ts
 create: ({ data }) =>
   Availability.rule(TaskRules.rules.withinOpenLimit, {
     ownerTasks: data.owned.map((row) => TaskAr.readonly(row)),

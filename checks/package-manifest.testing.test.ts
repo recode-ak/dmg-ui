@@ -29,6 +29,7 @@ describe('вход dmg-ui/testing', () => {
       'TaskCompletedNotificationDef',
       'TaskListScreenDef',
       'TodoUiModuleDef',
+      'UiFileNames',
       'UserCardScreenDef',
       'UsersUiModuleDef',
       'ViewUserStoryDef',

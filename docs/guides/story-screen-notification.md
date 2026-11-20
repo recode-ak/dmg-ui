@@ -100,11 +100,11 @@ new ScreenHelp(ExampleDialogAppDef).of(menuView);
 
 Субъект — доменный объект «кто смотрит» (тот, что получает Policy; не `Caller`) — лежит в `context.subject` у `load`, шагов и функции доступности; тип проекта — второй параметр `ScreenCode<D, S>`. Его кладёт канал в контекст рендера; без человека субъекта нет. Ответ о доступности — только показ: сервер перепроверяет каждый вызов (D-UI-29). Приложение вправе не включать часть связанных сторис: действие-переход в отрезанную сторис исполнитель из вида убирает (`ScreenRuntimeSpec.app`, D-UI-95).
 
-Переход — `Address` (свой экран с теми же параметрами значит «остаться и перечитать») или `exits.имя.with(data)`. Образец: [task-card.code.ts](../../packages/core/testing/example/todo/task-card.code.ts).
+Переход — `Address` (свой экран с теми же параметрами значит «остаться и перечитать») или `exits.имя.with(data)`. Образец: [task-card.scode.ts](../../packages/core/testing/example/todo/task-card.scode.ts).
 
-`NotificationCode<D>`: `load({ payload, read })` собирает данные уведомления от имени получателя, `links(data, payload)` возвращает адреса из `links()` манифеста. Образец — [task-assigned.code.ts](../../packages/core/testing/example/todo/task-assigned.code.ts).
+`NotificationCode<D>`: `load({ payload, read })` собирает данные уведомления от имени получателя, `links(data, payload)` возвращает адреса из `links()` манифеста. Образец — [task-assigned.ncode.ts](../../packages/core/testing/example/todo/task-assigned.ncode.ts).
 
-Код подключает корень сборки реестром `CodeLoaders.of(set, [CodeLoader.screen(def, async () => new (await import('./x.code')).XScreenCode()), CodeLoader.notification(...)])`; загрузчик возвращает объект кода, а не модуль, и нужен каждому экрану и уведомлению набора (образец — [example-codes.ts](../../packages/core/testing/example/example-codes.ts)).
+Код подключает корень сборки реестром `CodeLoaders.of(set, [CodeLoader.screen(def, async () => new (await import('./x.scode')).XScreenCode()), CodeLoader.notification(def, async () => new (await import('./x.ncode')).XNotificationCode())])`; загрузчик возвращает объект кода, а не модуль, и нужен каждому экрану и уведомлению набора (образец — [example-codes.ts](../../packages/core/testing/example/example-codes.ts)).
 
 ## 5. Исполнение
 
@@ -157,6 +157,7 @@ new ScreenHelp(ExampleDialogAppDef).of(menuView);
 - Состав и связи — `arch:check` и граф (`ExampleDialogArch` из `dmg-ui/chat-ui/testing`, `ExamplePagesArch` из `dmg-ui/web-ui/testing` — образец сборки `ArchApp`); отдельные тесты манифестов не нужны (TST-09).
 - Код экрана — тестом через `ScreenRuntime` с `MemoryUiObserver` из `dmg-ui/testing`: открыть, выполнить действие, проверить исход и записи (`kinds()`).
 - Примеры — снимками: `ExamplePreview` из `dmg-ui/testing` рендерит пример через представление канала.
+- Имена и раскладка файлов набора и канала — тестом с `UiFileNames` из `dmg-ui/testing` (правило `NM-01`): суффикс ↔ вид, имя `<Имя><Вид>`, папка UI-модуля, тест рядом; образец теста — [naming.md §7](../reference/naming.md#7-проверка).
 - Браузерный тест нужен, только если без настоящего браузера не проверить: правило и запуск — [Web-канал, раздел 15](./web-channel.md#15-как-тестировать). Какие задачи фронта закрыты экраном и сторис и чем проверены — [Задачи фронта](./frontend-tasks.md).
 - Тесты изолированы и короткие (TST-04), проверяют код экрана, а не платформу или схемы (TST-09).
 - Набор минимален при полном покрытии поведения (TST-08): тесты затронутого модуля пересматриваются целиком, дубль и тест отменённого поведения удаляются сразу, каждое удаление — строкой «что защищал → где покрыто / почему не нужно».

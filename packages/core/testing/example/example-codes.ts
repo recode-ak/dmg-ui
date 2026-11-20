@@ -21,40 +21,40 @@ export const exampleCodes = (over: ExampleCodeOverrides = {}): CodeLoaders =>
       TaskListScreenDef,
       async () =>
         over.list ??
-        new (await import('./todo/task-list.code')).TaskListScreenCode(),
+        new (await import('./todo/task-list.scode')).TaskListScreenCode(),
     ),
     CodeLoader.screen(
       TaskCardScreenDef,
       async () =>
         over.card ??
-        new (await import('./todo/task-card.code')).TaskCardScreenCode(),
+        new (await import('./todo/task-card.scode')).TaskCardScreenCode(),
     ),
     CodeLoader.screen(
       AssignedTasksScreenDef,
       async () =>
         over.assigned ??
         new (
-          await import('./todo/assigned-tasks.code')
+          await import('./todo/assigned-tasks.scode')
         ).AssignedTasksScreenCode(),
     ),
     CodeLoader.screen(
       MainMenuScreenDef,
       async () =>
         over.menu ??
-        new (await import('./todo/main-menu.code')).MainMenuScreenCode(),
+        new (await import('./todo/main-menu.scode')).MainMenuScreenCode(),
     ),
     CodeLoader.screen(
       UserCardScreenDef,
       async () =>
         over.user ??
-        new (await import('./users/user-card.code')).UserCardScreenCode(),
+        new (await import('./users/user-card.scode')).UserCardScreenCode(),
     ),
     CodeLoader.notification(
       TaskAssignedNotificationDef,
       async () =>
         over.assignedNote ??
         new (
-          await import('./todo/task-assigned.code')
+          await import('./todo/task-assigned.ncode')
         ).TaskAssignedNotificationCode(),
     ),
     CodeLoader.notification(
@@ -62,7 +62,7 @@ export const exampleCodes = (over: ExampleCodeOverrides = {}): CodeLoaders =>
       async () =>
         over.completedNote ??
         new (
-          await import('./todo/task-completed.code')
+          await import('./todo/task-completed.ncode')
         ).TaskCompletedNotificationCode(),
     ),
   ]);

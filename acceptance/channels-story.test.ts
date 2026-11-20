@@ -38,7 +38,7 @@ import {
   C,
   type WorldOptions,
 } from './support/acceptance-world';
-import { LiarAssignedCode } from './support/liar-assigned.code';
+import { LiarAssignedScreenCode } from './support/liar-assigned.scode';
 import type { PageTab } from './support/page-tab';
 
 // Приёмка семи сценариев и нейтральности ядра на двух каналах — беседе
@@ -172,7 +172,7 @@ describe('сценарий 1 — «Выполнить выбранные» по 
 
     test('ложное «доступно»: исполнитель нажимает «Выполнить выбранные» — ACCESS_DENIED с denyMessage, статусы прежние', async () => {
       const w = worldOf('liar', {
-        codes: exampleCodes({ assigned: new LiarAssignedCode() }),
+        codes: exampleCodes({ assigned: new LiarAssignedScreenCode() }),
       });
       const task = await w.createTask(A, 'Хлеб');
       await w.assignTask(A, task, B);
@@ -286,7 +286,7 @@ describe('сценарий 1 — «Выполнить выбранные» по 
 
     test('ложное «доступно» через код экрана: форма «Выполнить выбранные» есть, отправка исполнителем — ACCESS_DENIED с текстом, статусы прежние', async () => {
       const w = worldOf('page-liar', {
-        codes: exampleCodes({ assigned: new LiarAssignedCode() }),
+        codes: exampleCodes({ assigned: new LiarAssignedScreenCode() }),
       });
       const task = await w.createTask(A, 'Хлеб');
       await w.assignTask(A, task, B);
@@ -1384,7 +1384,7 @@ describe('нейтральность — один код экранов на д�
   /** Файлы каталога привязки, которые принадлежат только примеру. */
   const exampleOnly = (dir: string) =>
     readdirSync(join(import.meta.dir, '..', dir)).filter((name) =>
-      /\.(code|screen|story)\.ts$/.test(name),
+      /\.(scode|ncode|screen|story|notification)\.ts$/.test(name),
     );
 
   test('сторис finishTasks: записи исходов наблюдателя двух каналов равны', async () => {
@@ -1529,7 +1529,7 @@ describe('состав приёмки', () => {
   /** Определения ядра, которых в приёмке быть не должно: экраны, сторис и наборы — только в примере. */
   const DEFINES = /\b(ScreenDef|StoryDef|UiAppDef|UiSetDef)\.define\b/;
   const CODE_BASE = /extends\s+ScreenCode\b/;
-  const LIAR = 'support/liar-assigned.code.ts';
+  const LIAR = 'support/liar-assigned.scode.ts';
 
   const sources = (): { path: string; text: string }[] =>
     readdirSync(ROOT, { recursive: true, encoding: 'utf8' })
@@ -1547,7 +1547,7 @@ describe('состав приёмки', () => {
     expect(found).toEqual([]);
   });
 
-  test('единственная подмена кода экрана в приёмке — support/liar-assigned.code.ts', () => {
+  test('единственная подмена кода экрана в приёмке — support/liar-assigned.scode.ts', () => {
     const found = sources()
       .filter((file) => CODE_BASE.test(file.text))
       .map((file) => file.path);

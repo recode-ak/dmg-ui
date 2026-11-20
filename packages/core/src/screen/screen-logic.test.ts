@@ -9,8 +9,8 @@ import {
   TaskCardScreenDef,
   TaskListScreenDef,
 } from '../../testing/example';
-import { TaskCardScreenCode } from '../../testing/example/todo/task-card.code';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { TaskCardScreenCode } from '../../testing/example/todo/task-card.scode';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { taskState } from '../../testing/task-state';
 import type { DataOf } from '../manifest/screen-def';
 import { Availability } from './availability';

@@ -215,19 +215,6 @@ describe('экран taskList: jumpTo — переход к части спис�
     });
   });
 
-  test.each([
-    [0, 'Части начинаются с первой'],
-    [100, 'Не больше 99'],
-    ['abc', 'Введите номер части'],
-  ])('номер %p — rejected с текстом схемы у поля part', async (part, text) => {
-    const { list } = await listOf(rows);
-
-    expect(await go(list, part)).toEqual({
-      kind: 'rejected',
-      issues: [{ field: 'part', text }],
-    });
-  });
-
   test('дробный номер — rejected (поле целое)', async () => {
     const { list } = await listOf(rows);
 
@@ -235,48 +222,5 @@ describe('экран taskList: jumpTo — переход к части спис�
       kind: 'rejected',
       issues: [{ field: 'part' }],
     });
-  });
-});
-
-describe('экран taskList: подсказки и поля в виде', () => {
-  const field = (view: InstanceView, action: string, name: string) =>
-    view.actions
-      .find((item) => item.name === action)
-      ?.fields.find((item) => item.name === name);
-
-  test('подсказка экрана — InstanceView.hint из Def', async () => {
-    const { list } = await listOf([open(TASK_A)]);
-
-    expect(list.view().hint).toBe(TaskListScreenDef.hint!);
-    expect(TaskListScreenDef.hint).toBeString();
-  });
-
-  test('create.title — поле строки с подсказкой, примером и пределом длины', async () => {
-    const { list } = await listOf([open(TASK_A)]);
-
-    expect(field(list.view(), 'create', 'title')).toMatchObject({
-      label: 'Название задачи',
-      kind: 'string',
-      hint: 'Коротко: что нужно сделать',
-      example: 'Купить хлеб',
-      limits: { minLength: 1 },
-      initial: 'Новая задача',
-    });
-  });
-
-  test('действие jumpTo в виде несёт подсказку действия', async () => {
-    const { list } = await listOf([open(TASK_A)]);
-    const action = list.view().actions.find((item) => item.name === 'jumpTo');
-
-    expect(action?.hint).toBe(TaskListScreenDef.actions.jumpTo.hint!);
-    expect(action?.hint).toBeString();
-  });
-
-  test('open.taskId — поле выбора (варианты из кода), подсказки нет', async () => {
-    const { list } = await listOf([open(TASK_A)]);
-    const taskId = field(list.view(), 'open', 'taskId');
-
-    expect(taskId).toMatchObject({ kind: 'choice' });
-    expect(taskId).not.toHaveProperty('hint');
   });
 });

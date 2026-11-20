@@ -1,21 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { ok } from 'dmg-core';
-import { ModuleApi } from 'dmg-core/app';
 import { AwaitingBus, MemoryLogger, useTempDir } from 'dmg-core/testing';
-import { ExampleApp, TodoModuleDef } from 'dmg-core/testing/example';
+import { ExampleApp } from 'dmg-core/testing/example';
 import { ExampleUiSetDef, OWNER, TASK_A } from '../../testing/example';
-import { TASKS } from '../../testing/ui-runtime-fixture';
-import {
-  StubCallerSource,
-  StubTransport,
-  T0,
-} from '../../testing/ui-server-fixture';
+import { T0 } from '../../testing/ui-server-fixture';
 import { ApiAppDispatch } from './api-app-dispatch';
-import { ModuleApiDispatch } from './module-api-dispatch';
 import { UiServer } from './ui-server';
 
-// Бэкенды вызова UC сервера: in-proc `ApiApp` и
-// `ModuleApi` вне процесса; ответ сессии — `SerializedResult`.
+// Бэкенд вызова UC сервера — `ApiApp` в процессе; ответ сессии — `SerializedResult`.
 
 const tmp = useTempDir('dmg-ui-dispatch-');
 
@@ -66,28 +57,5 @@ describe('ApiAppDispatch — приложение в процессе', () => {
         payload: { taskId: TASK_A },
       },
     });
-  });
-});
-
-describe('ModuleApiDispatch — модуль вне процесса', () => {
-  test('ответ транспорта приходит без изменений', async () => {
-    const { logger } = context();
-    const transport = new StubTransport().answer('listTasks', ok([...TASKS]));
-    const server = new UiServer({
-      set: ExampleUiSetDef,
-      dispatch: new ModuleApiDispatch([
-        new ModuleApi(TodoModuleDef, transport, logger),
-      ]),
-      context: { bus: new AwaitingBus(), logger },
-    });
-
-    const res = await server.session(new StubCallerSource(OWNER)).call({
-      module: 'todo',
-      uc: 'listTasks',
-      input: {},
-      requestId: 'r-1',
-    });
-
-    expect(res).toEqual(ok([...TASKS]));
   });
 });

@@ -26,7 +26,7 @@ import {
   TaskCardScreenDef,
   type TaskListScreenDef,
 } from '../../testing/example';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.code';
+import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
 import { taskState } from '../../testing/task-state';
 import { UiScene } from '../../testing/ui-arch';

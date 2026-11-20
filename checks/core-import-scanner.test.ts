@@ -173,7 +173,7 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       const text = "import { RuntimeKit } from '../../ui-runtime-fixture';";
 
       expect(
-        scan(text, 'packages/core/testing/example/todo/task-list.code.ts'),
+        scan(text, 'packages/core/testing/example/todo/task-list.scode.ts'),
       ).toHaveLength(1);
     });
   });

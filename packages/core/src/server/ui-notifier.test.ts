@@ -21,7 +21,7 @@ import {
   TASK_A,
   TaskCardScreenDef,
 } from '../../testing/example';
-import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.code';
+import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.ncode';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
 import { ExampleStubAppDef } from '../../testing/ui-app-fixture';
 import { UiScene } from '../../testing/ui-arch';

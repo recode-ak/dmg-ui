@@ -1,8 +1,8 @@
-// Вход dmg-ui/testing (D-UI-32): учебный пример, помощник рендера примеров и
-// наблюдатель в памяти. Привязка примера к страничному каналу — вход
-// dmg-ui/web-ui/testing. Заглушки портов, сцены правил графа и заглушки
-// сервера — внутренние помощники тестов ядра; общие помощники тестов каналов —
-// вход dmg-ui/testing/fixtures.
+// Вход dmg-ui/testing (D-UI-32): учебный пример, помощник рендера примеров,
+// наблюдатель в памяти и проверка имён файлов UI (NM-01, D-UI-112). Привязка
+// примера к страничному каналу — вход dmg-ui/web-ui/testing. Заглушки портов,
+// сцены правил графа и заглушки сервера — внутренние помощники тестов ядра;
+// общие помощники тестов каналов — вход dmg-ui/testing/fixtures.
 
 export {
   ASSIGNED_ID,
@@ -36,3 +36,9 @@ export {
   type ExamplePreviewSpec,
   type ExampleRenderer,
 } from './preview';
+export { UiFileNames } from './ui-file-names';
+export type {
+  UiNamesLayout,
+  UiNamesSource,
+  UiNamesViolation,
+} from './ui-file-names.types';

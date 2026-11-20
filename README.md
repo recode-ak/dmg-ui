@@ -46,7 +46,7 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui` | манифесты, адрес, код экрана и уведомления, исполнитель `ScreenRuntime`, место личности; работает и в браузере | [Сторис, экран, уведомление](docs/guides/story-screen-notification.md) |
 | `dmg-ui/graph` | поставщик графа `UiGraphProvider`, виды узлов и рёбер, префикс правил | [Каталог правил](docs/reference/rules.md) |
 | `dmg-ui/server` | `UiServer`, `UiSession`, уведомитель `UiNotifier`, привязки к `ApiApp` и `ModuleApi`, контекст рендера | [Пакет канала](docs/guides/channel-package.md) |
-| `dmg-ui/testing` | учебный набор UI, константы примера, помощники примеров | [Пакет канала](docs/guides/channel-package.md) |
+| `dmg-ui/testing` | учебный набор UI, константы примера, помощники примеров, проверка имён файлов UI `UiFileNames` | [Пакет канала](docs/guides/channel-package.md) |
 | `dmg-ui/testing/fixtures` | десять помощников тестов ядра для пакетов каналов | [Пакет канала](docs/guides/channel-package.md) |
 | `dmg-ui/chat-ui` | общая часть мессенджеров: беседы, представления, сообщество, граф и правила `CH-NN`, порт мессенджера | [Пакет мессенджера](docs/guides/messenger-package.md) |
 | `dmg-ui/chat-ui/testing` | подставной мессенджер `MemoryMessenger`, привязка примера к диалогу | [Пакет мессенджера](docs/guides/messenger-package.md#9-как-тестировать) |
@@ -77,7 +77,7 @@ bun add valibot @valibot/to-json-schema \
 | [Пакет мессенджера](docs/guides/messenger-package.md) | общая часть мессенджеров `chat-ui` и что обязан дать пакет конкретного мессенджера: беседа, лимиты, сообщество, граф, тесты, чеклист |
 | [Telegram](docs/guides/telegram.md) | подключение `dmg-ui/tg-bot`: сборка, апдейты, тексты и кнопки, меню, сообщество, возможности, отказы, что не проверено на живом Telegram |
 | [Структура и именование UI](docs/reference/naming.md) | суффиксы видов UI и имена классов, дерево набора UI и пакета канала, место тестов и фикстур |
-| [Каталог правил](docs/reference/rules.md) | правила графа `UI-NN` и `PG-NN`, ограничения правил, проверки репозитория |
+| [Каталог правил](docs/reference/rules.md) | правила графа `UI-NN` и `PG-NN`, правило имён файлов `NM-01`, ограничения правил, проверки репозитория |
 | [Решения](docs/decisions.md) | реестр `D-UI-N`: что решено и почему |
 | [Технический долг](debt.md) | открытое в пакете, `DEBT-UI-N` |
 | [К обсуждению](discussion.md) | пожелания и идеи, по которым ещё нет решения |
