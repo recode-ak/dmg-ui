@@ -17,6 +17,7 @@ const REQUIRED = [
   'docs/guides/telegram.md',
   'docs/guides/frontend-tasks.md',
   'docs/reference/rules.md',
+  'docs/reference/naming.md',
   'docs/decisions.md',
   'examples/tg-bot/README.md',
   'examples/web/README.md',

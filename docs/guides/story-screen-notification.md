@@ -1,6 +1,6 @@
 # Сторис, экран, уведомление — гайд
 
-**Назначение:** как автор UI объявляет сторис, экран и уведомление манифестами, пишет код экрана и как всё это исполняется. Пример — учебный набор [testing/example/todo/](../../packages/core/testing/example/todo/task-card.screen.ts) (импортируется из `dmg-ui/testing`; привязка к диалоговому каналу — `dmg-ui/chat-ui/testing`). Пакет канала — в [channel-package.md](./channel-package.md).
+**Назначение:** как автор UI объявляет сторис, экран и уведомление манифестами, пишет код экрана и как всё это исполняется. Пример — учебный набор [testing/example/todo/](../../packages/core/testing/example/todo/task-card.screen.ts) (импортируется из `dmg-ui/testing`; привязка к диалоговому каналу — `dmg-ui/chat-ui/testing`). Пакет канала — в [channel-package.md](./channel-package.md). Имена и раскладка файлов — [naming.md](../reference/naming.md).
 
 ---
 
