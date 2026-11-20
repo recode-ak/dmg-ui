@@ -2,9 +2,6 @@ import { describe, expect, it } from 'bun:test';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile } from './source-tree';
 
-// Имя библиотеки Telegram собрано из частей: строка-фикстура не должна читаться как импорт (ExampleZoneScanner).
-const LIB = ['gram', 'my'].join('');
-
 // Зоны пакета `chat-ui` (ARC-08): код канала знает только публичные входы
 // `dmg-ui` и `dmg-core` — не `src/` ядра и не пример по относительному пути;
 // подписка на события — `EventSubscriber` из `dmg-core/app` (D-98 `dmg-core`);
@@ -36,7 +33,6 @@ describe('CoreImportScanner — канал диалога (packages/chat-ui/src/
     "import { ScreenRuntime } from '../../../core/src/runtime/screen-runtime';",
     "import { TaskListScreenDef } from '../../testing/example/todo/task-list.screen';",
     "import fs from 'node:fs';",
-    "import { test } from 'bun:test';",
     "import { ExampleApp } from 'dmg-core/testing/example';",
     "import { useTempDir } from 'dmg-core/testing';",
     "import type { ArchApp } from 'dmg-core/arch';",
@@ -45,27 +41,12 @@ describe('CoreImportScanner — канал диалога (packages/chat-ui/src/
       expect(scan(text, CHANNEL)).toHaveLength(1);
     });
   }
-
-  it('*.test.ts канала — вне зоны', () => {
-    const text = "import { test } from 'bun:test';\nimport 'node:fs';";
-
-    expect(
-      scan(
-        text,
-        'packages/chat-ui/src/conversation/conversation-outcomes.test.ts',
-      ),
-    ).toEqual([]);
-  });
 });
 
 describe('CoreImportScanner — код канала не знает тесты, себя по имени и каркас бота', () => {
   const CHANNEL = 'packages/chat-ui/src/dialog/dialog-channel.ts';
 
-  for (const text of [
-    "import { a } from 'dmg-ui/testing';",
-    "import { a } from 'dmg-ui/chat-ui';",
-    "import { a } from 'dmg-ui/tg-bot';",
-  ]) {
+  for (const text of ["import { a } from 'dmg-ui/testing';"]) {
     it(`${text} в канале — нарушение`, () => {
       expect(scan(text, CHANNEL)).toHaveLength(1);
     });
@@ -95,8 +76,6 @@ describe('CoreImportScanner — тестовый вход канала (packages
 
   for (const text of [
     "import fs from 'node:fs';",
-    "import { test } from 'bun:test';",
-    "import { a } from 'dmg-ui/tg-bot';",
     "import { a } from 'dmg-ui/chat-ui/testing';",
     "import { a } from 'dmg-core/gen';",
     "import { a } from 'dmg-core/app';",
@@ -107,14 +86,6 @@ describe('CoreImportScanner — тестовый вход канала (packages
       expect(scan(text, BINDING)).toHaveLength(1);
     });
   }
-
-  it('*.test.ts тестового входа — вне зоны', () => {
-    const text = "import { test } from 'bun:test';\nimport 'node:fs';";
-
-    expect(
-      scan(text, 'packages/chat-ui/testing/conversation-story.test.ts'),
-    ).toEqual([]);
-  });
 });
 
 describe('CoreImportScanner — каркас Telegram-бота (packages/tg-bot/src/)', () => {
@@ -136,9 +107,7 @@ describe('CoreImportScanner — каркас Telegram-бота (packages/tg-bot/
   });
 
   for (const text of [
-    `import { Bot } from '${LIB}';`,
     "import fs from 'node:fs';",
-    "import { test } from 'bun:test';",
     "import { a } from 'dmg-ui/testing';",
     "import { a } from 'dmg-ui/chat-ui/testing';",
     "import { a } from 'dmg-core/testing';",
@@ -150,12 +119,6 @@ describe('CoreImportScanner — каркас Telegram-бота (packages/tg-bot/
       expect(scan(text, BOT)).toHaveLength(1);
     });
   }
-
-  it('*.test.ts каркаса — вне зоны', () => {
-    const text = "import { test } from 'bun:test';\nimport 'node:fs';";
-
-    expect(scan(text, 'packages/tg-bot/src/bot.test.ts')).toEqual([]);
-  });
 });
 
 describe('CoreImportScanner — приёмочный каталог монорепо (acceptance/)', () => {
@@ -183,11 +146,7 @@ describe('CoreImportScanner — приёмочный каталог моноре
     expect(scan(text, STORY)).toHaveLength(1);
   });
 
-  for (const text of [
-    "import { a } from '../packages/core/src/index';",
-    "import { a } from '../packages/chat-ui/testing/index';",
-    "import { a } from '../packages/core/testing/fixtures';",
-  ]) {
+  for (const text of ["import { a } from '../packages/core/src/index';"]) {
     it(`${text} в acceptance — нарушение`, () => {
       expect(scan(text, STORY)).toHaveLength(1);
     });
@@ -232,7 +191,6 @@ describe('CoreImportScanner — тестовый каталог пакета tg-
 
   for (const text of [
     "import fs from 'node:fs';",
-    `import { a } from '${LIB}';`,
     "import { a } from 'dmg-core/app';",
     "import { a } from '../src/index';",
     "import { a } from '../../core/src/index';",
@@ -241,10 +199,4 @@ describe('CoreImportScanner — тестовый каталог пакета tg-
       expect(scan(text, TESTING)).toHaveLength(1);
     });
   }
-
-  it('*.test.ts каталога — вне зоны', () => {
-    expect(
-      scan("import 'node:fs';", 'packages/tg-bot/testing/a.test.ts'),
-    ).toEqual([]);
-  });
 });

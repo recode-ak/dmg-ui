@@ -19,9 +19,6 @@ const scan = (text: string, path = `${SRC}/x.ts`): Violation[] =>
 describe('NetworkGlobalScanner — глобалы сети в packages/tg-bot/src', () => {
   const forbidden: [string, string][] = [
     ['const answer = await fetch(url);', 'fetch'],
-    ['const socket = new WebSocket(url);', 'WebSocket'],
-    ['const request = new XMLHttpRequest();', 'XMLHttpRequest'],
-    ['const events = new EventSource(url);', 'EventSource'],
     ["const file = Bun.file('token');", 'Bun'],
     ['const token = process.env.BOT_TOKEN;', 'process'],
     ['await globalThis.fetch(url);', 'fetch'],
@@ -38,15 +35,13 @@ describe('NetworkGlobalScanner — глобалы сети в packages/tg-bot/sr
   it('фикстура со всеми глобалами — по нарушению на каждый', () => {
     const fixture = [
       "const answer = await fetch('https://api.telegram.org');",
-      'const socket = new WebSocket(url);',
       "Bun.write('x', 'y');",
       'const token = process.env.BOT_TOKEN;',
     ].join('\n');
     expect(scan(fixture).map((v) => `${v.line}:${v.text}`)).toEqual([
       '1:fetch',
-      '2:WebSocket',
-      '3:Bun',
-      '4:process',
+      '2:Bun',
+      '3:process',
     ]);
   });
 
@@ -62,7 +57,6 @@ describe('NetworkGlobalScanner — глобалы сети в packages/tg-bot/sr
     'this.process(update);',
     'const processed = prefetch(update);',
     'const BunDle = 1;',
-    'type WebSocketLike = unknown;',
   ]) {
     it(`не глобал «${clean}» не срабатывает`, () => {
       expect(scan(clean)).toEqual([]);

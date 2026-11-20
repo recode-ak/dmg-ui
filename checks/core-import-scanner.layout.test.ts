@@ -40,25 +40,9 @@ describe('CoreImportScanner.scanLayout — файлы пакетов канал�
     expect(found[0]?.text).toContain('добавь зону');
   });
 
-  it('файл в корне пакета web-ui — нарушение с призывом добавить зону', () => {
-    const found = CoreImportScanner.scanLayout(
-      files('packages/web-ui/index.ts'),
-    );
-
-    expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ file: 'packages/web-ui/index.ts' });
-    expect(found[0]?.text).toContain('добавь зону');
-  });
-
   it('файл в новом подкаталоге пакета web-ui — нарушение', () => {
     expect(
       CoreImportScanner.scanLayout(files('packages/web-ui/scripts/x.ts')),
-    ).toHaveLength(1);
-  });
-
-  it('файл в новом подкаталоге пакета — нарушение', () => {
-    expect(
-      CoreImportScanner.scanLayout(files('packages/tg-bot/scripts/run.ts')),
     ).toHaveLength(1);
   });
 

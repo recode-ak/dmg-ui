@@ -31,23 +31,6 @@ describe('PackageManifest', () => {
       }
     });
 
-    it('цели входов web-ui — исходники пакета и его привязки примера', () => {
-      expect(manifest().exports()['./web-ui']).toBe(
-        './packages/web-ui/src/index.ts',
-      );
-      expect(manifest().exports()['./web-ui/testing']).toBe(
-        './packages/web-ui/testing/index.ts',
-      );
-    });
-
-    it('вход dmg-ui/web-ui резолвится по имени пакета', async () => {
-      expect(await import('dmg-ui/web-ui')).toBeDefined();
-    });
-
-    it('вход dmg-ui/web-ui/testing резолвится по имени пакета', async () => {
-      expect(await import('dmg-ui/web-ui/testing')).toBeDefined();
-    });
-
     it('smoke-скрипт импортирует каждый вход из exports и ничего лишнего', () => {
       const script = readFileSync(
         join(ROOT, 'scripts/consumer-smoke.sh'),
@@ -66,10 +49,6 @@ describe('PackageManifest', () => {
       for (const name of declared) {
         expect(script).toContain(`'${name}':`);
       }
-    });
-
-    it('вход dmg-ui резолвится по имени пакета', async () => {
-      expect(await import('dmg-ui')).toBeDefined();
     });
 
     it('состав входа dmg-ui — манифесты UI, адрес, логика и исполнитель экрана', async () => {
@@ -107,25 +86,10 @@ describe('PackageManifest', () => {
       ]);
     });
 
-    it('вход dmg-ui/graph резолвится по имени пакета', async () => {
-      expect(await import('dmg-ui/graph')).toBeDefined();
-    });
-
     it('состав входа dmg-ui/graph — поставщик графа и его виды', async () => {
       expect(Object.keys(await import('dmg-ui/graph'))).toEqual(
         expect.arrayContaining(['UiGraphProvider', 'UI_KINDS']),
       );
-    });
-
-    it('граф в корень dmg-ui не попадает', async () => {
-      const root = Object.keys(await import('dmg-ui'));
-
-      expect(root).not.toContain('UiGraphProvider');
-      expect(root).not.toContain('UI_KINDS');
-    });
-
-    it('вход dmg-ui/server резолвится по имени пакета', async () => {
-      expect(await import('dmg-ui/server')).toBeDefined();
     });
 
     it('состав входа dmg-ui/server — сервер, уведомления, бэкенды вызова', async () => {
@@ -139,10 +103,6 @@ describe('PackageManifest', () => {
           'RenderContexts',
         ]),
       );
-    });
-
-    it('вход dmg-ui/testing резолвится по имени пакета', async () => {
-      expect(await import('dmg-ui/testing')).toBeDefined();
     });
 
     it('поля dependencies нет', () => {

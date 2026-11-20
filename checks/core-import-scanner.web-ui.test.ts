@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile } from './source-tree';
 
@@ -69,7 +71,6 @@ describe('CoreImportScanner — клиент страничного канала
     "import { a } from 'dmg-core/graph';",
     "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
     "import fs from 'node:fs';",
-    "import { test } from 'bun:test';",
     "import { PageHost } from '../server/page-host';",
     "import { PageGraphProvider } from '../graph/page-graph-provider';",
     "import { ScreenRuntime } from '../../../core/src/runtime/screen-runtime';",
@@ -79,17 +80,19 @@ describe('CoreImportScanner — клиент страничного канала
     });
   }
 
-  it('*.test.ts клиента — вне зоны', () => {
-    const text = "import { test } from 'bun:test';\nimport 'node:fs';";
-
-    expect(scan(text, `${PAGE}/client/page-client.test.ts`)).toEqual([]);
-  });
-
   for (const text of NEIGHBOURS) {
     it(`${text} в клиенте — нарушение`, () => {
       expect(scan(text, CLIENT)).toHaveLength(1);
     });
   }
+});
+
+describe('CoreImportScanner — исключение page-channel.const', () => {
+  it('файл константы канала существует в корне web-ui/src — исключение не фантом', () => {
+    const root = resolve(import.meta.dir, '..');
+
+    expect(existsSync(resolve(root, PAGE, 'page-channel.const.ts'))).toBe(true);
+  });
 });
 
 describe('CoreImportScanner — провод страничного канала (web-ui/src/wire/)', () => {
@@ -112,12 +115,6 @@ describe('CoreImportScanner — провод страничного канала
     "import { PageRenderer } from '../view/page-renderer';",
     "import { PageUrls } from '../url/page-urls';",
   ]) {
-    it(`${text} в проводе — нарушение`, () => {
-      expect(scan(text, WIRE)).toHaveLength(1);
-    });
-  }
-
-  for (const text of NEIGHBOURS) {
     it(`${text} в проводе — нарушение`, () => {
       expect(scan(text, WIRE)).toHaveLength(1);
     });
@@ -160,12 +157,6 @@ describe('CoreImportScanner — сервер страничного канала
       expect(scan(text, SERVER)).toHaveLength(1);
     });
   }
-
-  for (const text of NEIGHBOURS) {
-    it(`${text} в сервере — нарушение`, () => {
-      expect(scan(text, SERVER)).toHaveLength(1);
-    });
-  }
 });
 
 describe('CoreImportScanner — представления страничного канала (web-ui/src/view/)', () => {
@@ -183,7 +174,6 @@ describe('CoreImportScanner — представления страничног�
 
   for (const text of [
     "import { PageClient } from '../client/page-client';",
-    "import { ViewCell } from '../client/view-cell';",
     "import { ClientMessage } from '../wire/page-messages';",
     "import { PageHost } from '../server/page-host';",
     "import { PAGE_KINDS } from '../graph/page-kinds';",
@@ -194,25 +184,11 @@ describe('CoreImportScanner — представления страничног�
     "import type { GraphProvider } from 'dmg-core/graph';",
     "import { a } from 'dmg-core/app';",
     "import fs from 'node:fs';",
-    "import { test } from 'bun:test';",
   ]) {
     it(`${text} в представлениях — нарушение`, () => {
       expect(scan(text, VIEW)).toHaveLength(1);
     });
   }
-
-  for (const text of NEIGHBOURS) {
-    it(`${text} в представлениях — нарушение`, () => {
-      expect(scan(text, VIEW)).toHaveLength(1);
-    });
-  }
-
-  it('*.test.ts представлений — вне зоны', () => {
-    const text =
-      "import { test } from 'bun:test';\nimport { ViewCell } from '../client/view-cell';";
-
-    expect(scan(text, `${PAGE}/view/page-text-presenter.test.ts`)).toEqual([]);
-  });
 });
 
 describe('CoreImportScanner — граф страничного канала (web-ui/src/graph/)', () => {
@@ -241,12 +217,6 @@ describe('CoreImportScanner — граф страничного канала (we
     "import { PageClient } from '../client/page-client';",
     "import { a } from 'dmg-core/app';",
   ]) {
-    it(`${text} в графе канала — нарушение`, () => {
-      expect(scan(text, GRAPH)).toHaveLength(1);
-    });
-  }
-
-  for (const text of NEIGHBOURS) {
     it(`${text} в графе канала — нарушение`, () => {
       expect(scan(text, GRAPH)).toHaveLength(1);
     });
@@ -282,19 +252,6 @@ describe('CoreImportScanner — кодек адреса страничного �
       expect(scan(text, URLS)).toHaveLength(1);
     });
   }
-
-  for (const text of NEIGHBOURS) {
-    it(`${text} в кодеке адреса — нарушение`, () => {
-      expect(scan(text, URLS)).toHaveLength(1);
-    });
-  }
-
-  it('*.test.ts кодека — вне зоны', () => {
-    const text =
-      "import { test } from 'bun:test';\nimport { PageClient } from '../client/page-client';";
-
-    expect(scan(text, `${PAGE}/url/page-urls.test.ts`)).toEqual([]);
-  });
 });
 
 describe('CoreImportScanner — корень страничного канала (web-ui/src/*.ts)', () => {
@@ -333,12 +290,6 @@ describe('CoreImportScanner — корень страничного канала
       expect(scan(text, CHANNEL_ROOT)).toHaveLength(1);
     });
   }
-
-  for (const text of NEIGHBOURS) {
-    it(`${text} в корне канала — нарушение`, () => {
-      expect(scan(text, CHANNEL_ROOT)).toHaveLength(1);
-    });
-  }
 });
 
 describe('CoreImportScanner — привязка примера (packages/web-ui/testing/)', () => {
@@ -365,11 +316,7 @@ describe('CoreImportScanner — привязка примера (packages/web-ui
   });
 
   for (const text of [
-    "import { a } from 'dmg-ui/chat-ui';",
-    "import { a } from 'dmg-ui/chat-ui/testing';",
-    "import { a } from 'dmg-ui/tg-bot';",
     "import fs from 'node:fs';",
-    "import { test } from 'bun:test';",
     "import { a } from 'dmg-core/app';",
     "import { PageViews } from '../../src/view/page-views';",
     "import { UiIds } from '../../../core/src/address/ui-ids';",
@@ -378,48 +325,4 @@ describe('CoreImportScanner — привязка примера (packages/web-ui
       expect(scan(text, BINDING)).toHaveLength(1);
     });
   }
-
-  for (const text of [
-    "import { PageViews } from '../src/view/page-views';",
-    "import { UiIds } from '../../core/src/address/ui-ids';",
-  ]) {
-    it(`${text} во входе привязки (testing/index.ts) — нарушение`, () => {
-      expect(scan(text, 'packages/web-ui/testing/index.ts')).toHaveLength(1);
-    });
-  }
-
-  it('*.test.ts привязки — вне зоны', () => {
-    const text = "import { test } from 'bun:test';\nimport 'node:fs';";
-
-    expect(
-      scan(text, 'packages/web-ui/testing/example/example-preview.test.ts'),
-    ).toEqual([]);
-  });
-});
-
-describe('CoreImportScanner — пример и привязки не знают друг друга', () => {
-  it('код примера ядра не импортирует привязку страниц', () => {
-    const text = "import { a } from 'dmg-ui/web-ui/testing';";
-
-    expect(
-      scan(text, 'packages/core/testing/example/todo/task-list.screen.ts'),
-    ).toHaveLength(1);
-  });
-
-  it('привязка диалога (chat-ui/testing) не импортирует привязку страниц по имени входа', () => {
-    const text = "import { a } from 'dmg-ui/web-ui/testing';";
-
-    expect(
-      scan(text, 'packages/chat-ui/testing/example/example-dialog.arch.ts'),
-    ).toHaveLength(1);
-  });
-
-  it('привязка диалога (chat-ui/testing) не импортирует привязку страниц по относительному пути', () => {
-    const text =
-      "import { a } from '../../../web-ui/testing/example/example-pages.app';";
-
-    expect(
-      scan(text, 'packages/chat-ui/testing/example/example-dialog.arch.ts'),
-    ).toHaveLength(1);
-  });
 });

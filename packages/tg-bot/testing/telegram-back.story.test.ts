@@ -28,16 +28,13 @@ import {
   ExampleUiSetDef,
   exampleCodes,
   MemoryUiObserver,
-  TaskListScreenDef,
-  UserCardScreenDef,
 } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { TelegramMessenger, TelegramUpdates } from 'dmg-ui/tg-bot';
 import { type BotChatLine, MemoryBotApi, TestUpdates } from '.';
 
 // «Назад» и структурный переход на Telegram: вариант «Назад» и команда
-// `/back` ведут по пути экранов, «К моим задачам» кладёт карточку в путь,
-// листание путь не растит, подписи клавиатуры не повторяются. Правила пути
+// `/back` ведут по пути экранов. Правила пути
 // беседы закреплены в `conversation-path.test.ts`, разбор `/back` — в
 // `telegram-signals.test.ts`; здесь — связка «апдейт → сигнал → экран» на
 // учебном приложении и подставном порту Bot API.
@@ -52,11 +49,7 @@ const ENTRY_POINTS = [
 ];
 /** Автокнопка канала: подпись «Назад» задаёт канал, а не Def экрана. */
 const BACK = 'Назад';
-const PREV = TaskListScreenDef.actions.prev.label;
-const toTasks = () => UserCardScreenDef.actions.tasks.label;
-const CARD = 'Карточка исполнителя';
 const CLOSED = 'Эта кнопка устарела.';
-const MENU_LABELS = ['Мои задачи', 'Назначенные мне', 'Закрыть'];
 const tmp = useTempDir('dmg-ui-telegram-back-');
 
 const places: PersonPlaces = {
@@ -65,9 +58,6 @@ const places: PersonPlaces = {
 
 const labelsOf = (line: BotChatLine): string[] =>
   line.keyboard.flatMap((row) => row.map((button) => button.text));
-
-/** Подпись без пометки «🚫 »: для сравнения подписей на живой клавиатуре. */
-const bare = (label: string) => label.replace(/^🚫 /, '');
 
 /** Приложение, сервер и порт Bot API; один человек — A. */
 const world = (name = 'one') => {
@@ -198,15 +188,6 @@ const onCard = async (w: World) => {
   await w.a.press('Хлеб');
 };
 
-/** Карточка исполнителя: «Хлеб» назначен самому A, вход `/assigned`, «Карточка исполнителя». */
-const onUserCard = async (w: World) => {
-  await onCard(w);
-  await w.a.press('Назначить');
-  await w.a.say(A);
-  await w.a.say('/assigned');
-  await w.a.press(CARD);
-};
-
 describe('Telegram — «Назад» и /back', () => {
   test('карточка задачи: клавиатура заканчивается «Назад»; нажатие правит то же сообщение, список перечитан, ответ на нажатие один', async () => {
     const w = world();
@@ -271,60 +252,5 @@ describe('Telegram — «Назад» и /back', () => {
     expect(labelsOf(viaCommand.a.place())).toEqual(
       labelsOf(viaButton.a.place()),
     );
-  });
-});
-
-describe('Telegram — «К моим задачам»', () => {
-  test('из карточки исполнителя: список «Мои задачи» с «Назад»; цепочка «Назад» — карточка, «Назначенные мне» без «Назад»', async () => {
-    const w = world();
-    await onUserCard(w);
-    expect(labelsOf(w.a.place())).toEqual([toTasks(), 'Закрыть', BACK]);
-
-    await w.a.press(toTasks());
-
-    expect(w.a.place().text).toStartWith('Мои задачи');
-    expect(labelsOf(w.a.place()).at(-1)).toBe(BACK);
-    await w.a.press(BACK);
-    expect(w.a.place().text).toContain('Учётная запись активна');
-    await w.a.press(BACK);
-    expect(labelsOf(w.a.place())).toContain(CARD);
-    expect(labelsOf(w.a.place())).not.toContain(BACK);
-  });
-});
-
-describe('Telegram — листание и подписи', () => {
-  test('листание путь не растит: после «Дальше» один «Назад» ведёт в меню, «Предыдущая страница» — действие экрана', async () => {
-    const w = world();
-    for (const title of ['Хлеб', 'Молоко', 'Сыр']) await w.create(title);
-    await w.a.say('/menu');
-    await w.a.press('Мои задачи');
-    const first = w.a.place().text;
-
-    await w.a.press('Дальше');
-
-    expect(w.a.place().text).not.toBe(first);
-    expect(labelsOf(w.a.place())).toContain(PREV);
-    expect(labelsOf(w.a.place()).filter((label) => label === BACK)).toEqual([
-      BACK,
-    ]);
-    await w.a.press(BACK);
-    expect(labelsOf(w.a.place()).slice(0, 3)).toEqual(MENU_LABELS);
-  });
-
-  test('подписи клавиатуры без повторов после снятия «🚫»: список при непустом пути и карточка задачи', async () => {
-    const w = world();
-    await w.a.say('/menu');
-    await w.a.press('Мои задачи');
-    const names = (): string[] => labelsOf(w.a.place()).map(bare);
-    const duplicates = (list: string[]) =>
-      list.filter((name, i) => list.indexOf(name) !== i);
-    expect(labelsOf(w.a.place())).toContain(BACK);
-    expect(duplicates(names())).toEqual([]);
-
-    await w.a.say('Хлеб');
-    await w.a.press('Открыть задачу');
-    await w.a.press('Хлеб');
-
-    expect(duplicates(names())).toEqual([]);
   });
 });

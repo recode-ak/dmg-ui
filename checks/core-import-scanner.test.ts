@@ -3,9 +3,6 @@ import { resolve } from 'node:path';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile, SourceTree } from './source-tree';
 
-// Имя библиотеки Telegram собрано из частей: строка-фикстура не должна читаться как импорт (ExampleZoneScanner).
-const LIB = ['gram', 'my'].join('');
-
 const ROOT = resolve(import.meta.dir, '..');
 const SRC = 'packages/core/src';
 
@@ -18,21 +15,16 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       ['import node:', "import { readFileSync } from 'node:fs';"],
       ['import bun:', "import { test } from 'bun:test';"],
       ['голый встроенный модуль fs', "import fs from 'fs';"],
-      ['голый встроенный модуль path', "import { join } from 'path';"],
-      ['require', "const fs = require('node:fs');"],
-      ['шаблон без интерполяции', 'const m = await import(`node:fs`);'],
       ['dmg-ui/testing', "import { x } from 'dmg-ui/testing';"],
       [
         'относительный путь в testing ядра',
         "import { x } from '../testing/index';",
       ],
-      ['сторонний пакет grammy', `import { Bot } from '${LIB}';`],
       ['сторонний пакет react', "import React from 'react';"],
       [
         'сторонний подпуть dmg-core/other',
         "import { x } from 'dmg-core/other';",
       ],
-      ['динамический import', "const m = await import('node:fs');"],
       ['dmg-core/testing', "import { useTempDir } from 'dmg-core/testing';"],
       [
         'dmg-core/testing/*',
@@ -93,11 +85,9 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
 
     for (const text of [
       "import fs from 'node:fs';",
-      "import { test } from 'bun:test';",
       "import { x } from 'dmg-core/testing';",
       "import { x } from 'dmg-core/gen';",
       "import { x } from 'dmg-core/cli';",
-      `import { x } from '${LIB}';`,
     ]) {
       it(`${text} в graph/ — нарушение`, () => {
         expect(scan(text, GRAPH)).toHaveLength(1);

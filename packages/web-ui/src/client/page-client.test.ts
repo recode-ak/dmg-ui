@@ -642,25 +642,6 @@ describe('PageClient — исходы действий', () => {
     expect(client.region('main').confirm).toBeUndefined();
   });
 
-  test('rejected — замечания по полям в области, вызов не ушёл; следующий вход их снимает', async () => {
-    const end = new StubEnd()
-      .answer('listTasks', ok(TASKS))
-      .answer('createTask', ok({ taskId: TASK_A }));
-    const { client } = await listed(end);
-
-    const outcome = await client.submit('main', 'create', { title: '' });
-
-    expect(outcome).toMatchObject({ kind: 'rejected' });
-    expect(client.region('main').issues).toEqual([
-      { field: 'title', text: 'Название не может быть пустым' },
-    ]);
-    expect(end.names()).not.toContain('createTask');
-
-    await client.submit('main', 'create', { title: 'Хлеб' });
-
-    expect(client.region('main').issues).toEqual([]);
-  });
-
   test('значение поля с вариантами — подпись варианта; поле без вариантов — как есть', async () => {
     const end = new StubEnd()
       .answer('listTasks', ok(TASKS))

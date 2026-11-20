@@ -194,7 +194,7 @@ tasks: {
 
 **Страница.** «Назад» — «Назад» браузера: шаг истории при уходе вглубь, замена при листании («Дальше» записей не прибавляет); открытие панели и окна — запись с пометкой `over`, «Назад» закрывает слой и не уходит со страницы (D-UI-97, D-UI-104).
 
-Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 2», «в конце; три», «листание — замена записи истории»; [telegram-back.story.test.ts](../../packages/tg-bot/testing/telegram-back.story.test.ts) — «листание путь не растит», «/back с путём»; [example-web-back.browser.test.ts](../../browser/example-web-back.browser.test.ts) — «запись не добавляется; ещё»
+Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 2», «сценарий 6», «в конце; три», «листание — замена записи истории»; [telegram-back.story.test.ts](../../packages/tg-bot/testing/telegram-back.story.test.ts) — «/back с путём»; [example-web-back.browser.test.ts](../../browser/example-web-back.browser.test.ts) — «запись не добавляется; ещё»
 
 Решения: D-UI-53, D-UI-97, D-UI-104, D-UI-108.
 
@@ -251,7 +251,7 @@ jumpTo: {
 
 **Страница.** Поле числа — `type=number`, `min=1`, `max=99`, `step=1` из пределов схемы, подсказка связана с полем; булево в карточке задачи — чекбокс «Срочно» с подсказкой, дата — поле даты «Когда»; отказ схемы — замечание у поля, форма и введённое остались.
 
-Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 5», «поле part: вид», «вопрос с подсказкой, примером и пределами»; [telegram-fields.story.test.ts](../../packages/tg-bot/testing/telegram-fields.story.test.ts) — «вопрос: подпись и подсказка», «вопрос: подпись, подсказка, пример, пределы по строке»; [example-web-fields.browser.test.ts](../../browser/example-web-fields.browser.test.ts) — «type=number, min=1, max=99, step=1»
+Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 5», «поле part: вид», «вопрос с подсказкой, примером и пределами»; [telegram-fields.story.test.ts](../../packages/tg-bot/testing/telegram-fields.story.test.ts) — «вопрос: подпись и подсказка»; [example-web-fields.browser.test.ts](../../browser/example-web-fields.browser.test.ts) — «type=number, min=1, max=99, step=1»
 
 Решения: D-UI-47, D-UI-100, D-UI-106.
 
@@ -310,11 +310,11 @@ jumpTo: {
 | Подсказка и вид поля | `v.title`, `fieldHint`, `v.examples`, пределы (D-UI-100, D-UI-106) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «поле part: вид» |
 | Список, страница, фильтр | параметры экрана в адресе (D-UI-76); в примере — страница | есть; фильтра в примере нет | Проверено: [page-urls.test.ts](../../packages/web-ui/src/url/page-urls.test.ts) — «круг адрес → URL → адрес» |
 | Список и карточка рядом | области страницы (D-UI-78) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «карточка в side» |
-| «Назад» как возврат, а не отмена | шаг и замена (D-UI-97), автокнопка беседы (D-UI-53, D-UI-108), гонки (D-UI-104) | есть | Проверено: [telegram-back.story.test.ts](../../packages/tg-bot/testing/telegram-back.story.test.ts) — «листание путь не растит» |
+| «Назад» как возврат, а не отмена | шаг и замена (D-UI-97), автокнопка беседы (D-UI-53, D-UI-108), гонки (D-UI-104) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 6»; [telegram-back.story.test.ts](../../packages/tg-bot/testing/telegram-back.story.test.ts) — «/back с путём» |
 | Ссылка, перезагрузка | адрес в URL, запись истории (D-UI-76, D-UI-81) | есть | Проверено: [page-client.test.ts](../../packages/web-ui/src/client/page-client.test.ts) — «перезагрузка на промежуточной записи» |
 | Чужое изменение, устаревшее действие | `refresh` экрана по событию, ревизия, «Экран обновился.» (D-UI-92) | есть | Проверено: [telegram-disabled.story.test.ts](../../packages/tg-bot/testing/telegram-disabled.story.test.ts) — «действие стало доступным» |
 | Показ итога до ответа сервера | `PageOverlay` (D-UI-84) | есть | Проверено: [page-overlay.test.ts](../../packages/web-ui/src/client/page-overlay.test.ts) — «наложение и снятие» |
-| Мастер из шагов | поля входа по шагам, состояние экрана | есть; общий черновик на несколько экранов отложен | Проверено: [conversation-steps.test.ts](../../packages/chat-ui/src/conversation/conversation-steps.test.ts) — «дальше по шагам»; [telegram-fields.story.test.ts](../../packages/tg-bot/testing/telegram-fields.story.test.ts) — «ведёт к вопросу о дате», «верная дата» |
+| Мастер из шагов | поля входа по шагам, состояние экрана | есть; общий черновик на несколько экранов отложен | Проверено: [conversation-steps.test.ts](../../packages/chat-ui/src/conversation/conversation-steps.test.ts) — «дальше по шагам»; [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «замечание схемы перед вопросом» |
 | Выбор с возвратом значения | — | отложено | — |
 | Файл во входе | — | нет | — |
 | Кнопка-ссылка наружу | — | DEBT-UI-46 | — |

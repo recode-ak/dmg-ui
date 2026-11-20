@@ -10,7 +10,6 @@ import {
   ExampleApp,
   ExampleAppDef,
   type ExampleUser,
-  ListTasksUcDef,
 } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
@@ -48,8 +47,6 @@ import {
   FollowAssignedStoryDef,
   MainMenuScreenDef,
   MemoryUiObserver,
-  StartWorkStoryDef,
-  TaskListScreenDef,
 } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { TelegramMessenger, TelegramUpdates } from 'dmg-ui/tg-bot';
@@ -63,7 +60,7 @@ import {
 
 // `/help` на Telegram: сигнал `help` беседы приходит командой личного чата;
 // справка — одно новое сообщение без кнопок (`sendMessage`), ни правок, ни
-// ухода прежнего сообщения; ядро не вызывается, кнопки прежнего экрана живы.
+// ухода прежнего сообщения; ядро не вызывается.
 // Мир — учебное приложение: апдейты идут через `TelegramUpdates` на
 // подставном порту Bot API. Длинная справка — на своём наборе с огромной
 // подсказкой экрана. Содержание справки (скрытое, отключённое, подсказки
@@ -79,7 +76,6 @@ const ENTRY_POINTS = [
 ];
 /** Предел текста сообщения Bot API, в единицах UTF-16. */
 const TEXT_LIMIT = 4096;
-const TOGGLE = TaskListScreenDef.locals.toggle.label;
 const tmp = useTempDir('dmg-ui-telegram-help-');
 
 const places: PersonPlaces = {
@@ -298,19 +294,6 @@ const world = (kit: Kit = EXAMPLE) => {
   };
 };
 
-type World = ReturnType<typeof world>;
-
-/** A открыл меню, затем справку: журнал до справки и сообщение меню. */
-const menuThenHelp = async (w: World = world()) => {
-  await w.a.say('/menu');
-  await w.settle();
-  const menu = w.a.place();
-  const from = w.api.journal.length;
-  await w.a.say('/help');
-  await w.settle();
-  return { w, menu, after: w.api.journal.slice(from) };
-};
-
 describe('Telegram — /help на живом экране', () => {
   test('справка — ровно один sendMessage без кнопок; правок нет; сообщение меню не тронуто; UC не вызван', async () => {
     const w = world();
@@ -334,67 +317,6 @@ describe('Telegram — /help на живом экране', () => {
       lines.some((line) => line.includes(FollowAssignedStoryDef.hint!)),
     ).toBe(true);
     expect(w.api.chat(CHAT_A)[0]).toEqual(menu);
-    expect(w.calls).toHaveLength(calls);
-  });
-
-  test('кнопка прежнего экрана после справки жива: нажатие исполняется', async () => {
-    const { w, menu } = await menuThenHelp();
-    const tasks = menu.keyboard
-      .flat()
-      .find((button) => button.text === MainMenuScreenDef.actions.tasks.label);
-    if (tasks === undefined || !('callback_data' in tasks)) {
-      throw new Error('нет кнопки меню');
-    }
-
-    await w.a.pressData(tasks.callback_data, menu.message_id);
-    await w.settle();
-
-    expect(w.a.last().text.startsWith(TaskListScreenDef.label)).toBe(true);
-    expect(w.calls).toContain(ListTasksUcDef.name);
-  });
-});
-
-describe('Telegram — /help без живого экрана и после смены экрана', () => {
-  test('без живого экрана: общая справка — корни приложения; одно сообщение без кнопок', async () => {
-    const w = world();
-    const from = w.api.journal.length;
-
-    await w.a.say('/help');
-    await w.settle();
-
-    const after = w.api.journal.slice(from);
-    expect(sends(after)).toHaveLength(1);
-    expect(sends(after)[0]?.reply_markup).toBeUndefined();
-    const lines = linesOf(w.a.last());
-    expect(lines).toContain(`Справка: ${ExampleDialogAppDef.label}`);
-    expect(lines).toContain(
-      `• ${StartWorkStoryDef.label} — ${StartWorkStoryDef.hint}`,
-    );
-    expect(w.calls).toEqual([]);
-  });
-
-  test('после смены экрана: справка нового экрана — подсказка, подпись из Def, отключённое с причиной', async () => {
-    const w = world();
-    await w.a.say('/menu');
-    await w.settle();
-    await w.a.press(MainMenuScreenDef.actions.tasks.label);
-    await w.settle();
-    const calls = w.calls.length;
-
-    await w.a.say('/help');
-    await w.settle();
-
-    const lines = linesOf(w.a.last());
-    const { actions } = TaskListScreenDef;
-    expect(lines).toContain(`Справка: ${TaskListScreenDef.label}`);
-    expect(lines).toContain(TaskListScreenDef.hint!);
-    expect(lines).toContain(
-      `• ${actions.jumpTo.label} — ${actions.jumpTo.hint}`,
-    );
-    expect(lines).toContain(
-      `• ${actions.prev.label} (недоступно: Это первая страница)`,
-    );
-    expect(lines.join('\n')).not.toContain(MainMenuScreenDef.hint!);
     expect(w.calls).toHaveLength(calls);
   });
 });

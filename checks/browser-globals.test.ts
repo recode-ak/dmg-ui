@@ -4,14 +4,15 @@ import { BrowserGlobalScanner } from './browser-globals';
 import { SourceFile, SourceTree } from './source-tree';
 import type { Violation } from './violation.types';
 
-// Глобалы браузера (`WebSocket`, `window.…`, `document.createElement`, …)
-// разрешены только адаптерам браузера клиента страничного пакета и клиенту
-// примера для браузера: остальной код работает и на сервере. Голые слова
-// `window`, `document`, `history`, `location` встречаются в обычном коде (`'window'` в схемах,
-// свойство `history`), поэтому они ловятся по форме использования. Глобалы
-// среды `Bun` и `process` запрещены во всём `packages/web-ui/src/`: сервер
-// говорит с соединением через порт, клиент выполняется в браузере. Тесты не
-// проверяются. `fetch` здесь не ловится: в `tg-bot` его закрывает
+// API браузера, которых не видит `tsc` (`WebSocket`, `EventSource`,
+// `localStorage`, `navigator`, …), разрешены только адаптерам браузера клиента
+// страничного пакета и клиенту примера для браузера: остальной код работает и
+// на сервере. Имена с DOM-типами (`window`, `document`, `history`, `location`,
+// `self`, `XMLHttpRequest`, `indexedDB`, `HTMLElement`,
+// `requestAnimationFrame`) отвергает `tsc` корневой программы, их здесь нет
+// (`tsconfig.test.ts`: lib и types без DOM). Глобалы среды `Bun` и `process`
+// запрещены во всём `packages/web-ui/src/`: сервер говорит с соединением через
+// порт, клиент выполняется в браузере. Тесты не проверяются. `fetch` здесь не ловится: в `tg-bot` его закрывает
 // `NetworkGlobalScanner`, а клиенту он понадобится.
 
 const ROOT = resolve(import.meta.dir, '..');
@@ -25,13 +26,7 @@ const scan = (text: string, path: string): Violation[] =>
 describe('BrowserGlobalScanner — глобалы браузера вне клиента', () => {
   const zones = [
     `${SRC}/server/x.ts`,
-    `${SRC}/wire/x.ts`,
-    `${SRC}/graph/x.ts`,
-    `${SRC}/x.ts`,
-    'packages/web-ui/testing/x.ts',
-    'packages/core/src/x.ts',
     'packages/core/testing/x.ts',
-    'packages/chat-ui/src/x.ts',
     'packages/tg-bot/src/x.ts',
     'examples/tg-bot/src/x.ts',
   ];
@@ -45,33 +40,12 @@ describe('BrowserGlobalScanner — глобалы браузера вне кли
   }
 
   const forbidden: [string, string][] = [
-    ['const r = new XMLHttpRequest();', 'XMLHttpRequest'],
     ['const e = new EventSource(url);', 'EventSource'],
     ["const v = localStorage.getItem('k');", 'localStorage'],
     ["sessionStorage.setItem('k', 'v');", 'sessionStorage'],
     ['const lang = navigator.language;', 'navigator'],
-    ["const db = indexedDB.open('x');", 'indexedDB'],
     ["const c = new BroadcastChannel('x');", 'BroadcastChannel'],
-    ['const e = el instanceof HTMLElement;', 'HTMLElement'],
-    ['requestAnimationFrame(tick);', 'requestAnimationFrame'],
     ["addEventListener('click', f);", 'addEventListener'],
-    ["window.addEventListener('x', f);", 'window.addEventListener'],
-    ['const w = window.innerWidth;', 'window.innerWidth'],
-    ["const d = document.createElement('div');", 'document.createElement'],
-    ["const n = document.querySelector('a');", 'document.querySelector'],
-    ["const n = document.querySelectorAll('a');", 'document.querySelectorAll'],
-    ['const b = document.body;', 'document.body'],
-    ['document.cookie = c;', 'document.cookie'],
-    ["history.pushState(s, '', u);", 'history.pushState'],
-    ["history.replaceState(s, '', u);", 'history.replaceState'],
-    ['history.back();', 'history.back'],
-    ['const h = location.href;', 'location.href'],
-    ['const p = location.pathname;', 'location.pathname'],
-    ['location.reload();', 'location.reload'],
-    ['const d = globalThis.document;', 'globalThis.document'],
-    ['const l = globalThis.location;', 'globalThis.location'],
-    ['const w = globalThis.window;', 'globalThis.window'],
-    ['const h = globalThis.history;', 'globalThis.history'],
   ];
 
   for (const [line, name] of forbidden) {
@@ -82,38 +56,26 @@ describe('BrowserGlobalScanner — глобалы браузера вне кли
     });
   }
 
-  it('деструктуризация из window — нарушение', () => {
-    const found = scan('const { location } = window;', `${SRC}/server/x.ts`);
-
-    expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ file: `${SRC}/server/x.ts`, line: 1 });
-  });
-
   it('несколько глобалов в строке — по нарушению на каждый', () => {
     expect(
-      scan('const s = new WebSocket(location.href);', `${SRC}/server/x.ts`).map(
-        (v) => v.text,
-      ),
-    ).toEqual(['WebSocket', 'location.href']);
+      scan(
+        'const s = new WebSocket(navigator.language);',
+        `${SRC}/server/x.ts`,
+      ).map((v) => v.text),
+    ).toEqual(['WebSocket', 'navigator']);
   });
 });
 
 describe('BrowserGlobalScanner — пример для браузера вне клиента', () => {
   // Разрешение сужено до `examples/web/src/client/`: серверу и чистым
   // моделям представлений глобалы браузера не нужны, зона должна краснеть.
-  for (const dir of ['server', 'view', 'common']) {
-    const path = `examples/web/src/${dir}/x.ts`;
+  it('new WebSocket(url) на сервере примера — нарушение', () => {
+    const path = 'examples/web/src/server/x.ts';
 
-    for (const [line, name] of [
-      ['const w = window.innerWidth;', 'window.innerWidth'],
-      ["const d = document.createElement('div');", 'document.createElement'],
-      ['const s = new WebSocket(u);', 'WebSocket'],
-    ] as const) {
-      it(`«${line}» в ${path} — нарушение «${name}»`, () => {
-        expect(scan(line, path)).toEqual([{ file: path, line: 1, text: name }]);
-      });
-    }
-  }
+    expect(scan('const s = new WebSocket(u);', path)).toEqual([
+      { file: path, line: 1, text: 'WebSocket' },
+    ]);
+  });
 
   it('сервер примера: Bun и process разрешены (проверка среды — только packages/web-ui/src)', () => {
     expect(
@@ -122,35 +84,10 @@ describe('BrowserGlobalScanner — пример для браузера вне �
   });
 });
 
-describe('BrowserGlobalScanner — представления пакета (web-ui/src/view/)', () => {
-  // DOM представлению даёт только цель показа: свои глобалы браузера и среды
-  // в представлениях пакета запрещены.
-  const VIEW = `${SRC}/view/x.ts`;
-
-  for (const [line, name] of [
-    ["const d = document.createElement('div');", 'document.createElement'],
-    ['const s = new WebSocket(u);', 'WebSocket'],
-    ['Bun.serve({ port: 0 });', 'Bun'],
-  ] as const) {
-    it(`«${line}» в ${VIEW} — нарушение «${name}»`, () => {
-      expect(scan(line, VIEW)).toEqual([{ file: VIEW, line: 1, text: name }]);
-    });
-  }
-});
-
 describe('BrowserGlobalScanner — кодек адреса (web-ui/src/url/)', () => {
-  // Кодек получает и отдаёт строку: путь и строка запроса страницы — не его
-  // забота. API кодирования URL — из ES, не браузера: оно разрешено.
+  // Кодек получает и отдаёт строку. API кодирования URL — из ES, не браузера:
+  // оно разрешено.
   const URLS = `${SRC}/url/page-urls.ts`;
-
-  it('путь страницы и запись истории браузера — два нарушения', () => {
-    expect(
-      scan("const p = location.pathname;\nhistory.pushState(s, '', u);", URLS),
-    ).toEqual([
-      { file: URLS, line: 1, text: 'location.pathname' },
-      { file: URLS, line: 2, text: 'history.pushState' },
-    ]);
-  });
 
   it('encodeURIComponent и URLSearchParams — не нарушения', () => {
     expect(
@@ -168,13 +105,7 @@ describe('BrowserGlobalScanner — клиент страничного паке�
   // разрешены только файлам-адаптерам, которые и называют типы браузера.
   const line = 'const s = new WebSocket(url);';
 
-  for (const file of [
-    'page-client.ts',
-    'page-reconnector.ts',
-    'page-history.ts',
-    'view-cell.ts',
-    'view/x.ts',
-  ]) {
+  for (const file of ['page-client.ts', 'page-history.ts']) {
     const path = `${SRC}/client/${file}`;
 
     it(`WebSocket в не-адаптере ${path} — нарушение`, () => {
@@ -183,22 +114,6 @@ describe('BrowserGlobalScanner — клиент страничного паке�
       ]);
     });
   }
-
-  it('window, document, history, location в не-адаптере клиента — нарушения', () => {
-    const path = `${SRC}/client/page-client.ts`;
-
-    expect(
-      scan(
-        "window.addEventListener('x', f);\nconst d = document.body;\nhistory.pushState(s, '', u);\nconst h = location.href;",
-        path,
-      ).map((v) => v.text),
-    ).toEqual([
-      'window.addEventListener',
-      'document.body',
-      'history.pushState',
-      'location.href',
-    ]);
-  });
 
   for (const file of ADAPTERS) {
     it(`адаптер ${file} браузер трогать может`, () => {
@@ -210,12 +125,10 @@ describe('BrowserGlobalScanner — клиент страничного паке�
 describe('BrowserGlobalScanner — разрешённые зоны и не глобалы', () => {
   const lines = [
     'const s = new WebSocket(url);',
-    "window.addEventListener('x', f);",
-    "const d = document.createElement('div');",
-    "history.pushState(s, '', u);",
-    'const h = location.href;',
-    'const d = globalThis.document;',
-    'const { location } = window;',
+    "addEventListener('x', f);",
+    'const n = globalThis.navigator;',
+    "const e = globalThis['EventSource'];",
+    'const { sessionStorage } = globalThis;',
     'const l = localStorage;',
   ].join('\n');
 
@@ -248,16 +161,9 @@ describe('BrowserGlobalScanner — разрешённые зоны и не гл�
   });
 
   for (const clean of [
-    'this.history.push(x);',
-    'const last = view.history;',
-    "const kind = 'window';",
-    "const type = 'document';",
-    "const kind: 'window' = 'window';",
     'const BunDle = 1;',
     'type WebSocketLike = unknown;',
     'this.process(update);',
-    'const document = parse(text);',
-    'const where = this.location;',
     'const processed = reprocess(update);',
     'const addEventListenerCount = 1;',
   ]) {
@@ -268,22 +174,11 @@ describe('BrowserGlobalScanner — разрешённые зоны и не гл�
   }
 });
 
-describe('BrowserGlobalScanner — корни globalThis, self и обращение по ключу', () => {
+describe('BrowserGlobalScanner — globalThis: член, ключ, деструктуризация', () => {
   const path = `${SRC}/server/x.ts`;
   const forbidden: [string, string][] = [
     ['const s = new globalThis.WebSocket(u);', 'globalThis.WebSocket'],
-    ['const v = self.localStorage;', 'self.localStorage'],
-    ['const s = new window.WebSocket(u);', 'window.WebSocket'],
-    ['const s = new self.WebSocket(u);', 'self.WebSocket'],
-    ['const n = self.navigator;', 'self.navigator'],
-    ['const d = self.document;', 'self.document'],
-    ['const l = self.location;', 'self.location'],
-    ['const h = self.history;', 'self.history'],
-    ['const w = self.window;', 'self.window'],
-    ["const d = window['document'];", "window['document']"],
-    ["const l = globalThis['location'];", "globalThis['location']"],
-    ["const h = self['history'];", "self['history']"],
-    ["const s = globalThis['WebSocket'];", "globalThis['WebSocket']"],
+    ["const s = globalThis['WebSocket'];", 'WebSocket'],
   ];
 
   for (const [line, name] of forbidden) {
@@ -292,22 +187,15 @@ describe('BrowserGlobalScanner — корни globalThis, self и обращен
     });
   }
 
-  it('деструктуризация из self — нарушение', () => {
-    const found = scan('const { document } = self;', path);
-
-    expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ file: path, line: 1 });
+  it('деструктуризация API из globalThis — нарушение', () => {
+    expect(scan('const { localStorage } = globalThis;', path)).toEqual([
+      { file: path, line: 1, text: 'localStorage' },
+    ]);
   });
 
   for (const clean of [
-    'const where = this.self;',
-    'const id = item.self.id;',
-    'const self = this;\nself.render();\nself.items.push(x);',
-    "const v = myWindow['x'];",
     'const g = options.globalThis;',
-    "const kind = 'self';",
-    'const { items } = self;',
-    'const { a } = self.props;',
+    'const { items } = globalThis;',
   ]) {
     it(`не глобал «${clean}» не срабатывает`, () => {
       expect(scan(clean, path)).toEqual([]);
@@ -317,7 +205,7 @@ describe('BrowserGlobalScanner — корни globalThis, self и обращен
   it('разрешены в клиенте примера для браузера', () => {
     expect(
       scan(
-        "const d = self.document;\nconst w = globalThis['WebSocket'];\nconst { document } = self;",
+        "const n = globalThis.navigator;\nconst w = globalThis['WebSocket'];\nconst { localStorage } = globalThis;",
         'examples/web/src/client/x.ts',
       ),
     ).toEqual([]);
@@ -325,27 +213,27 @@ describe('BrowserGlobalScanner — корни globalThis, self и обращен
 });
 
 describe('BrowserGlobalScanner — Bun и process в packages/web-ui/src/', () => {
-  const zones = [
-    `${SRC}/server/x.ts`,
-    `${SRC}/wire/x.ts`,
-    `${SRC}/graph/x.ts`,
-    `${SRC}/client/x.ts`,
-    `${SRC}/x.ts`,
-  ];
+  const path = `${SRC}/server/x.ts`;
 
-  for (const path of zones) {
-    it(`Bun.serve в ${path} — нарушение`, () => {
-      expect(scan('Bun.serve({ port: 0 });', path)).toEqual([
-        { file: path, line: 1, text: 'Bun' },
-      ]);
-    });
+  it('Bun.serve — нарушение', () => {
+    expect(scan('Bun.serve({ port: 0 });', path)).toEqual([
+      { file: path, line: 1, text: 'Bun' },
+    ]);
+  });
 
-    it(`process.env.X в ${path} — нарушение`, () => {
-      expect(scan('const x = process.env.X;', path)).toEqual([
-        { file: path, line: 1, text: 'process' },
-      ]);
-    });
-  }
+  it('process.env.X — нарушение', () => {
+    expect(scan('const x = process.env.X;', path)).toEqual([
+      { file: path, line: 1, text: 'process' },
+    ]);
+  });
+
+  it('Bun в представлениях пакета (web-ui/src/view/) — нарушение', () => {
+    const path = `${SRC}/view/x.ts`;
+
+    expect(scan('Bun.serve({ port: 0 });', path)).toEqual([
+      { file: path, line: 1, text: 'Bun' },
+    ]);
+  });
 
   it('Bun и process вне src пакета web-ui (testing/, другие пакеты) этой проверкой не ловятся', () => {
     for (const path of [
@@ -359,20 +247,16 @@ describe('BrowserGlobalScanner — Bun и process в packages/web-ui/src/', () =
 });
 
 describe('BrowserGlobalScanner — Bun и process через globalThis', () => {
-  for (const path of [
-    `${SRC}/server/x.ts`,
-    `${SRC}/client/x.ts`,
-    `${SRC}/x.ts`,
-  ]) {
-    for (const [line, name] of [
-      ['const p = globalThis.process;', 'globalThis.process'],
-      ['const b = globalThis.Bun;', 'globalThis.Bun'],
-      ["const p = globalThis['process'];", "globalThis['process']"],
-    ] as const) {
-      it(`«${line}» в ${path} — нарушение`, () => {
-        expect(scan(line, path)).toEqual([{ file: path, line: 1, text: name }]);
-      });
-    }
+  const path = `${SRC}/server/x.ts`;
+
+  for (const [line, name] of [
+    ['const p = globalThis.process;', 'globalThis.process'],
+    ['const b = globalThis.Bun;', 'globalThis.Bun'],
+    ["const p = globalThis['process'];", "globalThis['process']"],
+  ] as const) {
+    it(`«${line}» — нарушение`, () => {
+      expect(scan(line, path)).toEqual([{ file: path, line: 1, text: name }]);
+    });
   }
 
   it('вне src пакета web-ui не ловится', () => {
@@ -392,6 +276,12 @@ describe('BrowserGlobalScanner — реальный репо', () => {
     expect(real().some((file) => file.path.startsWith(`${SRC}/client/`))).toBe(
       true,
     );
+  });
+
+  it('клиент примера examples/web/src/client/ не пуст: исключение не фантом', () => {
+    expect(
+      real().some((file) => file.path.startsWith('examples/web/src/client/')),
+    ).toBe(true);
   });
 
   it('каждый адаптер существует и без исключения даёт нарушение — переименованный файл не станет тихой дырой', () => {

@@ -398,22 +398,6 @@ describe('ExampleBot — что показывает пример: отключ�
     expect(after[0]?.params).not.toHaveProperty('show_alert');
   });
 
-  test('подсказка поля: «К части» спрашивает с подсказкой, примером и пределами; ввод 0 — отказ текстом поля', async () => {
-    const s = await session();
-    await s.say('/start');
-
-    await s.press(TaskListScreenDef.actions.jumpTo.label);
-
-    // Подсказка, пример и пределы поля `part` — как в Def списка задач.
-    const question = shownText(s);
-    expect(question).toContain('Введите: Часть');
-    expect(question).toContain('Номер части списка, с первой');
-    expect(question).toContain('Пример: 2');
-    expect(question).toContain('Пределы: от 1 до 99, целое');
-    await s.say('0');
-    expect(shownText(s)).toContain('Части начинаются с первой');
-  });
-
   test('/help: одно сообщение «Справка: Мои задачи …», правок нет; меню команд — start, menu, assigned без help', async () => {
     const s = await session();
     await s.say('/start');

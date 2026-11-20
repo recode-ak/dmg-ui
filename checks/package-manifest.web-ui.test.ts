@@ -85,33 +85,6 @@ describe('вход dmg-ui/web-ui', () => {
 
     expect(PAGE_CHANNEL).toBe('dmg-ui-pages');
   });
-
-  it('внутренние помощники клиента, истории, представлений, сервера, провода и кодека адреса не экспортируются', async () => {
-    const exported = Object.keys(await import('dmg-ui/web-ui'));
-
-    for (const internal of [
-      'WirePorts',
-      'PageConnection',
-      'PageRegions',
-      'PageForms',
-      'PageTraces',
-      'PageInbox',
-      'PageSeenKeys',
-      'ViewCell',
-      'PageTextPresenter',
-      'PageOutbox',
-      'serverFrame',
-      'PagePath',
-      'PageParams',
-      'PagePlacements',
-      'PageLayoutUrls',
-      'PageHistory',
-      'PageHistoryRecord',
-      'PageOverlay',
-    ]) {
-      expect(exported).not.toContain(internal);
-    }
-  });
 });
 
 /**

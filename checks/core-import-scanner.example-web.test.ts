@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CoreImportScanner } from './core-import-scanner';
 import { SourceFile, SourceTree } from './source-tree';
@@ -27,11 +27,7 @@ const BROWSER_ZONES: [string, string][] = [
   ['client', CLIENT],
 ];
 
-// Название библиотеки Telegram собрано из частей: иначе сам тест нарушил бы
-// зону примеров при проверке `checks/` на реальном репо.
-const LIB = ['gram', 'my'].join('');
 const FOREIGN = [
-  `import { Bot } from '${LIB}';`,
   "import { a } from 'dmg-ui/chat-ui';",
   "import { a } from 'dmg-ui/tg-bot';",
   "import { a } from 'dmg-ui/chat-ui/testing';",
@@ -42,7 +38,6 @@ describe('CoreImportScanner — каталоги примера, едущие в
     for (const text of [
       "import fs from 'node:fs';",
       "import fs from 'fs';",
-      "import { test } from 'bun:test';",
       "import { a } from 'dmg-core/app';",
       "import { a } from 'dmg-core/arch';",
       "import { a } from 'dmg-core/testing';",
@@ -107,20 +102,11 @@ describe('CoreImportScanner — каталоги примера, едущие в
 
     expect(scan(text, COMMON)).toEqual([]);
   });
-
-  it('.test.ts в каталогах, едущих в браузер, — вне зон', () => {
-    const text = "import { test } from 'bun:test';\nimport 'node:fs';";
-
-    for (const dir of ['common', 'view', 'client']) {
-      expect(scan(text, `${WEB}/${dir}/x.test.ts`)).toEqual([]);
-    }
-  });
 });
 
 describe('CoreImportScanner — сервер примера (examples/web/src/server/)', () => {
   for (const text of [
     "import fs from 'node:fs';",
-    "import { join } from 'node:path';",
     "import { serve } from 'bun:ffi';",
     "import { App } from 'dmg-core/app';",
     "import { ArchChecker } from 'dmg-core/arch';",
@@ -163,12 +149,6 @@ describe('CoreImportScanner — сервер примера (examples/web/src/se
       scan("import { a } from '../../../tg-bot/src/x';", SERVER),
     ).toHaveLength(1);
   });
-
-  it('.test.ts сервера — вне зоны', () => {
-    const text = "import { test } from 'bun:test';\nimport 'node:fs';";
-
-    expect(scan(text, `${WEB}/server/example-web-server.test.ts`)).toEqual([]);
-  });
 });
 
 describe('CoreImportScanner — чужие пакеты в примере для браузера', () => {
@@ -188,18 +168,6 @@ describe('пример не устанавливается', () => {
 
   it('своего package.json у примера нет', () => {
     expect(existsSync(resolve(ROOT, 'examples/web/package.json'))).toBe(false);
-  });
-
-  it('входов примера нет в exports пакета', () => {
-    const manifest = JSON.parse(
-      readFileSync(resolve(ROOT, 'package.json'), 'utf8'),
-    ) as { exports: Record<string, string> };
-
-    expect(
-      Object.values(manifest.exports).filter((path) =>
-        path.includes('examples/'),
-      ),
-    ).toEqual([]);
   });
 });
 

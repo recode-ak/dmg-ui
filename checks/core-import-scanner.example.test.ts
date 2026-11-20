@@ -21,7 +21,6 @@ describe('CoreImportScanner — учебный пример (packages/core/testi
     "import { a } from 'dmg-ui/graph';",
     "import { a } from 'dmg-ui/testing';",
     "import fs from 'node:fs';",
-    "import { test } from 'bun:test';",
     "import { ScreenDef } from '../../../src/manifest/screen-def';",
     "import { DialogChannel } from 'dmg-ui/chat-ui';",
     "import { ExampleDialogAppDef } from 'dmg-ui/chat-ui/testing';",
@@ -50,14 +49,6 @@ describe('CoreImportScanner — учебный пример (packages/core/testi
     expect(scan(text, 'packages/core/testing/example/index.ts')).toHaveLength(
       1,
     );
-  });
-
-  it('*.test.ts примера — вне зоны', () => {
-    const text = "import { test } from 'bun:test';\nimport 'node:fs';";
-
-    expect(
-      scan(text, 'packages/core/testing/example/example-graph.test.ts'),
-    ).toEqual([]);
   });
 });
 

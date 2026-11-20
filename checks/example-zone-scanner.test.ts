@@ -4,15 +4,14 @@ import { resolve } from 'node:path';
 import { ExampleZoneScanner } from './example-zone-scanner';
 import { SourceFile, SourceTree } from './source-tree';
 
-// Зона примера (`examples/tg-bot`): библиотека Telegram видна только двум файлам
-// адаптера, а пример берёт соседей только по именам входов. Название библиотеки
-// и её подпути в фикстурах собраны из частей: иначе сам тест нарушил бы правило
-// при проверке `checks/` на реальном репо. Спецификатор подставляется через
-// шаблон — поиск по тексту его не видит.
+// Зона примера (`examples/tg-bot`): библиотека Telegram видна только файлам
+// адаптера (`grammy-*.ts`), а пример берёт соседей только по именам входов.
+// Реальный репо сканируется без `checks/`: фикстуры тестов называют библиотеку
+// прямо.
 
 const ROOT = resolve(import.meta.dir, '..');
-const LIB = ['gram', 'my'].join('');
-const LIB_TYPES = ['@', LIB, 'js/types'].join('');
+const LIB = 'grammy';
+const LIB_TYPES = '@grammyjs/types';
 const EXAMPLE = 'examples/tg-bot/src';
 
 const importFrom = (specifier: string): string =>
@@ -22,24 +21,15 @@ const scan = (path: string, text: string) =>
   new ExampleZoneScanner().scan([SourceFile.of(path, text)]);
 
 describe('ExampleZoneScanner — библиотека Telegram вне примера', () => {
-  const places = [
-    'packages/tg-bot/src/x.ts',
-    'packages/chat-ui/testing/x.ts',
-    'packages/core/src/x.ts',
-    'checks/x.ts',
-    'acceptance/x.ts',
-  ];
-  const specifiers = [LIB, `${LIB}/web`, LIB_TYPES];
+  const path = 'packages/tg-bot/src/x.ts';
 
-  for (const path of places) {
-    for (const specifier of specifiers) {
-      test(`«${specifier}» в ${path} — нарушение`, () => {
-        const found = scan(path, importFrom(specifier));
-        expect(found).toHaveLength(1);
-        expect(found[0]).toMatchObject({ file: path, line: 2 });
-        expect(found[0]?.text).toContain(specifier);
-      });
-    }
+  for (const specifier of [LIB, `${LIB}/web`, LIB_TYPES]) {
+    test(`«${specifier}» в ${path} — нарушение`, () => {
+      const found = scan(path, importFrom(specifier));
+      expect(found).toHaveLength(1);
+      expect(found[0]).toMatchObject({ file: path, line: 2 });
+      expect(found[0]?.text).toContain(specifier);
+    });
   }
 
   test('динамический import() с литералом в packages — нарушение', () => {
@@ -60,26 +50,7 @@ describe('ExampleZoneScanner — библиотека Telegram вне приме
 });
 
 describe('ExampleZoneScanner — внутри examples/tg-bot/src/', () => {
-  for (const name of [
-    'grammy-bot-api.ts',
-    'grammy-bot-api.test.ts',
-    'grammy-polling.ts',
-    'grammy-polling.test.ts',
-  ]) {
-    test(`${name} — библиотека разрешена`, () => {
-      for (const specifier of [LIB, `${LIB}/web`, LIB_TYPES]) {
-        expect(scan(`${EXAMPLE}/${name}`, importFrom(specifier))).toEqual([]);
-      }
-    });
-  }
-
-  for (const name of [
-    'example-bot.ts',
-    'main.ts',
-    'example-env.ts',
-    'tracing-bot-api.ts',
-    'example-bot.test.ts',
-  ]) {
+  for (const name of ['main.ts', 'tracing-bot-api.ts', 'example-bot.test.ts']) {
     test(`${name} — библиотека запрещена`, () => {
       const found = scan(`${EXAMPLE}/${name}`, importFrom(LIB));
       expect(found).toHaveLength(1);
@@ -89,41 +60,67 @@ describe('ExampleZoneScanner — внутри examples/tg-bot/src/', () => {
 });
 
 describe('ExampleZoneScanner — адаптеры библиотеки видны не всем', () => {
-  const adapters = ['./grammy-bot-api', './grammy-polling'];
-
-  for (const name of [
-    'example-bot.ts',
-    'example-env.ts',
-    'example-probe.ts',
-    'tracing-bot-api.ts',
-  ]) {
-    for (const specifier of [...adapters, './grammy-polling.ts']) {
-      test(`«${specifier}» из ${name} — нарушение`, () => {
-        const found = scan(`${EXAMPLE}/${name}`, importFrom(specifier));
-        expect(found).toHaveLength(1);
-        expect(found[0]?.text).toContain(specifier);
-      });
-    }
-  }
-
-  for (const name of [
-    'main.ts',
-    'probe.ts',
-    'example-bot.test.ts',
-    'grammy-polling.ts',
-    'grammy-polling.types.ts',
-    'grammy-bot-api.types.ts',
-  ]) {
-    test(`«${adapters.join('», «')}» из ${name} — чисто`, () => {
-      for (const specifier of adapters) {
-        expect(scan(`${EXAMPLE}/${name}`, importFrom(specifier))).toEqual([]);
-      }
+  for (const [name, specifier] of [
+    ['example-bot.ts', './grammy-polling.ts'],
+    ['example-probe.ts', './grammy-bot-api'],
+    ['tracing-bot-api.ts', './grammy-bot-api'],
+  ] as const) {
+    test(`«${specifier}» из ${name} — нарушение`, () => {
+      const found = scan(`${EXAMPLE}/${name}`, importFrom(specifier));
+      expect(found).toHaveLength(1);
+      expect(found[0]?.text).toContain(specifier);
     });
   }
 
-  for (const name of ['grammy-bot-api.types.ts', 'grammy-polling.types.ts']) {
+  for (const name of [
+    'probe.ts',
+    'grammy-polling.ts',
+    'grammy-polling.types.ts',
+  ]) {
+    test(`«./grammy-bot-api» из ${name} — чисто`, () => {
+      expect(
+        scan(`${EXAMPLE}/${name}`, importFrom('./grammy-bot-api')),
+      ).toEqual([]);
+    });
+  }
+});
+
+describe('ExampleZoneScanner — адаптер определяется шаблоном grammy-*', () => {
+  const adapterFiles = [
+    'grammy-anything.ts',
+    'grammy-anything.types.ts',
+    'grammy-anything.test.ts',
+  ];
+
+  for (const name of adapterFiles) {
     test(`${name} — библиотека разрешена`, () => {
       expect(scan(`${EXAMPLE}/${name}`, importFrom(LIB))).toEqual([]);
+    });
+  }
+
+  test('example-bot.ts — библиотека запрещена', () => {
+    const found = scan(`${EXAMPLE}/example-bot.ts`, importFrom(LIB));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({
+      file: `${EXAMPLE}/example-bot.ts`,
+      line: 2,
+    });
+  });
+
+  test('«./grammy-anything» из example-bot.ts — нарушение', () => {
+    const found = scan(
+      `${EXAMPLE}/example-bot.ts`,
+      importFrom('./grammy-anything'),
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]?.text).toContain('./grammy-anything');
+  });
+
+  for (const name of ['main.ts', 'probe.ts', 'example-bot.test.ts']) {
+    test(`«./grammy-anything» из ${name} — чисто`, () => {
+      expect(
+        scan(`${EXAMPLE}/${name}`, importFrom('./grammy-anything')),
+      ).toEqual([]);
     });
   }
 });
@@ -153,7 +150,6 @@ describe('ExampleZoneScanner — пример не выходит из свое�
   const escapes = [
     '../../../packages/tg-bot/src/index',
     '../../..',
-    '../../../checks/source-tree',
     '../../other/x',
   ];
   for (const specifier of escapes) {
@@ -173,14 +169,7 @@ describe('ExampleZoneScanner — пример не выходит из свое�
     expect(found).toHaveLength(1);
   });
 
-  for (const specifier of [
-    'dmg-ui/tg-bot',
-    'dmg-ui/chat-ui/testing',
-    './example-env',
-    '../README',
-    '../.trace/x',
-    'dmg-core/testing/example',
-  ]) {
+  for (const specifier of ['dmg-ui/tg-bot', './example-env', '../README']) {
     test(`«${specifier}» — чисто`, () => {
       expect(scan(`${EXAMPLE}/main.ts`, importFrom(specifier))).toEqual([]);
     });
@@ -196,7 +185,7 @@ describe('ExampleZoneScanner — пример не выходит из свое�
 describe('ExampleZoneScanner — пример для браузера (examples/web/)', () => {
   const WEB = 'examples/web/src';
 
-  for (const dir of ['server', 'client', 'view', 'common']) {
+  for (const dir of ['server']) {
     test(`${dir}/: выход за каталог примера относительным путём — нарушение`, () => {
       const path = `${WEB}/${dir}/x.ts`;
       for (const specifier of [
@@ -218,32 +207,7 @@ describe('ExampleZoneScanner — пример для браузера (examples/
     });
   }
 
-  test('библиотека Telegram в примере для браузера — нарушение во всех каталогах', () => {
-    for (const dir of ['server', 'client', 'view', 'common']) {
-      for (const specifier of [LIB, `${LIB}/web`, LIB_TYPES]) {
-        const path = `${WEB}/${dir}/x.ts`;
-        const found = scan(path, importFrom(specifier));
-        expect(found).toHaveLength(1);
-        expect(found[0]).toMatchObject({ file: path, line: 2 });
-      }
-    }
-  });
-
-  test('тест примера для браузера: библиотека Telegram — нарушение', () => {
-    expect(scan(`${WEB}/server/x.test.ts`, importFrom(LIB))).toHaveLength(1);
-  });
-
-  for (const specifier of [
-    './x',
-    '../view/x',
-    '../common/x',
-    '../client/x',
-    '../../README',
-    '../../.env.example',
-    'dmg-ui/web-ui',
-    'dmg-ui/web-ui/testing',
-    'dmg-core/testing/example',
-  ]) {
+  for (const specifier of ['./x', '../view/x', '../../README']) {
     test(`«${specifier}» внутри каталога примера — чисто`, () => {
       expect(scan(`${WEB}/server/x.ts`, importFrom(specifier))).toEqual([]);
     });
@@ -251,13 +215,30 @@ describe('ExampleZoneScanner — пример для браузера (examples/
 });
 
 describe('ExampleZoneScanner — реальный репо', () => {
+  test('main.ts и probe.ts существуют и без исключения берут адаптер — не фантомы', () => {
+    const files = SourceTree.read(ROOT, 'examples/tg-bot');
+
+    for (const name of ['main.ts', 'probe.ts']) {
+      const file = files.find((f) => f.path === `${EXAMPLE}/${name}`);
+      expect(file).toBeDefined();
+      const renamed = SourceFile.of(`${EXAMPLE}/renamed.ts`, file?.text ?? '');
+
+      const found = new ExampleZoneScanner().scan([renamed]);
+
+      expect(found).toHaveLength(1);
+      expect(found[0]?.text).toContain('адаптер библиотеки');
+    }
+  });
+
   test('на реальном репо — ноль нарушений', () => {
-    // `examples/` и `scripts/` могут отсутствовать или не содержать `.ts`.
-    const dirs = ['packages', 'checks', 'acceptance', 'examples', 'scripts'];
+    // `checks/` не сканируется: фикстуры её тестов называют библиотеку прямо.
+    // `scripts/` может отсутствовать или не содержать `.ts`.
+    const dirs = ['packages', 'acceptance', 'examples', 'scripts'];
     const files = dirs
       .filter((dir) => existsSync(resolve(ROOT, dir)))
       .flatMap((dir) => SourceTree.read(ROOT, dir));
-    expect(files.length).toBeGreaterThan(0);
+    expect(files.some((file) => file.path.startsWith('packages/'))).toBe(true);
+    expect(files.some((file) => file.path.startsWith('examples/'))).toBe(true);
     expect(new ExampleZoneScanner().scan(files)).toEqual([]);
   });
 });

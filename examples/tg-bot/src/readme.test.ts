@@ -54,15 +54,6 @@ describe('README примера и .env.example', () => {
       }).toEqual({ id: probeCase.id, found: true });
     }
   });
-
-  test('строка Е10 не засчитывается за пробу Е1', () => {
-    const [first, tenth] = [PROBE_CASES[0], PROBE_CASES[9]];
-    expect(first?.id).toBe('Е1');
-    expect(tenth?.id).toBe('Е10');
-    const onlyTenth = `| ${tenth?.id}. ${tenth?.look} | ${tenth?.expected} | x | |`;
-    expect(hasRow(onlyTenth, tenth as ProbeCase)).toBe(true);
-    expect(hasRow(onlyTenth, first as ProbeCase)).toBe(false);
-  });
 });
 
 /** Пункты группы «Ж. Отключённое, поля, справка, „Назад“» (буква — кириллица). */

@@ -4,30 +4,23 @@ import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
 /**
- * Зона примеров `examples/*` (D-UI-68): библиотека Telegram (`grammy`, подпути,
- * `@grammyjs/*`) видна только файлам адаптера `examples/tg-bot`; адаптеры по
- * относительному пути берут лишь `main.ts`, `probe.ts`, тесты и они сами.
- * Из примера нельзя выйти за свой каталог ни относительным, ни абсолютным путём.
- * Динамический `import(переменная)` не ловится (DEBT-UI-5).
+ * Зона примеров `examples/*`: `grammy` и `@grammyjs/*` — только в адаптере
+ * `examples/tg-bot/src/grammy-*.ts` (и его `*.test.ts`, `*.types.ts`); адаптер
+ * по относительному пути берут `main.ts`, `probe.ts`, тесты и он сам; из примера
+ * не выйти за его каталог. `import(переменная)` не ловится (DEBT-UI-5).
+ *
+ * @see D-UI-68, D-UI-111, `docs/reference/rules.md`
  */
 export class ExampleZoneScanner {
   protected static readonly ZONES = 'examples';
 
   protected static readonly ADAPTER_DIR = 'examples/tg-bot/src/';
 
-  protected static readonly ADAPTER_FILES = [
-    'grammy-bot-api.ts',
-    'grammy-bot-api.test.ts',
-    'grammy-polling.ts',
-    'grammy-polling.test.ts',
-    'grammy-bot-api.types.ts',
-    'grammy-polling.types.ts',
-  ];
+  /** Файл адаптера: `grammy-*.ts` в каталоге адаптера, его `*.test.ts` и `*.types.ts` тоже. */
+  protected static readonly ADAPTER_FILE = /^grammy-[^/]+\.ts$/;
 
-  protected static readonly ADAPTER_MODULES = [
-    'grammy-bot-api',
-    'grammy-polling',
-  ];
+  /** Модуль адаптера в спецификаторе: `./grammy-*` без расширения и с `.ts`. */
+  protected static readonly ADAPTER_MODULE = /^grammy-[^/]+$/;
 
   protected static readonly ADAPTER_CLIENTS = ['main.ts', 'probe.ts'];
 
@@ -63,7 +56,7 @@ export class ExampleZoneScanner {
   protected static isAdapter(path: string): boolean {
     return (
       path.startsWith(ExampleZoneScanner.ADAPTER_DIR) &&
-      ExampleZoneScanner.ADAPTER_FILES.includes(
+      ExampleZoneScanner.ADAPTER_FILE.test(
         path.slice(ExampleZoneScanner.ADAPTER_DIR.length),
       )
     );
@@ -71,13 +64,13 @@ export class ExampleZoneScanner {
 
   protected static reachesAdapter(path: string, specifier: string): boolean {
     const name = specifier.replace(/^\.\//, '').replace(/\.ts$/, '');
-    if (!ExampleZoneScanner.ADAPTER_MODULES.includes(name)) return false;
+    if (!ExampleZoneScanner.ADAPTER_MODULE.test(name)) return false;
     if (!ExampleZoneScanner.inZone(path) || !specifier.startsWith('./')) {
       return false;
     }
     const file = path.slice(path.lastIndexOf('/') + 1);
     return !(
-      ExampleZoneScanner.ADAPTER_FILES.includes(file) ||
+      ExampleZoneScanner.isAdapter(path) ||
       ExampleZoneScanner.ADAPTER_CLIENTS.includes(file) ||
       file.endsWith('.test.ts')
     );

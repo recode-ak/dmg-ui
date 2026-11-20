@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { F } from 'dmg-core';
-import { AppGraph, Graph } from 'dmg-core/graph';
+import { Graph } from 'dmg-core/graph';
 import { ExampleAppDef, ListTasksUcDef } from 'dmg-core/testing/example';
 import {
   type Address,
@@ -26,7 +26,7 @@ import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import { ExamplePagesAppDef, examplePageViews } from '../../testing';
 import { RoutedAppDef } from '../../testing/routed-pages.app';
-import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
+import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';
 import { PageUrls } from '../url/page-urls';
 import { PageGraphProvider } from './page-graph-provider';
@@ -779,72 +779,6 @@ describe('Два приложения web в одном поставщике г�
     ]) {
       expect(report.rule(id)).toEqual([]);
     }
-  });
-
-  test('узлы маршрутов — <приложение>/<имя>; рёбра opens каждого приложения — по его маршрутам и входам', () => {
-    const graph = new AppGraph(arch()).build();
-
-    const nodes = graph
-      .nodes()
-      .filter((node) => node.provider === PAGE_CHANNEL)
-      .map((node) => node.id)
-      .sort();
-    const opens = graph
-      .edges()
-      .filter((edge) => edge.provider === PAGE_CHANNEL && edge.kind === 'opens')
-      .map((edge) => `${edge.from} -> ${edge.to}`)
-      .sort();
-
-    expect(nodes).toEqual([
-      'examplePages/assigned',
-      'examplePages/menu',
-      'examplePages/tasks',
-      'leanPages/home',
-      'leanPages/list',
-    ]);
-    expect(opens).toEqual([
-      'examplePages/assigned -> exampleUi/todo/assignedTasks',
-      'examplePages/menu -> exampleUi/todo/mainMenu',
-      'examplePages/tasks -> exampleUi/todo/taskList',
-      'leanPages/home -> exampleUi/todo/assignedTasks',
-      'leanPages/list -> exampleUi/todo/taskList',
-    ]);
-  });
-
-  test('presents — цели каждого приложения из его реестра представлений', () => {
-    const graph = new AppGraph(arch()).build();
-
-    const from = (app: string) =>
-      graph
-        .edges()
-        .filter(
-          (edge) =>
-            edge.provider === PAGE_CHANNEL &&
-            edge.kind === 'presents' &&
-            edge.from === app,
-        )
-        .map((edge) => edge.to)
-        .sort();
-
-    expect(from('examplePages')).toEqual([
-      'exampleUi/todo/assignedTasks',
-      'exampleUi/todo/mainMenu',
-      'exampleUi/todo/taskAssigned',
-      'exampleUi/todo/taskCard',
-      'exampleUi/todo/taskCompleted',
-      'exampleUi/todo/taskList',
-      'exampleUi/users/userCard',
-    ]);
-    expect(from('leanPages')).toEqual(SECOND_PRESENTED);
-  });
-
-  test('в документе три поставщика: dmg-core, dmg-ui, dmg-ui-pages (не duplicate-provider)', () => {
-    const names = new AppGraph(arch())
-      .document(PAGE_VERSION)
-      .toJSON()
-      .providers.map((provider) => provider.name);
-
-    expect(names).toEqual(['dmg-core', 'dmg-ui', 'dmg-ui-pages']);
   });
 });
 

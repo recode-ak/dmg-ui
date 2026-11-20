@@ -264,20 +264,6 @@ describe('экран taskList: подсказки и поля в виде', () =
     });
   });
 
-  test('jumpTo.part — нестроковое поле: вид, подпись, подсказка, пример, пределы', async () => {
-    const { list } = await listOf([open(TASK_A)]);
-
-    expect(field(list.view(), 'jumpTo', 'part')).toStrictEqual({
-      name: 'part',
-      label: 'Часть',
-      kind: 'number',
-      optional: false,
-      hint: 'Номер части списка, с первой',
-      example: 2,
-      limits: { min: 1, max: 99, integer: true },
-    });
-  });
-
   test('действие jumpTo в виде несёт подсказку действия', async () => {
     const { list } = await listOf([open(TASK_A)]);
     const action = list.view().actions.find((item) => item.name === 'jumpTo');

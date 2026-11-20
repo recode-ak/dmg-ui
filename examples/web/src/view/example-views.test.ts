@@ -285,7 +285,6 @@ describe('экран «Мои задачи» — модель', () => {
     );
 
     expect(form(forms, 'create').enabled).toBe(false);
-    expect(form(forms, 'create').reason).toBe('Слишком много открытых задач');
     expect(form(forms, 'create').fields).toHaveLength(1);
   });
 

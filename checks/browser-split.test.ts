@@ -11,7 +11,6 @@ const ROOT = resolve(import.meta.dir, '..');
 const tmp = useTempDir('browser-split-');
 
 type Config = { scripts?: Record<string, string>; engines?: { bun?: string } };
-type TsConfig = { include?: string[] };
 
 /** Временный проект: падающий браузерный тест (оставляет метку-файл) и зелёный обычный. */
 const project = () => {
@@ -73,13 +72,6 @@ describe('разделение обычных и браузерных тесто
     expect(code).not.toBe(0);
   });
 
-  test('корневой bunfig.toml содержит шаблон игнора', () => {
-    const text = readFileSync(resolve(ROOT, 'bunfig.toml'), 'utf8');
-
-    expect(text).toContain('pathIgnorePatterns');
-    expect(text).toContain('**/*.browser.test.ts');
-  });
-
   test('в package.json есть скрипт browser, в check его нет', () => {
     const scripts =
       (
@@ -91,13 +83,5 @@ describe('разделение обычных и браузерных тесто
     expect(scripts.browser).toBe('bun browser/run.ts');
     expect(scripts.check).toBeDefined();
     expect(scripts.check).not.toContain('browser');
-  });
-
-  test('tsconfig.json include содержит browser', () => {
-    const config = JSON.parse(
-      readFileSync(resolve(ROOT, 'tsconfig.json'), 'utf8'),
-    ) as TsConfig;
-
-    expect(config.include).toContain('browser');
   });
 });
