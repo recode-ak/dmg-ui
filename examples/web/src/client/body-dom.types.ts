@@ -11,4 +11,6 @@ export type BodyDomSpec = {
   readonly drag: DragDom;
   /** Перерисовать область заново: черновики формы забыты. */
   readonly redraw: () => void;
+  /** Поставить фокус на элемент с ключом при следующей перерисовке. */
+  readonly focus: (key: string) => void;
 };

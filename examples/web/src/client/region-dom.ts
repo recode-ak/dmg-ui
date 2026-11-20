@@ -15,7 +15,8 @@ import type { RegionDomSpec } from './region-dom.types';
 /**
  * Показ одной области: на каждое состояние модель считает `RegionFrame`, тело
  * области пересоздаётся целиком. Ввод в полях хранят черновики, фокус
- * возвращается по ключу. Цель — любой элемент. Справка: кнопка в шапке и блок
+ * возвращается по ключу; начальный фокус экрана — из модели (`focus`). Цель —
+ * любой элемент. Справка: кнопка в шапке и блок
  * из модели; «открыто» решает кадр (`toggleHelp`), а область после щелчка
  * заново считает модель из последнего состояния — старую не рисует.
  */
@@ -25,6 +26,8 @@ export class RegionDom implements PageRegionPresenter<HTMLElement> {
   private target: HTMLElement | undefined;
   private state: PageViewState | undefined;
   private last: RegionModel | undefined;
+  /** Модель, чей начальный фокус уже поставлен: перерисовка его не повторяет. */
+  private focused: RegionModel | undefined;
 
   constructor(private readonly spec: RegionDomSpec) {
     this.body = new BodyDom({
@@ -33,6 +36,7 @@ export class RegionDom implements PageRegionPresenter<HTMLElement> {
       drafts: spec.drafts,
       drag: spec.drag,
       redraw: () => this.draw(),
+      focus: (key) => this.focus.want(key),
     });
   }
 
@@ -66,6 +70,10 @@ export class RegionDom implements PageRegionPresenter<HTMLElement> {
     target.classList.toggle('busy', model.busy);
     target.setAttribute('aria-busy', String(model.busy));
     target.replaceChildren(...this.parts(model));
+    if (model.focus !== undefined && this.focused !== model) {
+      this.focused = model;
+      this.focus.want(model.focus);
+    }
     this.focus.restore(target);
   }
 

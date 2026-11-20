@@ -6,6 +6,7 @@ import {
 } from 'dmg-ui/web-ui';
 import { ExamplePagesUiAppDef } from 'dmg-ui/web-ui/testing';
 import { BodyFreeze } from './body-freeze';
+import { ControlIds } from './control-ids';
 import { exampleWebViews } from './example-web.views';
 import { HelpLines } from './help-lines';
 import { RegionControls } from './region-controls';
@@ -36,6 +37,8 @@ export class RegionFrame {
   private helpOpen = false;
   /** Экран, для которого справка открывалась или показана последний раз. */
   private helpScreen: string | undefined;
+  /** Экран, для которого начальный фокус уже решён. */
+  private focusScreen: string | undefined;
 
   /**
    * `app` — приложение, по которому строится справка (то же, что получил
@@ -82,7 +85,36 @@ export class RegionFrame {
             body: busy ? this.freezer.freeze(shown.body) : shown.body,
             help: HelpLines.of(shown.sheet, this.helpOpen),
           }),
+      ...this.focusOf(state, busy, shown),
     };
+  }
+
+  /**
+   * Начальный фокус нового экрана: решается один раз на первом готовом
+   * неприглушённом кадре — первое поле доступной основной формы или ничего.
+   * Пустая область и отказ сбрасывают решённое: экран снова получит фокус.
+   */
+  private focusOf(
+    state: PageViewState,
+    busy: boolean,
+    shown: Shown | undefined,
+  ): { readonly focus?: string } {
+    if (state.status !== 'ready' && state.status !== 'loading') {
+      this.focusScreen = undefined;
+      return {};
+    }
+    const screen = state.view?.screen;
+    if (state.status === 'loading' || busy || shown === undefined) return {};
+    if (screen === this.focusScreen) return {};
+    this.focusScreen = screen;
+    const body = shown.body;
+    const forms =
+      body.kind === 'list' || body.kind === 'card' ? body.forms : [];
+    const form = forms.find((each) => each.primary && each.enabled);
+    const field = form?.fields[0];
+    return form === undefined || field === undefined
+      ? {}
+      : { focus: ControlIds.fieldFocus(form.name, field.name) };
   }
 
   /** Тело и ревизия для показа; обновляет прежний показ по статусу. */

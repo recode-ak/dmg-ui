@@ -10,6 +10,7 @@ export type ElementTag =
   | 'ul'
   | 'li'
   | 'span'
+  | 'kbd'
   | 'button'
   | 'form'
   | 'label'

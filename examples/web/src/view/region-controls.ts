@@ -7,7 +7,7 @@ import type {
   FormModel,
   ScreenControls,
 } from './region-model.types';
-import { FIELD_TEXTS, PERSON_FIELD } from './view-texts.const';
+import { FIELD_HOTKEY, FIELD_TEXTS, PERSON_FIELD } from './view-texts.const';
 
 /**
  * Действия и формы экрана из модели формы пакета: действие без полей — кнопка,
@@ -46,7 +46,11 @@ export class RegionControls {
       enabled: form.available,
       ...this.reason(form),
       primary: form.primary,
-      fields: form.fields.map((field) => this.field(field)),
+      fields: form.fields.map((field, index) =>
+        form.primary && index === 0
+          ? { ...this.field(field), hotkey: FIELD_HOTKEY }
+          : this.field(field),
+      ),
       issues: form.issues,
     };
   }

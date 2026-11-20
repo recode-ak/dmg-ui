@@ -9,11 +9,12 @@ import type { CdpConnection } from './cdp-connection';
 /** Сколько `waitFor`, `waitUntil` и `back` ждут события страницы, мс. */
 const WAIT_MS = 5_000;
 
-/** Клавиши протокола DevTools: Enter и пробел несут текст, поэтому вызывают `click` кнопки. */
+/** Клавиши протокола DevTools: Enter, пробел и «/» несут текст (Enter и пробел вызывают `click` кнопки, «/» вводится в поле). */
 const KEYS: Readonly<Record<PageKey, KeyDescription>> = {
   Tab: { key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 },
   Enter: { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' },
   Space: { key: ' ', code: 'Space', windowsVirtualKeyCode: 32, text: ' ' },
+  Slash: { key: '/', code: 'Slash', windowsVirtualKeyCode: 191, text: '/' },
 };
 
 type EvaluateResult<T> = {

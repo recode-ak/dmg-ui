@@ -166,8 +166,9 @@ export class BodyDom {
   }
 
   /**
-   * Кнопка действия. Отключённое видом (`reason`) — фокусируемая, с видимой
-   * причиной и без `click`; пауза без причины — нативно отключённая.
+   * Кнопка действия. Отключённое видом (`reason`) — фокусируемая, без `click`,
+   * причина — подсказкой при наведении и скрытым текстом для скринридера;
+   * пауза без причины — нативно отключённая.
    */
   private action(
     action: ActionModel,
@@ -185,7 +186,7 @@ export class BodyDom {
       });
     }
     const id = ControlIds.reason(this.spec.name, action.name);
-    return h('div', { class: 'action' }, [
+    return h('span', { class: 'action' }, [
       h('button', {
         type: 'button',
         text: action.label,
@@ -193,7 +194,7 @@ export class BodyDom {
         aria: { disabled: 'true', describedby: id },
         data,
       }),
-      h('p', { class: 'reason', id, text: action.reason }),
+      h('span', { class: 'reason', id, text: action.reason }),
     ]);
   }
 
@@ -223,7 +224,7 @@ export class BodyDom {
     });
     const { reason } = form;
     const id = ControlIds.reason(this.spec.name, form.name);
-    // Одна ветка: с причиной — фокусируемая кнопка и текст, иначе нативный `disabled`.
+    // Одна ветка: с причиной — фокусируемая кнопка, подсказка и скрытый текст, иначе нативный `disabled`.
     const gate =
       reason === undefined
         ? { props: { disabled: !form.enabled }, note: undefined }
@@ -232,7 +233,7 @@ export class BodyDom {
               title: reason,
               aria: { disabled: 'true', describedby: id },
             },
-            note: h('p', { class: 'reason', id, text: reason }),
+            note: h('span', { class: 'reason', id, text: reason }),
           };
     const submit = h('button', {
       type: 'submit',
@@ -264,7 +265,7 @@ export class BodyDom {
     values: Record<string, string>,
     revision: number | undefined,
   ): Promise<void> {
-    const { gestures, drafts, name, redraw } = this.spec;
+    const { gestures, drafts, name, redraw, focus } = this.spec;
     const outcome = await gestures.submitForm(
       name,
       form.name,
@@ -278,6 +279,11 @@ export class BodyDom {
       outcome?.kind === 'exited'
     ) {
       drafts.forgetForm(name, screen, form.name);
+      // Курсор — в первое поле формы: следующую запись можно набирать сразу.
+      const first = form.fields[0];
+      if (first !== undefined) {
+        focus(ControlIds.fieldFocus(form.name, first.name));
+      }
       redraw();
     }
   }
@@ -291,22 +297,37 @@ export class BodyDom {
     const { drafts, name } = this.spec;
     const value = drafts.value(key, field.value);
     const helpId = ControlIds.help(name, form.name, field.name);
+    const aria = {
+      ...(field.help === undefined ? {} : { describedby: helpId }),
+      ...(field.hotkey === undefined ? {} : { keyshortcuts: field.hotkey }),
+    };
     const common = {
       name: field.name,
       disabled: !form.enabled,
-      data: { 'focus-key': `field:${form.name}:${field.name}` },
-      ...(field.help === undefined ? {} : { aria: { describedby: helpId } }),
+      data: {
+        'focus-key': ControlIds.fieldFocus(form.name, field.name),
+        ...(field.hotkey === undefined ? {} : { hotkey: field.hotkey }),
+      },
+      ...(Object.keys(aria).length === 0 ? {} : { aria }),
     };
     const input = this.control(field, common, value, key);
     readers.push({ name: field.name, read: input.read });
     return h('div', { class: 'field' }, [
       h('label', {}, [
-        h('span', {
-          class: 'label',
-          text: field.optional
-            ? `${field.label}${CLIENT_TEXTS.optional}`
-            : field.label,
-        }),
+        h('span', { class: 'label' }, [
+          h('span', {
+            text: field.optional
+              ? `${field.label}${CLIENT_TEXTS.optional}`
+              : field.label,
+          }),
+          field.hotkey === undefined
+            ? undefined
+            : h('kbd', {
+                title: CLIENT_TEXTS.hotkey,
+                aria: { hidden: 'true' },
+                text: field.hotkey,
+              }),
+        ]),
         input.element,
       ]),
       field.help === undefined

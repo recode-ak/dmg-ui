@@ -679,3 +679,50 @@ describe('RegionFrame — справка области', () => {
     expect(side.next(a.client.region('side')).help?.open).toBe(false);
   });
 });
+
+describe('RegionFrame — начальный фокус экрана', () => {
+  const TITLE_FOCUS = 'field:create:title';
+
+  test('первый готовый кадр списка с доступной основной формой — фокус на её первом поле', async () => {
+    const { a, frame } = await world(['Хлеб']);
+
+    expect(frame.next(a.client.region('main')).focus).toBe(TITLE_FOCUS);
+  });
+
+  test('тот же экран повторно — ключа focus нет', async () => {
+    const { a, frame } = await world(['Хлеб']);
+    frame.next(a.client.region('main'));
+
+    expect(frame.next(a.client.region('main'))).not.toHaveProperty('focus');
+  });
+
+  test('основная форма отключена (предел открытых задач) — ключа focus нет', async () => {
+    const { a, frame } = await world();
+
+    expect(frame.next(a.client.region('main'))).not.toHaveProperty('focus');
+  });
+
+  test('экран без основной формы (карточка) — ключа focus нет', async () => {
+    const { a, frame } = await world(['Хлеб']);
+
+    expect(frame.next(a.client.region('side'))).not.toHaveProperty('focus');
+  });
+
+  test('приглушённый кадр не решает: фокус — на первом неприглушённом', async () => {
+    const { a, frame } = await world(['Хлеб']);
+    const state = a.client.region('main');
+
+    const offline = frame.next({ ...state, stale: 'offline' });
+
+    expect(offline).not.toHaveProperty('focus');
+    expect(frame.next(state).focus).toBe(TITLE_FOCUS);
+  });
+
+  test('после пустой области тот же экран снова получает фокус', async () => {
+    const { a, frame } = await world(['Хлеб']);
+    frame.next(a.client.region('main'));
+    frame.next(empty);
+
+    expect(frame.next(a.client.region('main')).focus).toBe(TITLE_FOCUS);
+  });
+});

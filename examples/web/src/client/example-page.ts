@@ -17,6 +17,7 @@ import { ExampleStepPlace } from '../view/example-step-place';
 import { exampleWebPlacements } from '../view/example-web.placements';
 import { exampleWebViews } from '../view/example-web.views';
 import { FormDrafts } from '../view/form-drafts';
+import { HotkeyPress } from '../view/hotkey-press';
 import { LinkClick } from '../view/link-click';
 import { RegionFrame } from '../view/region-frame';
 import type { RegionModel } from '../view/region-model.types';
@@ -31,7 +32,8 @@ import { RegionDom } from './region-dom';
 
 /**
  * Привязка страницы примера к браузеру: переподключатель и клиент вкладки,
- * показ областей и входящих, перехват щелчков по ссылкам, перетаскивание.
+ * показ областей и входящих, перехват щелчков по ссылкам, перетаскивание,
+ * клавиша поля основной формы.
  * Порядок: «Подключение…» → сокет → клиент → показ → первая загрузка по
  * адресной строке. Среду читает один `main.ts`; сюда она приходит в `env`.
  */
@@ -77,6 +79,7 @@ export class ExamplePage {
     const gestures = new ExampleGestures(client, env.log);
     this.show(client, gestures, layout);
     this.follow(gestures);
+    this.hotkeys(layout);
     layout.say('');
     await client.boot().catch(() => this.failed(layout));
   }
@@ -166,6 +169,46 @@ export class ExamplePage {
       if (path === undefined) return;
       event.preventDefault();
       void gestures.follow(path);
+    });
+  }
+
+  /**
+   * Клавиша страницы (`HotkeyPress`) — фокус на поле с этой клавишей: в
+   * открытом окне, иначе в основной, затем в соседней области.
+   */
+  private hotkeys(layout: PageLayout): void {
+    this.env.browser.addEventListener('keydown', (event) => {
+      const target = event.target;
+      const key = HotkeyPress.key({
+        key: event.key,
+        code: event.code,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        editable:
+          target instanceof HTMLElement &&
+          (target.isContentEditable ||
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            target instanceof HTMLSelectElement),
+        composing: event.isComposing,
+        defaultPrevented: event.defaultPrevented,
+      });
+      if (key === undefined) return;
+      const scopes = [
+        ...(layout.modal.open ? [layout.modal] : []),
+        layout.main,
+        layout.side,
+      ];
+      const selector = `[data-hotkey="${CSS.escape(key)}"]:not(:disabled)`;
+      for (const scope of scopes) {
+        const field = scope.querySelector<HTMLElement>(selector);
+        if (field === null) continue;
+        event.preventDefault();
+        field.focus();
+        return;
+      }
     });
   }
 

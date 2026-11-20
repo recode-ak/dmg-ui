@@ -1,5 +1,5 @@
 /** Клавиши, которые `BrowserPage.press` умеет нажимать. */
-export type PageKey = 'Tab' | 'Enter' | 'Space';
+export type PageKey = 'Tab' | 'Enter' | 'Space' | 'Slash';
 
 /** Элемент в дереве доступности: то, что читает скринридер. */
 export type AccessibleNode = {

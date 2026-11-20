@@ -248,19 +248,44 @@ body {
   color: var(--muted);
 }
 
-.help,
-.reason {
+.help {
   margin: 0;
   color: var(--muted);
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
 
-/* Отключённое с причиной: кнопка остаётся на клавиатуре, причина — под ней. */
+/*
+ * Отключённое с причиной: кнопка остаётся на клавиатуре и выглядит как
+ * обычная отключённая; причина — подсказкой при наведении (`title`) и
+ * скрытым со страницы текстом для скринридера (`aria-describedby`).
+ */
 .action {
-  display: grid;
-  gap: 2px;
-  max-width: 100%;
+  position: relative;
+  display: inline-flex;
+}
+
+.reason {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Клавиша поля основной формы рядом с подписью. */
+.field kbd {
+  margin-left: 6px;
+  padding: 0 5px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
 }
 
 input[type="text"],

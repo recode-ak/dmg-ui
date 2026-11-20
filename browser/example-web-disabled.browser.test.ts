@@ -4,8 +4,9 @@ import { Browser } from './browser';
 import type { BrowserPage } from './browser-page';
 import { ExampleWebFixture } from './example-web.fixture';
 
-// Отключённое действие на странице в настоящем Chrome: причина видимым
-// текстом, `aria-disabled` вместо нативного `disabled`, доступность с
+// Отключённое действие на странице в настоящем Chrome: причина — подсказкой
+// (`title`) и скрытым со страницы текстом для скринридера (D-UI-115),
+// `aria-disabled` вместо нативного `disabled`, доступность с
 // клавиатуры и скринридеру (дерево доступности), нажатие ничего не отправляет.
 // Ожидание — `waitFor` и `waitUntil`, таймеров нет. Наведение проверить нечем:
 // проверяется атрибут `title`. Запускается только `bun run browser`.
@@ -68,7 +69,7 @@ const createTasks = async (page: BrowserPage, count: number) => {
 
 describe('кнопка действия с причиной на странице', () => {
   test(
-    'пустой список: «Выполнить выбранные» — aria-disabled, без disabled, title — причина, видимый текст по aria-describedby — причина',
+    'пустой список: «Выполнить выбранные» — aria-disabled, без disabled, title — причина, текст по aria-describedby — причина и не виден на странице',
     async () => {
       const page = await started();
 
@@ -76,14 +77,15 @@ describe('кнопка действия с причиной на страниц�
       expect(await attr(page, COMPLETE_ALL, 'disabled')).toBeNull();
       expect(await attr(page, COMPLETE_ALL, 'title')).toBe(SELECT_REASON);
       const reason = await page.evaluate<{
-        visible: boolean;
+        hidden: boolean;
         text: string;
       }>(`(() => {
         const button = document.querySelector(${JSON.stringify(COMPLETE_ALL)});
-        const shown = document.getElementById(button.getAttribute('aria-describedby'));
-        return { visible: shown.getClientRects().length > 0, text: shown.innerText };
+        const note = document.getElementById(button.getAttribute('aria-describedby'));
+        const box = note.getBoundingClientRect();
+        return { hidden: box.width <= 1 && box.height <= 1, text: note.textContent };
       })()`);
-      expect(reason).toEqual({ visible: true, text: SELECT_REASON });
+      expect(reason).toEqual({ hidden: true, text: SELECT_REASON });
     },
     SECONDS,
   );

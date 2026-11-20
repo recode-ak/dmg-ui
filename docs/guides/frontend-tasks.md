@@ -133,7 +133,7 @@ create: ({ data }) =>
 
 **Telegram.** Кнопка «🚫 Создать задачу» обычная (есть `callback_data`, нет `disabled` и `style`); нажатие — ровно один `answerCallbackQuery` с причиной без `show_alert` (тост вверху чата), сообщение и кнопки прежние, причина длиннее 200 единиц UTF-16 обрезается (D-UI-105). Пометка «🚫» заметна и в подписи «🚫 Предыдущая страница» на первой странице списка.
 
-**Страница.** Кнопка серая и стоит на месте, причина — под кнопкой и в подсказке при наведении; Tab достигает её, Enter и пробел ничего не отправляют; форма «Создать» при пределе — `available: false` с причиной, отправка — `unavailable` (D-UI-106). Скрытого на странице просто нет.
+**Страница.** Кнопка серая и стоит на месте, как обычная отключённая; причина — в подсказке при наведении и описанием для скринридера (D-UI-115); Tab достигает её, Enter и пробел ничего не отправляют; форма «Создать» при пределе — `available: false` с причиной, отправка — `unavailable` (D-UI-106). Скрытого на странице просто нет.
 
 Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «сценарий 4», «предел открытых», «возврат доступности»; [telegram-disabled-story.test.ts](../../packages/tg-bot/testing/telegram-disabled-story.test.ts) — «нажатие — ровно один answerCallbackQuery», «причина длиннее 200»; [example-web-disabled.browser.test.ts](../../browser/example-web-disabled.browser.test.ts) — «Enter и пробел на кнопке с причиной»
 
@@ -304,7 +304,7 @@ jumpTo: {
 | Пункт меню по роли и состоянию | `access` и `rules` сторис, дверь решает код экрана (D-UI-94, D-UI-98) | есть; доступ сторис ядро не вычисляет (DEBT-UI-53) | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «вход menu даёт» |
 | Право над объектом («сам ментор») | `Availability.policy` в коде экрана, субъект (D-UI-93, D-UI-98) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «администратор выбрал поручение» |
 | Действие по выделению, заполненности | состояние экрана, локальные действия | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «помечено, после — обычное» |
-| Скрыто или отключено с причиной | три ответа `Availability` (D-UI-98, D-UI-105, D-UI-106) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «предел открытых» |
+| Скрыто или отключено с причиной | три ответа `Availability` (D-UI-98, D-UI-105, D-UI-106, D-UI-115) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «предел открытых» |
 | Текущий пользователь | субъект в контексте экрана (D-UI-93, D-UI-99) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «смена роли между показами» |
 | Форма и подтверждение | схема входа, `choices`, `defaults`, `confirm` | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «выполнение проходит» |
 | Подсказка и вид поля | `v.title`, `fieldHint`, `v.examples`, пределы (D-UI-100, D-UI-106) | есть | Проверено: [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «поле part: вид» |
@@ -316,6 +316,7 @@ jumpTo: {
 | Показ итога до ответа сервера | `PageOverlay` (D-UI-84) | есть | Проверено: [page-overlay.test.ts](../../packages/web-ui/src/client/page-overlay.test.ts) — «наложение и снятие» |
 | Мастер из шагов | поля входа по шагам, состояние экрана | есть; общий черновик на несколько экранов отложен | Проверено: [conversation-steps.test.ts](../../packages/chat-ui/src/conversation/conversation-steps.test.ts) — «дальше по шагам»; [channels-story.test.ts](../../acceptance/channels-story.test.ts) — «замечание схемы перед вопросом» |
 | Выбор с возвратом значения | — | отложено | — |
+| Фокус и горячие клавиши | на странице примера — начальный фокус поля основной формы и клавиша «/» (D-UI-115); таблица клавиш канала — DEBT-UI-59 | частично: только пример | Проверено: [example-web-focus.browser.test.ts](../../browser/example-web-focus.browser.test.ts) — ««/» на кнопке «Справка» — фокус в поле» |
 | Файл во входе | — | нет | — |
 | Кнопка-ссылка наружу | — | DEBT-UI-46 | — |
 | Справка по экрану и общая | `ScreenHelp`, `hint` (D-UI-107) | есть | Проверено: [telegram-help-story.test.ts](../../packages/tg-bot/testing/telegram-help-story.test.ts) — «справка — ровно один sendMessage» |

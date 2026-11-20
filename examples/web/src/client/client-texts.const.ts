@@ -12,6 +12,7 @@ export const CLIENT_TEXTS = {
   statusOpen: 'Статус: открыта',
   statusDone: 'Статус: выполнена',
   optional: ' (необязательно)',
+  hotkey: 'Клавиша «/» — к этому полю',
   choose: '— выберите —',
   zoneWaiting: 'Перетащите задачу сюда, чтобы выполнить',
   zoneAccepted: 'Выполнено',

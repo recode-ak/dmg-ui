@@ -48,6 +48,8 @@ export type FieldModel = {
   readonly help?: string;
   readonly bounds?: FieldBounds;
   readonly checkbox?: CheckboxModel;
+  /** Клавиша перехода к полю: у первого поля основной формы — «/». */
+  readonly hotkey?: string;
   readonly issues: readonly string[];
 };
 
@@ -161,4 +163,9 @@ export type RegionModel = {
   readonly body?: ScreenBody;
   /** Справка: у готового вида и у удерживаемого при переходе; у пустой области и отказа ключа нет. */
   readonly help?: HelpModel;
+  /**
+   * Ключ фокуса (`data-focus-key`), куда поставить курсор: первое поле
+   * доступной основной формы на первом неприглушённом кадре нового экрана.
+   */
+  readonly focus?: string;
 };

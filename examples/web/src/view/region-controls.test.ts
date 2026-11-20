@@ -386,3 +386,21 @@ describe('RegionControls — состав и круг JSON', () => {
     expect(model.forms).toEqual([]);
   });
 });
+
+describe('RegionControls — клавиша поля основной формы', () => {
+  test('основная форма: у первого поля клавиша «/», у остальных ключа hotkey нет', () => {
+    const [first, second] = formOf({
+      primary: true,
+      fields: [field({ name: 'title' }), field({ name: 'note' })],
+    }).fields;
+
+    expect(first?.hotkey).toBe('/');
+    expect(second).not.toHaveProperty('hotkey');
+  });
+
+  test('не основная форма — ключа hotkey нет ни у одного поля', () => {
+    const model = formOf({ fields: [field({ name: 'title' })] });
+
+    expect(model.fields[0]).not.toHaveProperty('hotkey');
+  });
+});
