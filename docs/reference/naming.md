@@ -25,7 +25,7 @@
 | Маршруты страничного канала | `.routes.ts` | массив `PageRouteDef` | `<имя>Routes` | `example-pages.routes.ts` → `examplePagesRoutes` | сторона канала | `<имя>.ui-app.ts` | `apps[].routes` `PageGraphProvider` во входе графа `.graph.ts`; `PageClientSpec.routes` |
 | Размещения областей | `.placements.ts` | `readonly PagePlacement[]` | `<имя>Placements` | `example-window.placements.ts` → `exampleWindowPlacements` | сторона канала | — | `PageClientSpec.placements` |
 | Привязка субъекта к проводу | `.wire.ts` | `{ toWire, revive }` | `<имя>Wire` | `example-subject.wire.ts` → `exampleSubjectWire` | сторона канала | — | `PageHostSpec.subjectToWire` (`toWire`), `PageClientSpec.reviveSubject` (`revive`) |
-| Вход графа (как в `dmg-core`, D-96, D-97) | `.graph.ts` | `GraphApp` — `{ def, providers }`, экспорт по имени и по умолчанию | `<Имя>Graph` | `example-dialog.graph.ts` → `ExampleDialogGraph` | сторона канала | `<имя>.arch.ts`; обычно `<имя>.ui-app.ts`, `<имя>.views.ts` | `def` — `AppDef` домена; `providers` — `UiGraphProvider({ set, apps })` и поставщик графа канала (`apps[].app`, `apps[].views`, `apps[].routes`). В учебных примерах поставщиков собирает `.arch.ts`; вход графа — когда проект запускает `dmg-core graph` |
+| Вход графа (как в `dmg-core`, D-96, D-97) | `.graph.ts` | `GraphApp` — `{ def, providers }`, экспорт по имени и по умолчанию | `<Имя>Graph` | `example-dialog.graph.ts` → `ExampleDialogGraph` (в учебном наборе нет — форма по `dmg-core`) | сторона канала | `<имя>.arch.ts`; обычно `<имя>.ui-app.ts`, `<имя>.views.ts` | `def` — `AppDef` домена; `providers` — `UiGraphProvider({ set, apps })` и поставщик графа канала (`apps[].app`, `apps[].views`, `apps[].routes`). В учебных примерах поставщиков собирает `.arch.ts`; вход графа — когда проект запускает `dmg-core graph` |
 | Сборка для `arch:check` | `.arch.ts` | `ArchApp` | `<Имя>Arch` | `example-dialog.arch.ts` → `ExampleDialogArch` | сторона канала | `<имя>.graph.ts` | разворачивает вход графа (`{ ...<Имя>Graph, layout }`); вход `arch:check` (`reportArchCheck`). В учебных примерах поставщиков собирает сам `.arch.ts`, без `.graph.ts` |
 
 `Def` и классы — PascalCase (`<Имя><Вид>Def`, `<Имя>View`, `<Имя>Graph`, `<Имя>Arch`); коллекции и привязки (`.views`, `.routes`, `.placements`, `.wire`) — значения, а не `Def`, поэтому camelCase от `<имя>` и слово вида. Один файл — один экспорт вида: у файла и у экспорта одно `<имя>` (`task-assigned.view.ts` → `TaskAssignedView`).
@@ -66,7 +66,7 @@ packages/<канал>/
     index.ts
   testing/                          вход dmg-ui/<канал>/testing
     index.ts
-    [<порт>/]memory-<порт>.ts       подставные порты (`Memory*`)
+    [<порты>/]memory-<порт>.ts      подставные порты (`Memory*`; `messengers/memory-messenger.ts`, `bot-api/memory-bot-api.ts`)
     <имя>.ui-app.ts                 приложение UI для тестов канала (routed-pages)
     <помощник>.ts                   помощник тестов канала (сцена графа, часы)
     example/                        привязка учебного набора к каналу
@@ -120,7 +120,7 @@ checks/                              проверки репо, не поста�
 
 ## 6. Генератор
 
-Генератора видов UI пока нет. Форма для шаблонов — таблица §1: суффикс, базовый класс, имя, папка, парные файлы, точка регистрации, образец в учебном наборе. Образец каждого вида — одна минимальная запись в учебном наборе; точки регистрации — поля родителя или аргументы фабрики из колонки «Точка регистрации» (`UiModuleDef.screens`, `UiSetDef.modules`, `UiAppDef.stories`, `CodeLoaders.of`, `ChatViews.of` / `PageViews.of`, `providers` входа графа).
+Генератора видов UI пока нет. Форма для шаблонов — таблица §1: суффикс, базовый класс, имя, папка, парные файлы, точка регистрации, образец в учебном наборе. Образец каждого вида, кроме `.graph` (форма — `dmg-core`), — одна минимальная запись в учебном наборе; точки регистрации — поля родителя или аргументы фабрики из колонки «Точка регистрации» (`UiModuleDef.screens`, `UiSetDef.modules`, `UiAppDef.stories`, `CodeLoaders.of`, `ChatViews.of` / `PageViews.of`, `providers` входа графа).
 
 ## 7. Проверка
 
