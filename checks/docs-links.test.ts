@@ -15,6 +15,7 @@ const REQUIRED = [
   'docs/guides/web-channel.md',
   'docs/guides/messenger-package.md',
   'docs/guides/telegram.md',
+  'docs/guides/frontend-tasks.md',
   'docs/reference/rules.md',
   'docs/decisions.md',
   'examples/tg-bot/README.md',

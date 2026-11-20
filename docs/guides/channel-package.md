@@ -9,6 +9,19 @@
 - Нужно показать сторис, экраны и уведомления набора UI в конкретном канале: бот, веб-страница, терминал, агент.
 - Ядро не знает каналов: у него нет `interface Channel` (D-UI-17). Контракт канала — порты, которые зовёт ядро (`CallerSource`, `RecipientCallers`, `NotificationDelivery`, `UiObserver`), и объекты, которые ядро отдаёт (`ScreenRuntime`, `ScreenInstance`, `InstanceView`, исходы).
 - Объявление экранов и кода — другой гайд ([story-screen-notification.md](./story-screen-notification.md)).
+- Какие задачи фронта закрыты ядром и каналами и чем — [Задачи фронта](./frontend-tasks.md).
+
+### Виды каналов
+
+Каналы устроены в три уровня; уровень — роль, а не каталог (каталоги не сливаются: граница «ядро не знает каналов» держится на раздельных каталогах, D-UI-1, D-UI-34).
+
+| Уровень | Что | Пакет |
+|---|---|---|
+| ядро | манифесты, исполнитель, граф, проверки; о каналах не знает | `dmg-ui`, `packages/core` |
+| вид канала | способ показа и связи: беседа (мессенджеры — общая часть, представления, порт мессенджера) и страница (клиент в браузере, сервер сокета) | `dmg-ui/chat-ui` — беседа; `dmg-ui/web-ui` — страница |
+| реализация | конкретный мессенджер или клиент поверх вида | `dmg-ui/tg-bot` — Telegram; позже `web-svelte`, `signal-bot` |
+
+Перекладку каталогов и имён входов отложили до второй реализации любого вида: у беседы сейчас одна реализация, у страницы вид и реализация без фреймворка лежат вместе в `web-ui`; где пройдёт граница, покажет `web-svelte` или второй мессенджер.
 
 ## 2. Что канал обязан дать
 
@@ -232,7 +245,7 @@ const own = views.over([OwnCardView]); // реестр приложения св
 ## 11. Как тестировать
 
 - Граф — `reportArchCheck([app], print)` с поставщиками; в тестах пакета — `ArchReport.of(app)` (`dmg-ui/testing/fixtures`: код выхода и `report.rule(id)`). Сцена — `ArchApp` с доменом примера, `UiGraphProvider` и поставщиком канала; сцена с нарушением даёт код 1 и строку `ID: …`, исправленная сцена — код 0 ([page-rules.test.ts](../../packages/web-ui/src/graph/page-rules.test.ts) — образец страничного канала). У мессенджера сцена меняет одно поле `ChatAppSpec`: урезанные возможности — строка `CH-01: приложение <app>: экран …` ([example-limits.rule.test.ts](../../packages/chat-ui/src/graph/rules/example-limits.rule.test.ts)), вход без точки в `entryPoints` — `CH-02: вход <имя> приложения <app>: нет точки входа` ([entry-point.rule.test.ts](../../packages/chat-ui/src/graph/rules/entry-point.rule.test.ts)), реакция или сигнал в `community` приложения на мессенджере без них в возможностях (`MemoryMessenger.windowed`) — `CH-03: приложение <app>: реакция <id> (<операция>) — мессенджер <name> её не исполняет` ([community-capabilities.rule.test.ts](../../packages/chat-ui/src/graph/rules/community-capabilities.rule.test.ts)). Сцена одного правила ставит остальное без нарушений (точку на каждый вход, возможности по профилю), иначе код 1 держится на чужом правиле. Узлы и рёбра, которых поставщик канала сам не ставит (вход не под приложением, ребро от чужого узла, точка входа другого поставщика), сцена получает подставным поставщиком в `providers` того же `ArchApp`: реестр видов общий, и подставной поставщик ставит узлы и рёбра зарегистрированных видов через сборщик графа, а отчёт даёт тот же `ArchReport.of` ([entry-point.rule.test.ts](../../packages/chat-ui/src/graph/rules/entry-point.rule.test.ts)). Граф в обход сборщика (конструктор `Graph`) — не путь сцены: он вне публичного контракта платформы. Пакет мессенджера тестирует свои правила так же, на своём поставщике.
-- Страничный канал: провод в памяти и на сокете, `PageText`, адрес в URL, показ до ответа, история, пример для браузера — [Web-канал](./web-channel.md), раздел 15.
+- Страничный канал: провод в памяти и на сокете, `PageText`, адрес в URL, показ до ответа, история, пример для браузера — [Web-канал](./web-channel.md), раздел 15. Когда без браузера не обойтись и как писать браузерный тест — там же: [Web-канал, раздел 15](./web-channel.md#15-как-тестировать).
 - Сквозные сценарии (TST-09) — по одному на канал и мессенджер: приложение `ExampleApp` из `dmg-core/testing/example`, `UiServer`, `UiNotifier` с доставкой канала, два пользователя. Беседа на обоих подставных мессенджерах (`MemoryMessenger.editing()` и `windowed(clock)`, один реестр представлений и один `exampleCodes()`; текст уведомления проверяется в чате получателя, ожидание — `conversations.settled()` и `bus.delivered()`) — [conversation-story.test.ts](../../packages/chat-ui/testing/conversation-story.test.ts); Telegram — [telegram-story.test.ts](../../packages/tg-bot/testing/telegram-story.test.ts) и [telegram-community.story.test.ts](../../packages/tg-bot/testing/telegram-community.story.test.ts); страничный канал — [page-story.test.ts](../../packages/web-ui/testing/page-story.test.ts). Поверх каналов — [channels-story.test.ts](../../acceptance/channels-story.test.ts) (одна сторис, все каналы).
 - Политики — тестом на каждый исход с `MemoryUiObserver`, у беседы — на обоих подставных мессенджерах (`describe.each`); примеры рендера — `ExamplePreview` и снимки.
 - Что видит собеседник — `MemoryMessenger.chat(peer)`: сообщения по порядку появления с последним содержимым, числом правок, уходом и нажатым (`ChatLine`); правка или новое — по журналу `journal`.
