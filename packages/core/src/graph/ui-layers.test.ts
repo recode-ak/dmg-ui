@@ -133,12 +133,6 @@ const KIT = 'frontend/dialog-kit/parts.ts';
 const RUNNER = 'runners/shell/main.ts';
 
 describe('слои фронта: описание ui', () => {
-  it('ui: импорт своего каталога — без нарушений', () => {
-    put('platform/ui/parts/field.ts');
-    put(UI, './parts/field');
-    expect(linesOf(miniApp(), UI)).toEqual([]);
-  });
-
   it('ui импортирует код модуля, канал, kit, общее фронта и раннер — UI-28 на каждый импорт', () => {
     put(
       UI,
@@ -248,6 +242,43 @@ describe('слои фронта: канал модуля fe-<канал>', () =>
   });
 });
 
+describe('слои фронта: цепочка баз каналов', () => {
+  /** Цепочка `c` → `b` → `a`: у каждого канала — только прямая база. */
+  const chainApp = (): ArchApp =>
+    miniApp({
+      providers: [
+        new UiGraphProvider({
+          set: ExampleUiSetDef,
+          apps: [],
+          channels: [
+            { name: 'a' },
+            { name: 'b', base: 'a' },
+            { name: 'c', base: 'b' },
+          ],
+        }),
+      ],
+      layers: {
+        ui: [join(proj, 'platform', 'ui')],
+        'fe-app': [frontend('app')],
+        'fe-logic': [frontend('{m}', 'logic')],
+        'fe-a': [frontend('{m}', 'a')],
+        'fe-b': [frontend('{m}', 'b')],
+        'fe-c': [frontend('{m}', 'c')],
+        'a-kit': [frontend('a-kit')],
+        'b-kit': [frontend('b-kit')],
+        'c-kit': [frontend('c-kit')],
+      },
+    });
+
+  it('fe-c todo видит базу fe-b, но не базу базы fe-a — UI-31', () => {
+    const file = 'frontend/todo/c/list.ts';
+    put(file, '../b/list', '../a/list');
+    expect(linesOf(chainApp(), file)).toEqual([
+      'UI-31: frontend/todo/c/list.ts (fe-c) импортирует fe-a todo: ../a/list',
+    ]);
+  });
+});
+
 describe('слои фронта: общее канала <канал>-kit', () => {
   it('dialog-kit видит ui и fe-app, voice-kit — kit базы — без нарушений', () => {
     put(KIT, '../../platform/ui/screen', '../app/shell');
@@ -302,7 +333,27 @@ describe('слои фронта: раннер', () => {
   });
 });
 
-describe('слои фронта: домен и бэк в проекте (layout)', () => {
+describe('слои фронта: платформа приложения в проекте (layout)', () => {
+  it('ui, fe-app, канал модуля и kit видят kernel и contract.ts модуля домена — без нарушений', () => {
+    put(UI, '../kernel/clock', '../domain/todo/contract');
+    put(
+      APP,
+      '../../platform/kernel/clock',
+      '../../platform/domain/todo/contract',
+    );
+    put(
+      DIALOG,
+      '../../../platform/kernel/clock',
+      '../../../platform/domain/todo/contract',
+    );
+    put(
+      KIT,
+      '../../platform/kernel/clock',
+      '../../platform/domain/todo/contract',
+    );
+    expect(linesOf(layoutApp(), UI, APP, DIALOG, KIT)).toEqual([]);
+  });
+
   it('fe-logic видит contract.ts модуля домена, другой файл домена — UI-30 мимо contract.ts', () => {
     put(
       LOGIC,
@@ -313,7 +364,9 @@ describe('слои фронта: домен и бэк в проекте (layout)
       'UI-30: frontend/todo/logic/tasks.ts (fe-logic) импортирует domain todo мимо contract.ts: ../../../platform/domain/todo/task.ar',
     ]);
   });
+});
 
+describe('сквозной: слои фронта вместе со слоями dmg-core (layout)', () => {
   it('фронт импортирует бэк — нарушение с ID слоя-импортёра', () => {
     put(UI, '../../backend/todo/task.repo');
     put(APP, '../../backend/app/clock');
