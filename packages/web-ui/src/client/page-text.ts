@@ -1,5 +1,5 @@
+import type { AppPageViews } from '../view/app-page-views';
 import { PageTextPresenter } from '../view/page-text-presenter';
-import type { PageViews } from '../view/page-views';
 import type { PageClient } from './page-client';
 import { PAGE_NOTES, PAGE_REGIONS } from './page-client.const';
 import type { PageRegionName } from './page-client.types';
@@ -18,7 +18,7 @@ export class PageText {
 
   constructor(
     private readonly client: PageClient,
-    private readonly views: PageViews,
+    private readonly views: AppPageViews,
   ) {
     const presenter = new PageTextPresenter(views);
     this.offs = PAGE_REGIONS.map((name) =>

@@ -108,7 +108,7 @@ const sceneOf = (
         requests += 1;
         return `r-${requests}`;
       }),
-      views: exampleDialogViews,
+      views: exampleDialogViews(ExampleDialogUiAppDef),
       messenger: new LimitedMessenger({ port: messenger, logger }),
       logger,
       peer: PEER,

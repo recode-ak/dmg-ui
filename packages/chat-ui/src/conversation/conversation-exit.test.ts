@@ -23,6 +23,7 @@ import { MemoryMessenger } from '../../testing';
 import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import { PlainText } from '../message/plain-text';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -267,17 +268,19 @@ const sceneOf = (options: {
         requests += 1;
         return `r-${requests}`;
       }),
-      views: ChatViews.of(set, [
-        ScreenPresenter.for(HubScreenDef, () => 'Хаб'),
-        ScreenPresenter.for(
-          ListScreenDef,
-          ({ data }) => `Список: ${data?.count}`,
-        ),
-        ScreenPresenter.for(ItemScreenDef, () => 'Элемент'),
-        ScreenPresenter.for(
-          BoardScreenDef,
-          ({ data }) => `Доска ${data?.page}`,
-        ),
+      views: AppChatViews.ofSet(set, [
+        ChatViews.of(module, [
+          ScreenPresenter.for(HubScreenDef, () => 'Хаб'),
+          ScreenPresenter.for(
+            ListScreenDef,
+            ({ data }) => `Список: ${data?.count}`,
+          ),
+          ScreenPresenter.for(ItemScreenDef, () => 'Элемент'),
+          ScreenPresenter.for(
+            BoardScreenDef,
+            ({ data }) => `Доска ${data?.page}`,
+          ),
+        ]),
       ]),
       messenger,
       logger: new MemoryLogger(),

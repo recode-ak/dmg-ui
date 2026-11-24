@@ -16,6 +16,7 @@ import { TextTrimmer } from '../limit/text-trimmer';
 import { PlainText } from '../message/plain-text';
 import { TextBuilder } from '../message/text-builder';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
+import { AppChatViews } from './app-chat-views';
 import { ChatViews } from './chat-views';
 import { ScreenComposer } from './screen-composer';
 import { ScreenPresenter } from './screen-presenter';
@@ -55,20 +56,20 @@ const PanelScreenDef = ScreenDef.define({
 
 type Panel = typeof PanelScreenDef;
 
+const DeskUiModuleDef = UiModuleDef.define({
+  name: 'desk',
+  label: 'Стол',
+  description: 'Экран панели.',
+  screens: [PanelScreenDef],
+  stories: [],
+});
+
 const ComposerSetDef = UiSetDef.define({
   name: 'composerUi',
   label: 'Набор показа',
   description: 'Один экран для сборщика показа.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'desk',
-      label: 'Стол',
-      description: 'Экран панели.',
-      screens: [PanelScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [DeskUiModuleDef],
 });
 
 const PANEL = new UiIds(ComposerSetDef).screen(PanelScreenDef);
@@ -152,7 +153,12 @@ const composerOf = (
   presenter: ScreenPresenter<Panel>,
   capabilities: MessengerCapabilities = EDITING,
 ) =>
-  new ScreenComposer(ChatViews.of(ComposerSetDef, [presenter]), capabilities);
+  new ScreenComposer(
+    AppChatViews.ofSet(ComposerSetDef, [
+      ChatViews.of(DeskUiModuleDef, [presenter]),
+    ]),
+    capabilities,
+  );
 
 const rendering = (render: ScreenRender<Panel>) =>
   composerOf(ScreenPresenter.of(PanelScreenDef, { render }));

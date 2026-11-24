@@ -104,7 +104,7 @@ const onExample = (
   routes: readonly PageRouteDef[],
 ): Scene => ({
   set: ExampleUiSetDef,
-  apps: [{ app, views: examplePagesViews, routes }],
+  apps: [{ app, views: examplePagesViews(), routes }],
 });
 
 const reportOf = (scene: Scene) =>
@@ -340,12 +340,12 @@ describe('PG-04: маршруты приложения не совпадают �
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: examplePagesViews,
+          views: examplePagesViews(),
           routes: [TASKS, ASSIGNED, route('same', '/x', 'start')],
         },
         {
           app: SecondPagesAppDef,
-          views: examplePagesViews,
+          views: examplePagesViews(),
           routes: [TASKS, ASSIGNED, route('same', '/x', 'start')],
         },
       ],
@@ -747,7 +747,7 @@ describe('Два приложения web в одном поставщике г�
     apps: [
       {
         app: ExamplePagesUiAppDef,
-        views: examplePagesViews,
+        views: examplePagesViews(),
         routes: [TASKS, ASSIGNED, MENU],
       },
       {

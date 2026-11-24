@@ -93,7 +93,7 @@ const providerOf = (community: ChatCommunitySpec) => () =>
     apps: [
       {
         app: ExampleDialogUiAppDef,
-        views: exampleDialogViews,
+        views: exampleDialogViews(),
         capabilities: MemoryMessenger.editing().capabilities,
         community,
       },

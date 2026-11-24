@@ -20,6 +20,7 @@ import { MemoryMessenger, type MessengerEntry } from '../../testing';
 import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import { PlainText } from '../message/plain-text';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -157,8 +158,10 @@ const HintAppDef = UiAppDef.define({
   },
 });
 
-const views = ChatViews.of(HintSetDef, [
-  ScreenPresenter.for(HintedScreenDef, () => 'Подсказки'),
+const views = AppChatViews.ofSet(HintSetDef, [
+  ChatViews.of(HintUiModuleDef, [
+    ScreenPresenter.for(HintedScreenDef, () => 'Подсказки'),
+  ]),
 ]);
 
 class HintedCode extends ScreenCode<typeof HintedScreenDef> {

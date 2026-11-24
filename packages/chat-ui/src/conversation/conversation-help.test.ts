@@ -30,6 +30,7 @@ import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import { PlainText } from '../message/plain-text';
 import { LimitedMessenger } from '../messenger/limited-messenger';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -283,11 +284,13 @@ class LongCode extends ScreenCode<typeof LongScreenDef> {
   }
 }
 
-const views = ChatViews.of(HelpSetDef, [
-  ScreenPresenter.for(HubScreenDef, () => 'Узел'),
-  ScreenPresenter.for(DeskScreenDef, () => 'Стол'),
-  ScreenPresenter.for(DocsScreenDef, () => 'Документы'),
-  ScreenPresenter.for(LongScreenDef, () => 'Длинный'),
+const views = AppChatViews.ofSet(HelpSetDef, [
+  ChatViews.of(HelpUiModuleDef, [
+    ScreenPresenter.for(HubScreenDef, () => 'Узел'),
+    ScreenPresenter.for(DeskScreenDef, () => 'Стол'),
+    ScreenPresenter.for(DocsScreenDef, () => 'Документы'),
+    ScreenPresenter.for(LongScreenDef, () => 'Длинный'),
+  ]),
 ]);
 
 const user = (admin = false): ExampleUser => ({

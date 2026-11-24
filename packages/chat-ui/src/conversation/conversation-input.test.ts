@@ -21,6 +21,7 @@ import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import { PlainText } from '../message/plain-text';
 import { LimitedMessenger } from '../messenger/limited-messenger';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -194,9 +195,11 @@ const InputAppDef = UiAppDef.define({
   },
 });
 
-const views = ChatViews.of(InputSetDef, [
-  ScreenPresenter.for(FormScreenDef, () => 'Форма'),
-  ScreenPresenter.for(MenuScreenDef, () => 'Меню'),
+const views = AppChatViews.ofSet(InputSetDef, [
+  ChatViews.of(InputUiModuleDef, [
+    ScreenPresenter.for(FormScreenDef, () => 'Форма'),
+    ScreenPresenter.for(MenuScreenDef, () => 'Меню'),
+  ]),
 ]);
 
 type ConversationOptions = {

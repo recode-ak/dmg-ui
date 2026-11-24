@@ -1,13 +1,13 @@
 import type { AnyUiAppDef, AnyUiSetDef } from 'dmg-ui';
 import type { AnyPageRouteDef } from '../url/page-route-def.types';
 
-/** Что граф берёт у реестра представлений: набор и экраны, у которых есть представление. */
+/** Что граф берёт у сборки представлений: набор и экраны, у которых есть представление. */
 export type PagePresentedViews = {
   readonly set: AnyUiSetDef;
   presented(): readonly string[];
 };
 
-/** Одно приложение web в графе: приложение UI, реестр представлений и маршруты. */
+/** Одно приложение web в графе: приложение UI, сборка представлений и маршруты. */
 export type PageAppSpec = {
   readonly app: AnyUiAppDef;
   readonly views: PagePresentedViews;

@@ -1,7 +1,7 @@
 import type { DeliveredNotification } from 'dmg-ui/server';
 import type { Message } from '../message/message.types';
 import type { MessengerPort } from '../messenger/messenger.types';
-import type { ChatViews } from '../view/chat-views';
+import type { AppChatViews } from '../view/app-chat-views';
 import { MAX_NOTIFIED } from './conversation.const';
 import type { ConversationLog } from './conversation-log';
 import type { ConversationOutput } from './conversation-output';
@@ -14,7 +14,7 @@ import { Sha256 } from './sha256';
 type NoticesParts = {
   readonly messenger: MessengerPort;
   readonly peer: string;
-  readonly views: ChatViews;
+  readonly views: AppChatViews;
   readonly refs: RefTable;
   readonly replies: ConversationReplies;
   readonly log: ConversationLog;

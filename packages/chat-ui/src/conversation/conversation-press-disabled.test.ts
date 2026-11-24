@@ -27,6 +27,7 @@ import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';
 import { LimitedMessenger } from '../messenger/limited-messenger';
 import type { Delivery, MessageHandle } from '../messenger/messenger.types';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -242,13 +243,15 @@ const PressAppDef = UiAppDef.define({
   },
 });
 
-const views = ChatViews.of(PressSetDef, [
-  ScreenPresenter.for(
-    PultScreenDef,
-    ({ state }) => `Пульт: ${state?.ticks ?? 0}`,
-  ),
-  ScreenPresenter.for(FormScreenDef, () => 'Форма'),
-  ScreenPresenter.for(VaultScreenDef, () => 'Хранилище'),
+const views = AppChatViews.ofSet(PressSetDef, [
+  ChatViews.of(PressUiModuleDef, [
+    ScreenPresenter.for(
+      PultScreenDef,
+      ({ state }) => `Пульт: ${state?.ticks ?? 0}`,
+    ),
+    ScreenPresenter.for(FormScreenDef, () => 'Форма'),
+    ScreenPresenter.for(VaultScreenDef, () => 'Хранилище'),
+  ]),
 ]);
 
 /** Мессенджер, который помнит каждый ответ на нажатие и каждый уход сообщения с нажатым. */

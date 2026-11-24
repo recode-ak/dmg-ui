@@ -147,7 +147,7 @@ const world = () => {
       app: ExampleDialogUiAppDef,
       codes,
       server,
-      views: exampleDialogViews,
+      views: exampleDialogViews(ExampleDialogUiAppDef),
       observer,
       messenger,
       store,

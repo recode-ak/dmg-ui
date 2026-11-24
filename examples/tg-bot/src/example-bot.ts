@@ -66,7 +66,7 @@ export class ExampleBot {
       app: ExampleDialogUiAppDef,
       codes,
       server,
-      views: exampleTelegramViews,
+      views: exampleTelegramViews(ExampleDialogUiAppDef),
       observer,
       messenger,
       store: new MemoryConversationStore(),

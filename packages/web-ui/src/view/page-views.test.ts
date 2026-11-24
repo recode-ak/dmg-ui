@@ -1,26 +1,28 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  ExampleUiSetDef,
+  AssignedTasksScreenDef,
+  MainMenuScreenDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
+  TodoUiModuleDef,
+  UserCardScreenDef,
 } from 'dmg-ui/testing';
 import { UiScene } from 'dmg-ui/testing/fixtures';
 import { PageNotePresenter, PagePresenter, PageViews } from './page-views';
 
-// Реестр представлений страничного канала: ключ — `id` из `UiIds` (образец —
-// реестр представлений диалогового канала). Чужой Def и повтор — ошибка сборки канала, бросок.
-
-const ID = {
-  list: 'exampleUi/todo/taskList',
-  card: 'exampleUi/todo/taskCard',
-  assigned: 'exampleUi/todo/taskAssigned',
-  completed: 'exampleUi/todo/taskCompleted',
-};
+// Реестр представлений одного UI-модуля на странице (образец — реестр
+// модуля в мессенджере): ключ — Def экрана и уведомления модуля; каждому —
+// ровно одно представление, иначе отказ UI-06 со всеми нарушениями.
 
 const list = PagePresenter.for(TaskListScreenDef, () => 'список');
 const card = PagePresenter.for(TaskCardScreenDef, () => 'карточка');
+const assignedTasks = PagePresenter.for(
+  AssignedTasksScreenDef,
+  () => 'назначенные',
+);
+const menu = PagePresenter.for(MainMenuScreenDef, () => 'меню');
 const assigned = PageNotePresenter.for(
   TaskAssignedNotificationDef,
   ({ title }) => `Назначена: ${title}`,
@@ -30,74 +32,76 @@ const completed = PageNotePresenter.for(
   ({ title }) => `Выполнена: ${title}`,
 );
 
-describe('PageViews.of', () => {
-  test('экран и уведомление находятся по id из UiIds', () => {
-    const views = PageViews.of(ExampleUiSetDef, [
-      list,
-      card,
-      assigned,
-      completed,
-    ]);
+/** Представления всех экранов и уведомлений модуля `todo`. */
+const todoAll = [list, card, assignedTasks, menu, assigned, completed];
 
-    expect(views.screen(ID.list).def).toBe(TaskListScreenDef);
-    expect(views.screen(ID.card).def).toBe(TaskCardScreenDef);
-    expect(views.notification(ID.assigned).def).toBe(
-      TaskAssignedNotificationDef,
-    );
-    expect(views.notification(ID.completed).def).toBe(
-      TaskCompletedNotificationDef,
+/** Текст броска вызова; не бросил — `undefined`. */
+const failure = (run: () => unknown): string | undefined => {
+  try {
+    run();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return undefined;
+};
+
+describe('PageViews — реестр модуля', () => {
+  test('экран и уведомление модуля по Def — то же представление', () => {
+    const views = PageViews.of(TodoUiModuleDef, todoAll);
+
+    expect(views.module).toBe(TodoUiModuleDef);
+    expect(views.screen(TaskListScreenDef)).toBe(list);
+    expect(views.screen(TaskCardScreenDef)).toBe(card);
+    expect(views.notification(TaskAssignedNotificationDef)).toBe(assigned);
+    expect(views.notification(TaskCompletedNotificationDef)).toBe(completed);
+  });
+
+  test('экран и уведомление модуля без представления — отказ UI-06 с именами реестра, модуля и Def', () => {
+    expect(
+      failure(() => PageViews.of(TodoUiModuleDef, [list, card, assigned])),
+    ).toBe(
+      'UI-06: PageViews модуля todo: нет представления для assignedTasks, mainMenu, taskCompleted',
     );
   });
 
-  test('presented — id всех экранов и уведомлений с представлением', () => {
-    const views = PageViews.of(ExampleUiSetDef, [list, assigned, card]);
-
-    expect([...views.presented()].sort()).toEqual(
-      [ID.assigned, ID.card, ID.list].sort(),
-    );
-  });
-
-  test('presented пуст, если представлений нет', () => {
-    expect(PageViews.of(ExampleUiSetDef, []).presented()).toEqual([]);
-  });
-
-  test('бросок, если экран не входит в набор', () => {
+  test('представление экрана соседнего модуля или вне набора — отказ UI-06 «вне модуля»', () => {
+    const user = PagePresenter.for(UserCardScreenDef, () => 'пользователь');
     const foreign = PagePresenter.for(UiScene.screen('foreign'), () => 'чужой');
 
-    expect(() => PageViews.of(ExampleUiSetDef, [list, foreign])).toThrow(
-      'foreign',
-    );
+    expect(
+      failure(() => PageViews.of(TodoUiModuleDef, [...todoAll, user])),
+    ).toBe('UI-06: PageViews модуля todo: userCard вне модуля');
+    expect(
+      failure(() => PageViews.of(TodoUiModuleDef, [...todoAll, foreign])),
+    ).toBe('UI-06: PageViews модуля todo: foreign вне модуля');
   });
 
-  test('бросок, если два представления одного экрана', () => {
+  test('два представления одного экрана и одного уведомления — отказ UI-06 «два для» на каждый Def', () => {
     const again = PagePresenter.for(TaskListScreenDef, () => 'ещё список');
-
-    expect(() => PageViews.of(ExampleUiSetDef, [list, again])).toThrow(ID.list);
-  });
-
-  test('бросок, если два представления одного уведомления', () => {
-    const again = PageNotePresenter.for(
+    const againNote = PageNotePresenter.for(
       TaskAssignedNotificationDef,
       () => 'ещё',
     );
 
-    expect(() => PageViews.of(ExampleUiSetDef, [assigned, again])).toThrow(
-      ID.assigned,
+    expect(
+      failure(() =>
+        PageViews.of(TodoUiModuleDef, [...todoAll, again, againNote]),
+      ),
+    ).toBe(
+      [
+        'UI-06: PageViews модуля todo: два для taskList',
+        'UI-06: PageViews модуля todo: два для taskAssigned',
+      ].join('\n'),
     );
   });
-});
 
-describe('PageViews: поиск без представления', () => {
-  test('нет представления экрана — бросок с id', () => {
-    const views = PageViews.of(ExampleUiSetDef, [list]);
+  test('поиск экрана вне модуля — бросок с именем экрана, без ID правила', () => {
+    const views = PageViews.of(TodoUiModuleDef, todoAll);
 
-    expect(() => views.screen(ID.card)).toThrow(ID.card);
-  });
+    const message = failure(() => views.screen(UserCardScreenDef));
 
-  test('нет представления уведомления — бросок с id', () => {
-    const views = PageViews.of(ExampleUiSetDef, [assigned]);
-
-    expect(() => views.notification(ID.completed)).toThrow(ID.completed);
+    expect(message).toContain('userCard');
+    expect(message).not.toContain('UI-06');
   });
 });
 

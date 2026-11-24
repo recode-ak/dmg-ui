@@ -3,7 +3,7 @@ import { UI_EDGE_KINDS } from 'dmg-ui/graph';
 import * as v from 'valibot';
 import { MessengerCapabilitiesSchema } from '../../messenger/capabilities-schema';
 import type { MessengerCapabilities } from '../../messenger/messenger.types';
-import type { ChatViews } from '../../view/chat-views';
+import type { AppChatViews } from '../../view/app-chat-views';
 import { VIEW_TEXTS } from '../../view/view.const';
 import type { ChatExamples } from '../chat-examples';
 import { CHAT_NODE_KINDS } from '../chat-kinds';
@@ -19,12 +19,12 @@ export type { ExampleLimitsSpec } from './example-limits.types';
  * показывает (`presents`), укладываются в лимиты его мессенджера (узел
  * `chatMessenger`). Число вариантов экрана — не нарушение, число ссылок
  * уведомления — нарушение. `check` не бросает: свойства не по схеме и
- * дефект представления — строкой, цель без представления в реестре — молча.
+ * дефект представления — строкой, цель вне сборки представлений — молча.
  */
 export class ExampleLimitsRule implements GraphRule {
   readonly id = 'CH-01';
   private readonly examples: ChatExamples;
-  private readonly views: ReadonlyMap<string, ChatViews>;
+  private readonly views: ReadonlyMap<string, AppChatViews>;
 
   constructor(spec: ExampleLimitsSpec) {
     this.examples = spec.examples;
@@ -54,11 +54,11 @@ export class ExampleLimitsRule implements GraphRule {
     ];
   }
 
-  /** Цели меры: концы `presents` от приложения, у которых есть представление в его реестре. */
+  /** Цели меры: концы `presents` от приложения, у которых есть представление в его сборке. */
   private static targets(
     graph: Graph,
     app: string,
-    views: ChatViews,
+    views: AppChatViews,
   ): ReadonlySet<string> {
     const registered = new Set(views.presented());
     return new Set(
@@ -71,7 +71,7 @@ export class ExampleLimitsRule implements GraphRule {
 
   private screens(
     app: string,
-    views: ChatViews,
+    views: AppChatViews,
     capabilities: MessengerCapabilities,
     targets: ReadonlySet<string>,
   ): string[] {
@@ -91,7 +91,7 @@ export class ExampleLimitsRule implements GraphRule {
   private notifications(
     graph: Graph,
     app: string,
-    views: ChatViews,
+    views: AppChatViews,
     capabilities: MessengerCapabilities,
     targets: ReadonlySet<string>,
   ): string[] {

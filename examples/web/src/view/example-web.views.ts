@@ -1,20 +1,19 @@
+import { type AnyUiAppDef, ModuleRegistries } from 'dmg-ui';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
-import { AssignedTasksView } from './assigned-tasks.view';
-import { ExampleViews } from './example-views';
-import { MainMenuView } from './main-menu.view';
-import { TaskAssignedView } from './task-assigned.view';
-import { TaskCardView } from './task-card.view';
-import { TaskCompletedView } from './task-completed.view';
-import { TaskListView } from './task-list.view';
-import { UserCardView } from './user-card.view';
+import { AppExampleViews } from './app-example-views';
+import { todoWebViews } from './todo-web.views';
+import { usersWebViews } from './users-web.views';
 
-/** Готовый реестр примера: пять экранов и два уведомления учебного набора; меню — только заголовок. */
-export const exampleWebViews = ExampleViews.of(ExampleUiSetDef, [
-  TaskListView,
-  TaskCardView,
-  AssignedTasksView,
-  UserCardView,
-  MainMenuView,
-  TaskAssignedView,
-  TaskCompletedView,
-]);
+/**
+ * Сборка представлений примера на DOM: без `app` — набора целиком (граф,
+ * кадр области), с `app` — приложения из реестров его модулей.
+ */
+export const exampleWebViews = (app?: AnyUiAppDef): AppExampleViews => {
+  const modules = [todoWebViews, usersWebViews];
+  if (app === undefined) return AppExampleViews.ofSet(ExampleUiSetDef, modules);
+  const required = ModuleRegistries.required(app);
+  return AppExampleViews.of(
+    app,
+    modules.filter(({ module }) => required.includes(module)),
+  );
+};

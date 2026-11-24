@@ -1,20 +1,19 @@
-import { ChatViews } from 'dmg-ui/chat-ui';
+import { type AnyUiAppDef, ModuleRegistries } from 'dmg-ui';
+import { AppChatViews } from 'dmg-ui/chat-ui';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
-import { AssignedTasksView } from './assigned-tasks.view';
-import { MainMenuView } from './main-menu.view';
-import { TaskAssignedView } from './task-assigned.view';
-import { TaskCardView } from './task-card.view';
-import { TaskCompletedView } from './task-completed.view';
-import { TaskListView } from './task-list.view';
-import { UserCardView } from './user-card.view';
+import { todoChatViews } from './todo-chat.views';
+import { usersChatViews } from './users-chat.views';
 
-/** Представления учебного примера в диалоговом канале: все экраны и уведомления. */
-export const exampleDialogViews = ChatViews.of(ExampleUiSetDef, [
-  TaskListView,
-  TaskCardView,
-  AssignedTasksView,
-  UserCardView,
-  MainMenuView,
-  TaskAssignedView,
-  TaskCompletedView,
-]);
+/**
+ * Сборка представлений учебного примера в диалоговом канале: без `app` —
+ * набора целиком (превью, граф), с `app` — приложения из реестров его модулей.
+ */
+export const exampleDialogViews = (app?: AnyUiAppDef): AppChatViews => {
+  const modules = [todoChatViews, usersChatViews];
+  if (app === undefined) return AppChatViews.ofSet(ExampleUiSetDef, modules);
+  const required = ModuleRegistries.required(app);
+  return AppChatViews.of(
+    app,
+    modules.filter(({ module }) => required.includes(module)),
+  );
+};

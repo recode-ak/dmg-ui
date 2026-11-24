@@ -124,7 +124,10 @@ export class ExamplePage {
         dialog.sync(model);
       },
     }).show(client.source('modal'), dialog.body);
-    new InboxDom(exampleWebViews, gestures).show(client.inbox(), layout.inbox);
+    new InboxDom(exampleWebViews(this.app), gestures).show(
+      client.inbox(),
+      layout.inbox,
+    );
     // Строка списка, брошенная на соседнюю область, открывает карточку.
     drag.target(
       layout.side,

@@ -1,79 +1,77 @@
-import { type AnyUiSetDef, UiIds } from 'dmg-ui';
+import {
+  type AnyNotificationDef,
+  type AnyScreenDef,
+  type AnyUiModuleDef,
+  UiCompleteness,
+} from 'dmg-ui';
 import { type AnyPageNotePresenter, PageNotePresenter } from 'dmg-ui/web-ui';
 import { ExampleScreenView } from './example-screen-view';
 import type { AnyExampleScreen } from './example-views.types';
 
 export { ExampleScreenView } from './example-screen-view';
 
+/** Представления, из которых строится реестр модуля. */
+type Presenters = readonly (AnyExampleScreen | AnyPageNotePresenter)[];
+
 /**
- * Реестр представлений примера на DOM для одного набора UI: ключ — `id`
- * экрана и уведомления из `UiIds`. Нет представления или их два — бросок с
- * `id`. Структурно годится как реестр для графа (`set`, `presented()`).
+ * Реестр представлений примера на DOM для одного UI-модуля: ключ — Def
+ * экрана и уведомления модуля; каждому — ровно одно представление, иначе
+ * отказ UI-06. Сборку области из реестров модулей делает `AppExampleViews`.
  */
 export class ExampleViews {
+  /** Проверка полноты реестров представлений на DOM и их сборок (UI-06). */
+  static readonly completeness = new UiCompleteness(
+    'ExampleViews',
+    'представления',
+  );
+
   private constructor(
-    readonly set: AnyUiSetDef,
-    private readonly screens: ReadonlyMap<string, AnyExampleScreen>,
-    private readonly notes: ReadonlyMap<string, AnyPageNotePresenter>,
+    readonly module: AnyUiModuleDef,
+    private readonly screens: ReadonlyMap<object, AnyExampleScreen>,
+    private readonly notes: ReadonlyMap<object, AnyPageNotePresenter>,
   ) {}
 
-  /** Def вне набора или два представления одного Def — бросок. */
-  static of(
-    set: AnyUiSetDef,
-    presenters: readonly (AnyExampleScreen | AnyPageNotePresenter)[],
-  ): ExampleViews {
-    const ids = new UiIds(set);
-    const screens = new Map<string, AnyExampleScreen>();
-    const notes = new Map<string, AnyPageNotePresenter>();
+  /** Отказ UI-06: нет представления, представление вне модуля, два на Def. */
+  static of(module: AnyUiModuleDef, presenters: Presenters): ExampleViews {
+    ExampleViews.completeness.module(
+      module,
+      presenters.map((presenter) => presenter.def),
+    );
+    const screens = new Map<object, AnyExampleScreen>();
+    const notes = new Map<object, AnyPageNotePresenter>();
     for (const presenter of presenters) {
       if (presenter instanceof ExampleScreenView) {
-        ExampleViews.put(screens, ids.screen(presenter.def), presenter);
+        screens.set(presenter.def, presenter);
       } else if (presenter instanceof PageNotePresenter) {
-        ExampleViews.put(notes, ids.notification(presenter.def), presenter);
+        notes.set(presenter.def, presenter);
       } else {
         throw new Error(
           'ExampleViews: представление — не ExampleScreenView и не PageNotePresenter',
         );
       }
     }
-    return new ExampleViews(set, screens, notes);
+    return new ExampleViews(module, screens, notes);
   }
 
-  /** Представление экрана по `id`; нет — бросок. */
-  screen(id: string): AnyExampleScreen {
-    const found = this.findScreen(id);
+  /** Представление экрана модуля; экран вне модуля — бросок программисту. */
+  screen(def: AnyScreenDef): AnyExampleScreen {
+    const found = this.screens.get(def);
     if (found === undefined) {
-      throw new Error(`ExampleViews: нет представления экрана ${id}`);
+      throw new Error(
+        `ExampleViews: экран ${def.name} вне модуля ${this.module.name}`,
+      );
     }
     return found;
   }
 
-  /** Представление экрана по `id` из внешних данных; нет — `undefined`. */
-  findScreen(id: string): AnyExampleScreen | undefined {
-    return this.screens.get(id);
-  }
-
-  /** Представление уведомления по `id`; нет — бросок. */
-  notification(id: string): AnyPageNotePresenter {
-    const found = this.findNotification(id);
+  /** Представление уведомления модуля; так же, как `screen`. */
+  notification(def: AnyNotificationDef): AnyPageNotePresenter {
+    const found = this.notes.get(def);
     if (found === undefined) {
-      throw new Error(`ExampleViews: нет представления уведомления ${id}`);
+      throw new Error(
+        `ExampleViews: уведомление ${def.name} вне модуля ${this.module.name}`,
+      );
     }
     return found;
-  }
-
-  /** Представление уведомления по `id` из внешних данных; нет — `undefined`. */
-  findNotification(id: string): AnyPageNotePresenter | undefined {
-    return this.notes.get(id);
-  }
-
-  /** `id` экранов и уведомлений с представлением — для рёбер `presents`. */
-  presented(): readonly string[] {
-    return [...this.screens.keys(), ...this.notes.keys()];
-  }
-
-  private static put<P>(map: Map<string, P>, id: string, presenter: P): void {
-    if (map.has(id)) throw new Error(`ExampleViews: два представления ${id}`);
-    map.set(id, presenter);
   }
 }

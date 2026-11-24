@@ -2,11 +2,11 @@ import type { ArchApp } from 'dmg-core/arch';
 import type { GraphContribution, GraphProvider } from 'dmg-core/graph';
 import { type AnyUiAppDef, UiAppDef } from 'dmg-ui';
 import {
+  type AppChatViews,
   type ChatAppSpec,
   type ChatEntryPointSpec,
   ChatExamples,
   ChatGraphProvider,
-  type ChatViews,
   DIALOG_CHANNEL,
   type MessengerCapabilities,
 } from 'dmg-ui/chat-ui';
@@ -48,8 +48,8 @@ export type TelegramSceneSpec = {
   readonly app?: AnyUiAppDef;
   /** Возможности мессенджера приложения; по умолчанию — `TELEGRAM_CAPABILITIES`. */
   readonly capabilities?: MessengerCapabilities;
-  /** Представления приложения; по умолчанию — `exampleDialogViews`. */
-  readonly views?: ChatViews;
+  /** Представления приложения; по умолчанию — сборка набора `exampleDialogViews()`. */
+  readonly views?: AppChatViews;
   readonly community?: ChatAppSpec['community'];
   /** Приложения общей части без приложения Telegram: сцена без узла `chatMessenger`. */
   readonly bare?: boolean;
@@ -65,7 +65,7 @@ export const telegramScene = (spec: TelegramSceneSpec): ArchApp => {
     : [
         {
           app,
-          views: spec.views ?? exampleDialogViews,
+          views: spec.views ?? exampleDialogViews(),
           capabilities: spec.capabilities ?? TELEGRAM_CAPABILITIES,
           entryPoints: spec.entryPoints,
           ...(spec.community ? { community: spec.community } : {}),

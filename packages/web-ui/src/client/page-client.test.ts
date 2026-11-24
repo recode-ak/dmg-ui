@@ -286,7 +286,7 @@ const tab = (
     ...(placements === undefined ? {} : { placements }),
     ...(history === undefined ? {} : { history }),
   });
-  const text = new PageText(client, examplePagesViews);
+  const text = new PageText(client, examplePagesViews());
   return { client, end, observer, faults, text, clock };
 };
 

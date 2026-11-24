@@ -128,6 +128,7 @@ const cardApp = (taskId: string): AnyUiAppDef =>
 type NodeOptions = {
   readonly app?: AnyUiAppDef;
   readonly codes?: ConversationsSpec<ExampleUser>['codes'];
+  readonly views?: ConversationsSpec<ExampleUser>['views'];
   readonly messenger?: MemoryMessenger;
   readonly store?: ConversationStore;
   readonly limit?: number;
@@ -180,7 +181,9 @@ const world = () => {
       codes:
         options.codes ?? exampleCodes({}, options.app ?? ExampleDialogUiAppDef),
       server,
-      views: exampleDialogViews,
+      views:
+        options.views ??
+        exampleDialogViews(options.app ?? ExampleDialogUiAppDef),
       observer: new MemoryUiObserver(),
       messenger,
       store: options.store ?? store,
@@ -1182,6 +1185,22 @@ describe('Conversations — хранилище и сборка', () => {
 
     expect(() => w.node({ codes: exampleCodes() })).toThrow(
       /Conversations.*exampleUi.*exampleDialog/,
+    );
+  });
+
+  test('сборка: представления другого приложения — бросок конструктора с именами приложений', () => {
+    const w = world();
+
+    expect(() => w.node({ views: exampleDialogViews(cardApp(A)) })).toThrow(
+      /Conversations.*представлен.*exampleDialogCard.*exampleDialog/,
+    );
+  });
+
+  test('сборка: представления всего набора — бросок конструктора с именами набора и приложения', () => {
+    const w = world();
+
+    expect(() => w.node({ views: exampleDialogViews() })).toThrow(
+      /Conversations.*представлен.*exampleUi.*exampleDialog/,
     );
   });
 });

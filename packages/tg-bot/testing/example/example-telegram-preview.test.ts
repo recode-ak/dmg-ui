@@ -26,7 +26,7 @@ import { EXAMPLE_CONTEXT } from './example-telegram.const';
 // `ExampleTelegramPreview`; таймеров нет.
 
 const ids = new UiIds(ExampleUiSetDef);
-const preview = () => new ExampleTelegramPreview(exampleTelegramViews);
+const preview = () => new ExampleTelegramPreview(exampleTelegramViews());
 
 const buttons = (
   markup:
@@ -48,36 +48,30 @@ describe('exampleTelegramViews — перекрытие по id', () => {
   ];
 
   test('taskList и taskCard — свои представления, не общие', () => {
-    expect(exampleTelegramViews.screen(taskList)).not.toBe(
-      exampleDialogViews.screen(taskList),
+    expect(exampleTelegramViews().screen(taskList)).not.toBe(
+      exampleDialogViews().screen(taskList),
     );
-    expect(exampleTelegramViews.screen(taskCard)).not.toBe(
-      exampleDialogViews.screen(taskCard),
+    expect(exampleTelegramViews().screen(taskCard)).not.toBe(
+      exampleDialogViews().screen(taskCard),
     );
   });
 
   test('assignedTasks и уведомления — те же представления, что в общем', () => {
-    expect(exampleTelegramViews.screen(assigned)).toBe(
-      exampleDialogViews.screen(assigned),
+    expect(exampleTelegramViews().screen(assigned)).toBe(
+      exampleDialogViews().screen(assigned),
     );
     for (const id of notes) {
-      expect(exampleTelegramViews.notification(id)).toBe(
-        exampleDialogViews.notification(id),
+      expect(exampleTelegramViews().notification(id)).toBe(
+        exampleDialogViews().notification(id),
       );
     }
-  });
-
-  test('presented() — тот же состав: рёбер presents не больше', () => {
-    expect([...exampleTelegramViews.presented()].sort()).toEqual(
-      [...exampleDialogViews.presented()].sort(),
-    );
   });
 });
 
 describe('один код экранов — два представления', () => {
-  const common = new DialogRenderer(exampleDialogViews);
-  const over = new DialogRenderer(exampleTelegramViews);
-  const shared = new ExampleTelegramPreview(exampleDialogViews);
+  const common = new DialogRenderer(exampleDialogViews());
+  const over = new DialogRenderer(exampleTelegramViews());
+  const shared = new ExampleTelegramPreview(exampleDialogViews());
 
   /** Человекочитаемый вид общего экрана одинаков: подписи те же, цвет в нём не виден. */
   const textOf = (
@@ -232,7 +226,7 @@ describe('сцена графа Telegram на exampleTelegramViews', () => {
           { entry: 'assigned', via: 'link', key: 'assigned' },
           MENU_POINT,
         ],
-        views: exampleTelegramViews,
+        views: exampleTelegramViews(),
       }),
     );
 

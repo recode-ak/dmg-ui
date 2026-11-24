@@ -42,6 +42,7 @@ import type {
 // сервера, истории и кодека адреса наружу не выходят.
 
 const WEB_UI = [
+  'AppPageViews',
   'ClientMessage',
   'MAX_CLIENT_TEXT',
   'MAX_SERVER_TEXT',

@@ -11,9 +11,9 @@ import { exampleWebViews } from '../view/example-web.views';
 
 /**
  * Граф примера для браузера без домена: поставщик `dmg-ui` и поставщик
- * страничного канала с реестром представлений на DOM — реестр структурно
- * подходит графу (`set`, `presented()`); текстовый набор представлений — в
- * графе примера страниц, для другого теста. Канал — `web`; каталогов слоёв
+ * страничного канала со сборкой набора представлений на DOM — сборка
+ * структурно подходит графу (`PagePresentedViews`); текстовые представления —
+ * в графе примера страниц, для другого теста. Канал — `web`; каталогов слоёв
  * фронта у примера пока нет: его файлы лежат вне слоёв.
  * @see ./example-web.arch.test.ts
  */
@@ -39,7 +39,7 @@ export const ExampleWebArch: ArchApp = {
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: exampleWebViews,
+          views: exampleWebViews(),
           routes: examplePagesRoutes,
         },
       ],

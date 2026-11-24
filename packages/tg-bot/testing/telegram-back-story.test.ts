@@ -81,7 +81,7 @@ const world = (name = 'one') => {
     app: ExampleDialogUiAppDef,
     codes: exampleCodes({}, ExampleDialogUiAppDef),
     server,
-    views: exampleDialogViews,
+    views: exampleDialogViews(ExampleDialogUiAppDef),
     observer: new MemoryUiObserver(),
     messenger,
     store: new MemoryConversationStore(),

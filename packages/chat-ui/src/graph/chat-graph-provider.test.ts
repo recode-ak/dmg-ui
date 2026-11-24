@@ -35,15 +35,12 @@ import {
   ExampleWindowedUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
+  todoChatViews,
+  usersChatViews,
 } from '../../testing';
-import { AssignedTasksView } from '../../testing/example/assigned-tasks.view';
-import { MainMenuView } from '../../testing/example/main-menu.view';
-import { TaskAssignedView } from '../../testing/example/task-assigned.view';
-import { TaskCompletedView } from '../../testing/example/task-completed.view';
-import { TaskListView } from '../../testing/example/task-list.view';
-import { UserCardView } from '../../testing/example/user-card.view';
 import type { ChatCommunitySpec } from '../community/community.types';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { ChatExamples } from './chat-examples';
@@ -83,7 +80,7 @@ type EntryPoint = {
 
 type AppSpec = {
   readonly app: AnyUiAppDef;
-  readonly views: ChatViews;
+  readonly views: AppChatViews;
   readonly capabilities: MessengerCapabilities;
   readonly entryPoints?: readonly EntryPoint[];
 };
@@ -101,11 +98,11 @@ const pointsOf = (app: AnyUiAppDef): readonly EntryPoint[] =>
 
 const dialogSpec = (capabilities = EDITING): AppSpec => ({
   app: ExampleDialogUiAppDef,
-  views: exampleDialogViews,
+  views: exampleDialogViews(),
   capabilities,
 });
 
-const windowedSpec = (views = exampleDialogViews): AppSpec => ({
+const windowedSpec = (views = exampleDialogViews()): AppSpec => ({
   app: ExampleWindowedUiAppDef,
   views,
   capabilities: WINDOWED,
@@ -307,11 +304,14 @@ describe('ChatGraphProvider на графе примера', () => {
   });
 });
 
-describe('ChatGraphProvider — перекрытый реестр', () => {
-  test('presents у перекрытого реестра (views.over) — те же семь целей без повторов', () => {
-    const own = exampleDialogViews.over([
-      ScreenPresenter.for(TaskCardScreenDef, () => 'Своя карточка'),
-      ScreenPresenter.for(TaskListScreenDef, () => 'Свой список'),
+describe('ChatGraphProvider — перекрытый реестр модуля', () => {
+  test('presents у сборки с перекрытым реестром модуля (todo.over) — те же семь целей без повторов', () => {
+    const own = AppChatViews.ofSet(ExampleUiSetDef, [
+      todoChatViews.over([
+        ScreenPresenter.for(TaskCardScreenDef, () => 'Своя карточка'),
+        ScreenPresenter.for(TaskListScreenDef, () => 'Свой список'),
+      ]),
+      usersChatViews,
     ]);
     const built = new AppGraph(
       sceneOf([dialogSpec(), windowedSpec(own)]),
@@ -323,32 +323,6 @@ describe('ChatGraphProvider — перекрытый реестр', () => {
     expect([...windowed].sort()).toEqual(PRESENTED);
     expect(new Set(windowed).size).toBe(windowed.length);
     expect(targets(built, DIALOG, 'presents')).toEqual(PRESENTED);
-  });
-});
-
-describe('ChatGraphProvider — экран без представления', () => {
-  test('нет представления карточки — нет ребра presents, UI-06 в отчёте arch:check', () => {
-    const views = ChatViews.of(ExampleUiSetDef, [
-      TaskListView,
-      AssignedTasksView,
-      UserCardView,
-      MainMenuView,
-      TaskAssignedView,
-      TaskCompletedView,
-    ]);
-    const app = sceneOf([
-      { app: ExampleDialogUiAppDef, views, capabilities: EDITING },
-    ]);
-
-    const report = ArchReport.of(app);
-
-    expect(targets(new AppGraph(app).build(), DIALOG, 'presents')).toEqual(
-      PRESENTED.filter((id) => id !== CARD),
-    );
-    expect(report.code).not.toBe(0);
-    expect(report.rule('UI-06')).toEqual([
-      'UI-06: приложение exampleDialog: у экрана exampleUi/todo/taskCard нет представления в канале',
-    ]);
   });
 });
 
@@ -491,7 +465,11 @@ describe('ChatGraphProvider — ошибки сборки', () => {
           apps: [
             {
               app: ExampleDialogUiAppDef,
-              views: ChatViews.of(OtherSetDef, []),
+              views: AppChatViews.ofSet(OtherSetDef, [
+                ChatViews.of(OtherUiModuleDef, [
+                  ScreenPresenter.for(StrayScreenDef, () => 'Чужой'),
+                ]),
+              ]),
               capabilities: EDITING,
             },
           ],

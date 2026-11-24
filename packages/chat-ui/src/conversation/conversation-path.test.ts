@@ -38,6 +38,7 @@ import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -357,12 +358,17 @@ const PathAppDef = UiAppDef.define({
   },
 });
 
-const views = ChatViews.of(PathSetDef, [
+/** Представления модуля списка. */
+const rosterViews = ChatViews.of(RosterUiModuleDef, [
   ScreenPresenter.for(
     RosterScreenDef,
     ({ data, state }) =>
       `Список: страница ${data?.page ?? 0}, людей ${data?.count ?? 0}, пометка «${state?.filter ?? ''}»`,
   ),
+]);
+
+/** Представления модуля людей. */
+const peopleViews = ChatViews.of(PeopleUiModuleDef, [
   ScreenPresenter.for(
     ProfileScreenDef,
     ({ data }) => `Профиль ${data?.personId ?? ''}`,
@@ -376,6 +382,9 @@ const views = ChatViews.of(PathSetDef, [
   }),
   ...HOPS.map((hop, i) => ScreenPresenter.for(hop, () => `Звено ${i}`)),
 ]);
+
+/** Сборка представлений приложения пути. */
+const views = AppChatViews.of(PathAppDef, [rosterViews, peopleViews]);
 
 /** Реестры кода обоих модулей набора пути. */
 const modulesOf = (world: World) => [
@@ -499,7 +508,7 @@ const screensOf = (conversation: Conversation) =>
 const sceneOf = (options: {
   readonly messenger: MemoryMessenger;
   readonly snapshot?: ConversationSnapshot;
-  readonly views?: ChatViews;
+  readonly views?: AppChatViews;
 }) => {
   const world = worldOf();
   const { messenger } = options;
@@ -759,11 +768,14 @@ describe('Conversation — вариант «Назад» и сигнал back', 
     const saved = first.conversation.snapshot();
     first.conversation.close();
     // После перезапуска представление профиля другое: отпечаток не совпадёт.
-    const changed = views.over([
-      ScreenPresenter.for(
-        ProfileScreenDef,
-        ({ data }) => `Профиль ${data?.personId ?? ''}, новый вид`,
-      ),
+    const changed = AppChatViews.of(PathAppDef, [
+      rosterViews,
+      peopleViews.over([
+        ScreenPresenter.for(
+          ProfileScreenDef,
+          ({ data }) => `Профиль ${data?.personId ?? ''}, новый вид`,
+        ),
+      ]),
     ]);
     const s = sceneOf({ messenger, snapshot: saved, views: changed });
 

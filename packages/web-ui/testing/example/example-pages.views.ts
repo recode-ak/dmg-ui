@@ -1,20 +1,19 @@
+import { type AnyUiAppDef, ModuleRegistries } from 'dmg-ui';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
-import { PageViews } from 'dmg-ui/web-ui';
-import { AssignedTasksView } from './assigned-tasks.view';
-import { MainMenuView } from './main-menu.view';
-import { TaskAssignedView } from './task-assigned.view';
-import { TaskCardView } from './task-card.view';
-import { TaskCompletedView } from './task-completed.view';
-import { TaskListView } from './task-list.view';
-import { UserCardView } from './user-card.view';
+import { AppPageViews } from 'dmg-ui/web-ui';
+import { todoPagesViews } from './todo-pages.views';
+import { usersPagesViews } from './users-pages.views';
 
-/** Представления учебного примера на страницах: все экраны и уведомления. */
-export const examplePagesViews = PageViews.of(ExampleUiSetDef, [
-  TaskListView,
-  TaskCardView,
-  AssignedTasksView,
-  UserCardView,
-  MainMenuView,
-  TaskAssignedView,
-  TaskCompletedView,
-]);
+/**
+ * Сборка представлений учебного примера на страницах: без `app` — набора
+ * целиком (превью, граф), с `app` — приложения из реестров его модулей.
+ */
+export const examplePagesViews = (app?: AnyUiAppDef): AppPageViews => {
+  const modules = [todoPagesViews, usersPagesViews];
+  if (app === undefined) return AppPageViews.ofSet(ExampleUiSetDef, modules);
+  const required = ModuleRegistries.required(app);
+  return AppPageViews.of(
+    app,
+    modules.filter(({ module }) => required.includes(module)),
+  );
+};

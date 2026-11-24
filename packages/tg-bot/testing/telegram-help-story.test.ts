@@ -26,6 +26,7 @@ import {
   UiSetDef,
 } from 'dmg-ui';
 import {
+  AppChatViews,
   ChatViews,
   Conversations,
   DIALOG_CHANNEL,
@@ -152,14 +153,14 @@ type Kit = {
   readonly app: AnyUiAppDef;
   readonly set: AnyUiSetDef;
   readonly codes: AppCodeLoaders;
-  readonly views: ChatViews;
+  readonly views: AppChatViews;
 };
 
 const EXAMPLE: Kit = {
   app: ExampleDialogUiAppDef,
   set: ExampleUiSetDef,
   codes: exampleCodes({}, ExampleDialogUiAppDef),
-  views: exampleDialogViews,
+  views: exampleDialogViews(ExampleDialogUiAppDef),
 };
 
 const LONG: Kit = {
@@ -170,8 +171,10 @@ const LONG: Kit = {
       CodeLoader.screen(LongScreenDef, async () => new LongCode()),
     ]),
   ]),
-  views: ChatViews.of(LongSetDef, [
-    ScreenPresenter.for(LongScreenDef, () => 'Длинный'),
+  views: AppChatViews.of(LongAppDef, [
+    ChatViews.of(LongUiModuleDef, [
+      ScreenPresenter.for(LongScreenDef, () => 'Длинный'),
+    ]),
   ]),
 };
 

@@ -31,7 +31,7 @@ const reportOf = (routes: readonly PageRouteDef[]) =>
       [
         new PageGraphProvider({
           apps: [
-            { app: ExamplePagesUiAppDef, views: examplePagesViews, routes },
+            { app: ExamplePagesUiAppDef, views: examplePagesViews(), routes },
           ],
         }),
       ],
@@ -121,12 +121,12 @@ describe('PG-02: два приложения в одном поставщике'
             apps: [
               {
                 app: ExamplePagesUiAppDef,
-                views: examplePagesViews,
+                views: examplePagesViews(),
                 routes: [TASKS, ASSIGNED, MENU],
               },
               {
                 app: SecondPagesAppDef,
-                views: examplePagesViews,
+                views: examplePagesViews(),
                 routes: second,
               },
             ],

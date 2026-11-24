@@ -1,4 +1,9 @@
-import { type AnyUiSetDef, UiIds } from 'dmg-ui';
+import {
+  type AnyNotificationDef,
+  type AnyScreenDef,
+  type AnyUiModuleDef,
+  UiCompleteness,
+} from 'dmg-ui';
 import { NotificationPresenter } from './notification-presenter';
 import { ScreenPresenter } from './screen-presenter';
 import type {
@@ -6,37 +11,45 @@ import type {
   AnyScreenPresenter,
 } from './view.types';
 
-/** Представления одного слоя по `id` из `UiIds`. */
+/** Представления одного слоя по Def экрана и уведомления. */
 type Layer = {
-  readonly screens: ReadonlyMap<string, AnyScreenPresenter>;
-  readonly notifications: ReadonlyMap<string, AnyNotificationPresenter>;
+  readonly screens: ReadonlyMap<object, AnyScreenPresenter>;
+  readonly notifications: ReadonlyMap<object, AnyNotificationPresenter>;
 };
 
 /** Представления, из которых строится слой реестра. */
 type Presenters = readonly (AnyScreenPresenter | AnyNotificationPresenter)[];
 
 /**
- * Реестр представлений одного приложения мессенджера (D-UI-50): ключ — `id`
- * экрана и уведомления из `UiIds`. Общий слой — `of`; `over` даёт новый
- * реестр, где представления пакета мессенджера перекрывают общие по `id`.
- * Нет представления — ошибка сборки канала (правило графа UI-06 ловит её
- * раньше), бросок с `id`.
+ * Реестр представлений одного UI-модуля в мессенджере (D-UI-50): ключ — Def
+ * экрана и уведомления модуля; каждому — ровно одно представление, иначе
+ * отказ UI-06. `over` даёт новый реестр того же модуля, где представления
+ * пакета мессенджера перекрывают базовые по Def. Сборку области из реестров
+ * модулей делает `AppChatViews`.
  */
 export class ChatViews {
+  /** Проверка полноты реестров представлений мессенджера и их сборок (UI-06). */
+  static readonly completeness = new UiCompleteness(
+    'ChatViews',
+    'представления',
+  );
+
   private constructor(
-    readonly set: AnyUiSetDef,
+    readonly module: AnyUiModuleDef,
     private readonly layer: Layer,
   ) {}
 
-  /** Def вне набора или два представления одного Def — бросок. */
-  static of(set: AnyUiSetDef, presenters: Presenters): ChatViews {
-    return new ChatViews(set, ChatViews.layerOf(set, presenters));
+  /** Отказ UI-06: нет представления, представление вне модуля, два на Def. */
+  static of(module: AnyUiModuleDef, presenters: Presenters): ChatViews {
+    ChatViews.completeness.module(module, ChatViews.defs(presenters));
+    return new ChatViews(module, ChatViews.layerOf(presenters));
   }
 
-  /** Новый реестр с перекрытием по `id`; прежний не меняется. Def вне набора, два в одном слое — бросок. */
+  /** Новый реестр с перекрытием по Def; прежний не меняется. Def вне модуля, два в слое — отказ UI-06. */
   over(presenters: Presenters): ChatViews {
-    const own = ChatViews.layerOf(this.set, presenters);
-    return new ChatViews(this.set, {
+    ChatViews.completeness.part(this.module, ChatViews.defs(presenters));
+    const own = ChatViews.layerOf(presenters);
+    return new ChatViews(this.module, {
       screens: new Map([...this.layer.screens, ...own.screens]),
       notifications: new Map([
         ...this.layer.notifications,
@@ -45,42 +58,42 @@ export class ChatViews {
     });
   }
 
-  /** Представление экрана по `id`. */
-  screen(id: string): AnyScreenPresenter {
-    const presenter = this.layer.screens.get(id);
+  /** Представление экрана модуля; экран вне модуля — бросок программисту. */
+  screen(def: AnyScreenDef): AnyScreenPresenter {
+    const presenter = this.layer.screens.get(def);
     if (presenter === undefined) {
-      throw new Error(`ChatViews: нет представления экрана ${id}`);
+      throw new Error(
+        `ChatViews: экран ${def.name} вне модуля ${this.module.name}`,
+      );
     }
     return presenter;
   }
 
-  /** Представление уведомления по `id`. */
-  notification(id: string): AnyNotificationPresenter {
-    const presenter = this.layer.notifications.get(id);
+  /** Представление уведомления модуля; так же, как `screen`. */
+  notification(def: AnyNotificationDef): AnyNotificationPresenter {
+    const presenter = this.layer.notifications.get(def);
     if (presenter === undefined) {
-      throw new Error(`ChatViews: нет представления уведомления ${id}`);
+      throw new Error(
+        `ChatViews: уведомление ${def.name} вне модуля ${this.module.name}`,
+      );
     }
     return presenter;
   }
 
-  /** `id` экранов и уведомлений с представлением (общие и перекрытые) — для рёбер `presents`. */
-  presented(): readonly string[] {
-    return [...this.layer.screens.keys(), ...this.layer.notifications.keys()];
+  private static defs(
+    presenters: Presenters,
+  ): readonly (AnyScreenDef | AnyNotificationDef)[] {
+    return presenters.map((presenter) => presenter.def);
   }
 
-  private static layerOf(set: AnyUiSetDef, presenters: Presenters): Layer {
-    const ids = new UiIds(set);
-    const screens = new Map<string, AnyScreenPresenter>();
-    const notifications = new Map<string, AnyNotificationPresenter>();
+  private static layerOf(presenters: Presenters): Layer {
+    const screens = new Map<object, AnyScreenPresenter>();
+    const notifications = new Map<object, AnyNotificationPresenter>();
     for (const presenter of presenters) {
       if (presenter instanceof ScreenPresenter) {
-        ChatViews.put(screens, ids.screen(presenter.def), presenter);
+        screens.set(presenter.def, presenter);
       } else if (presenter instanceof NotificationPresenter) {
-        ChatViews.put(
-          notifications,
-          ids.notification(presenter.def),
-          presenter,
-        );
+        notifications.set(presenter.def, presenter);
       } else {
         throw new Error(
           'ChatViews: представление — не ScreenPresenter и не NotificationPresenter',
@@ -88,12 +101,5 @@ export class ChatViews {
       }
     }
     return { screens, notifications };
-  }
-
-  private static put<P>(map: Map<string, P>, id: string, presenter: P): void {
-    if (map.has(id)) {
-      throw new Error(`ChatViews: два представления ${id}`);
-    }
-    map.set(id, presenter);
   }
 }

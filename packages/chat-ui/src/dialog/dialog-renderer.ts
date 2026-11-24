@@ -1,7 +1,7 @@
 import type { InstanceView, NotificationPreview } from 'dmg-ui';
 import { PlainText } from '../message/plain-text';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
-import type { ChatViews } from '../view/chat-views';
+import type { AppChatViews } from '../view/app-chat-views';
 import { ScreenComposer } from '../view/screen-composer';
 import type { ViewMessage } from '../view/view.types';
 
@@ -32,7 +32,7 @@ export class DialogRenderer {
 
   /** Возможности по умолчанию — просторные: тексты примеров не режутся. */
   constructor(
-    private readonly views: ChatViews,
+    private readonly views: AppChatViews,
     capabilities: MessengerCapabilities = ROOMY_CAPABILITIES,
   ) {
     this.composer = new ScreenComposer(views, capabilities);

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'bun:test';
 // `dmg-ui/tg-bot/testing`.
 
 const CHAT_UI = [
+  'AppChatViews',
   'CHAT_EDGE_KINDS',
   'CHAT_NODE_KINDS',
   'CHAT_PROVIDER',
@@ -61,6 +62,8 @@ describe('вход dmg-ui/chat-ui/testing', () => {
       'ExampleWindowedUiAppDef',
       'MemoryMessenger',
       'exampleDialogViews',
+      'todoChatViews',
+      'usersChatViews',
     ]);
   });
 });

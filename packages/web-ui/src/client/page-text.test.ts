@@ -100,7 +100,7 @@ const page = (placements?: readonly PagePlacement[]) => {
     reviveSubject,
     ...(placements === undefined ? {} : { placements }),
   });
-  return { end, client, text: new PageText(client, examplePagesViews) };
+  return { end, client, text: new PageText(client, examplePagesViews()) };
 };
 
 describe('PageText', () => {

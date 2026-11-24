@@ -1,7 +1,7 @@
 import type { AnyUiAppDef } from 'dmg-ui';
 import type { ChatCommunitySpec } from '../community/community.types';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
-import type { ChatViews } from '../view/chat-views';
+import type { AppChatViews } from '../view/app-chat-views';
 import type { ChatExamples } from './chat-examples';
 
 /**
@@ -21,10 +21,10 @@ export type NumberedEntryPoint = {
   readonly n: number;
 };
 
-/** Приложение мессенджера в графе: Def, реестр представлений, возможности мессенджера, точки входа и манифесты сообщества. */
+/** Приложение мессенджера в графе: Def, сборка представлений, возможности мессенджера, точки входа и манифесты сообщества. */
 export type ChatAppSpec = {
   readonly app: AnyUiAppDef;
-  readonly views: ChatViews;
+  readonly views: AppChatViews;
   readonly capabilities: MessengerCapabilities;
   readonly entryPoints?: readonly ChatEntryPointSpec[];
   readonly community?: ChatCommunitySpec;

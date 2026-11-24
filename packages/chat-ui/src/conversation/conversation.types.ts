@@ -19,7 +19,7 @@ import type {
   MessageHandle,
   MessengerPort,
 } from '../messenger/messenger.types';
-import type { ChatViews } from '../view/chat-views';
+import type { AppChatViews } from '../view/app-chat-views';
 import type { ConversationStore } from './conversation-store.types';
 
 // Данные беседы — простые объекты JSON, классы работают над ними: сигналы
@@ -374,7 +374,7 @@ export type ConversationSpec = {
   readonly contexts: ConversationContexts;
   readonly traces: SignalTraces;
   /** Представления приложения мессенджера; сборщик показа строит беседа. */
-  readonly views: ChatViews;
+  readonly views: AppChatViews;
   /** У узла бесед — `LimitedMessenger`. */
   readonly messenger: MessengerPort;
   readonly logger: ServerContext['logger'];
@@ -398,7 +398,7 @@ export type ConversationsSpec<U extends Identified> = {
   readonly app: AnyUiAppDef;
   readonly codes: AppCodeLoaders;
   readonly server: UiServer<U>;
-  readonly views: ChatViews;
+  readonly views: AppChatViews;
   readonly observer: UiObserver;
   /** Узел сам оборачивает порт в `LimitedMessenger`. */
   readonly messenger: MessengerPort;

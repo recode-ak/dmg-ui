@@ -29,7 +29,7 @@ const viewOf = (fields: readonly ActionField[]): InstanceView => ({
   locals: [],
 });
 
-const renderer = new PageRenderer(examplePagesViews);
+const renderer = new PageRenderer(examplePagesViews());
 
 /** Строки поля в тексте вида — между заголовком формы и её кнопкой. */
 const fieldLines = (fields: readonly ActionField[]): string[] =>

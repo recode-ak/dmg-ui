@@ -21,6 +21,7 @@ import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -144,9 +145,11 @@ const MESSENGERS = [
   ['windowed', () => MemoryMessenger.windowed(() => 0)],
 ] as const;
 
-const views = ChatViews.of(StepsSetDef, [
-  ScreenPresenter.for(FormScreenDef, () => 'Форма'),
-  ScreenPresenter.for(PingScreenDef, () => 'Пинг'),
+const views = AppChatViews.ofSet(StepsSetDef, [
+  ChatViews.of(StepsUiModuleDef, [
+    ScreenPresenter.for(FormScreenDef, () => 'Форма'),
+    ScreenPresenter.for(PingScreenDef, () => 'Пинг'),
+  ]),
 ]);
 
 /** Беседа на исполнителе с заглушками портов: узел бесед и сервер не нужны. */

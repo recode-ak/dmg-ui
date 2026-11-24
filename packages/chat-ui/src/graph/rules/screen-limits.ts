@@ -4,7 +4,7 @@ import type {
   LimitCut,
   MessengerCapabilities,
 } from '../../messenger/messenger.types';
-import type { ChatViews } from '../../view/chat-views';
+import type { AppChatViews } from '../../view/app-chat-views';
 import { ScreenComposer } from '../../view/screen-composer';
 import type { ViewMessage } from '../../view/view.types';
 import { ExampleFit } from './example-fit';
@@ -19,7 +19,7 @@ export class ScreenLimits {
   private readonly composer: ScreenComposer;
   private readonly fit: ExampleFit;
 
-  constructor(views: ChatViews, capabilities: MessengerCapabilities) {
+  constructor(views: AppChatViews, capabilities: MessengerCapabilities) {
     this.composer = new ScreenComposer(views, capabilities);
     this.fit = ExampleFit.screen(capabilities);
   }

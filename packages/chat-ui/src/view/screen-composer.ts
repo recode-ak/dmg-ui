@@ -9,7 +9,7 @@ import {
 import type { Accent, FormattedText } from '../message/message.types';
 import { TextBuilder } from '../message/text-builder';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
-import type { ChatViews } from './chat-views';
+import type { AppChatViews } from './app-chat-views';
 import { MAX_VIEW_MESSAGES, VIEW_TEXTS } from './view.const';
 import type { ViewMessage, ViewOption } from './view.types';
 import { ViewKit } from './view-kit';
@@ -41,7 +41,7 @@ export class ScreenComposer {
   private readonly labels = new Map<string, ScreenLabels>();
 
   constructor(
-    private readonly views: ChatViews,
+    private readonly views: AppChatViews,
     private readonly capabilities: MessengerCapabilities,
   ) {
     this.ids = new UiIds(views.set);

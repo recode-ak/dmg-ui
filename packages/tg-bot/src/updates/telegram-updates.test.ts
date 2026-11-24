@@ -412,7 +412,7 @@ describe('TelegramUpdates — вход, которого нет в таблиц�
         dispatch: new ApiAppDispatch(example.api),
         context: { bus, logger },
       }),
-      views: exampleDialogViews,
+      views: exampleDialogViews(ExampleDialogUiAppDef),
       observer: new MemoryUiObserver(),
       messenger,
       store: new MemoryConversationStore(),

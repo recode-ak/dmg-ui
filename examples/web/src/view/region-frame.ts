@@ -29,7 +29,8 @@ type Shown = {
  * экрана и закрывается при смене экрана. Чистый: ни DOM, ни среды.
  */
 export class RegionFrame {
-  private readonly forms = new PageFormModel(exampleWebViews.set);
+  private readonly views = exampleWebViews();
+  private readonly forms = new PageFormModel(this.views.set);
   private readonly controls = new RegionControls(GESTURE_ACTIONS);
   private readonly freezer = new BodyFreeze();
   private readonly help: ScreenHelp;
@@ -68,7 +69,7 @@ export class RegionFrame {
     return {
       status: state.status,
       ...(screen === undefined ? {} : { screen }),
-      title: screen === undefined ? '' : RegionFrame.titleOf(screen),
+      title: screen === undefined ? '' : this.titleOf(screen),
       marks: RegionFrame.marks(state),
       busy,
       ...(state.note === undefined ? {} : { note: state.note }),
@@ -121,7 +122,7 @@ export class RegionFrame {
   private shown(state: PageViewState, forms: PageFormSet): Shown | undefined {
     const view = state.view;
     if (state.status === 'ready' && view !== undefined) {
-      const screen = exampleWebViews.findScreen(view.screen);
+      const screen = this.views.findScreen(view.screen);
       this.held =
         screen === undefined
           ? undefined
@@ -152,8 +153,8 @@ export class RegionFrame {
       : state.view?.screen;
   }
 
-  private static titleOf(screen: string): string {
-    return exampleWebViews.findScreen(screen)?.def.label ?? '';
+  private titleOf(screen: string): string {
+    return this.views.findScreen(screen)?.def.label ?? '';
   }
 
   private static marks(state: PageViewState): RegionMark[] {

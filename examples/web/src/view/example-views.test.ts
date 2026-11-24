@@ -5,13 +5,14 @@ import {
   ExampleUiSetDef,
   exampleCodes,
   TaskAssignedNotificationDef,
-  TaskCardScreenDef,
+  TaskCompletedNotificationDef,
   TaskListScreenDef,
+  TodoUiModuleDef,
   UserCardScreenDef,
 } from 'dmg-ui/testing';
 import { UiScene } from 'dmg-ui/testing/fixtures';
 import { PageNotePresenter } from 'dmg-ui/web-ui';
-import { examplePagesViews } from 'dmg-ui/web-ui/testing';
+import { ExamplePagesUiAppDef } from 'dmg-ui/web-ui/testing';
 import {
   exampleWorld,
   openTab,
@@ -20,8 +21,11 @@ import {
   TOKEN_ANNA,
   TOKEN_BORIS,
 } from '../testing/example-world';
+import { AppExampleViews } from './app-example-views';
+import { AssignedTasksView } from './assigned-tasks.view';
 import { ExampleScreenView, ExampleViews } from './example-views';
 import { exampleWebViews } from './example-web.views';
+import { MainMenuView } from './main-menu.view';
 import { RegionFrame } from './region-frame';
 import type {
   ActionModel,
@@ -30,10 +34,19 @@ import type {
   ScreenBody,
   TaskRowModel,
 } from './region-model.types';
+import { TaskAssignedView } from './task-assigned.view';
+import { TaskCardView } from './task-card.view';
+import { TaskCompletedView } from './task-completed.view';
+import { TaskListView } from './task-list.view';
+import { todoWebViews } from './todo-web.views';
+import { UserCardView } from './user-card.view';
+import { usersWebViews } from './users-web.views';
 
-// Реестр представлений на DOM и то, что они решают о показе экранов примера:
-// строки, выбор, формы, зона «Выполнено», перетаскивание. Модели — чистые
-// данные; вид берётся у настоящего клиента над сервером в памяти.
+// Реестры представлений на DOM — по модулю (`ExampleViews`, отказ UI-06 при
+// неполноте), сборка области по `id` (`AppExampleViews`) — и то, что они
+// решают о показе экранов примера: строки, выбор, формы, зона «Выполнено»,
+// перетаскивание. Модели — чистые данные; вид берётся у настоящего клиента
+// над сервером в памяти.
 
 const tmp = useTempDir('example-web-views-');
 
@@ -48,75 +61,128 @@ const ID = {
 
 const BODY: ScreenBody = { kind: 'assigned', rows: [], actions: [] };
 
-describe('ExampleViews.of — реестр', () => {
-  test('готовый реестр примера: набор — набор учебного примера', () => {
-    expect(exampleWebViews.set).toBe(ExampleUiSetDef);
-  });
+/** Представления на DOM всех экранов и уведомлений модуля `todo`. */
+const todoAll = [
+  TaskListView,
+  TaskCardView,
+  AssignedTasksView,
+  MainMenuView,
+  TaskAssignedView,
+  TaskCompletedView,
+];
 
-  test('presented() по составу равен текстовому реестру: пять экранов и два уведомления', () => {
-    expect([...exampleWebViews.presented()].sort()).toEqual(
-      [...examplePagesViews.presented()].sort(),
-    );
-    expect(exampleWebViews.presented()).toHaveLength(7);
-  });
+/** Текст броска вызова; не бросил — `undefined`. */
+const failure = (run: () => unknown): string | undefined => {
+  try {
+    run();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return undefined;
+};
 
-  test('экран находится по id', () => {
-    expect(exampleWebViews.screen(ID.list)).toBeDefined();
-    expect(exampleWebViews.screen(ID.card)).toBeDefined();
-    expect(exampleWebViews.screen(ID.assigned)).toBeDefined();
-  });
-
-  test('неизвестный экран — бросок с id', () => {
-    expect(() => exampleWebViews.screen('нет/такого')).toThrow('нет/такого');
-  });
-
-  test('findNotification: известное — представление, неизвестное — undefined', () => {
-    expect(exampleWebViews.findNotification(ID.assignedNote)).toBeDefined();
-    expect(exampleWebViews.findNotification('нет/такого')).toBeUndefined();
-  });
-
-  test('notification неизвестного — бросок с id', () => {
-    expect(() => exampleWebViews.notification('нет/такого')).toThrow(
-      'нет/такого',
+describe('ExampleViews — реестр модуля на DOM', () => {
+  test('экран и уведомление модуля по Def — то же представление', () => {
+    expect(todoWebViews.module).toBe(TodoUiModuleDef);
+    expect(todoWebViews.screen(TaskListScreenDef)).toBe(TaskListView);
+    expect(todoWebViews.notification(TaskAssignedNotificationDef)).toBe(
+      TaskAssignedView,
     );
   });
 
-  test('Def вне набора — бросок', () => {
+  test('экран и уведомление модуля без представления — отказ UI-06 с именами реестра, модуля и Def', () => {
+    expect(
+      failure(() =>
+        ExampleViews.of(TodoUiModuleDef, [
+          TaskListView,
+          TaskCardView,
+          TaskAssignedView,
+        ]),
+      ),
+    ).toBe(
+      'UI-06: ExampleViews модуля todo: нет представления для assignedTasks, mainMenu, taskCompleted',
+    );
+  });
+
+  test('представление экрана соседнего модуля или вне набора — отказ UI-06 «вне модуля»', () => {
     const foreign = ExampleScreenView.for(
       UiScene.screen('foreign'),
       () => BODY,
     );
 
-    expect(() => ExampleViews.of(ExampleUiSetDef, [foreign])).toThrow(
-      'foreign',
-    );
+    expect(
+      failure(() =>
+        ExampleViews.of(TodoUiModuleDef, [...todoAll, UserCardView]),
+      ),
+    ).toBe('UI-06: ExampleViews модуля todo: userCard вне модуля');
+    expect(
+      failure(() => ExampleViews.of(TodoUiModuleDef, [...todoAll, foreign])),
+    ).toBe('UI-06: ExampleViews модуля todo: foreign вне модуля');
   });
 
-  test('два представления одного экрана — бросок', () => {
-    const first = ExampleScreenView.for(TaskListScreenDef, () => BODY);
+  test('два представления одного экрана и одного уведомления — отказ UI-06 «два для» на каждый Def', () => {
     const again = ExampleScreenView.for(TaskListScreenDef, () => BODY);
+    const againNote = PageNotePresenter.for(
+      TaskAssignedNotificationDef,
+      () => 'b',
+    );
 
-    expect(() => ExampleViews.of(ExampleUiSetDef, [first, again])).toThrow(
-      ID.list,
+    expect(
+      failure(() =>
+        ExampleViews.of(TodoUiModuleDef, [...todoAll, again, againNote]),
+      ),
+    ).toBe(
+      [
+        'UI-06: ExampleViews модуля todo: два для taskList',
+        'UI-06: ExampleViews модуля todo: два для taskAssigned',
+      ].join('\n'),
+    );
+  });
+});
+
+describe('AppExampleViews — сборка на DOM', () => {
+  test('готовая сборка примера без приложения — сборка набора учебного примера', () => {
+    const views = exampleWebViews();
+
+    expect(views.set).toBe(ExampleUiSetDef);
+    expect(views.app).toBeUndefined();
+  });
+
+  test('экран по id — представление реестра модуля-хозяина', () => {
+    const views = exampleWebViews();
+
+    expect(views.screen(ID.list)).toBe(todoWebViews.screen(TaskListScreenDef));
+    expect(views.screen(ID.user)).toBe(usersWebViews.screen(UserCardScreenDef));
+  });
+
+  test('неизвестный экран: screen — бросок с id, findScreen — undefined', () => {
+    const views = exampleWebViews();
+
+    expect(() => views.screen('нет/такого')).toThrow('нет/такого');
+    expect(views.findScreen('нет/такого')).toBeUndefined();
+  });
+
+  test('findNotification: известное — представление, неизвестное — undefined', () => {
+    const views = exampleWebViews();
+
+    expect(views.findNotification(ID.completedNote)).toBe(
+      todoWebViews.notification(TaskCompletedNotificationDef),
+    );
+    expect(views.findNotification('нет/такого')).toBeUndefined();
+  });
+
+  test('notification неизвестного — бросок с id', () => {
+    expect(() => exampleWebViews().notification('нет/такого')).toThrow(
+      'нет/такого',
     );
   });
 
-  test('два представления одного уведомления — бросок', () => {
-    const first = PageNotePresenter.for(TaskAssignedNotificationDef, () => 'a');
-    const again = PageNotePresenter.for(TaskAssignedNotificationDef, () => 'b');
-
-    expect(() => ExampleViews.of(ExampleUiSetDef, [first, again])).toThrow(
-      ID.assignedNote,
+  test('сборка приложения без реестра модуля приложения — отказ UI-06 с именем ExampleViews', () => {
+    expect(
+      failure(() => AppExampleViews.of(ExamplePagesUiAppDef, [todoWebViews])),
+    ).toBe(
+      'UI-06: ExampleViews приложения examplePages: нет реестра модуля users',
     );
-  });
-
-  test('карточка и список — разные представления одного реестра', () => {
-    const views = ExampleViews.of(ExampleUiSetDef, [
-      ExampleScreenView.for(TaskListScreenDef, () => BODY),
-      ExampleScreenView.for(TaskCardScreenDef, () => BODY),
-    ]);
-
-    expect([...views.presented()].sort()).toEqual([ID.card, ID.list]);
   });
 });
 
@@ -132,7 +198,7 @@ describe('карточка пользователя — модель тела', 
       readOnly: false,
     });
 
-    const body = exampleWebViews
+    const body = exampleWebViews()
       .screen(ID.user)
       .body(view, { actions: [], forms: [] });
 
@@ -148,19 +214,19 @@ describe('карточка пользователя — модель тела', 
 describe('уведомления реестра — тексты', () => {
   test('«Вам назначена задача: название»', () => {
     expect(
-      exampleWebViews.notification(ID.assignedNote).text({ title: 'Хлеб' }),
+      exampleWebViews().notification(ID.assignedNote).text({ title: 'Хлеб' }),
     ).toBe('Вам назначена задача: Хлеб');
   });
 
   test('«Поручение выполнено: название»', () => {
     expect(
-      exampleWebViews.notification(ID.completedNote).text({ title: 'Хлеб' }),
+      exampleWebViews().notification(ID.completedNote).text({ title: 'Хлеб' }),
     ).toBe('Поручение выполнено: Хлеб');
   });
 
   test('данные не по схеме — бросок, а не текст', () => {
     expect(() =>
-      exampleWebViews.notification(ID.assignedNote).text({ title: 5 }),
+      exampleWebViews().notification(ID.assignedNote).text({ title: 5 }),
     ).toThrow();
   });
 });

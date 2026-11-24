@@ -1,7 +1,6 @@
-import { UiIds } from 'dmg-ui';
 import { ScreenPresenter, TextBuilder } from 'dmg-ui/chat-ui';
-import { exampleDialogViews } from 'dmg-ui/chat-ui/testing';
-import { ExampleUiSetDef, TaskCardScreenDef } from 'dmg-ui/testing';
+import { todoChatViews } from 'dmg-ui/chat-ui/testing';
+import { TaskCardScreenDef } from 'dmg-ui/testing';
 import { AccentedOutput } from './accented-output';
 import {
   EXAMPLE_MOMENT,
@@ -9,9 +8,7 @@ import {
   EXAMPLE_MOMENT_LABEL,
 } from './example-telegram.const';
 
-const common = exampleDialogViews.screen(
-  new UiIds(ExampleUiSetDef).screen(TaskCardScreenDef),
-);
+const common = todoChatViews.screen(TaskCardScreenDef);
 
 /**
  * Карточка задачи под Telegram (D-UI-67): общее представление, «Выполнить» —

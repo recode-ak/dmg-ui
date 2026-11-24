@@ -57,7 +57,7 @@ const READY: PageViewState = {
 
 const OFFLINE = 'Нет связи — переподключаемся';
 
-const renderer = new PageRenderer(examplePagesViews);
+const renderer = new PageRenderer(examplePagesViews());
 
 /** Представление на ячейке: записи цели и отписка. */
 const shown = (initial: PageViewState) => {
@@ -68,7 +68,7 @@ const shown = (initial: PageViewState) => {
       writes.push(text);
     },
   };
-  const off = new PageTextPresenter(examplePagesViews).show(cell, target);
+  const off = new PageTextPresenter(examplePagesViews()).show(cell, target);
   return { cell, writes, off };
 };
 

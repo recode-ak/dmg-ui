@@ -83,7 +83,7 @@ const dialog = (
   capabilities: MessengerCapabilities = EDITING,
 ): ChatAppSpec => ({
   app: ExampleDialogUiAppDef,
-  views: exampleDialogViews,
+  views: exampleDialogViews(),
   capabilities,
   entryPoints: pointsOf(ExampleDialogUiAppDef),
   ...(community ? { community } : {}),
@@ -91,7 +91,7 @@ const dialog = (
 
 const windowed = (community?: ChatCommunitySpec): ChatAppSpec => ({
   app: ExampleWindowedUiAppDef,
-  views: exampleDialogViews,
+  views: exampleDialogViews(),
   capabilities: WINDOWED,
   entryPoints: pointsOf(ExampleWindowedUiAppDef),
   ...(community ? { community } : {}),

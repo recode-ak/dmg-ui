@@ -1,11 +1,11 @@
 import type { FieldIssue } from 'dmg-ui';
+import type { AppPageViews } from './app-page-views';
 import type {
   PageRegionPresenter,
   PageTextTarget,
 } from './page-region-presenter.types';
 import { PAGE_TEXTS, PageRenderer } from './page-renderer';
 import type { PageViewState } from './page-view-state.types';
-import type { PageViews } from './page-views';
 import type { ViewSource } from './view-source.types';
 
 /**
@@ -18,7 +18,7 @@ import type { ViewSource } from './view-source.types';
 export class PageTextPresenter implements PageRegionPresenter<PageTextTarget> {
   private readonly renderer: PageRenderer;
 
-  constructor(views: PageViews) {
+  constructor(views: AppPageViews) {
     this.renderer = new PageRenderer(views);
   }
 

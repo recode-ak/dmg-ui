@@ -146,7 +146,7 @@ describe('PageGraphProvider: узлы', () => {
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: examplePagesViews,
+          views: examplePagesViews(),
           routes: examplePagesRoutes,
         },
       ],
@@ -165,7 +165,7 @@ describe('PageGraphProvider: узлы', () => {
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: examplePagesViews,
+          views: examplePagesViews(),
           routes: examplePagesRoutes,
         },
       ],
@@ -226,7 +226,7 @@ describe('PageGraphProvider: вход не объявлен приложение
           apps: [
             {
               app: ExamplePagesUiAppDef,
-              views: examplePagesViews,
+              views: examplePagesViews(),
               routes: [ghost],
             },
           ],
@@ -245,7 +245,7 @@ describe('PageGraphProvider: вход не объявлен приложение
 describe('PageGraphProvider: сборка — броски только структуры спеки', () => {
   const spec = (
     app: AnyUiAppDef = ExamplePagesUiAppDef,
-    views: PagePresentedViews = examplePagesViews,
+    views: PagePresentedViews = examplePagesViews(),
   ) => ({
     app,
     views,
@@ -300,7 +300,7 @@ describe('PageGraphProvider: сборка — броски только стру
           apps: [
             {
               app: ExamplePagesUiAppDef,
-              views: examplePagesViews,
+              views: examplePagesViews(),
               routes: [first, second],
             },
           ],
@@ -314,7 +314,7 @@ describe('PageGraphProvider: сборка — броски только стру
         spec(),
         {
           app: SecondAppDef,
-          views: examplePagesViews,
+          views: examplePagesViews(),
           routes: examplePagesRoutes,
         },
       ],

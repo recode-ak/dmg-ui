@@ -75,7 +75,7 @@ const tab = async (host: PageServerPort, token: string, prefix: string) => {
       return `${prefix}-${requests}`;
     },
   });
-  return { wire, client, text: new PageText(client, examplePagesViews) };
+  return { wire, client, text: new PageText(client, examplePagesViews()) };
 };
 
 /** Приложение, сервер, хост канала, уведомитель и две вкладки. */

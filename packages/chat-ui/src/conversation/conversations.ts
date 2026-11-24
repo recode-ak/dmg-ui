@@ -69,14 +69,14 @@ export class Conversations<U extends Identified>
   private readonly lines = new PeerQueues();
 
   /**
-   * Нет входа home, возможности не годятся, представления другого набора,
-   * сборка кода не этого приложения — бросок при сборке.
+   * Нет входа home, возможности не годятся, сборка представлений или кода не
+   * этого приложения — бросок при сборке.
    */
   constructor(spec: ConversationsSpec<U>) {
     const { app, views, codes } = spec;
-    if (views.set !== app.set) {
+    if (views.app !== app) {
       throw new Error(
-        `Conversations: представления набора ${views.set.name}, а приложение — ${app.set.name}`,
+        `Conversations: представления ${views.scopeName()}, а беседы — приложения ${app.name}`,
       );
     }
     if (codes.app !== app) {

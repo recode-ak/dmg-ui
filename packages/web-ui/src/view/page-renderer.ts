@@ -5,7 +5,7 @@ import {
   type NotificationPreview,
   UiIds,
 } from 'dmg-ui';
-import type { PageViews } from './page-views';
+import type { AppPageViews } from './app-page-views';
 
 /** Тексты страницы: подписи рендера вида (на них опираются снимки) и состояний области. */
 export const PAGE_TEXTS = {
@@ -32,7 +32,7 @@ export const PAGE_TEXTS = {
 export class PageRenderer {
   private readonly ids: UiIds;
 
-  constructor(private readonly views: PageViews) {
+  constructor(private readonly views: AppPageViews) {
     this.ids = new UiIds(views.set);
   }
 

@@ -37,6 +37,8 @@ import {
   ExampleDialogUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
+  todoChatViews,
+  usersChatViews,
 } from '../../testing';
 import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
@@ -48,6 +50,7 @@ import type {
   SendOptions,
   Updated,
 } from '../messenger/messenger.types';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -395,33 +398,35 @@ const ShowAppDef = UiAppDef.define({
   },
 });
 
-const views = ChatViews.of(ShowSetDef, [
-  ScreenPresenter.for(
-    MainScreenDef,
-    ({ data, state }) =>
-      `Главная: ${data?.count ?? 0}, отметок ${state?.ticks ?? 0}`,
-  ),
-  ScreenPresenter.for(OtherScreenDef, () => 'Другой экран'),
-  ScreenPresenter.for(FormScreenDef, () => 'Форма'),
-  ScreenPresenter.of(MultiScreenDef, {
-    render: (view, kit) => {
-      const parts = view.data?.parts ?? 1;
-      return Array.from({ length: parts }, (_, i) =>
-        kit.message(
-          `Часть ${i + 1} из ${parts}`,
-          i === parts - 1 ? kit.options : [],
-        ),
-      );
-    },
-  }),
-  ScreenPresenter.of(StepScreenDef, {
-    render: (view, kit) => kit.message(`Шаг ${view.data?.step ?? 0}`),
-    history: (view) => `${LESSON}${view.data?.step ?? 0}`,
-  }),
-  ScreenPresenter.of(PageScreenDef, {
-    render: (view, kit) => kit.message(`Страница ${view.data?.n ?? 0}`),
-    history: 'address',
-  }),
+const views = AppChatViews.ofSet(ShowSetDef, [
+  ChatViews.of(ShowUiModuleDef, [
+    ScreenPresenter.for(
+      MainScreenDef,
+      ({ data, state }) =>
+        `Главная: ${data?.count ?? 0}, отметок ${state?.ticks ?? 0}`,
+    ),
+    ScreenPresenter.for(OtherScreenDef, () => 'Другой экран'),
+    ScreenPresenter.for(FormScreenDef, () => 'Форма'),
+    ScreenPresenter.of(MultiScreenDef, {
+      render: (view, kit) => {
+        const parts = view.data?.parts ?? 1;
+        return Array.from({ length: parts }, (_, i) =>
+          kit.message(
+            `Часть ${i + 1} из ${parts}`,
+            i === parts - 1 ? kit.options : [],
+          ),
+        );
+      },
+    }),
+    ScreenPresenter.of(StepScreenDef, {
+      render: (view, kit) => kit.message(`Шаг ${view.data?.step ?? 0}`),
+      history: (view) => `${LESSON}${view.data?.step ?? 0}`,
+    }),
+    ScreenPresenter.of(PageScreenDef, {
+      render: (view, kit) => kit.message(`Страница ${view.data?.n ?? 0}`),
+      history: 'address',
+    }),
+  ]),
 ]);
 
 /** Мессенджер, который помнит признак инициативы показов и правок и тексты ответов на нажатие. */
@@ -1101,13 +1106,16 @@ describe('Conversation — перекрытие представлений по�
       dispatch: new ApiAppDispatch(example.api),
       context: { bus, logger: new MemoryLogger() },
     });
-    const own = exampleDialogViews.over([
-      ScreenPresenter.of(TaskListScreenDef, {
-        render: (view, kit) =>
-          kit.message(`Список мессенджера: ${view.data?.tasks.length ?? 0}`),
-      }),
+    const own = AppChatViews.of(ExampleDialogUiAppDef, [
+      todoChatViews.over([
+        ScreenPresenter.of(TaskListScreenDef, {
+          render: (view, kit) =>
+            kit.message(`Список мессенджера: ${view.data?.tasks.length ?? 0}`),
+        }),
+      ]),
+      usersChatViews,
     ]);
-    const nodeOf = (registry: ChatViews) => {
+    const nodeOf = (registry: AppChatViews) => {
       const messenger = MemoryMessenger.editing();
       const conversations = new Conversations({
         app: ExampleDialogUiAppDef,
@@ -1127,7 +1135,7 @@ describe('Conversation — перекрытие представлений по�
       });
       return { conversations, messenger };
     };
-    const common = nodeOf(exampleDialogViews);
+    const common = nodeOf(exampleDialogViews(ExampleDialogUiAppDef));
     const overridden = nodeOf(own);
 
     for (const [i, node] of [common, overridden].entries()) {
@@ -1162,22 +1170,25 @@ describe('Conversation — акцент варианта', () => {
       dispatch: new ApiAppDispatch(example.api),
       context: { bus, logger: new MemoryLogger() },
     });
-    const accented = exampleDialogViews.over([
-      ScreenPresenter.of(TaskListScreenDef, {
-        render: (view, kit) =>
-          kit.message(
-            `Список: ${view.data?.tasks.length ?? 0}`,
-            kit.options.map((option) =>
-              option.label === 'Создать задачу'
-                ? { ...option, accent: 'positive' as const }
-                : option.label === 'Закрыть'
-                  ? { ...option, accent: 'danger' as const }
-                  : option,
+    const accented = AppChatViews.of(ExampleDialogUiAppDef, [
+      todoChatViews.over([
+        ScreenPresenter.of(TaskListScreenDef, {
+          render: (view, kit) =>
+            kit.message(
+              `Список: ${view.data?.tasks.length ?? 0}`,
+              kit.options.map((option) =>
+                option.label === 'Создать задачу'
+                  ? { ...option, accent: 'positive' as const }
+                  : option.label === 'Закрыть'
+                    ? { ...option, accent: 'danger' as const }
+                    : option,
+              ),
             ),
-          ),
-      }),
+        }),
+      ]),
+      usersChatViews,
     ]);
-    const nodeOf = (registry: ChatViews) => {
+    const nodeOf = (registry: AppChatViews) => {
       const messenger = MemoryMessenger.editing();
       const conversations = new Conversations({
         app: ExampleDialogUiAppDef,
@@ -1197,7 +1208,7 @@ describe('Conversation — акцент варианта', () => {
       });
       return { conversations, messenger };
     };
-    const common = nodeOf(exampleDialogViews);
+    const common = nodeOf(exampleDialogViews(ExampleDialogUiAppDef));
     const own = nodeOf(accented);
 
     for (const [i, node] of [common, own].entries()) {
@@ -1240,11 +1251,14 @@ describe('Conversations — место в снимке и размер пока�
     });
     // Фрагмент длиннее предела схемы сообщения места: мессенджер его
     // принимает, снимок — нет.
-    const huge = exampleDialogViews.over([
-      ScreenPresenter.of(TaskListScreenDef, {
-        render: (_view, kit) =>
-          kit.message(`Список ${'x'.repeat(MAX_FRAGMENT_TEXT)}`),
-      }),
+    const huge = AppChatViews.of(ExampleDialogUiAppDef, [
+      todoChatViews.over([
+        ScreenPresenter.of(TaskListScreenDef, {
+          render: (_view, kit) =>
+            kit.message(`Список ${'x'.repeat(MAX_FRAGMENT_TEXT)}`),
+        }),
+      ]),
+      usersChatViews,
     ]);
     const store = new MemoryConversationStore();
     const messenger = MemoryMessenger.editing();

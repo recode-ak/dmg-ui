@@ -173,7 +173,7 @@ const world = (over: ExampleCodeOverrides = {}) => {
     app: ExampleDialogUiAppDef,
     codes: exampleCodes(over, ExampleDialogUiAppDef),
     server,
-    views: exampleDialogViews,
+    views: exampleDialogViews(ExampleDialogUiAppDef),
     observer: new MemoryUiObserver(),
     messenger,
     store: new MemoryConversationStore(),

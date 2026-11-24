@@ -176,7 +176,7 @@ export class AcceptanceWorld {
       app: this.dialogApp(),
       codes: this.codes(this.dialogApp()),
       server: this.server,
-      views: exampleDialogViews,
+      views: exampleDialogViews(this.dialogApp()),
       observer: this.observer,
       messenger: this.messenger,
       store: this.store,

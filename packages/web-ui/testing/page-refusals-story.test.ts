@@ -55,7 +55,7 @@ const tab = async (host: PageServerPort, token: string) => {
       return `${token}-${requests}`;
     },
   });
-  return { wire, client, text: new PageText(client, examplePagesViews) };
+  return { wire, client, text: new PageText(client, examplePagesViews()) };
 };
 
 /** Учебное приложение, сервер UI и хост канала на личностях A и B. */

@@ -13,6 +13,7 @@ import { MemoryMessenger } from '../../testing';
 import { DialogRenderer } from '../dialog/dialog-renderer';
 import { ScreenLimits } from '../graph/rules/screen-limits';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
+import { AppChatViews } from './app-chat-views';
 import { ChatViews } from './chat-views';
 import { ScreenComposer } from './screen-composer';
 import { ScreenPresenter } from './screen-presenter';
@@ -55,20 +56,20 @@ const PanelScreenDef = ScreenDef.define({
 
 type Panel = typeof PanelScreenDef;
 
+const DeskUiModuleDef = UiModuleDef.define({
+  name: 'desk',
+  label: 'Стол',
+  description: 'Экран панели.',
+  screens: [PanelScreenDef],
+  stories: [],
+});
+
 const ComposerSetDef = UiSetDef.define({
   name: 'disabledUi',
   label: 'Набор показа',
   description: 'Один экран для сборщика показа.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'desk',
-      label: 'Стол',
-      description: 'Экран панели.',
-      screens: [PanelScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [DeskUiModuleDef],
 });
 
 const PANEL = new UiIds(ComposerSetDef).screen(PanelScreenDef);
@@ -145,8 +146,10 @@ const rendering = (
   capabilities: MessengerCapabilities = EDITING,
 ) =>
   new ScreenComposer(
-    ChatViews.of(ComposerSetDef, [
-      ScreenPresenter.of(PanelScreenDef, { render }),
+    AppChatViews.ofSet(ComposerSetDef, [
+      ChatViews.of(DeskUiModuleDef, [
+        ScreenPresenter.of(PanelScreenDef, { render }),
+      ]),
     ]),
     capabilities,
   );
@@ -334,7 +337,9 @@ describe('ScreenComposer — отключённое', () => {
 
   test('DialogRenderer: отключённые — в строке вариантов в скобках, с пометкой, после доступных', () => {
     const renderer = new DialogRenderer(
-      ChatViews.of(ComposerSetDef, [shortForm]),
+      AppChatViews.ofSet(ComposerSetDef, [
+        ChatViews.of(DeskUiModuleDef, [shortForm]),
+      ]),
     );
 
     expect(renderer.screen(mixed())).toBe(
@@ -351,7 +356,9 @@ describe('ScreenComposer — пометка и лимит подписи', () =>
       options: { ...EDITING.options, label: { max, unit: 'grapheme' } },
     };
     const limits = new ScreenLimits(
-      ChatViews.of(ComposerSetDef, [shortForm]),
+      AppChatViews.ofSet(ComposerSetDef, [
+        ChatViews.of(DeskUiModuleDef, [shortForm]),
+      ]),
       capabilities,
     );
     const messages = limits.compose(mixed());

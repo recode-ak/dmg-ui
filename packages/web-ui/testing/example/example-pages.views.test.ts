@@ -23,7 +23,7 @@ const pagePreviewOf = (delegate = false, readOnly = false) =>
   new ExamplePreview({
     set: ExampleUiSetDef,
     codes: exampleCodes(),
-    renderer: new PageRenderer(examplePagesViews),
+    renderer: new PageRenderer(examplePagesViews()),
     context: {
       locale: 'ru-RU',
       timeZone: 'Asia/Oral',

@@ -1,14 +1,14 @@
 import { MemoryLogger } from 'dmg-core/testing';
 import { type AnyScreenDef, ScreenPreview, UiIds } from 'dmg-ui';
 import {
-  type ChatViews,
+  AppChatViews,
   DialogRenderer,
   type Message,
   ScreenComposer,
   ScreenPresenter,
   type ViewMessage,
 } from 'dmg-ui/chat-ui';
-import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
+import { exampleCodes } from 'dmg-ui/testing';
 import {
   type EditMessageTextParams,
   type SendMessageParams,
@@ -29,12 +29,12 @@ export class ExampleTelegramPreview {
   private readonly preview: ScreenPreview;
   private readonly ids: UiIds;
 
-  constructor(private readonly views: ChatViews) {
+  constructor(private readonly views: AppChatViews) {
     this.preview = new ScreenPreview({
       set: views.set,
       codes: exampleCodes(),
     });
-    this.ids = new UiIds(ExampleUiSetDef);
+    this.ids = new UiIds(views.set);
   }
 
   /** Запрос `sendMessage` экрана по примеру. */
@@ -94,7 +94,7 @@ export class ExampleTelegramPreview {
         return output;
       },
     });
-    new DialogRenderer(this.views.over([spy]), TELEGRAM_CAPABILITIES).screen(
+    new DialogRenderer(this.spied(def, spy), TELEGRAM_CAPABILITIES).screen(
       view,
     );
     if (caught === undefined) {
@@ -111,5 +111,24 @@ export class ExampleTelegramPreview {
           : { accent: ScreenComposer.accent(option) }),
       })),
     };
+  }
+
+  /**
+   * Сборка той же области, где реестр модуля экрана перекрыт шпионом: у
+   * сборки перекрытия нет, перекрытый реестр модуля входит вместо базового.
+   */
+  private spied(
+    def: AnyScreenDef,
+    spy: ScreenPresenter<AnyScreenDef>,
+  ): AppChatViews {
+    const base = this.views.registry(def);
+    const layered = base.over([spy]);
+    const modules = this.views
+      .registries()
+      .map((registry) => (registry === base ? layered : registry));
+    const { app } = this.views;
+    return app === undefined
+      ? AppChatViews.ofSet(this.views.set, modules)
+      : AppChatViews.of(app, modules);
   }
 }

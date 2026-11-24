@@ -1,9 +1,9 @@
 import type { PageInboxEntry } from 'dmg-ui/web-ui';
-import type { ExampleViews } from './example-views';
+import type { AppExampleViews } from './app-example-views';
 import type { InboxItem } from './inbox-model.types';
 import { NOTE_UNSHOWN } from './view-texts.const';
 
-type NoteViews = Pick<ExampleViews, 'findNotification'>;
+type NoteViews = Pick<AppExampleViews, 'findNotification'>;
 
 const textOf = (entry: PageInboxEntry, views: NoteViews): string => {
   try {

@@ -8,7 +8,7 @@ import {
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
 import {
-  type ChatViews,
+  AppChatViews,
   Conversations,
   type FormattedText,
   MemoryConversationStore,
@@ -22,6 +22,8 @@ import {
 import {
   ExampleDialogUiAppDef,
   exampleDialogViews,
+  todoChatViews,
+  usersChatViews,
 } from 'dmg-ui/chat-ui/testing';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
 import {
@@ -1031,7 +1033,10 @@ describe('TelegramMessenger — лог без данных', () => {
 
 describe('TelegramMessenger — в узле бесед', () => {
   /** Узел бесед учебного приложения с мессенджером Telegram; собеседник и отправитель — `PEER`. */
-  const node = (api: MemoryBotApi, views: ChatViews = exampleDialogViews) => {
+  const node = (
+    api: MemoryBotApi,
+    views: AppChatViews = exampleDialogViews(ExampleDialogUiAppDef),
+  ) => {
     const bus = new AwaitingBus();
     const logger = new MemoryLogger();
     const example = new ExampleApp(
@@ -1063,10 +1068,13 @@ describe('TelegramMessenger — в узле бесед', () => {
 
   test('текст экрана 5000 UTF-16 приходит в sendMessage обрезанным стражем до 4096', async () => {
     const api = new MemoryBotApi();
-    const long = exampleDialogViews.over([
-      ScreenPresenter.of(TaskListScreenDef, {
-        render: (_view, kit) => kit.message('ж'.repeat(5000)),
-      }),
+    const long = AppChatViews.of(ExampleDialogUiAppDef, [
+      todoChatViews.over([
+        ScreenPresenter.of(TaskListScreenDef, {
+          render: (_view, kit) => kit.message('ж'.repeat(5000)),
+        }),
+      ]),
+      usersChatViews,
     ]);
     const conversations = node(api, long);
 

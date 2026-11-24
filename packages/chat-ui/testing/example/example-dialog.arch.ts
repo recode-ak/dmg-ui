@@ -62,7 +62,7 @@ export const ExampleDialogArch: ArchApp = {
       apps: [
         {
           app: ExampleDialogUiAppDef,
-          views: exampleDialogViews,
+          views: exampleDialogViews(),
           capabilities: MemoryMessenger.editing().capabilities,
           entryPoints: [
             { entry: 'start', via: 'message', key: 'start' },
@@ -72,7 +72,7 @@ export const ExampleDialogArch: ArchApp = {
         },
         {
           app: ExampleTrimmedUiAppDef,
-          views: exampleDialogViews,
+          views: exampleDialogViews(),
           capabilities: MemoryMessenger.editing().capabilities,
           entryPoints: [
             { entry: 'start', via: 'message', key: 'start' },
@@ -82,7 +82,7 @@ export const ExampleDialogArch: ArchApp = {
         },
         {
           app: ExampleWindowedUiAppDef,
-          views: exampleDialogViews,
+          views: exampleDialogViews(),
           capabilities: MemoryMessenger.windowed(() => 0).capabilities,
           entryPoints: [{ entry: 'start', via: 'message', key: 'start' }],
         },

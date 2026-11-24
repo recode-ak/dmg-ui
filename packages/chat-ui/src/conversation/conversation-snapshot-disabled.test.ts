@@ -22,6 +22,7 @@ import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import { PlainText } from '../message/plain-text';
 import { TextBuilder } from '../message/text-builder';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -233,11 +234,13 @@ const SnapshotAppDef = UiAppDef.define({
   },
 });
 
-const views = ChatViews.of(SnapshotSetDef, [
-  ScreenPresenter.for(
-    PultScreenDef,
-    ({ state }) => `Пульт: ${state?.ticks ?? 0}`,
-  ),
+const views = AppChatViews.ofSet(SnapshotSetDef, [
+  ChatViews.of(SnapshotUiModuleDef, [
+    ScreenPresenter.for(
+      PultScreenDef,
+      ({ state }) => `Пульт: ${state?.ticks ?? 0}`,
+    ),
+  ]),
 ]);
 
 let signals = 0;

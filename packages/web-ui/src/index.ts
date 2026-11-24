@@ -84,6 +84,7 @@ export {
   PageUrls,
   type PageUrlsSpec,
 } from './url/page-urls';
+export { AppPageViews } from './view/app-page-views';
 export type {
   PageForm,
   PageFormField,

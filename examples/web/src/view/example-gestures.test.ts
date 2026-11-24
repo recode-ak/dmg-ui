@@ -694,7 +694,7 @@ describe('InboxModel.of — входящие', () => {
     await settle(w, a, b);
     const entries = b.client.inbox().get();
 
-    const items = InboxModel.of(entries, exampleWebViews);
+    const items = InboxModel.of(entries, exampleWebViews());
 
     expect(items).toHaveLength(1);
     expect(items[0]?.text).toBe('Вам назначена задача: Хлеб');
@@ -711,7 +711,7 @@ describe('InboxModel.of — входящие', () => {
   test('неизвестный id уведомления — «Уведомление не показано»', () => {
     const items = InboxModel.of(
       [entry({ notification: 'нет/такого' })],
-      exampleWebViews,
+      exampleWebViews(),
     );
 
     expect(items.map((item) => item.text)).toEqual(['Уведомление не показано']);
@@ -720,7 +720,7 @@ describe('InboxModel.of — входящие', () => {
   test('данные не по схеме — «Уведомление не показано», бросок не уходит наружу', () => {
     const items = InboxModel.of(
       [entry({ data: { title: 5 } })],
-      exampleWebViews,
+      exampleWebViews(),
     );
 
     expect(items.map((item) => item.text)).toEqual(['Уведомление не показано']);
@@ -733,8 +733,8 @@ describe('InboxModel.of — входящие', () => {
       data: { title: 'Молоко' },
     });
 
-    const one = InboxModel.of([first], exampleWebViews);
-    const two = InboxModel.of([first, second], exampleWebViews);
+    const one = InboxModel.of([first], exampleWebViews());
+    const two = InboxModel.of([first, second], exampleWebViews());
 
     expect(two).not.toBe(one);
     expect(one).toHaveLength(1);

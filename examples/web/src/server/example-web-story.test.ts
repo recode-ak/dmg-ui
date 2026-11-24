@@ -260,7 +260,7 @@ describe('сквозной сценарий: Анна и Борис на нас�
       b.client.inbox(),
       (list: readonly PageInboxEntry[]) => list.length >= 1,
     );
-    const first = InboxModel.of(entries, exampleWebViews)[0];
+    const first = InboxModel.of(entries, exampleWebViews())[0];
     expect(first?.text).toBe('Вам назначена задача: Хлеб');
     const link = first?.links[0];
     expect(link).toEqual({ screen: ASSIGNED_ID, params: {} });
@@ -279,7 +279,7 @@ describe('сквозной сценарий: Анна и Борис на нас�
       b.client.inbox(),
       (list: readonly PageInboxEntry[]) => list.length >= 2,
     );
-    expect(InboxModel.of(both, exampleWebViews)[1]?.text).toBe(
+    expect(InboxModel.of(both, exampleWebViews())[1]?.text).toBe(
       'Поручение выполнено: Хлеб',
     );
 

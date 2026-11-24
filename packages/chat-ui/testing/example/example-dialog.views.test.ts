@@ -19,7 +19,7 @@ import { exampleDialogViews } from '../index';
 // представления, без канала, сервера и приложения. Снимки — в
 // `__snapshots__/` рядом.
 
-const renderer = () => new DialogRenderer(exampleDialogViews);
+const renderer = () => new DialogRenderer(exampleDialogViews());
 
 const previewOf = (delegate = false, readOnly = false) =>
   new ExamplePreview({

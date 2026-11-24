@@ -42,6 +42,7 @@ import type {
   SendOptions,
   Updated,
 } from '../messenger/messenger.types';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -196,14 +197,16 @@ const ConvAppDef = UiAppDef.define({
   },
 });
 
-const views = ChatViews.of(ConvSetDef, [
-  ScreenPresenter.for(
-    HomeScreenDef,
-    ({ data, state }) =>
-      `Главная: задач ${data?.count ?? 0}, отметок ${state?.ticks ?? 0}`,
-  ),
-  ScreenPresenter.for(OtherScreenDef, () => 'Другой экран'),
-  ScreenPresenter.for(BlankScreenDef, () => ''),
+const views = AppChatViews.ofSet(ConvSetDef, [
+  ChatViews.of(ConvUiModuleDef, [
+    ScreenPresenter.for(
+      HomeScreenDef,
+      ({ data, state }) =>
+        `Главная: задач ${data?.count ?? 0}, отметок ${state?.ticks ?? 0}`,
+    ),
+    ScreenPresenter.for(OtherScreenDef, () => 'Другой экран'),
+    ScreenPresenter.for(BlankScreenDef, () => ''),
+  ]),
 ]);
 
 /** Строки выхода `listTasks`: число задач — в тексте главного экрана. */
@@ -274,7 +277,7 @@ const sceneOf = (
     readonly messenger?: MemoryMessenger;
     readonly home?: string;
     readonly snapshot?: ConversationSnapshot;
-    readonly views?: ChatViews;
+    readonly views?: AppChatViews;
   } = {},
 ) => {
   const kit = new RuntimeKit(
@@ -661,13 +664,15 @@ describe('Conversation — отказы порта мессенджера', () =
 describe('Conversation — экран снимка', () => {
   test('представление бросает при подъёме экрана снимка — дефект, экран остаётся в снимке, экземпляр закрыт; после починки сигнал экран поднимает', async () => {
     let broken = false;
-    const fragile = ChatViews.of(ConvSetDef, [
-      ScreenPresenter.for(HomeScreenDef, ({ data }) => {
-        if (broken) throw new Error('render-mark-q7');
-        return `Главная: задач ${data?.count ?? 0}`;
-      }),
-      ScreenPresenter.for(OtherScreenDef, () => 'Другой экран'),
-      ScreenPresenter.for(BlankScreenDef, () => ''),
+    const fragile = AppChatViews.ofSet(ConvSetDef, [
+      ChatViews.of(ConvUiModuleDef, [
+        ScreenPresenter.for(HomeScreenDef, ({ data }) => {
+          if (broken) throw new Error('render-mark-q7');
+          return `Главная: задач ${data?.count ?? 0}`;
+        }),
+        ScreenPresenter.for(OtherScreenDef, () => 'Другой экран'),
+        ScreenPresenter.for(BlankScreenDef, () => ''),
+      ]),
     ]);
     const first = sceneOf({ views: fragile });
     await first.conversation.receive(first.signals.enter('start'));

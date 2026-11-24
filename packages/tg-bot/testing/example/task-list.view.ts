@@ -1,13 +1,10 @@
 import { TaskErrors } from 'dmg-core/testing/example';
-import { UiIds } from 'dmg-ui';
 import { ScreenPresenter } from 'dmg-ui/chat-ui';
-import { exampleDialogViews } from 'dmg-ui/chat-ui/testing';
-import { ExampleUiSetDef, TaskListScreenDef } from 'dmg-ui/testing';
+import { todoChatViews } from 'dmg-ui/chat-ui/testing';
+import { TaskListScreenDef } from 'dmg-ui/testing';
 import { AccentedOutput } from './accented-output';
 
-const common = exampleDialogViews.screen(
-  new UiIds(ExampleUiSetDef).screen(TaskListScreenDef),
-);
+const common = todoChatViews.screen(TaskListScreenDef);
 const tooMany = common.caught(TaskErrors.TOO_MANY_OPEN.code);
 
 /**

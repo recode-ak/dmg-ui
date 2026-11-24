@@ -43,6 +43,7 @@ import { DialogTraces } from '../dialog/dialog-traces';
 import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';
 import type { Delivery } from '../messenger/messenger.types';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -431,22 +432,24 @@ const OutAppDef = UiAppDef.define({
   },
 });
 
-const views = ChatViews.of(OutSetDef, [
-  ScreenPresenter.for(LobbyScreenDef, () => 'Лобби'),
-  ScreenPresenter.for(DeskScreenDef, ({ data }) => `Стол: ${data?.count}`),
-  ScreenPresenter.for(VaultScreenDef, () => 'Хранилище', {
-    [TaskErrors.ALREADY_DONE.code]: 'Уже сделано.',
-  }),
-  ScreenPresenter.for(FormScreenDef, () => 'Форма'),
-  ScreenPresenter.for(SwitchScreenDef, ({ state }) =>
-    state?.armed === true ? 'Пульт взведён' : 'Пульт не взведён',
-  ),
-  ScreenPresenter.for(
-    LabScreenDef,
-    ({ state }) =>
-      `Лаборатория: ${state?.ticks ?? 0}, уровень «${state?.level ?? ''}»`,
-  ),
-  ScreenPresenter.for(BrokenScreenDef, () => 'Починено'),
+const views = AppChatViews.ofSet(OutSetDef, [
+  ChatViews.of(OutUiModuleDef, [
+    ScreenPresenter.for(LobbyScreenDef, () => 'Лобби'),
+    ScreenPresenter.for(DeskScreenDef, ({ data }) => `Стол: ${data?.count}`),
+    ScreenPresenter.for(VaultScreenDef, () => 'Хранилище', {
+      [TaskErrors.ALREADY_DONE.code]: 'Уже сделано.',
+    }),
+    ScreenPresenter.for(FormScreenDef, () => 'Форма'),
+    ScreenPresenter.for(SwitchScreenDef, ({ state }) =>
+      state?.armed === true ? 'Пульт взведён' : 'Пульт не взведён',
+    ),
+    ScreenPresenter.for(
+      LabScreenDef,
+      ({ state }) =>
+        `Лаборатория: ${state?.ticks ?? 0}, уровень «${state?.level ?? ''}»`,
+    ),
+    ScreenPresenter.for(BrokenScreenDef, () => 'Починено'),
+  ]),
 ]);
 
 /** Исполнитель, который помнит открытые экземпляры: тест закрывает живой мимо беседы. */

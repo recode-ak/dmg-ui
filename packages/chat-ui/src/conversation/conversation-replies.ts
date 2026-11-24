@@ -13,7 +13,7 @@ import type {
   MessageOption,
 } from '../message/message.types';
 import { TextBuilder } from '../message/text-builder';
-import type { ChatViews } from '../view/chat-views';
+import type { AppChatViews } from '../view/app-chat-views';
 import { type ComposedScreen, ScreenComposer } from '../view/screen-composer';
 import { VIEW_TEXTS } from '../view/view.const';
 import type { ViewOption } from '../view/view.types';
@@ -49,7 +49,7 @@ export class ConversationReplies {
   private readonly ids: UiIds;
 
   constructor(
-    views: ChatViews,
+    views: AppChatViews,
     private readonly refs: RefTable,
     private readonly layout: OptionLayout,
   ) {

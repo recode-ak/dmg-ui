@@ -34,15 +34,12 @@ import {
   ExampleWindowedUiAppDef,
   exampleDialogViews,
   MemoryMessenger,
+  todoChatViews,
+  usersChatViews,
 } from '../../../testing';
-import { AssignedTasksView } from '../../../testing/example/assigned-tasks.view';
-import { MainMenuView } from '../../../testing/example/main-menu.view';
-import { TaskAssignedView } from '../../../testing/example/task-assigned.view';
-import { TaskCompletedView } from '../../../testing/example/task-completed.view';
-import { TaskListView } from '../../../testing/example/task-list.view';
-import { UserCardView } from '../../../testing/example/user-card.view';
 import { DIALOG_CHANNEL } from '../../dialog';
 import type { MessengerCapabilities } from '../../messenger/messenger.types';
+import { AppChatViews } from '../../view/app-chat-views';
 import { ChatViews } from '../../view/chat-views';
 import { NotificationPresenter } from '../../view/notification-presenter';
 import { ScreenPresenter } from '../../view/screen-presenter';
@@ -64,6 +61,7 @@ const DIALOG = 'exampleDialog';
 const WINDOWED = 'exampleWindowed';
 const LIST = 'exampleUi/todo/taskList';
 const CARD = 'exampleUi/todo/taskCard';
+const USER = 'exampleUi/users/userCard';
 
 /** Данные примеров и тексты представлений учебного набора — их нет в нарушениях (ERR-07). */
 const EXAMPLE_TEXTS = [
@@ -93,7 +91,7 @@ const labelLimit = (max: number): MessengerCapabilities['options'] => ({
 
 type AppSpec = {
   readonly app: AnyUiAppDef;
-  readonly views: ChatViews;
+  readonly views: AppChatViews;
   readonly capabilities: MessengerCapabilities;
 };
 
@@ -133,14 +131,14 @@ const sceneOf = (
 /** Учебный набор: `exampleDialog` на просторном мессенджере и `exampleWindowed` на `capabilities`. */
 const exampleScene = (
   capabilities: MessengerCapabilities,
-  views: ChatViews = exampleDialogViews,
+  views: AppChatViews = exampleDialogViews(),
 ): ArchApp =>
   sceneOf(
     ExampleUiSetDef,
     [
       {
         app: ExampleDialogUiAppDef,
-        views: exampleDialogViews,
+        views: exampleDialogViews(),
         capabilities: EDITING,
       },
       { app: ExampleWindowedUiAppDef, views, capabilities },
@@ -160,10 +158,13 @@ const linesAbout = (report: ArchReport, app: string, place: string) =>
 
 /** Карточка из двух сообщений: первое без вариантов, последнее — с вариантами по умолчанию. */
 const twoMessagesCard = (first: string, last: string) =>
-  exampleDialogViews.over([
-    ScreenPresenter.of(TaskCardScreenDef, {
-      render: (_view, kit) => [kit.message(first, []), kit.message(last)],
-    }),
+  AppChatViews.ofSet(ExampleUiSetDef, [
+    todoChatViews.over([
+      ScreenPresenter.of(TaskCardScreenDef, {
+        render: (_view, kit) => [kit.message(first, []), kit.message(last)],
+      }),
+    ]),
+    usersChatViews,
   ]);
 
 describe('CH-01: текст экрана', () => {
@@ -234,18 +235,24 @@ describe('CH-01: экран из нескольких сообщений', () =>
 
 describe('CH-01: варианты экрана', () => {
   test('подпись варианта длиннее options.label — нарушение с номером варианта', () => {
-    const views = exampleDialogViews.over([
-      ScreenPresenter.of(TaskCardScreenDef, {
-        render: (_view, kit) =>
-          kit.message('Карточка', [
-            ...kit.options
-              .filter((option) => option.kind !== 'back')
-              .slice(0, 1),
-            ...kit.options
-              .filter((option) => option.kind === 'back')
-              .map((option) => ({ ...option, label: 'Назад к списку задач' })),
-          ]),
-      }),
+    const views = AppChatViews.ofSet(ExampleUiSetDef, [
+      todoChatViews.over([
+        ScreenPresenter.of(TaskCardScreenDef, {
+          render: (_view, kit) =>
+            kit.message('Карточка', [
+              ...kit.options
+                .filter((option) => option.kind !== 'back')
+                .slice(0, 1),
+              ...kit.options
+                .filter((option) => option.kind === 'back')
+                .map((option) => ({
+                  ...option,
+                  label: 'Назад к списку задач',
+                })),
+            ]),
+        }),
+      ]),
+      usersChatViews,
     ]);
 
     const report = ArchReport.of(
@@ -423,17 +430,19 @@ const NOTE_EXAMPLES = await ChatExamples.collect({
   ]),
 });
 
-const noteViews = ChatViews.of(NoteUiSetDef, [
-  ScreenPresenter.for(BoardScreenDef, () => 'Доска'),
-  ScreenPresenter.for(ShelfScreenDef, () => 'Полка'),
-  NotificationPresenter.for(
-    PingNotificationDef,
-    ({ title }) => `Напоминание о задаче: ${title}`,
-  ),
-  NotificationPresenter.for(
-    CallNotificationDef,
-    ({ title }) => `Вызов: ${title}`,
-  ),
+const noteViews = AppChatViews.ofSet(NoteUiSetDef, [
+  ChatViews.of(NoteUiModuleDef, [
+    ScreenPresenter.for(BoardScreenDef, () => 'Доска'),
+    ScreenPresenter.for(ShelfScreenDef, () => 'Полка'),
+    NotificationPresenter.for(
+      PingNotificationDef,
+      ({ title }) => `Напоминание о задаче: ${title}`,
+    ),
+    NotificationPresenter.for(
+      CallNotificationDef,
+      ({ title }) => `Вызов: ${title}`,
+    ),
+  ]),
 ]);
 
 const noteReport = (capabilities: MessengerCapabilities) =>
@@ -503,12 +512,15 @@ describe('CH-01: уведомление', () => {
 
 describe('CH-01: представление не собрало показ', () => {
   test('представление экрана бросило — строка CH-01 без данных вида и текста броска', () => {
-    const views = exampleDialogViews.over([
-      ScreenPresenter.of(TaskCardScreenDef, {
-        render: ({ data }) => {
-          throw new Error(`секрет представления ${data?.title}`);
-        },
-      }),
+    const views = AppChatViews.ofSet(ExampleUiSetDef, [
+      todoChatViews.over([
+        ScreenPresenter.of(TaskCardScreenDef, {
+          render: ({ data }) => {
+            throw new Error(`секрет представления ${data?.title}`);
+          },
+        }),
+      ]),
+      usersChatViews,
     ]);
 
     const report = ArchReport.of(exampleScene(EDITING, views));
@@ -522,13 +534,16 @@ describe('CH-01: представление не собрало показ', () 
   });
 
   test('вывод не по правилам сборщика показа (вариант не из вариантов по умолчанию) — та же строка CH-01', () => {
-    const views = exampleDialogViews.over([
-      ScreenPresenter.of(TaskCardScreenDef, {
-        render: (_view, kit) =>
-          kit.message('Карточка', [
-            { kind: 'local', name: 'чужой', label: 'Чужой' },
-          ]),
-      }),
+    const views = AppChatViews.ofSet(ExampleUiSetDef, [
+      todoChatViews.over([
+        ScreenPresenter.of(TaskCardScreenDef, {
+          render: (_view, kit) =>
+            kit.message('Карточка', [
+              { kind: 'local', name: 'чужой', label: 'Чужой' },
+            ]),
+        }),
+      ]),
+      usersChatViews,
     ]);
 
     const report = ArchReport.of(exampleScene(EDITING, views));
@@ -542,10 +557,13 @@ describe('CH-01: представление не собрало показ', () 
   });
 
   test('представление уведомления бросило — строка CH-01 без данных и текста броска', () => {
-    const views = exampleDialogViews.over([
-      NotificationPresenter.for(TaskAssignedNotificationDef, ({ title }) => {
-        throw new Error(`секрет уведомления ${title}`);
-      }),
+    const views = AppChatViews.ofSet(ExampleUiSetDef, [
+      todoChatViews.over([
+        NotificationPresenter.for(TaskAssignedNotificationDef, ({ title }) => {
+          throw new Error(`секрет уведомления ${title}`);
+        }),
+      ]),
+      usersChatViews,
     ]);
 
     const report = ArchReport.of(exampleScene(EDITING, views));
@@ -580,28 +598,6 @@ describe('CH-01: тексты нарушений без данных (ERR-07)', 
 });
 
 describe('CH-01: граница с другими правилами', () => {
-  test('экран без представления — CH-01 молчит, нарушение даёт UI-06', () => {
-    const views = ChatViews.of(ExampleUiSetDef, [
-      TaskListView,
-      AssignedTasksView,
-      UserCardView,
-      MainMenuView,
-      TaskAssignedView,
-      TaskCompletedView,
-    ]);
-
-    const report = ArchReport.of(
-      sceneOf(
-        ExampleUiSetDef,
-        [{ app: ExampleDialogUiAppDef, views, capabilities: EDITING }],
-        EXAMPLES,
-      ),
-    );
-
-    expect(report.rule('UI-06')).toHaveLength(1);
-    expect(report.rule('CH-01')).toEqual([]);
-  });
-
   test('свойства chatMessenger не по схеме — check не бросает: строка о возможностях у сломанного приложения, мера его примеров не идёт, у второго приложения строк нет', () => {
     const scene = exampleScene(
       tight({ textWithOptions: { max: 30, unit: 'codePoint' } }),
@@ -637,12 +633,8 @@ describe('CH-01: граница с другими правилами', () => {
     ]);
   });
 
-  test('ребро presents другого поставщика на цель без представления в реестре приложения — CH-01 молчит: это не дефект представления', () => {
-    const views = ChatViews.of(ExampleUiSetDef, [
-      TaskListView,
-      AssignedTasksView,
-      TaskCompletedView,
-    ]);
+  test('ребро presents другого поставщика на экран модуля вне сборки приложения — CH-01 молчит: это не дефект представления', () => {
+    const views = AppChatViews.of(ExampleWindowedUiAppDef, [todoChatViews]);
     const scene = exampleScene(EDITING, views);
     const stub: GraphProvider = {
       name: 'scene-presents',
@@ -650,11 +642,7 @@ describe('CH-01: граница с другими правилами', () => {
       kinds: () => ({ nodes: [], edges: [] }),
       contribute: () => ({
         nodes: [],
-        edges: [CARD, 'exampleUi/todo/taskAssigned'].map((to) => ({
-          kind: 'presents',
-          from: WINDOWED,
-          to,
-        })),
+        edges: [{ kind: 'presents', from: WINDOWED, to: USER }],
       }),
     };
 
@@ -668,7 +656,7 @@ describe('CH-01: граница с другими правилами', () => {
         .build()
         .outgoing(WINDOWED, 'presents')
         .map((edge) => edge.to),
-    ).toContain(CARD);
+    ).toContain(USER);
     expect(ArchReport.of(withStub).rule('CH-01')).toEqual([]);
   });
 });

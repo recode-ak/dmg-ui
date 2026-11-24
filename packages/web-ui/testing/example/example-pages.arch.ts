@@ -35,7 +35,7 @@ export const ExamplePagesArch: ArchApp = {
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: examplePagesViews,
+          views: examplePagesViews(),
           routes: examplePagesRoutes,
         },
       ],

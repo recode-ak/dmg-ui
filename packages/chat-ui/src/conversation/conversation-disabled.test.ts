@@ -21,6 +21,7 @@ import { MemoryMessenger } from '../../testing';
 import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import { PlainText } from '../message/plain-text';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
@@ -146,9 +147,11 @@ const user = (uuid: string, admin = false): ExampleUser => ({
   hasRole: () => admin,
 });
 
-const views = ChatViews.of(GateSetDef, [
-  ScreenPresenter.for(GateScreenDef, () => 'Ворота'),
-  ScreenPresenter.for(PlainScreenDef, () => 'Простой'),
+const views = AppChatViews.ofSet(GateSetDef, [
+  ChatViews.of(GateUiModuleDef, [
+    ScreenPresenter.for(GateScreenDef, () => 'Ворота'),
+    ScreenPresenter.for(PlainScreenDef, () => 'Простой'),
+  ]),
 ]);
 
 /** Беседа на заглушках портов; субъект показа задаёт `scene.subject`. */

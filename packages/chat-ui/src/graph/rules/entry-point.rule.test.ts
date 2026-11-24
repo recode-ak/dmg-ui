@@ -40,14 +40,14 @@ const point = (entry: string, key = entry) => ({
 
 const dialog = (entryPoints?: ChatAppSpec['entryPoints']): ChatAppSpec => ({
   app: ExampleDialogUiAppDef,
-  views: exampleDialogViews,
+  views: exampleDialogViews(),
   capabilities: EDITING,
   ...(entryPoints ? { entryPoints } : {}),
 });
 
 const windowed = (entryPoints?: ChatAppSpec['entryPoints']): ChatAppSpec => ({
   app: ExampleWindowedUiAppDef,
-  views: exampleDialogViews,
+  views: exampleDialogViews(),
   capabilities: WINDOWED,
   ...(entryPoints ? { entryPoints } : {}),
 });

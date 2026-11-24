@@ -1,6 +1,6 @@
 import type { PageInboxEntry, ViewSource } from 'dmg-ui/web-ui';
+import type { AppExampleViews } from '../view/app-example-views';
 import type { ExampleGestures } from '../view/example-gestures';
-import type { ExampleViews } from '../view/example-views';
 import { InboxModel } from '../view/inbox-model';
 import type { InboxItem } from '../view/inbox-model.types';
 import { CLIENT_TEXTS } from './client-texts.const';
@@ -9,7 +9,7 @@ import { h } from './dom-element';
 /** Блок «Входящие»: текст записи и кнопки «Открыть» по её ссылкам. */
 export class InboxDom {
   constructor(
-    private readonly views: Pick<ExampleViews, 'findNotification'>,
+    private readonly views: Pick<AppExampleViews, 'findNotification'>,
     private readonly gestures: ExampleGestures,
   ) {}
 

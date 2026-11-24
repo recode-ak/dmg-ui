@@ -31,6 +31,7 @@ import * as v from 'valibot';
 import { MemoryMessenger } from '../../testing';
 import { DIALOG_CHANNEL } from '../dialog';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
+import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { NotificationPresenter } from '../view/notification-presenter';
 import { ScreenPresenter } from '../view/screen-presenter';
@@ -347,12 +348,14 @@ describe('ChatExamples.collect — граница с UI-20', () => {
       set: ProbeUiSetDef,
       codes: probeCodes(),
     });
-    const views = ChatViews.of(ProbeUiSetDef, [
-      ScreenPresenter.for(ProbeScreenDef, () => 'Проба экрана'),
-      NotificationPresenter.for(
-        ProbeNotificationDef,
-        ({ title }) => `Проба уведомления: ${title}`,
-      ),
+    const views = AppChatViews.ofSet(ProbeUiSetDef, [
+      ChatViews.of(ProbeUiModuleDef, [
+        ScreenPresenter.for(ProbeScreenDef, () => 'Проба экрана'),
+        NotificationPresenter.for(
+          ProbeNotificationDef,
+          ({ title }) => `Проба уведомления: ${title}`,
+        ),
+      ]),
     ]);
     const capabilities: MessengerCapabilities = {
       ...MemoryMessenger.editing().capabilities,

@@ -1,13 +1,20 @@
-import { exampleDialogViews } from 'dmg-ui/chat-ui/testing';
-import { TaskCardView } from './task-card.view';
-import { TaskListView } from './task-list.view';
+import { type AnyUiAppDef, ModuleRegistries } from 'dmg-ui';
+import { AppChatViews } from 'dmg-ui/chat-ui';
+import { usersChatViews } from 'dmg-ui/chat-ui/testing';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { todoTelegramViews } from './todo-telegram.views';
 
 /**
- * Представления учебного примера под Telegram (D-UI-67): общие
- * `exampleDialogViews`, у списка и карточки — перекрытие; остальные экраны
- * и уведомления остаются общими.
+ * Сборка представлений учебного примера под Telegram (D-UI-67): модуль
+ * `todo` — с перекрытием списка и карточки, `users` — общий. Без `app` —
+ * набора целиком, с `app` — приложения из реестров его модулей.
  */
-export const exampleTelegramViews = exampleDialogViews.over([
-  TaskListView,
-  TaskCardView,
-]);
+export const exampleTelegramViews = (app?: AnyUiAppDef): AppChatViews => {
+  const modules = [todoTelegramViews, usersChatViews];
+  if (app === undefined) return AppChatViews.ofSet(ExampleUiSetDef, modules);
+  const required = ModuleRegistries.required(app);
+  return AppChatViews.of(
+    app,
+    modules.filter(({ module }) => required.includes(module)),
+  );
+};
