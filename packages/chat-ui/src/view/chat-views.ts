@@ -45,7 +45,10 @@ export class ChatViews {
     return new ChatViews(module, ChatViews.layerOf(presenters));
   }
 
-  /** Новый реестр с перекрытием по Def; прежний не меняется. Def вне модуля, два в слое — отказ UI-06. */
+  /**
+   * Новый реестр с перекрытием по Def; прежний не меняется.
+   * Def вне модуля, два в слое — отказ UI-06.
+   */
   over(presenters: Presenters): ChatViews {
     ChatViews.completeness.part(this.module, ChatViews.defs(presenters));
     const own = ChatViews.layerOf(presenters);

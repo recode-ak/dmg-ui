@@ -43,6 +43,10 @@ import { AppChatViews } from '../../view/app-chat-views';
 import { ChatViews } from '../../view/chat-views';
 import { NotificationPresenter } from '../../view/notification-presenter';
 import { ScreenPresenter } from '../../view/screen-presenter';
+import type {
+  AnyNotificationPresenter,
+  AnyScreenPresenter,
+} from '../../view/view.types';
 import { ChatExamples } from '../chat-examples';
 import { ChatGraphProvider } from '../chat-graph-provider';
 
@@ -156,16 +160,22 @@ const linesOf = (report: ArchReport, app: string): string[] =>
 const linesAbout = (report: ArchReport, app: string, place: string) =>
   linesOf(report, app).filter((line) => line.includes(`: ${place}, пример `));
 
-/** Карточка из двух сообщений: первое без вариантов, последнее — с вариантами по умолчанию. */
-const twoMessagesCard = (first: string, last: string) =>
+/** Набор представлений: реестр `todo` с перекрытием `presenters` и базовый реестр `users`. */
+const withTodo = (
+  ...presenters: (AnyScreenPresenter | AnyNotificationPresenter)[]
+) =>
   AppChatViews.ofSet(ExampleUiSetDef, [
-    todoChatViews.over([
-      ScreenPresenter.of(TaskCardScreenDef, {
-        render: (_view, kit) => [kit.message(first, []), kit.message(last)],
-      }),
-    ]),
+    todoChatViews.over(presenters),
     usersChatViews,
   ]);
+
+/** Карточка из двух сообщений: первое без вариантов, последнее — с вариантами по умолчанию. */
+const twoMessagesCard = (first: string, last: string) =>
+  withTodo(
+    ScreenPresenter.of(TaskCardScreenDef, {
+      render: (_view, kit) => [kit.message(first, []), kit.message(last)],
+    }),
+  );
 
 describe('CH-01: текст экрана', () => {
   test('текст экрана длиннее textWithOptions — код 1, строка CH-01 с приложением, экраном, примером и номером сообщения', () => {
@@ -235,25 +245,22 @@ describe('CH-01: экран из нескольких сообщений', () =>
 
 describe('CH-01: варианты экрана', () => {
   test('подпись варианта длиннее options.label — нарушение с номером варианта', () => {
-    const views = AppChatViews.ofSet(ExampleUiSetDef, [
-      todoChatViews.over([
-        ScreenPresenter.of(TaskCardScreenDef, {
-          render: (_view, kit) =>
-            kit.message('Карточка', [
-              ...kit.options
-                .filter((option) => option.kind !== 'back')
-                .slice(0, 1),
-              ...kit.options
-                .filter((option) => option.kind === 'back')
-                .map((option) => ({
-                  ...option,
-                  label: 'Назад к списку задач',
-                })),
-            ]),
-        }),
-      ]),
-      usersChatViews,
-    ]);
+    const views = withTodo(
+      ScreenPresenter.of(TaskCardScreenDef, {
+        render: (_view, kit) =>
+          kit.message('Карточка', [
+            ...kit.options
+              .filter((option) => option.kind !== 'back')
+              .slice(0, 1),
+            ...kit.options
+              .filter((option) => option.kind === 'back')
+              .map((option) => ({
+                ...option,
+                label: 'Назад к списку задач',
+              })),
+          ]),
+      }),
+    );
 
     const report = ArchReport.of(
       exampleScene(tight({ options: labelLimit(10) }), views),
@@ -512,16 +519,13 @@ describe('CH-01: уведомление', () => {
 
 describe('CH-01: представление не собрало показ', () => {
   test('представление экрана бросило — строка CH-01 без данных вида и текста броска', () => {
-    const views = AppChatViews.ofSet(ExampleUiSetDef, [
-      todoChatViews.over([
-        ScreenPresenter.of(TaskCardScreenDef, {
-          render: ({ data }) => {
-            throw new Error(`секрет представления ${data?.title}`);
-          },
-        }),
-      ]),
-      usersChatViews,
-    ]);
+    const views = withTodo(
+      ScreenPresenter.of(TaskCardScreenDef, {
+        render: ({ data }) => {
+          throw new Error(`секрет представления ${data?.title}`);
+        },
+      }),
+    );
 
     const report = ArchReport.of(exampleScene(EDITING, views));
 
@@ -534,17 +538,14 @@ describe('CH-01: представление не собрало показ', () 
   });
 
   test('вывод не по правилам сборщика показа (вариант не из вариантов по умолчанию) — та же строка CH-01', () => {
-    const views = AppChatViews.ofSet(ExampleUiSetDef, [
-      todoChatViews.over([
-        ScreenPresenter.of(TaskCardScreenDef, {
-          render: (_view, kit) =>
-            kit.message('Карточка', [
-              { kind: 'local', name: 'чужой', label: 'Чужой' },
-            ]),
-        }),
-      ]),
-      usersChatViews,
-    ]);
+    const views = withTodo(
+      ScreenPresenter.of(TaskCardScreenDef, {
+        render: (_view, kit) =>
+          kit.message('Карточка', [
+            { kind: 'local', name: 'чужой', label: 'Чужой' },
+          ]),
+      }),
+    );
 
     const report = ArchReport.of(exampleScene(EDITING, views));
 
@@ -557,14 +558,11 @@ describe('CH-01: представление не собрало показ', () 
   });
 
   test('представление уведомления бросило — строка CH-01 без данных и текста броска', () => {
-    const views = AppChatViews.ofSet(ExampleUiSetDef, [
-      todoChatViews.over([
-        NotificationPresenter.for(TaskAssignedNotificationDef, ({ title }) => {
-          throw new Error(`секрет уведомления ${title}`);
-        }),
-      ]),
-      usersChatViews,
-    ]);
+    const views = withTodo(
+      NotificationPresenter.for(TaskAssignedNotificationDef, ({ title }) => {
+        throw new Error(`секрет уведомления ${title}`);
+      }),
+    );
 
     const report = ArchReport.of(exampleScene(EDITING, views));
 

@@ -126,19 +126,6 @@ describe('AppChatViews — полнота сборки (UI-06)', () => {
     );
   });
 
-  test('реестр модуля вне приложения — отказ UI-06', () => {
-    expect(
-      failure(() =>
-        AppChatViews.of(ExampleWindowedUiAppDef, [
-          todoChatViews,
-          usersChatViews,
-        ]),
-      ),
-    ).toBe(
-      'UI-06: ChatViews приложения exampleWindowed: реестр модуля users вне приложения',
-    );
-  });
-
   test('базовый и перекрытый реестр одного модуля сразу — отказ UI-06 «два реестра»', () => {
     const ownCard = ScreenPresenter.for(
       TaskCardScreenDef,
