@@ -1,6 +1,7 @@
 import { ok } from 'dmg-core';
 import {
   type ActionSteps,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   ScreenCode,
@@ -86,11 +87,14 @@ export class CutKit {
   readonly runtime: ScreenRuntime;
 
   constructor(withApp = true) {
-    const codes = CodeLoaders.of(scene.set, [
+    const module = CodeLoaders.of(scene.module, [
       CodeLoader.screen(hub, async () => new HubCode()),
       CodeLoader.screen(inside, async () => new InsideCode()),
       CodeLoader.screen(ghost, async () => new GhostCode()),
     ]);
+    const codes = withApp
+      ? AppCodeLoaders.of(scene.app, [module])
+      : AppCodeLoaders.ofSet(scene.set, [module]);
     this.runtime = new ScreenRuntime({
       set: scene.set,
       codes,

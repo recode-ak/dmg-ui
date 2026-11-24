@@ -14,7 +14,6 @@ import { UiGraphProvider } from 'dmg-ui/graph';
 import {
   ASSIGNED_ID,
   ExampleUiSetDef,
-  exampleCodes,
   FollowAssignedStoryDef,
   LIST_ID,
   MainMenuScreenDef,
@@ -172,7 +171,7 @@ describe('сценарий 1 — «Выполнить выбранные» по 
 
     test('ложное «доступно»: исполнитель нажимает «Выполнить выбранные» — ACCESS_DENIED с denyMessage, статусы прежние', async () => {
       const w = worldOf('liar', {
-        codes: exampleCodes({ assigned: new LiarAssignedScreenCode() }),
+        codes: { assigned: new LiarAssignedScreenCode() },
       });
       const task = await w.createTask(A, 'Хлеб');
       await w.assignTask(A, task, B);
@@ -286,7 +285,7 @@ describe('сценарий 1 — «Выполнить выбранные» по 
 
     test('ложное «доступно» через код экрана: форма «Выполнить выбранные» есть, отправка исполнителем — ACCESS_DENIED с текстом, статусы прежние', async () => {
       const w = worldOf('page-liar', {
-        codes: exampleCodes({ assigned: new LiarAssignedScreenCode() }),
+        codes: { assigned: new LiarAssignedScreenCode() },
       });
       const task = await w.createTask(A, 'Хлеб');
       await w.assignTask(A, task, B);

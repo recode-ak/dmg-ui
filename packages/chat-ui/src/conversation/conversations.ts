@@ -68,12 +68,20 @@ export class Conversations<U extends Identified>
   private readonly ids: UiIds;
   private readonly lines = new PeerQueues();
 
-  /** Нет входа home, возможности не годятся, представления другого набора — бросок при сборке. */
+  /**
+   * Нет входа home, возможности не годятся, представления другого набора,
+   * сборка кода не этого приложения — бросок при сборке.
+   */
   constructor(spec: ConversationsSpec<U>) {
-    const { app, views } = spec;
+    const { app, views, codes } = spec;
     if (views.set !== app.set) {
       throw new Error(
         `Conversations: представления набора ${views.set.name}, а приложение — ${app.set.name}`,
+      );
+    }
+    if (codes.app !== app) {
+      throw new Error(
+        `Conversations: загрузчики кода ${codes.scopeName()}, а беседы — приложения ${app.name}`,
       );
     }
     this.messenger = new LimitedMessenger({

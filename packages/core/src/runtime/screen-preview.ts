@@ -4,7 +4,7 @@ import { UiIds } from '../address/ui-ids';
 import { AppReach } from '../manifest/app-reach';
 import type { AnyNotificationDef } from '../manifest/notification-def.types';
 import type { AnyScreenDef } from '../manifest/screen-def.types';
-import type { CodeLoaders } from './code-loaders';
+import type { AppCodeLoaders } from './app-code-loaders';
 import type { RenderContext } from './context.types';
 import { ExampleCheck } from './example-check';
 import { InstanceViews } from './instance-views';
@@ -26,15 +26,15 @@ export type {
  * превью нет: действия составом приложения не отрезаются.
  */
 export class ScreenPreview {
-  private readonly codes: CodeLoaders;
+  private readonly codes: AppCodeLoaders;
   private readonly ids: UiIds;
   private readonly codec: AddressCodec;
 
-  /** Загрузчики другого набора — ошибка сборки, бросок. */
+  /** Сборка кода не набора превью (другого набора, приложения) — бросок. */
   constructor(spec: ScreenPreviewSpec) {
-    if (spec.codes.set !== spec.set) {
+    if (spec.codes.set !== spec.set || spec.codes.app !== undefined) {
       throw new Error(
-        `ScreenPreview: загрузчики кода набора ${spec.codes.set.name}, а превью — ${spec.set.name}`,
+        `ScreenPreview: загрузчики кода ${spec.codes.scopeName()}, а превью — набора ${spec.set.name}`,
       );
     }
     this.codes = spec.codes;

@@ -37,12 +37,12 @@ export class UiNotifier<U extends Identified> {
   /** Отписка действующего запуска; `undefined` — не запущен. */
   private running: (() => void) | undefined;
 
-  /** Загрузчики другого набора — ошибка сборки, бросок. */
+  /** Сборка кода не этого приложения (другого, набора) — бросок. */
   constructor(spec: UiNotifierSpec<U>) {
     const { app, codes, context, dispatch } = spec;
-    if (codes.set !== app.set) {
+    if (codes.app !== app) {
       throw new Error(
-        `UiNotifier: загрузчики кода набора ${codes.set.name}, а приложение ${app.name} — ${app.set.name}`,
+        `UiNotifier: загрузчики кода ${codes.scopeName()}, а уведомления — приложения ${app.name}`,
       );
     }
     this.spec = spec;

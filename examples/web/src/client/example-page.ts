@@ -65,7 +65,7 @@ export class ExamplePage {
     if (end === undefined) return;
     const client = new PageClient({
       app: this.app,
-      codes: exampleCodes(),
+      codes: exampleCodes({}, this.app),
       routes: examplePagesRoutes,
       end,
       placements: exampleWebPlacements,

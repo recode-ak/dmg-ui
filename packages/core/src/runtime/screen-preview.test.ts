@@ -4,6 +4,7 @@ import { testUuid } from 'dmg-core/testing';
 import { type ExampleUser, ListTasksUcDef } from 'dmg-core/testing/example';
 import * as v from 'valibot';
 import {
+  ExampleUiSetDef,
   exampleCodes,
   LIST_ID,
   LIST_START,
@@ -14,6 +15,7 @@ import {
   TaskListScreenDef,
 } from '../../testing/example';
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
+import { ExampleStubUiAppDef } from '../../testing/ui-app.fixture';
 import { UiScene } from '../../testing/ui-arch';
 import { testRenderContext } from '../../testing/ui-runtime.fixture';
 import { ScreenDef } from '../manifest/screen-def';
@@ -21,6 +23,7 @@ import { fieldHint } from '../schema/field-hint';
 import { CodeDefect } from '../screen/code-defect';
 import { ScreenCode } from '../screen/screen-code';
 import type { LoadContext } from '../screen/screen-code.types';
+import { AppCodeLoaders } from './app-code-loaders';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 import type { ActionView } from './outcome.types';
 import { ScreenPreview } from './screen-preview';
@@ -98,9 +101,11 @@ class DraftScreenCode extends ScreenCode<typeof DraftScreenDef> {
 
 /** Набор с одним экраном `draft` и его код. */
 const draftPreview = () => {
-  const { set } = new UiScene({ screens: [DraftScreenDef] });
-  const codes = CodeLoaders.of(set, [
-    CodeLoader.screen(DraftScreenDef, async () => new DraftScreenCode()),
+  const { set, module } = new UiScene({ screens: [DraftScreenDef] });
+  const codes = AppCodeLoaders.ofSet(set, [
+    CodeLoaders.of(module, [
+      CodeLoader.screen(DraftScreenDef, async () => new DraftScreenCode()),
+    ]),
   ]);
   return new ScreenPreview({ set, codes });
 };
@@ -303,10 +308,22 @@ describe('ScreenPreview.notification — данные по примеру', () =
 });
 
 describe('ScreenPreview — сборка', () => {
-  test('загрузчики другого набора — бросок', () => {
+  test('сборка другого набора — бросок с именами наборов', () => {
     const { set } = new UiScene({ screens: [DraftScreenDef] });
 
-    expect(() => new ScreenPreview({ set, codes: exampleCodes() })).toThrow();
+    expect(() => new ScreenPreview({ set, codes: exampleCodes() })).toThrow(
+      /ScreenPreview.*exampleUi.*miniUi/,
+    );
+  });
+
+  test('сборка приложения того же набора — бросок с именем приложения', () => {
+    expect(
+      () =>
+        new ScreenPreview({
+          set: ExampleUiSetDef,
+          codes: exampleCodes({}, ExampleStubUiAppDef),
+        }),
+    ).toThrow(/ScreenPreview.*exampleStub/);
   });
 });
 
@@ -370,9 +387,11 @@ class HintedScreenCode extends ScreenCode<typeof HintedScreenDef> {
 
 describe('ScreenPreview.screen — подсказка в виде', () => {
   const hintedView = async () => {
-    const { set } = new UiScene({ screens: [HintedScreenDef] });
-    const codes = CodeLoaders.of(set, [
-      CodeLoader.screen(HintedScreenDef, async () => new HintedScreenCode()),
+    const { set, module } = new UiScene({ screens: [HintedScreenDef] });
+    const codes = AppCodeLoaders.ofSet(set, [
+      CodeLoaders.of(module, [
+        CodeLoader.screen(HintedScreenDef, async () => new HintedScreenCode()),
+      ]),
     ]);
     return new ScreenPreview({ set, codes }).screen(
       HintedScreenDef,

@@ -1,15 +1,18 @@
 import type { TraceJson } from 'dmg-core';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
-import type { CodeLoaders } from './code-loaders';
+import type { AppCodeLoaders } from './app-code-loaders';
 import type { RenderContext } from './context.types';
 import type { RefreshPort, UcPort } from './ports.types';
 import type { UiFault, UiObserver } from './ui-observer.types';
 
-/** Исполнитель одной личности: набор, загрузчики кода, порты, наблюдатель. */
+/**
+ * Исполнитель одной личности: набор, сборка кода его области (приложения
+ * или набора без приложения), порты, наблюдатель.
+ */
 export type ScreenRuntimeSpec = {
   readonly set: AnyUiSetDef;
-  readonly codes: CodeLoaders;
+  readonly codes: AppCodeLoaders;
   readonly ucs: UcPort;
   readonly refresh: RefreshPort;
   readonly observer: UiObserver;

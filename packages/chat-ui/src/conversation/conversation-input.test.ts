@@ -4,6 +4,7 @@ import { MemoryLogger, testUuid } from 'dmg-core/testing';
 import { ExampleAppDef } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type FieldChoices,
@@ -156,20 +157,20 @@ class MenuCode extends ScreenCode<typeof MenuScreenDef> {
   }
 }
 
+const InputUiModuleDef = UiModuleDef.define({
+  name: 'input',
+  label: 'Сбор входа',
+  description: 'Форма и меню.',
+  screens: [FormScreenDef, MenuScreenDef],
+  stories: [],
+});
+
 const InputSetDef = UiSetDef.define({
   name: 'inputUi',
   label: 'Набор сбора входа',
   description: 'Локальные экраны сбора входа беседы.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'input',
-      label: 'Сбор входа',
-      description: 'Форма и меню.',
-      screens: [FormScreenDef, MenuScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [InputUiModuleDef],
 });
 
 const InputAppDef = UiAppDef.define({
@@ -220,11 +221,12 @@ const worldOf = () => {
   const conversationOf = (options: ConversationOptions) => {
     const peer = options.peer ?? PEER_A;
     const kit = new RuntimeKit(
-      CodeLoaders.of(InputSetDef, [
-        CodeLoader.screen(FormScreenDef, async () => new FormCode(calls)),
-        CodeLoader.screen(MenuScreenDef, async () => new MenuCode(calls)),
+      AppCodeLoaders.ofSet(InputSetDef, [
+        CodeLoaders.of(InputUiModuleDef, [
+          CodeLoader.screen(FormScreenDef, async () => new FormCode(calls)),
+          CodeLoader.screen(MenuScreenDef, async () => new MenuCode(calls)),
+        ]),
       ]),
-      InputSetDef,
     );
     const conversation = new Conversation(
       {

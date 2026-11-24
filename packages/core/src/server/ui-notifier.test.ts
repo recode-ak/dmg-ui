@@ -23,7 +23,10 @@ import {
 } from '../../testing/example';
 import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.ncode';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
-import { ExampleStubUiAppDef } from '../../testing/ui-app.fixture';
+import {
+  ExampleMenuStubUiAppDef,
+  ExampleStubUiAppDef,
+} from '../../testing/ui-app.fixture';
 import { UiScene } from '../../testing/ui-arch';
 import { TASKS } from '../../testing/ui-runtime.fixture';
 import {
@@ -34,6 +37,7 @@ import {
 } from '../../testing/ui-server.fixture';
 import type { AnyNotificationDef } from '../manifest/notification-def';
 import type { AnyUiAppDef } from '../manifest/ui-app-def';
+import { AppCodeLoaders } from '../runtime/app-code-loaders';
 import { CodeLoader, CodeLoaders } from '../runtime/code-loaders';
 import { NotificationCode } from '../runtime/notification-code';
 import { ModuleApiDispatch } from './module-api-dispatch';
@@ -81,13 +85,15 @@ class OwnerCode extends NotificationCode<AnyNotificationDef> {
 }
 
 const ownerCodes = () =>
-  CodeLoaders.of(ownerScene.set, [
-    CodeLoader.notification(ownerNotification, async () => new OwnerCode()),
+  AppCodeLoaders.of(ownerScene.app, [
+    CodeLoaders.of(ownerScene.module, [
+      CodeLoader.notification(ownerNotification, async () => new OwnerCode()),
+    ]),
   ]);
 
 type Setup = {
   readonly app?: AnyUiAppDef;
-  readonly codes?: CodeLoaders;
+  readonly codes?: AppCodeLoaders;
   readonly callers?: StubRecipientCallers;
   readonly delivery?: StubDelivery;
   /** Ответы транспорта сверх `listAssignedTasks`. */
@@ -112,7 +118,7 @@ const notify = async (over: Setup = {}) => {
   const observer = new MemoryUiObserver();
   new UiNotifier({
     app: over.app ?? ExampleStubUiAppDef,
-    codes: over.codes ?? exampleCodes(),
+    codes: over.codes ?? exampleCodes({}, ExampleStubUiAppDef),
     dispatch: new ModuleApiDispatch([
       new ModuleApi(TodoModuleDef, transport, logger),
     ]),
@@ -229,7 +235,10 @@ describe('UiNotifier — дефекты, сбои и записи', () => {
     }
 
     const { delivery, observer } = await notify({
-      codes: exampleCodes({ assignedNote: new ForeignLink() }),
+      codes: exampleCodes(
+        { assignedNote: new ForeignLink() },
+        ExampleStubUiAppDef,
+      ),
     });
 
     expect(delivery.delivered).toEqual([]);
@@ -283,7 +292,7 @@ describe('UiNotifier — дефекты, сбои и записи', () => {
 });
 
 describe('UiNotifier — сборка и запуск', () => {
-  const build = (codes = exampleCodes()) => {
+  const build = (codes = exampleCodes({}, ExampleStubUiAppDef)) => {
     const logger = new MemoryLogger();
     return new UiNotifier({
       app: ExampleStubUiAppDef,
@@ -298,8 +307,16 @@ describe('UiNotifier — сборка и запуск', () => {
     });
   };
 
-  test('загрузчики другого набора — бросок', () => {
-    expect(() => build(ownerCodes())).toThrow('UiNotifier');
+  test('сборка другого приложения — бросок с именами приложений', () => {
+    expect(() => build(exampleCodes({}, ExampleMenuStubUiAppDef))).toThrow(
+      /UiNotifier.*exampleMenuStub.*exampleStub/,
+    );
+  });
+
+  test('сборка набора — бросок с именами набора и приложения', () => {
+    expect(() => build(exampleCodes())).toThrow(
+      /UiNotifier.*exampleUi.*exampleStub/,
+    );
   });
 
   test('повторный start() без остановки — бросок', () => {
@@ -384,7 +401,10 @@ describe('UiNotifier — отказы и дефекты в логе', () => {
     }
 
     const { logger, observer } = await notify({
-      codes: exampleCodes({ assignedNote: new Throwing() }),
+      codes: exampleCodes(
+        { assignedNote: new Throwing() },
+        ExampleStubUiAppDef,
+      ),
     });
 
     expect(JSON.stringify(observer.records)).not.toContain('секрет');

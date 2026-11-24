@@ -406,7 +406,7 @@ describe('TelegramUpdates — вход, которого нет в таблиц�
     const messenger = new TelegramMessenger({ api, logger });
     const conversations = new Conversations({
       app: ExampleDialogUiAppDef,
-      codes: exampleCodes(),
+      codes: exampleCodes({}, ExampleDialogUiAppDef),
       server: new UiServer({
         set: ExampleUiSetDef,
         dispatch: new ApiAppDispatch(example.api),

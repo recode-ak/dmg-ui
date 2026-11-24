@@ -157,7 +157,7 @@ const booted = async (
   const faults: UiFault[] = [];
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end,
     observer: new MemoryUiObserver(),

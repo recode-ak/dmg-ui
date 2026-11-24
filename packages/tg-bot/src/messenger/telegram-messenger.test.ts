@@ -1045,7 +1045,7 @@ describe('TelegramMessenger — в узле бесед', () => {
     });
     return new Conversations({
       app: ExampleDialogUiAppDef,
-      codes: exampleCodes(),
+      codes: exampleCodes({}, ExampleDialogUiAppDef),
       server,
       views,
       observer: new MemoryUiObserver(),

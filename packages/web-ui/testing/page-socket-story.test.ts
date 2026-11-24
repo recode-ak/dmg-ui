@@ -145,7 +145,7 @@ const serving = (
   });
   new UiNotifier({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     dispatch,
     callers: example.callers,
     delivery: host.delivery,
@@ -227,7 +227,7 @@ const tab = async (w: Served, token: string, prefix: string) => {
   let requests = 0;
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end,
     observer: new MemoryUiObserver(),
@@ -309,7 +309,7 @@ const reconnecting = async (w: Served, token: string, prefix: string) => {
   let requests = 0;
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end,
     observer: new MemoryUiObserver(),

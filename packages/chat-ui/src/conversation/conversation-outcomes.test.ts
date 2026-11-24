@@ -19,6 +19,7 @@ import {
   type ActionSteps,
   type Address,
   type AnyScreenDef,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type DataOf,
@@ -382,28 +383,28 @@ class BrokenCode extends ScreenCode<typeof BrokenScreenDef> {
   }
 }
 
+const OutUiModuleDef = UiModuleDef.define({
+  name: 'out',
+  label: 'Исходы',
+  description: 'Экраны на каждый исход действия и локального действия.',
+  screens: [
+    LobbyScreenDef,
+    DeskScreenDef,
+    VaultScreenDef,
+    FormScreenDef,
+    SwitchScreenDef,
+    LabScreenDef,
+    BrokenScreenDef,
+  ],
+  stories: [],
+});
+
 const OutSetDef = UiSetDef.define({
   name: 'outUi',
   label: 'Набор исходов',
   description: 'Локальные экраны исходов беседы.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'out',
-      label: 'Исходы',
-      description: 'Экраны на каждый исход действия и локального действия.',
-      screens: [
-        LobbyScreenDef,
-        DeskScreenDef,
-        VaultScreenDef,
-        FormScreenDef,
-        SwitchScreenDef,
-        LabScreenDef,
-        BrokenScreenDef,
-      ],
-      stories: [],
-    }),
-  ],
+  modules: [OutUiModuleDef],
 });
 
 const entry = (label: string, address: Address) => ({
@@ -594,16 +595,18 @@ const sceneOf = (options: {
           },
         };
   const { messenger } = options;
-  const codes = CodeLoaders.of(OutSetDef, [
-    CodeLoader.screen(LobbyScreenDef, async () => new LobbyCode()),
-    CodeLoader.screen(DeskScreenDef, async () => new DeskCode(world)),
-    CodeLoader.screen(VaultScreenDef, async () => new VaultCode(world)),
-    CodeLoader.screen(FormScreenDef, async () => new FormCode(world)),
-    CodeLoader.screen(SwitchScreenDef, async () => new SwitchCode(world)),
-    CodeLoader.screen(LabScreenDef, async () => new LabCode()),
-    CodeLoader.screen(BrokenScreenDef, async () => new BrokenCode(world)),
+  const codes = AppCodeLoaders.ofSet(OutSetDef, [
+    CodeLoaders.of(OutUiModuleDef, [
+      CodeLoader.screen(LobbyScreenDef, async () => new LobbyCode()),
+      CodeLoader.screen(DeskScreenDef, async () => new DeskCode(world)),
+      CodeLoader.screen(VaultScreenDef, async () => new VaultCode(world)),
+      CodeLoader.screen(FormScreenDef, async () => new FormCode(world)),
+      CodeLoader.screen(SwitchScreenDef, async () => new SwitchCode(world)),
+      CodeLoader.screen(LabScreenDef, async () => new LabCode()),
+      CodeLoader.screen(BrokenScreenDef, async () => new BrokenCode(world)),
+    ]),
   ]);
-  const kit = new RuntimeKit(codes, OutSetDef);
+  const kit = new RuntimeKit(codes);
   const runtime = new OpenedRuntime({
     set: OutSetDef,
     codes,

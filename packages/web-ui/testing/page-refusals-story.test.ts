@@ -46,7 +46,7 @@ const tab = async (host: PageServerPort, token: string) => {
   let requests = 0;
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end: connected.value,
     observer: new MemoryUiObserver(),
@@ -149,7 +149,7 @@ describe('PageClient — пути отказа через провод', () => {
     if (!connected.ok) throw new Error('connect: отказ');
     const client = new PageClient({
       app: ExamplePagesUiAppDef,
-      codes: exampleCodes(),
+      codes: exampleCodes({}, ExamplePagesUiAppDef),
       routes: examplePagesRoutes,
       end: connected.value,
       observer: new MemoryUiObserver(),

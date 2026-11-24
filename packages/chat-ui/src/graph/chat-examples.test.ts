@@ -6,6 +6,7 @@ import {
   TaskEvents,
 } from 'dmg-core/testing/example';
 import {
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   NotificationCode,
@@ -137,21 +138,21 @@ const ProbeNotificationDef = NotificationDef.define({
 });
 
 /** Набор с примерами не по схеме поверх учебного домена. */
+const ProbeUiModuleDef = UiModuleDef.define({
+  name: 'desk',
+  label: 'Стол',
+  description: 'Экран и уведомление проб.',
+  screens: [ProbeScreenDef],
+  stories: [],
+  notifications: [ProbeNotificationDef],
+});
+
 const ProbeUiSetDef = UiSetDef.define({
   name: 'probeUi',
   label: 'Набор проб',
   description: 'Набор с примерами не по схеме.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'desk',
-      label: 'Стол',
-      description: 'Экран и уведомление проб.',
-      screens: [ProbeScreenDef],
-      stories: [],
-      notifications: [ProbeNotificationDef],
-    }),
-  ],
+  modules: [ProbeUiModuleDef],
 });
 
 class ProbeScreenCode extends ScreenCode<typeof ProbeScreenDef> {
@@ -173,12 +174,14 @@ class ProbeNotificationCode extends NotificationCode<
 }
 
 const probeCodes = () =>
-  CodeLoaders.of(ProbeUiSetDef, [
-    CodeLoader.screen(ProbeScreenDef, async () => new ProbeScreenCode()),
-    CodeLoader.notification(
-      ProbeNotificationDef,
-      async () => new ProbeNotificationCode(),
-    ),
+  AppCodeLoaders.ofSet(ProbeUiSetDef, [
+    CodeLoaders.of(ProbeUiModuleDef, [
+      CodeLoader.screen(ProbeScreenDef, async () => new ProbeScreenCode()),
+      CodeLoader.notification(
+        ProbeNotificationDef,
+        async () => new ProbeNotificationCode(),
+      ),
+    ]),
   ]);
 
 describe('ChatExamples.collect — примеры набора', () => {

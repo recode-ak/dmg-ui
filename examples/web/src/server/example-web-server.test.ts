@@ -363,7 +363,7 @@ describe('сокет — ворота', () => {
       let n = 0;
       const client = new PageClient({
         app: ExamplePagesUiAppDef,
-        codes: exampleCodes(),
+        codes: exampleCodes({}, ExamplePagesUiAppDef),
         routes: examplePagesRoutes,
         end: res.value,
         placements: [{ screen: AssignedTasksScreenDef, region: 'modal' }],

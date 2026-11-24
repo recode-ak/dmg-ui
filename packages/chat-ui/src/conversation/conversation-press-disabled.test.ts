@@ -5,6 +5,7 @@ import { CompleteTaskUcDef, ExampleAppDef } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
   type Address,
+  AppCodeLoaders,
   Availability,
   CodeLoader,
   CodeLoaders,
@@ -205,20 +206,20 @@ class VaultCode extends ScreenCode<typeof VaultScreenDef> {
   }
 }
 
+const PressUiModuleDef = UiModuleDef.define({
+  name: 'press',
+  label: 'Нажатия',
+  description: 'Пульт, форма и хранилище.',
+  screens: [PultScreenDef, FormScreenDef, VaultScreenDef],
+  stories: [],
+});
+
 const PressSetDef = UiSetDef.define({
   name: 'pressUi',
   label: 'Набор нажатий',
   description: 'Экраны с отключёнными вариантами.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'press',
-      label: 'Нажатия',
-      description: 'Пульт, форма и хранилище.',
-      screens: [PultScreenDef, FormScreenDef, VaultScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [PressUiModuleDef],
 });
 
 const entry = (label: string, address: Address) => ({
@@ -357,12 +358,14 @@ const sceneOf = (options: {
   const world = worldOf();
   const logger = new MemoryLogger();
   const { messenger } = options;
-  const codes = CodeLoaders.of(PressSetDef, [
-    CodeLoader.screen(PultScreenDef, async () => new PultCode(world)),
-    CodeLoader.screen(FormScreenDef, async () => new FormCode(world)),
-    CodeLoader.screen(VaultScreenDef, async () => new VaultCode()),
+  const codes = AppCodeLoaders.ofSet(PressSetDef, [
+    CodeLoaders.of(PressUiModuleDef, [
+      CodeLoader.screen(PultScreenDef, async () => new PultCode(world)),
+      CodeLoader.screen(FormScreenDef, async () => new FormCode(world)),
+      CodeLoader.screen(VaultScreenDef, async () => new VaultCode()),
+    ]),
   ]);
-  const kit = new RuntimeKit(codes, PressSetDef);
+  const kit = new RuntimeKit(codes);
   const context = options.context ?? testRenderContext;
   const conversation = new Conversation({
     app: PressAppDef,

@@ -60,7 +60,7 @@ export class ExampleWeb {
     // Уведомитель берёт обычный вызов: задержка касается только действий человека.
     const notifier = new UiNotifier({
       app: ExamplePagesUiAppDef,
-      codes: exampleCodes(),
+      codes: exampleCodes({}, ExamplePagesUiAppDef),
       dispatch,
       callers: example.callers,
       delivery: host.delivery,

@@ -37,6 +37,7 @@ import { ScreenDef } from '../manifest/screen-def';
 import { Availability } from '../screen/availability';
 import { ScreenCode } from '../screen/screen-code';
 import type { ActionSteps, LoadContext } from '../screen/screen-code.types';
+import { AppCodeLoaders } from './app-code-loaders';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 import type { ViewChange } from './outcome.types';
 import { ScreenUnit } from './screen-unit';
@@ -855,11 +856,13 @@ class FlagCode extends ScreenCode<Flag> {
 }
 
 const flagged = (rows: ReturnType<typeof taskState>[]) => {
-  const { set } = new UiScene({ screens: [FlagScreenDef] });
-  const codes = CodeLoaders.of(set, [
-    CodeLoader.screen(FlagScreenDef, async () => new FlagCode()),
+  const { set, module } = new UiScene({ screens: [FlagScreenDef] });
+  const codes = AppCodeLoaders.ofSet(set, [
+    CodeLoaders.of(module, [
+      CodeLoader.screen(FlagScreenDef, async () => new FlagCode()),
+    ]),
   ]);
-  const kit = new RuntimeKit(codes, set);
+  const kit = new RuntimeKit(codes);
   kit.ucs.answer(ListTasksUcDef, ok(rows));
   return kit.runtime.open(FlagScreenDef.at({}), RuntimeKit.options());
 };

@@ -40,6 +40,7 @@ import {
   UiServer,
 } from 'dmg-ui/server';
 import {
+  type ExampleCodeOverrides,
   ExampleUiSetDef,
   exampleCodes,
   MemoryUiObserver,
@@ -89,7 +90,8 @@ const places: PersonPlaces = {
 export type WorldOptions = {
   /** Каталог данных приложения мира (отдельный на мир). */
   readonly dataDir: string;
-  readonly codes?: ReturnType<typeof exampleCodes>;
+  /** Подмена кода узлов примера — в сборках кода обоих приложений. */
+  readonly codes?: ExampleCodeOverrides;
   /** Приложение беседы; по умолчанию — `ExampleDialogUiAppDef`. */
   readonly dialogApp?: AnyUiAppDef;
   /** Порт выхода беседы: принять ли выход. */
@@ -171,8 +173,8 @@ export class AcceptanceWorld {
     });
     const exits = options.exits;
     this.conversations = new Conversations({
-      app: options.dialogApp ?? ExampleDialogUiAppDef,
-      codes: this.codes(),
+      app: this.dialogApp(),
+      codes: this.codes(this.dialogApp()),
       server: this.server,
       views: exampleDialogViews,
       observer: this.observer,
@@ -194,8 +196,13 @@ export class AcceptanceWorld {
     });
   }
 
-  private codes() {
-    return this.options.codes ?? exampleCodes();
+  private dialogApp(): AnyUiAppDef {
+    return this.options.dialogApp ?? ExampleDialogUiAppDef;
+  }
+
+  /** Сборка кода приложения `app` с подменой узлов мира. */
+  private codes(app: AnyUiAppDef) {
+    return exampleCodes(this.options.codes, app);
   }
 
   /** Беседа человека `uuid`; первое обращение запускает рассыльщика уведомлений беседы. */
@@ -203,8 +210,8 @@ export class AcceptanceWorld {
     if (!this.dialogNotifier) {
       this.dialogNotifier = true;
       new UiNotifier({
-        app: this.options.dialogApp ?? ExampleDialogUiAppDef,
-        codes: this.codes(),
+        app: this.dialogApp(),
+        codes: this.codes(this.dialogApp()),
         dispatch: this.inner,
         callers: this.callers,
         delivery: { deliver: async () => {} },
@@ -241,7 +248,7 @@ export class AcceptanceWorld {
     });
     new UiNotifier({
       app: ExamplePagesUiAppDef,
-      codes: this.codes(),
+      codes: this.codes(ExamplePagesUiAppDef),
       dispatch: this.inner,
       callers: this.callers,
       delivery: host.delivery,
@@ -261,7 +268,7 @@ export class AcceptanceWorld {
     if (!connected.ok) throw new Error(`connect(${token}): отказ`);
     const client = new PageClient({
       app: ExamplePagesUiAppDef,
-      codes: this.codes(),
+      codes: this.codes(ExamplePagesUiAppDef),
       routes: examplePagesRoutes,
       end: connected.value,
       observer: this.observer,

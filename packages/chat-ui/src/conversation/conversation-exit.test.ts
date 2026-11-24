@@ -5,6 +5,7 @@ import { ExampleAppDef } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
   type Address,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type DataOf,
@@ -171,21 +172,22 @@ const storyOf = (to: Then) =>
     },
   });
 
-const SetDef = (story: ReturnType<typeof storyOf>) =>
+const ModuleDef = (story: ReturnType<typeof storyOf>) =>
+  UiModuleDef.define({
+    name: 'flow',
+    label: 'Поток',
+    description: 'Хаб, список, элемент и доска.',
+    screens: [HubScreenDef, ListScreenDef, ItemScreenDef, BoardScreenDef],
+    stories: [story],
+  });
+
+const SetDef = (module: ReturnType<typeof ModuleDef>) =>
   UiSetDef.define({
     name: 'exitUi',
     label: 'Набор выходов',
     description: 'Экраны выхода сторис в беседе.',
     app: ExampleAppDef,
-    modules: [
-      UiModuleDef.define({
-        name: 'flow',
-        label: 'Поток',
-        description: 'Хаб, список, элемент и доска.',
-        screens: [HubScreenDef, ListScreenDef, ItemScreenDef, BoardScreenDef],
-        stories: [story],
-      }),
-    ],
+    modules: [module],
   });
 
 const entry = (label: string, address: Address) => ({
@@ -230,7 +232,8 @@ const sceneOf = (options: {
   readonly snapshot?: ConversationSnapshot;
 }) => {
   const story = storyOf(options.to);
-  const set = SetDef(story);
+  const module = ModuleDef(story);
+  const set = SetDef(module);
   const app = UiAppDef.define({
     name: 'exitDialog',
     label: 'Выходы',
@@ -245,13 +248,15 @@ const sceneOf = (options: {
   });
   const world: World = { count: 2 };
   const taken: ConversationExit[] = [];
-  const codes = CodeLoaders.of(set, [
-    CodeLoader.screen(HubScreenDef, async () => new HubCode()),
-    CodeLoader.screen(ListScreenDef, async () => new ListCode(world)),
-    CodeLoader.screen(ItemScreenDef, async () => new ItemCode()),
-    CodeLoader.screen(BoardScreenDef, async () => new BoardCode()),
+  const codes = AppCodeLoaders.ofSet(set, [
+    CodeLoaders.of(module, [
+      CodeLoader.screen(HubScreenDef, async () => new HubCode()),
+      CodeLoader.screen(ListScreenDef, async () => new ListCode(world)),
+      CodeLoader.screen(ItemScreenDef, async () => new ItemCode()),
+      CodeLoader.screen(BoardScreenDef, async () => new BoardCode()),
+    ]),
   ]);
-  const kit = new RuntimeKit(codes, set);
+  const kit = new RuntimeKit(codes);
   const messenger = options.messenger ?? MESSENGER();
   const conversation = new Conversation(
     {

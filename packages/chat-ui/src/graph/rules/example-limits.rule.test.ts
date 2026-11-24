@@ -10,6 +10,7 @@ import {
 import {
   type AnyUiAppDef,
   type AnyUiSetDef,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   NotificationCode,
@@ -342,21 +343,21 @@ const CallNotificationDef = NotificationDef.define({
 });
 
 /** Набор уведомлений со ссылкой и без поверх учебного домена. */
+const NoteUiModuleDef = UiModuleDef.define({
+  name: 'desk',
+  label: 'Стол',
+  description: 'Доска, полка и два уведомления.',
+  screens: [BoardScreenDef, ShelfScreenDef],
+  stories: [],
+  notifications: [PingNotificationDef, CallNotificationDef],
+});
+
 const NoteUiSetDef = UiSetDef.define({
   name: 'noteUi',
   label: 'Набор уведомлений',
   description: 'Уведомления со ссылкой и без.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'desk',
-      label: 'Стол',
-      description: 'Доска, полка и два уведомления.',
-      screens: [BoardScreenDef, ShelfScreenDef],
-      stories: [],
-      notifications: [PingNotificationDef, CallNotificationDef],
-    }),
-  ],
+  modules: [NoteUiModuleDef],
 });
 
 const NoteAppDef = UiAppDef.define({
@@ -406,17 +407,19 @@ class CallNotificationCode extends NotificationCode<
 
 const NOTE_EXAMPLES = await ChatExamples.collect({
   set: NoteUiSetDef,
-  codes: CodeLoaders.of(NoteUiSetDef, [
-    CodeLoader.screen(BoardScreenDef, async () => new BoardScreenCode()),
-    CodeLoader.screen(ShelfScreenDef, async () => new ShelfScreenCode()),
-    CodeLoader.notification(
-      PingNotificationDef,
-      async () => new PingNotificationCode(),
-    ),
-    CodeLoader.notification(
-      CallNotificationDef,
-      async () => new CallNotificationCode(),
-    ),
+  codes: AppCodeLoaders.ofSet(NoteUiSetDef, [
+    CodeLoaders.of(NoteUiModuleDef, [
+      CodeLoader.screen(BoardScreenDef, async () => new BoardScreenCode()),
+      CodeLoader.screen(ShelfScreenDef, async () => new ShelfScreenCode()),
+      CodeLoader.notification(
+        PingNotificationDef,
+        async () => new PingNotificationCode(),
+      ),
+      CodeLoader.notification(
+        CallNotificationDef,
+        async () => new CallNotificationCode(),
+      ),
+    ]),
   ]),
 });
 

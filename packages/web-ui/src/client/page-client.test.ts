@@ -21,6 +21,7 @@ import {
   type ActionSteps,
   type AnyScreenDef,
   type AnyUiSetDef,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type InstanceView,
@@ -259,7 +260,7 @@ const denied = CoreErrors.ACCESS_DENIED.make({
 
 const tab = (
   end = new StubEnd().answer('listTasks', ok(TASKS)),
-  codes = exampleCodes(),
+  codes = exampleCodes({}, ExamplePagesUiAppDef),
   placements?: readonly PagePlacement[],
   history?: PageHistoryPort,
 ) => {
@@ -298,7 +299,7 @@ const listed = async (end?: StubEnd) => {
 
 /** Код экранов, загрузку которого можно сломать: `broken` — экран `id` не грузится. */
 const breakable = () => {
-  const codes = exampleCodes();
+  const codes = exampleCodes({}, ExamplePagesUiAppDef);
   const screen = codes.screen.bind(codes);
   const broken = new Set<string>();
   codes.screen = (def) =>
@@ -310,7 +311,7 @@ const breakable = () => {
 
 /** Код экранов, загрузка которого ждёт `release()`: все экраны разом. */
 const holdable = () => {
-  const codes = exampleCodes();
+  const codes = exampleCodes({}, ExamplePagesUiAppDef);
   const screen = codes.screen.bind(codes);
   const gate = Promise.withResolvers<void>();
   codes.screen = async (def) => {
@@ -2902,20 +2903,20 @@ class RewriteCode extends ScreenCode<typeof RewriteScreenDef> {
   }
 }
 
+const RewriteUiModuleDef = UiModuleDef.define({
+  name: 'forms',
+  label: 'Формы',
+  description: 'Одна форма.',
+  screens: [RewriteScreenDef],
+  stories: [],
+});
+
 const RewriteSetDef = UiSetDef.define({
   name: 'rewriteUi',
   label: 'Набор формы',
   description: 'Локальный экран формы с подтверждением.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'forms',
-      label: 'Формы',
-      description: 'Одна форма.',
-      screens: [RewriteScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [RewriteUiModuleDef],
 });
 
 const RewriteAppDef = UiAppDef.define({
@@ -2940,8 +2941,10 @@ const rewriting = async () => {
   const end = new StubEnd();
   const client = new PageClient({
     app: RewriteAppDef,
-    codes: CodeLoaders.of(RewriteSetDef, [
-      CodeLoader.screen(RewriteScreenDef, async () => code),
+    codes: AppCodeLoaders.of(RewriteAppDef, [
+      CodeLoaders.of(RewriteUiModuleDef, [
+        CodeLoader.screen(RewriteScreenDef, async () => code),
+      ]),
     ]),
     routes: [],
     end,
@@ -3628,29 +3631,31 @@ class ProfileCode extends ScreenCode<typeof ProfileScreenDef> {
   }
 }
 
+const RosterUiModuleDef = UiModuleDef.define({
+  name: 'roster',
+  label: 'Люди',
+  description: 'Список людей.',
+  screens: [PeopleScreenDef],
+  stories: [],
+});
+
+const CardsUiModuleDef = UiModuleDef.define({
+  name: 'cards',
+  label: 'Карточки',
+  description: 'Карточка человека.',
+  screens: [ProfileScreenDef],
+  stories: [],
+});
+
 const RosterSetDef = UiSetDef.define({
   name: 'rosterUi',
   label: 'Набор людей',
   description: 'Два UI-модуля: список людей и карточки.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'roster',
-      label: 'Люди',
-      description: 'Список людей.',
-      screens: [PeopleScreenDef],
-      stories: [],
-    }),
-    UiModuleDef.define({
-      name: 'cards',
-      label: 'Карточки',
-      description: 'Карточка человека.',
-      screens: [ProfileScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [RosterUiModuleDef, CardsUiModuleDef],
 });
 
+/** Вход на карточку вводит модуль `cards` в приложение (модули области). */
 const RosterAppDef = UiAppDef.define({
   name: 'rosterPages',
   label: 'Люди на страницах',
@@ -3664,6 +3669,11 @@ const RosterAppDef = UiAppDef.define({
       description: 'Список людей с начала.',
       address: PeopleScreenDef.at({ page: 0 }),
     },
+    profile: {
+      label: 'Человек',
+      description: 'Карточка человека.',
+      address: ProfileScreenDef.at({ personId: 'p-1' }),
+    },
   },
 });
 
@@ -3674,9 +3684,13 @@ const PROFILE_ID = 'rosterUi/cards/profile';
 const rostered = async (history: MemoryPageHistory, faults: UiFault[] = []) => {
   const client = new PageClient({
     app: RosterAppDef,
-    codes: CodeLoaders.of(RosterSetDef, [
-      CodeLoader.screen(PeopleScreenDef, async () => new PeopleCode()),
-      CodeLoader.screen(ProfileScreenDef, async () => new ProfileCode()),
+    codes: AppCodeLoaders.of(RosterAppDef, [
+      CodeLoaders.of(RosterUiModuleDef, [
+        CodeLoader.screen(PeopleScreenDef, async () => new PeopleCode()),
+      ]),
+      CodeLoaders.of(CardsUiModuleDef, [
+        CodeLoader.screen(ProfileScreenDef, async () => new ProfileCode()),
+      ]),
     ]),
     routes: [{ path: '/', entry: 'start' }],
     end: new StubEnd(),
@@ -4773,7 +4787,7 @@ describe('PageClient — переход по записи и идущие шаг
  * `release()`; прочие загрузки — сразу.
  */
 const heldOnce = (name: string) => {
-  const codes = exampleCodes();
+  const codes = exampleCodes({}, ExamplePagesUiAppDef);
   const screen = codes.screen.bind(codes);
   let gate: PromiseWithResolvers<void> | undefined;
   codes.screen = async (def) => {
@@ -5509,20 +5523,20 @@ class BoardCode extends ScreenCode<typeof BoardScreenDef> {
   };
 }
 
+const BoardUiModuleDef = UiModuleDef.define({
+  name: 'tasks',
+  label: 'Задачи',
+  description: 'Доска задач.',
+  screens: [BoardScreenDef],
+  stories: [],
+});
+
 const BoardSetDef = UiSetDef.define({
   name: 'boardUi',
   label: 'Набор доски',
   description: 'Локальная доска задач с выполнением по одной.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'tasks',
-      label: 'Задачи',
-      description: 'Доска задач.',
-      screens: [BoardScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [BoardUiModuleDef],
 });
 
 const BoardAppDef = UiAppDef.define({
@@ -5545,8 +5559,10 @@ const BoardAppDef = UiAppDef.define({
 const boarded = async (end = completing()) => {
   const client = new PageClient({
     app: BoardAppDef,
-    codes: CodeLoaders.of(BoardSetDef, [
-      CodeLoader.screen(BoardScreenDef, async () => new BoardCode()),
+    codes: AppCodeLoaders.of(BoardAppDef, [
+      CodeLoaders.of(BoardUiModuleDef, [
+        CodeLoader.screen(BoardScreenDef, async () => new BoardCode()),
+      ]),
     ]),
     routes: [],
     end,
@@ -5820,7 +5836,7 @@ describe('PageClient — отрезанная ветка приложения', 
     let requests = 0;
     const page = new PageClient({
       app: TrimmedPagesAppDef,
-      codes: exampleCodes(),
+      codes: exampleCodes({}, TrimmedPagesAppDef),
       routes: examplePagesRoutes,
       end: new StubEnd().answer('listAssignedTasks', ok([ROW])),
       observer: new MemoryUiObserver(),

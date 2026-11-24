@@ -4,7 +4,7 @@ import type {
   AddressJson,
   AnyScreenDef,
   AnyUiAppDef,
-  CodeLoaders,
+  AppCodeLoaders,
   FieldIssue,
   RefreshSignal,
   ScreenInstance,
@@ -52,14 +52,14 @@ export type PagePlacement = {
 };
 
 /**
- * Сборка вкладки: приложение UI, код экранов, маршруты (шаблоны пути — входы
+ * Сборка вкладки: приложение UI, сборка его кода, маршруты (шаблоны пути — входы
  * приложения, D-UI-76) и клиентский конец провода. `UiServer` клиенту не
  * виден — только провод; представлений клиент не берёт — текст строит цель
  * показа.
  */
 export type PageClientSpec = {
   readonly app: AnyUiAppDef;
-  readonly codes: CodeLoaders;
+  readonly codes: AppCodeLoaders;
   readonly routes: readonly PageRoute[];
   readonly end: ClientEnd;
   /** Куда открывать переходы на экраны; без объявления — по положению. */

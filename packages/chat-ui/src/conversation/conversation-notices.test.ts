@@ -3,7 +3,6 @@ import { ok, Trace } from 'dmg-core';
 import { MemoryLogger, testUuid } from 'dmg-core/testing';
 import { ListAssignedTasksUcDef, TaskEvents } from 'dmg-core/testing/example';
 import type { DeliveredNotification } from 'dmg-ui/server';
-import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import { RuntimeKit, T0, testRenderContext } from 'dmg-ui/testing/fixtures';
 import {
   ExampleDialogUiAppDef,
@@ -95,7 +94,7 @@ const sceneOf = (
 ) => {
   const clock = { now: T0 };
   const messenger = make(() => clock.now);
-  const kit = new RuntimeKit(exampleCodes(), ExampleUiSetDef);
+  const kit = new RuntimeKit();
   kit.ucs.answer(ListAssignedTasksUcDef, ok([]));
   const logger = new MemoryLogger();
   let requests = 0;

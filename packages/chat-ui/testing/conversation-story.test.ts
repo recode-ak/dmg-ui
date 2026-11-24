@@ -90,7 +90,7 @@ const world = (messenger: MemoryMessenger) => {
   );
   const dispatch = new ApiAppDispatch(example.api);
   const server = new UiServer({ set: ExampleUiSetDef, dispatch, context });
-  const codes = exampleCodes();
+  const codes = exampleCodes({}, ExampleDialogUiAppDef);
   const observer = new MemoryUiObserver();
   const store = new MemoryConversationStore();
   const people = new Map([

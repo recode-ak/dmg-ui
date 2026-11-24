@@ -30,7 +30,10 @@ import {
   type EntrySpec,
   UiAppDef,
 } from '../src/manifest/ui-app-def';
-import { UiModuleDef } from '../src/manifest/ui-module-def';
+import {
+  type AnyUiModuleDef,
+  UiModuleDef,
+} from '../src/manifest/ui-module-def';
 import { type AnyUiSetDef, UiSetDef } from '../src/manifest/ui-set-def';
 
 // Помощники тестов правил графа: сборка `ArchApp` сцены без домена — учебное
@@ -81,26 +84,27 @@ export type SceneParts = {
  */
 export class UiScene {
   readonly set: AnyUiSetDef;
+  /** Единственный модуль набора сцены (`todo`). */
+  readonly module: AnyUiModuleDef;
   readonly app: AnyUiAppDef;
 
   constructor(parts: SceneParts) {
     const stories = parts.stories ?? [];
     const notifications = parts.notifications ?? [];
+    this.module = UiModuleDef.define({
+      name: 'todo',
+      label: 'Задачи',
+      description: 'Модуль сцены.',
+      screens: parts.screens,
+      stories,
+      notifications,
+    });
     this.set = UiSetDef.define({
       name: 'miniUi',
       label: 'Минимальный набор',
       description: 'Набор UI одной сцены теста.',
       app: ExampleAppDef,
-      modules: [
-        UiModuleDef.define({
-          name: 'todo',
-          label: 'Задачи',
-          description: 'Модуль сцены.',
-          screens: parts.screens,
-          stories,
-          notifications,
-        }),
-      ],
+      modules: [this.module],
     });
     const first = parts.screens[0];
     this.app = UiAppDef.define({

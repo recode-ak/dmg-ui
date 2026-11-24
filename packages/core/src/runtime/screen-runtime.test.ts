@@ -22,6 +22,7 @@ import {
   exampleCodes,
   LIST_ID,
   LIST_START,
+  OWNER,
   TASK_A,
   TaskCardScreenDef,
   type TaskListScreenDef,
@@ -29,6 +30,10 @@ import {
 import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
 import { taskState } from '../../testing/task-state';
+import {
+  ExampleMenuStubUiAppDef,
+  ExampleStubUiAppDef,
+} from '../../testing/ui-app.fixture';
 import { UiScene } from '../../testing/ui-arch';
 import { CutKit } from '../../testing/ui-cut-scene';
 import {
@@ -44,15 +49,19 @@ import { UiModuleDef } from '../manifest/ui-module-def';
 import { UiSetDef } from '../manifest/ui-set-def';
 import { ScreenCode } from '../screen/screen-code';
 import type { LoadContext } from '../screen/screen-code.types';
+import { AppCodeLoaders } from './app-code-loaders';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 import type { ScreenInstance } from './screen-instance';
-import { ScreenRuntime } from './screen-runtime';
+import { ScreenRuntime, type ScreenRuntimeSpec } from './screen-runtime';
 
 // Открытие и восстановление экземпляра экрана: загрузка через порт, отказ
 // загрузки, дефекты кода экрана, снимок и восстановление. Порты — заглушки
 // `ui-runtime.fixture.ts` на учебном примере.
 
 type ListLoad = LoadContext<typeof TaskListScreenDef>;
+
+/** `id` карточки пользователя — экрана модуля `users` набора примера. */
+const USER_ID = 'exampleUi/users/userCard';
 
 /** Исполнитель со своим кодом списка. */
 const kitWith = (list: TaskListScreenCode) =>
@@ -89,25 +98,30 @@ class CommandReadCode extends ScreenCode<typeof CommandReadScreenDef> {
   }
 }
 
+const CommandReadUiModuleDef = UiModuleDef.define({
+  name: 'todo',
+  label: 'Задачи',
+  description: 'Модуль с одним экраном.',
+  screens: [CommandReadScreenDef],
+  stories: [],
+});
+
 const CommandReadSetDef = UiSetDef.define({
   name: 'commandUi',
   label: 'Набор с нарушением',
   description: 'Экран читает command UC.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'todo',
-      label: 'Задачи',
-      description: 'Модуль с одним экраном.',
-      screens: [CommandReadScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [CommandReadUiModuleDef],
 });
 
 const commandReadCodes = () =>
-  CodeLoaders.of(CommandReadSetDef, [
-    CodeLoader.screen(CommandReadScreenDef, async () => new CommandReadCode()),
+  AppCodeLoaders.ofSet(CommandReadSetDef, [
+    CodeLoaders.of(CommandReadUiModuleDef, [
+      CodeLoader.screen(
+        CommandReadScreenDef,
+        async () => new CommandReadCode(),
+      ),
+    ]),
   ]);
 
 /** Код списка, который читает необъявленный UC. */
@@ -240,7 +254,7 @@ describe('ScreenRuntime.open — дефекты кода экрана', () => {
   });
 
   test('read command UC — defect, UC не вызван', async () => {
-    const kit = new RuntimeKit(commandReadCodes(), CommandReadSetDef);
+    const kit = new RuntimeKit(commandReadCodes());
 
     const instance = await kit.runtime.open(
       CommandReadScreenDef.at({}),
@@ -359,6 +373,22 @@ describe('ScreenRuntime.restore', () => {
     });
   }
 
+  test('экран снимка — модуля вне сборки приложения: отказ unknownScreen, не бросок; UC не вызван', async () => {
+    const kit = new RuntimeKit(exampleCodes({}, ExampleStubUiAppDef));
+    const json = {
+      address: { screen: USER_ID, params: { userId: OWNER } },
+      revision: 1,
+    };
+
+    const res = await kit.runtime.restore(json, RuntimeKit.options());
+
+    expect(res.ok ? undefined : res.error).toEqual({
+      reason: 'unknownScreen',
+      screen: USER_ID,
+    });
+    expect(kit.ucs.calls).toEqual([]);
+  });
+
   test('ревизия после restore — ревизия снимка + 1', async () => {
     const json = {
       address: LIST_START,
@@ -418,10 +448,49 @@ describe('ScreenRuntime.restore', () => {
 });
 
 describe('ScreenRuntime — сборка и загрузчик', () => {
-  test('загрузчики другого набора — бросок с именами наборов', () => {
-    expect(() => new RuntimeKit(exampleCodes(), CommandReadSetDef)).toThrow(
-      /exampleUi.*commandUi/,
+  /** Сборка исполнителя на заглушках портов: набор, сборка кода и приложение теста. */
+  const build =
+    (parts: Pick<ScreenRuntimeSpec, 'set' | 'codes' | 'app'>) => () =>
+      new ScreenRuntime({
+        ...parts,
+        ucs: new StubUcPort(),
+        refresh: new StubRefreshPort(),
+        observer: new MemoryUiObserver(),
+      });
+
+  test('сборка другого набора — бросок с именами наборов', () => {
+    expect(build({ set: CommandReadSetDef, codes: exampleCodes() })).toThrow(
+      /ScreenRuntime.*exampleUi.*commandUi/,
     );
+  });
+
+  test('сборка приложения у исполнителя без приложения — бросок с именем приложения', () => {
+    expect(
+      build({
+        set: ExampleUiSetDef,
+        codes: exampleCodes({}, ExampleStubUiAppDef),
+      }),
+    ).toThrow(/ScreenRuntime.*exampleStub/);
+  });
+
+  test('сборка набора у исполнителя с приложением — бросок с именем приложения', () => {
+    expect(
+      build({
+        set: ExampleUiSetDef,
+        codes: exampleCodes(),
+        app: ExampleStubUiAppDef,
+      }),
+    ).toThrow(/ScreenRuntime.*exampleStub/);
+  });
+
+  test('сборка другого приложения — бросок с именами приложений', () => {
+    expect(
+      build({
+        set: ExampleUiSetDef,
+        codes: exampleCodes({}, ExampleMenuStubUiAppDef),
+        app: ExampleStubUiAppDef,
+      }),
+    ).toThrow(/ScreenRuntime.*exampleMenuStub.*exampleStub/);
   });
 
   test('приложение другого набора — бросок с именами приложения и наборов', () => {
@@ -441,12 +510,14 @@ describe('ScreenRuntime — сборка и загрузчик', () => {
   });
 
   test('сбой загрузчика кода — open отклонён', async () => {
-    const codes = CodeLoaders.of(CommandReadSetDef, [
-      CodeLoader.screen(CommandReadScreenDef, async () => {
-        throw new Error('нет сети');
-      }),
+    const codes = AppCodeLoaders.ofSet(CommandReadSetDef, [
+      CodeLoaders.of(CommandReadUiModuleDef, [
+        CodeLoader.screen(CommandReadScreenDef, async () => {
+          throw new Error('нет сети');
+        }),
+      ]),
     ]);
-    const kit = new RuntimeKit(codes, CommandReadSetDef);
+    const kit = new RuntimeKit(codes);
 
     const opening = kit.runtime.open(
       CommandReadScreenDef.at({}),

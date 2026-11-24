@@ -10,6 +10,7 @@ import {
   type ActionSteps,
   type Address,
   type AnyScreenDef,
+  AppCodeLoaders,
   Availability,
   CodeLoader,
   CodeLoaders,
@@ -170,20 +171,20 @@ const WorkStoryDef = StoryDef.define({
   leads: () => [DocsStoryDef],
 });
 
+const HelpUiModuleDef = UiModuleDef.define({
+  name: 'help',
+  label: 'Справка',
+  description: 'Узел, стол, документы и длинный экран.',
+  screens: [HubScreenDef, DeskScreenDef, DocsScreenDef, LongScreenDef],
+  stories: [WorkStoryDef, DocsStoryDef],
+});
+
 const HelpSetDef = UiSetDef.define({
   name: 'helpUi',
   label: 'Набор справки',
   description: 'Экраны и сторис справки в беседе.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'help',
-      label: 'Справка',
-      description: 'Узел, стол, документы и длинный экран.',
-      screens: [HubScreenDef, DeskScreenDef, DocsScreenDef, LongScreenDef],
-      stories: [WorkStoryDef, DocsStoryDef],
-    }),
-  ],
+  modules: [HelpUiModuleDef],
 });
 
 const entry = (label: string, address: Address) => ({
@@ -318,13 +319,15 @@ const sceneOf = (options: {
   const world: World = { mode: options.mode ?? 'open', calls: [] };
   const logger = new MemoryLogger();
   const { messenger } = options;
-  const codes = CodeLoaders.of(HelpSetDef, [
-    CodeLoader.screen(HubScreenDef, async () => new HubCode()),
-    CodeLoader.screen(DeskScreenDef, async () => new DeskCode(world)),
-    CodeLoader.screen(DocsScreenDef, async () => new DocsCode()),
-    CodeLoader.screen(LongScreenDef, async () => new LongCode()),
+  const codes = AppCodeLoaders.of(HelpAppDef, [
+    CodeLoaders.of(HelpUiModuleDef, [
+      CodeLoader.screen(HubScreenDef, async () => new HubCode()),
+      CodeLoader.screen(DeskScreenDef, async () => new DeskCode(world)),
+      CodeLoader.screen(DocsScreenDef, async () => new DocsCode()),
+      CodeLoader.screen(LongScreenDef, async () => new LongCode()),
+    ]),
   ]);
-  const kit = new RuntimeKit(codes, HelpSetDef, HelpAppDef);
+  const kit = new RuntimeKit(codes);
   const context: RenderContext = {
     ...testRenderContext,
     subject: options.subject ?? user(),

@@ -93,7 +93,7 @@ const page = (placements?: readonly PagePlacement[]) => {
   const end = new StubEnd();
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end,
     observer: new MemoryUiObserver(),

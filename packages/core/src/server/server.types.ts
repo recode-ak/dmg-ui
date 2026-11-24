@@ -13,7 +13,7 @@ import type { AppContext } from 'dmg-core/app';
 import type { AddressJson } from '../address/address-codec.types';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
-import type { CodeLoaders } from '../runtime/code-loaders';
+import type { AppCodeLoaders } from '../runtime/app-code-loaders';
 import type { ViewContext } from '../runtime/context.types';
 import type { UiObserver } from '../runtime/ui-observer.types';
 import type { Place } from '../screen/action-context.types';
@@ -85,7 +85,7 @@ export type UiServerSpec<U extends Identified> = {
 /** Сборка `UiNotifier` одного приложения UI. */
 export type UiNotifierSpec<U extends Identified> = {
   readonly app: AnyUiAppDef;
-  readonly codes: CodeLoaders;
+  readonly codes: AppCodeLoaders;
   readonly dispatch: UcDispatch<U>;
   readonly callers: RecipientCallers<U>;
   readonly delivery: NotificationDelivery;

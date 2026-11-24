@@ -15,6 +15,7 @@ import {
   type ActionSteps,
   type AnyUiAppDef,
   type AnyUiSetDef,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   ScreenCode,
@@ -105,20 +106,20 @@ const LongStoryDef = StoryDef.define({
   screens: [LongScreenDef],
   outcomes: {},
 });
+const LongUiModuleDef = UiModuleDef.define({
+  name: 'long',
+  label: 'Длинный',
+  description: 'Один экран.',
+  screens: [LongScreenDef],
+  stories: [LongStoryDef],
+});
+
 const LongSetDef = UiSetDef.define({
   name: 'longUi',
   label: 'Набор длинного экрана',
   description: 'Набор с одним экраном с огромной подсказкой.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'long',
-      label: 'Длинный',
-      description: 'Один экран.',
-      screens: [LongScreenDef],
-      stories: [LongStoryDef],
-    }),
-  ],
+  modules: [LongUiModuleDef],
 });
 const LongAppDef = UiAppDef.define({
   name: 'longDialog',
@@ -150,22 +151,24 @@ class LongCode extends ScreenCode<typeof LongScreenDef> {
 type Kit = {
   readonly app: AnyUiAppDef;
   readonly set: AnyUiSetDef;
-  readonly codes: CodeLoaders;
+  readonly codes: AppCodeLoaders;
   readonly views: ChatViews;
 };
 
 const EXAMPLE: Kit = {
   app: ExampleDialogUiAppDef,
   set: ExampleUiSetDef,
-  codes: exampleCodes(),
+  codes: exampleCodes({}, ExampleDialogUiAppDef),
   views: exampleDialogViews,
 };
 
 const LONG: Kit = {
   app: LongAppDef,
   set: LongSetDef,
-  codes: CodeLoaders.of(LongSetDef, [
-    CodeLoader.screen(LongScreenDef, async () => new LongCode()),
+  codes: AppCodeLoaders.of(LongAppDef, [
+    CodeLoaders.of(LongUiModuleDef, [
+      CodeLoader.screen(LongScreenDef, async () => new LongCode()),
+    ]),
   ]),
   views: ChatViews.of(LongSetDef, [
     ScreenPresenter.for(LongScreenDef, () => 'Длинный'),

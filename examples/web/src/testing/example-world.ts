@@ -82,7 +82,7 @@ export const exampleWorld = (dataDir: string, wrap?: DispatchWrap) => {
   });
   new UiNotifier({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     dispatch,
     callers: example.callers,
     delivery: host.delivery,
@@ -115,7 +115,7 @@ export const openTab = async (
   let requests = 0;
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end,
     placements: exampleWebPlacements,

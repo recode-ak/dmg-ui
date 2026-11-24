@@ -5,6 +5,7 @@ import {
   type ActionField,
   ActionInput,
   type ActionSteps,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type FieldChoices,
@@ -67,29 +68,30 @@ class FormCode extends ScreenCode<typeof FormScreenDef> {
   }
 }
 
+const FormUiModuleDef = UiModuleDef.define({
+  name: 'forms',
+  label: 'Формы',
+  description: 'Одна форма.',
+  screens: [FormScreenDef],
+  stories: [],
+});
+
 const FormSetDef = UiSetDef.define({
   name: 'formUi',
   label: 'Набор формы',
   description: 'Локальный экран формы.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'forms',
-      label: 'Формы',
-      description: 'Одна форма.',
-      screens: [FormScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [FormUiModuleDef],
 });
 
 /** Экземпляр формы и поля действия `name` из его вида. */
 const opened = async (name: string) => {
   const kit = new RuntimeKit(
-    CodeLoaders.of(FormSetDef, [
-      CodeLoader.screen(FormScreenDef, async () => new FormCode()),
+    AppCodeLoaders.ofSet(FormSetDef, [
+      CodeLoaders.of(FormUiModuleDef, [
+        CodeLoader.screen(FormScreenDef, async () => new FormCode()),
+      ]),
     ]),
-    FormSetDef,
   );
   const instance = await kit.runtime.open(
     FormScreenDef.at({}),

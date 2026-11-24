@@ -4,6 +4,7 @@ import { testUuid } from 'dmg-core/testing';
 import { ExampleAppDef, type ExampleUser } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  AppCodeLoaders,
   Availability,
   CodeLoader,
   CodeLoaders,
@@ -70,20 +71,20 @@ class ProbeCode extends ScreenCode<Probe, ExampleUser> {
   }
 }
 
+const ProbeUiModuleDef = UiModuleDef.define({
+  name: 'checks',
+  label: 'Проверки',
+  description: 'Проба субъекта.',
+  screens: [ProbeScreenDef],
+  stories: [],
+});
+
 const ProbeSetDef = UiSetDef.define({
   name: 'probeUi',
   label: 'Набор пробы',
   description: 'Экран, видящий субъекта.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'checks',
-      label: 'Проверки',
-      description: 'Проба субъекта.',
-      screens: [ProbeScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [ProbeUiModuleDef],
 });
 
 const ProbeAppDef = UiAppDef.define({
@@ -156,8 +157,10 @@ const tabOf = async (
   const observer = new MemoryUiObserver();
   const client = new PageClient({
     app: ProbeAppDef,
-    codes: CodeLoaders.of(ProbeSetDef, [
-      CodeLoader.screen(ProbeScreenDef, async () => code),
+    codes: AppCodeLoaders.of(ProbeAppDef, [
+      CodeLoaders.of(ProbeUiModuleDef, [
+        CodeLoader.screen(ProbeScreenDef, async () => code),
+      ]),
     ]),
     routes: [],
     end,

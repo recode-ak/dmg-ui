@@ -4,6 +4,7 @@ import { MemoryLogger, testUuid } from 'dmg-core/testing';
 import { ExampleAppDef } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  AppCodeLoaders,
   Availability,
   CodeLoader,
   CodeLoaders,
@@ -200,20 +201,20 @@ class PultCode extends ScreenCode<Pult> {
   }
 }
 
+const SnapshotUiModuleDef = UiModuleDef.define({
+  name: 'snap',
+  label: 'Снимки',
+  description: 'Пульт.',
+  screens: [PultScreenDef],
+  stories: [],
+});
+
 const SnapshotSetDef = UiSetDef.define({
   name: 'snapshotUi',
   label: 'Набор снимков',
   description: 'Пульт с отключённым действием.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'snap',
-      label: 'Снимки',
-      description: 'Пульт.',
-      screens: [PultScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [SnapshotUiModuleDef],
 });
 
 const SnapshotAppDef = UiAppDef.define({
@@ -249,10 +250,12 @@ const sceneOf = (
   snapshot?: ConversationSnapshot,
 ) => {
   const calls: string[] = [];
-  const codes = CodeLoaders.of(SnapshotSetDef, [
-    CodeLoader.screen(PultScreenDef, async () => new PultCode(calls)),
+  const codes = AppCodeLoaders.ofSet(SnapshotSetDef, [
+    CodeLoaders.of(SnapshotUiModuleDef, [
+      CodeLoader.screen(PultScreenDef, async () => new PultCode(calls)),
+    ]),
   ]);
-  const kit = new RuntimeKit(codes, SnapshotSetDef);
+  const kit = new RuntimeKit(codes);
   const conversation = new Conversation(
     {
       app: SnapshotAppDef,

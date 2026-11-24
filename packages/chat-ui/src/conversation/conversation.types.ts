@@ -3,7 +3,7 @@ import type {
   ActionField,
   AddressJson,
   AnyUiAppDef,
-  CodeLoaders,
+  AppCodeLoaders,
   RenderContext,
   ScreenRuntime,
   UiObserver,
@@ -396,7 +396,7 @@ export type ConversationSpec = {
 /** Узел бесед одного приложения мессенджера. */
 export type ConversationsSpec<U extends Identified> = {
   readonly app: AnyUiAppDef;
-  readonly codes: CodeLoaders;
+  readonly codes: AppCodeLoaders;
   readonly server: UiServer<U>;
   readonly views: ChatViews;
   readonly observer: UiObserver;

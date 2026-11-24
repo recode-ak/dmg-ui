@@ -4,6 +4,7 @@ import { MemoryLogger, testUuid } from 'dmg-core/testing';
 import { ExampleAppDef } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type FieldChoices,
@@ -98,20 +99,20 @@ class PingCode extends ScreenCode<typeof PingScreenDef> {
   }
 }
 
+const StepsUiModuleDef = UiModuleDef.define({
+  name: 'steps',
+  label: 'Шаги',
+  description: 'Форма и пинг.',
+  screens: [FormScreenDef, PingScreenDef],
+  stories: [],
+});
+
 const StepsSetDef = UiSetDef.define({
   name: 'stepsUi',
   label: 'Набор шагов',
   description: 'Локальные экраны входа по шагам.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'steps',
-      label: 'Шаги',
-      description: 'Форма и пинг.',
-      screens: [FormScreenDef, PingScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [StepsUiModuleDef],
 });
 
 const StepsAppDef = UiAppDef.define({
@@ -151,11 +152,12 @@ const views = ChatViews.of(StepsSetDef, [
 /** Беседа на исполнителе с заглушками портов: узел бесед и сервер не нужны. */
 const sceneOf = (messenger: MemoryMessenger) => {
   const kit = new RuntimeKit(
-    CodeLoaders.of(StepsSetDef, [
-      CodeLoader.screen(FormScreenDef, async () => new FormCode()),
-      CodeLoader.screen(PingScreenDef, async () => new PingCode()),
+    AppCodeLoaders.ofSet(StepsSetDef, [
+      CodeLoaders.of(StepsUiModuleDef, [
+        CodeLoader.screen(FormScreenDef, async () => new FormCode()),
+        CodeLoader.screen(PingScreenDef, async () => new PingCode()),
+      ]),
     ]),
-    StepsSetDef,
   );
   let requests = 0;
   let epochs = 0;

@@ -88,8 +88,14 @@ export {
   type UiSetSpec,
 } from './manifest/ui-set-def';
 export type { ActRequest, LocalRequest } from './runtime/action-run';
+export { AppCodeLoaders } from './runtime/app-code-loaders';
 export { CodeLoader, CodeLoaders } from './runtime/code-loaders';
 export type { RenderContext, ViewContext } from './runtime/context.types';
+export {
+  ModuleRegistries,
+  type ModuleRegistry,
+  type RegistryScope,
+} from './runtime/module-registries';
 export {
   NotificationCode,
   type NotificationDataOf,
@@ -129,6 +135,7 @@ export {
   ScreenRuntime,
   type ScreenRuntimeSpec,
 } from './runtime/screen-runtime';
+export { UiCompleteness } from './runtime/ui-completeness';
 export type {
   UiFault,
   UiObserver,

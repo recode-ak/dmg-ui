@@ -15,6 +15,7 @@ import {
 import {
   type ActionSteps,
   type AnyScreenDef,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type DataOf,
@@ -153,20 +154,20 @@ class BlankCode extends ScreenCode<typeof BlankScreenDef> {
   }
 }
 
+const ConvUiModuleDef = UiModuleDef.define({
+  name: 'conv',
+  label: 'Беседа',
+  description: 'Главный, другой и пустой экраны.',
+  screens: [HomeScreenDef, OtherScreenDef, BlankScreenDef],
+  stories: [],
+});
+
 const ConvSetDef = UiSetDef.define({
   name: 'convUi',
   label: 'Набор беседы',
   description: 'Локальные экраны беседы без полей входа.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'conv',
-      label: 'Беседа',
-      description: 'Главный, другой и пустой экраны.',
-      screens: [HomeScreenDef, OtherScreenDef, BlankScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [ConvUiModuleDef],
 });
 
 const ConvAppDef = UiAppDef.define({
@@ -277,12 +278,13 @@ const sceneOf = (
   } = {},
 ) => {
   const kit = new RuntimeKit(
-    CodeLoaders.of(ConvSetDef, [
-      CodeLoader.screen(HomeScreenDef, async () => new HomeCode()),
-      CodeLoader.screen(OtherScreenDef, async () => new OtherCode()),
-      CodeLoader.screen(BlankScreenDef, async () => new BlankCode()),
+    AppCodeLoaders.ofSet(ConvSetDef, [
+      CodeLoaders.of(ConvUiModuleDef, [
+        CodeLoader.screen(HomeScreenDef, async () => new HomeCode()),
+        CodeLoader.screen(OtherScreenDef, async () => new OtherCode()),
+        CodeLoader.screen(BlankScreenDef, async () => new BlankCode()),
+      ]),
     ]),
-    ConvSetDef,
   );
   kit.ucs.answer(ListTasksUcDef, ok(rows(2)));
   kit.ucs.answer(CompleteTaskUcDef, ok({}));

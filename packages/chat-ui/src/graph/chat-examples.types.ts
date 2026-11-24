@@ -1,14 +1,14 @@
 import type {
   AnyUiSetDef,
-  CodeLoaders,
+  AppCodeLoaders,
   InstanceView,
   RenderContext,
 } from 'dmg-ui';
 
-/** Сборка примеров: набор, загрузчики его кода, контекст рендера (по умолчанию — `CHAT_EXAMPLES_CONTEXT`). */
+/** Сборка примеров: набор, сборка кода этого набора, контекст рендера (по умолчанию — `CHAT_EXAMPLES_CONTEXT`). */
 export type ChatExamplesSpec = {
   readonly set: AnyUiSetDef;
-  readonly codes: CodeLoaders;
+  readonly codes: AppCodeLoaders;
   readonly context?: RenderContext;
 };
 

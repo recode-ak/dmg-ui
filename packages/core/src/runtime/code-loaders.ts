@@ -1,11 +1,12 @@
 import type { AnyNotificationDef } from '../manifest/notification-def.types';
 import type { AnyScreenDef } from '../manifest/screen-def.types';
-import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
+import type { AnyUiModuleDef } from '../manifest/ui-module-def.types';
 import type { ScreenCode } from '../screen/screen-code';
 import type { CodeTarget } from './code-loaders.types';
 import type { NotificationCode } from './notification-code';
 import { ScreenUnit } from './screen-unit';
 import type { AnyScreenUnit } from './screen-unit.types';
+import { UiCompleteness } from './ui-completeness';
 
 export type { CodeTarget } from './code-loaders.types';
 
@@ -41,12 +42,17 @@ export class CodeLoader {
 }
 
 /**
- * Карта «Def → загрузчик» набора UI. Каждому экрану и уведомлению набора —
- * ровно один загрузчик, иначе бросок со списком имён. Код грузится при
- * первом обращении; промис общий у всех исполнителей карты.
+ * Реестр кода одного UI-модуля: «Def → загрузчик». Каждому экрану и
+ * уведомлению модуля — ровно один загрузчик, иначе отказ UI-06. Код грузится
+ * при первом обращении; промис общий у всех исполнителей реестра.
  */
 export class CodeLoaders {
-  readonly set: AnyUiSetDef;
+  /** Проверка полноты реестров кода и их сборок (UI-06). */
+  static readonly completeness = new UiCompleteness(
+    'CodeLoaders',
+    'загрузчика',
+  );
+  readonly module: AnyUiModuleDef;
   private readonly targets: ReadonlyMap<object, CodeTarget>;
   private readonly screens = new Map<object, Promise<AnyScreenUnit>>();
   private readonly notifications = new Map<
@@ -54,56 +60,42 @@ export class CodeLoaders {
     Promise<NotificationCode<AnyNotificationDef>>
   >();
 
-  private constructor(set: AnyUiSetDef, loaders: readonly CodeLoader[]) {
-    this.set = set;
-    const targets = new Map<object, CodeTarget>();
-    for (const { target } of loaders) {
-      if (targets.has(target.def)) {
-        throw new Error(`CodeLoaders: два загрузчика для ${target.def.name}`);
-      }
-      targets.set(target.def, target);
-    }
-    const defs = set.modules.flatMap((m) => [
-      ...m.screens,
-      ...(m.notifications ?? []),
-    ]);
-    const missing = defs.filter((def) => !targets.has(def));
-    if (missing.length > 0) {
-      const names = missing.map((def) => def.name).join(', ');
-      throw new Error(
-        `CodeLoaders: в наборе ${set.name} нет загрузчика для ${names}`,
-      );
-    }
-    const extra = [...targets.values()].filter(
-      ({ def }) => !defs.some((known) => known === def),
+  private constructor(module: AnyUiModuleDef, loaders: readonly CodeLoader[]) {
+    CodeLoaders.completeness.module(
+      module,
+      loaders.map(({ target }) => target.def),
     );
-    if (extra.length > 0) {
-      const names = extra.map(({ def }) => def.name).join(', ');
-      throw new Error(`CodeLoaders: ${names} вне набора ${set.name}`);
-    }
-    this.targets = targets;
+    this.module = module;
+    this.targets = new Map(loaders.map(({ target }) => [target.def, target]));
   }
 
-  static of(set: AnyUiSetDef, loaders: readonly CodeLoader[]): CodeLoaders {
-    return new CodeLoaders(set, loaders);
+  static of(
+    module: AnyUiModuleDef,
+    loaders: readonly CodeLoader[],
+  ): CodeLoaders {
+    return new CodeLoaders(module, loaders);
   }
 
-  /** Юнит экрана набора; загрузка — при первом вызове, сбой не кэшируется. */
+  /** Юнит экрана модуля; загрузка — при первом вызове, сбой не кэшируется. */
   screen(def: AnyScreenDef): Promise<AnyScreenUnit> {
     const target = this.targets.get(def);
     if (target?.kind !== 'screen') {
-      throw new Error(`CodeLoaders: экран ${def.name} вне набора`);
+      throw new Error(
+        `CodeLoaders: экран ${def.name} вне модуля ${this.module.name}`,
+      );
     }
     return this.cached(this.screens, def, target.make);
   }
 
-  /** Код уведомления набора; так же, как `screen`. */
+  /** Код уведомления модуля; так же, как `screen`. */
   notification(
     def: AnyNotificationDef,
   ): Promise<NotificationCode<AnyNotificationDef>> {
     const target = this.targets.get(def);
     if (target?.kind !== 'notification') {
-      throw new Error(`CodeLoaders: уведомление ${def.name} вне набора`);
+      throw new Error(
+        `CodeLoaders: уведомление ${def.name} вне модуля ${this.module.name}`,
+      );
     }
     return this.cached(this.notifications, def, target.make);
   }

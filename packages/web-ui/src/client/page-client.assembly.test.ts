@@ -27,7 +27,7 @@ describe('PageClient — приложение другого канала', () =
       () =>
         new PageClient({
           app: ExampleStubUiAppDef,
-          codes: exampleCodes(),
+          codes: exampleCodes({}, ExampleStubUiAppDef),
           routes: examplePagesRoutes,
           end,
           observer: new MemoryUiObserver(),

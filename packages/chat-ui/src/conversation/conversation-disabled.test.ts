@@ -4,6 +4,7 @@ import { MemoryLogger, testUuid } from 'dmg-core/testing';
 import { ExampleAppDef, type ExampleUser } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  AppCodeLoaders,
   Availability,
   CodeLoader,
   CodeLoaders,
@@ -102,20 +103,20 @@ class PlainCode extends ScreenCode<typeof PlainScreenDef> {
   }
 }
 
+const GateUiModuleDef = UiModuleDef.define({
+  name: 'gates',
+  label: 'Ворота',
+  description: 'Ворота и простой экран.',
+  screens: [GateScreenDef, PlainScreenDef],
+  stories: [],
+});
+
 const GateSetDef = UiSetDef.define({
   name: 'gateUi',
   label: 'Набор ворот',
   description: 'Экраны с недоступным основным действием.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'gates',
-      label: 'Ворота',
-      description: 'Ворота и простой экран.',
-      screens: [GateScreenDef, PlainScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [GateUiModuleDef],
 });
 
 const GateAppDef = UiAppDef.define({
@@ -154,11 +155,12 @@ const views = ChatViews.of(GateSetDef, [
 const sceneOf = (mode: Mode) => {
   const messenger = MemoryMessenger.editing();
   const kit = new RuntimeKit(
-    CodeLoaders.of(GateSetDef, [
-      CodeLoader.screen(GateScreenDef, async () => new GateCode(mode)),
-      CodeLoader.screen(PlainScreenDef, async () => new PlainCode()),
+    AppCodeLoaders.ofSet(GateSetDef, [
+      CodeLoaders.of(GateUiModuleDef, [
+        CodeLoader.screen(GateScreenDef, async () => new GateCode(mode)),
+        CodeLoader.screen(PlainScreenDef, async () => new PlainCode()),
+      ]),
     ]),
-    GateSetDef,
   );
   const holder: { subject: ExampleUser | undefined } = {
     subject: user(testUuid(1)),

@@ -4,7 +4,6 @@ import { ListAssignedTasksUcDef } from 'dmg-core/testing/example';
 import * as v from 'valibot';
 import {
   AssignedTasksScreenDef,
-  ExampleUiSetDef,
   exampleCodes,
   FollowAssignedStoryDef,
   MainMenuScreenDef,
@@ -20,6 +19,7 @@ import { ScreenDef } from '../manifest/screen-def';
 import type { AnyUiAppDef } from '../manifest/ui-app-def.types';
 import { ScreenCode } from '../screen/screen-code';
 import type { ActionSteps } from '../screen/screen-code.types';
+import { AppCodeLoaders } from './app-code-loaders';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 
 // Подсказка двери в виде экземпляра: действие-переход без своей подсказки
@@ -28,8 +28,7 @@ import { CodeLoader, CodeLoaders } from './code-loaders';
 
 const open = (kit: RuntimeKit) =>
   kit.runtime.open(MainMenuScreenDef.at({}), RuntimeKit.options());
-const menuKit = () =>
-  new RuntimeKit(exampleCodes(), ExampleUiSetDef, ExampleMenuStubUiAppDef);
+const menuKit = () => new RuntimeKit(exampleCodes({}, ExampleMenuStubUiAppDef));
 
 describe('меню в приложении: подсказка двери из сторис-цели', () => {
   test('«Назначенные мне» — подсказка сторис followAssigned', async () => {
@@ -72,7 +71,7 @@ describe('меню без приложения: подстановки нет', 
 
 describe('«Назначенные мне»: карточка исполнителя по составу приложения', () => {
   const assignedOf = async (app?: AnyUiAppDef) => {
-    const kit = new RuntimeKit(exampleCodes(), ExampleUiSetDef, app);
+    const kit = new RuntimeKit(exampleCodes({}, app));
     kit.ucs.answer(ListAssignedTasksUcDef, ok([]));
     const instance = await kit.runtime.open(
       AssignedTasksScreenDef.at({}),
@@ -159,16 +158,18 @@ describe('своя подсказка действия побеждает под
     }
   }
 
-  const kitOf = (withApp: boolean) =>
-    new RuntimeKit(
-      CodeLoaders.of(scene.set, [
-        CodeLoader.screen(hub, async () => new HubCode()),
-        CodeLoader.screen(nextScreen, async () => new QuietCode()),
-        CodeLoader.screen(otherScreen, async () => new QuietCode()),
-      ]),
-      scene.set,
-      withApp ? scene.app : undefined,
+  const kitOf = (withApp: boolean) => {
+    const module = CodeLoaders.of(scene.module, [
+      CodeLoader.screen(hub, async () => new HubCode()),
+      CodeLoader.screen(nextScreen, async () => new QuietCode()),
+      CodeLoader.screen(otherScreen, async () => new QuietCode()),
+    ]);
+    return new RuntimeKit(
+      withApp
+        ? AppCodeLoaders.of(scene.app, [module])
+        : AppCodeLoaders.ofSet(scene.set, [module]),
     );
+  };
   const actionsOf = async (withApp: boolean) =>
     (await kitOf(withApp).runtime.open(hub.at({}), RuntimeKit.options())).view()
       .actions;

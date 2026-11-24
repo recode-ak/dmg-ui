@@ -4,6 +4,7 @@ import { MemoryLogger, testUuid } from 'dmg-core/testing';
 import { ExampleAppDef } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   fieldHint,
@@ -124,20 +125,20 @@ const HintedScreenDef = ScreenDef.define({
   },
 });
 
+const HintUiModuleDef = UiModuleDef.define({
+  name: 'hint',
+  label: 'Подсказки',
+  description: 'Один экран.',
+  screens: [HintedScreenDef],
+  stories: [],
+});
+
 const HintSetDef = UiSetDef.define({
   name: 'hintUi',
   label: 'Набор подсказок',
   description: 'Локальный экран подсказок полей.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'hint',
-      label: 'Подсказки',
-      description: 'Один экран.',
-      screens: [HintedScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [HintUiModuleDef],
 });
 
 const HintAppDef = UiAppDef.define({
@@ -193,10 +194,11 @@ const scene = () => {
   const messenger = MemoryMessenger.editing();
   const logger = new MemoryLogger();
   const kit = new RuntimeKit(
-    CodeLoaders.of(HintSetDef, [
-      CodeLoader.screen(HintedScreenDef, async () => new HintedCode(inputs)),
+    AppCodeLoaders.ofSet(HintSetDef, [
+      CodeLoaders.of(HintUiModuleDef, [
+        CodeLoader.screen(HintedScreenDef, async () => new HintedCode(inputs)),
+      ]),
     ]),
-    HintSetDef,
   );
   let requests = 0;
   let epochs = 0;

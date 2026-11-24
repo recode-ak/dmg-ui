@@ -13,6 +13,7 @@ import {
 } from 'dmg-core/testing/example';
 import {
   type AnyUiAppDef,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   ScreenCode,
@@ -454,20 +455,20 @@ class StrayScreenCode extends ScreenCode<typeof StrayScreenDef> {
 }
 
 /** Другой набор UI поверх учебного домена. */
+const OtherUiModuleDef = UiModuleDef.define({
+  name: 'desk',
+  label: 'Стол',
+  description: 'Один экран.',
+  screens: [StrayScreenDef],
+  stories: [],
+});
+
 const OtherSetDef = UiSetDef.define({
   name: 'otherUi',
   label: 'Другой набор',
   description: 'Набор, которого нет у приложений примера.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'desk',
-      label: 'Стол',
-      description: 'Один экран.',
-      screens: [StrayScreenDef],
-      stories: [],
-    }),
-  ],
+  modules: [OtherUiModuleDef],
 });
 
 describe('ChatGraphProvider — ошибки сборки', () => {
@@ -547,8 +548,10 @@ describe('ChatGraphProvider — ошибки сборки', () => {
   test('набор примеров другой, чем набор приложения, — бросок конструктора с именем приложения', async () => {
     const examples = await ChatExamples.collect({
       set: OtherSetDef,
-      codes: CodeLoaders.of(OtherSetDef, [
-        CodeLoader.screen(StrayScreenDef, async () => new StrayScreenCode()),
+      codes: AppCodeLoaders.ofSet(OtherSetDef, [
+        CodeLoaders.of(OtherUiModuleDef, [
+          CodeLoader.screen(StrayScreenDef, async () => new StrayScreenCode()),
+        ]),
       ]),
     });
 

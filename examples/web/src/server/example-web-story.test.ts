@@ -117,7 +117,7 @@ const tab = async (
   let n = 0;
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end: res.value,
     placements: PLACEMENTS,
@@ -149,7 +149,7 @@ const reconnecting = async (s: Started, key: string, prefix: string) => {
   let n = 0;
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end,
     placements: PLACEMENTS,

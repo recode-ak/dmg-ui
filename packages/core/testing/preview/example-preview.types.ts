@@ -1,6 +1,6 @@
 import type {
   AnyUiSetDef,
-  CodeLoaders,
+  AppCodeLoaders,
   InstanceView,
   NotificationPreview,
   RenderContext,
@@ -12,10 +12,13 @@ export type ExampleRenderer = {
   notification(notification: NotificationPreview): string;
 };
 
-/** Сборка `ExamplePreview`: набор, код, рендерер канала и контекст рендера. */
+/**
+ * Сборка `ExamplePreview`: набор, сборка кода того же набора, рендерер
+ * канала и контекст рендера.
+ */
 export type ExamplePreviewSpec = {
   readonly set: AnyUiSetDef;
-  readonly codes: CodeLoaders;
+  readonly codes: AppCodeLoaders;
   readonly renderer: ExampleRenderer;
   /** По умолчанию — `ru-RU`, `Asia/Oral`, без заместителя. */
   readonly context?: RenderContext;

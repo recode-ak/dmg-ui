@@ -59,7 +59,7 @@ export class ExampleBot {
     );
     const dispatch = new ApiAppDispatch(example.api);
     const server = new UiServer({ set: ExampleUiSetDef, dispatch, context });
-    const codes = exampleCodes();
+    const codes = exampleCodes({}, ExampleDialogUiAppDef);
     const observer = { record: () => {} };
     const messenger = new TelegramMessenger({ api, logger });
     this.conversations = new Conversations({

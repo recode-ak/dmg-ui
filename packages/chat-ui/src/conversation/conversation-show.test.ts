@@ -10,6 +10,7 @@ import { ExampleApp, ExampleAppDef } from 'dmg-core/testing/example';
 import {
   type ActionSteps,
   type AnyScreenDef,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type DataOf,
@@ -335,27 +336,27 @@ class PageCode extends ScreenCode<typeof PageScreenDef> {
   }
 }
 
+const ShowUiModuleDef = UiModuleDef.define({
+  name: 'show',
+  label: 'Показ',
+  description: 'Главный, другой, форма, части, шаг и страница.',
+  screens: [
+    MainScreenDef,
+    OtherScreenDef,
+    FormScreenDef,
+    MultiScreenDef,
+    StepScreenDef,
+    PageScreenDef,
+  ],
+  stories: [],
+});
+
 const ShowSetDef = UiSetDef.define({
   name: 'showUi',
   label: 'Набор показа',
   description: 'Локальные экраны политик показа беседы.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'show',
-      label: 'Показ',
-      description: 'Главный, другой, форма, части, шаг и страница.',
-      screens: [
-        MainScreenDef,
-        OtherScreenDef,
-        FormScreenDef,
-        MultiScreenDef,
-        StepScreenDef,
-        PageScreenDef,
-      ],
-      stories: [],
-    }),
-  ],
+  modules: [ShowUiModuleDef],
 });
 
 const ShowAppDef = UiAppDef.define({
@@ -556,15 +557,16 @@ const sceneOf = <M extends MemoryMessenger>(options: {
   const world = options.world ?? worldOf();
   const { messenger } = options;
   const kit = new RuntimeKit(
-    CodeLoaders.of(ShowSetDef, [
-      CodeLoader.screen(MainScreenDef, async () => new MainCode(world)),
-      CodeLoader.screen(OtherScreenDef, async () => new OtherCode()),
-      CodeLoader.screen(FormScreenDef, async () => new FormCode(world)),
-      CodeLoader.screen(MultiScreenDef, async () => new MultiCode(world)),
-      CodeLoader.screen(StepScreenDef, async () => new StepCode(world)),
-      CodeLoader.screen(PageScreenDef, async () => new PageCode()),
+    AppCodeLoaders.ofSet(ShowSetDef, [
+      CodeLoaders.of(ShowUiModuleDef, [
+        CodeLoader.screen(MainScreenDef, async () => new MainCode(world)),
+        CodeLoader.screen(OtherScreenDef, async () => new OtherCode()),
+        CodeLoader.screen(FormScreenDef, async () => new FormCode(world)),
+        CodeLoader.screen(MultiScreenDef, async () => new MultiCode(world)),
+        CodeLoader.screen(StepScreenDef, async () => new StepCode(world)),
+        CodeLoader.screen(PageScreenDef, async () => new PageCode()),
+      ]),
     ]),
-    ShowSetDef,
   );
   const conversation = new Conversation(
     {
@@ -1109,7 +1111,7 @@ describe('Conversation — перекрытие представлений по�
       const messenger = MemoryMessenger.editing();
       const conversations = new Conversations({
         app: ExampleDialogUiAppDef,
-        codes: exampleCodes(),
+        codes: exampleCodes({}, ExampleDialogUiAppDef),
         server,
         views: registry,
         observer: new MemoryUiObserver(),
@@ -1179,7 +1181,7 @@ describe('Conversation — акцент варианта', () => {
       const messenger = MemoryMessenger.editing();
       const conversations = new Conversations({
         app: ExampleDialogUiAppDef,
-        codes: exampleCodes(),
+        codes: exampleCodes({}, ExampleDialogUiAppDef),
         server,
         views: registry,
         observer: new MemoryUiObserver(),
@@ -1249,7 +1251,7 @@ describe('Conversations — место в снимке и размер пока�
     const nodeOf = () =>
       new Conversations({
         app: ExampleDialogUiAppDef,
-        codes: exampleCodes(),
+        codes: exampleCodes({}, ExampleDialogUiAppDef),
         server,
         views: huge,
         observer: new MemoryUiObserver(),

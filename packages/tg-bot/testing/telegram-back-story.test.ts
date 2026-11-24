@@ -79,7 +79,7 @@ const world = (name = 'one') => {
   let epoch = 0;
   const conversations = new Conversations({
     app: ExampleDialogUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExampleDialogUiAppDef),
     server,
     views: exampleDialogViews,
     observer: new MemoryUiObserver(),

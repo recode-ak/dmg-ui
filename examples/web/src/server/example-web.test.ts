@@ -46,7 +46,7 @@ const tab = async (
   if (!connected.ok) throw new Error(`connect(${token}): отказ`);
   const client = new PageClient({
     app: ExamplePagesUiAppDef,
-    codes: exampleCodes(),
+    codes: exampleCodes({}, ExamplePagesUiAppDef),
     routes: examplePagesRoutes,
     end: connected.value,
     observer: new MemoryUiObserver(),

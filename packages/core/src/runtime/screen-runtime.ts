@@ -23,16 +23,29 @@ export class ScreenRuntime {
   private readonly calls: UcCalls;
   private readonly reach: AppReach;
 
-  /** Загрузчики или приложение другого набора — ошибка сборки, бросок. */
+  /**
+   * Приложение другого набора или сборка кода другой области (набора,
+   * приложения; у исполнителя без приложения — сборка набора) — ошибка
+   * сборки, бросок.
+   */
   constructor(spec: ScreenRuntimeSpec) {
+    if (spec.app !== undefined && spec.app.set !== spec.set) {
+      throw new Error(
+        `ScreenRuntime: приложение ${spec.app.name} набора ${spec.app.set.name}, а исполнитель — ${spec.set.name}`,
+      );
+    }
     if (spec.codes.set !== spec.set) {
       throw new Error(
         `ScreenRuntime: загрузчики кода набора ${spec.codes.set.name}, а исполнитель — ${spec.set.name}`,
       );
     }
-    if (spec.app !== undefined && spec.app.set !== spec.set) {
+    if (spec.codes.app !== spec.app) {
+      const own =
+        spec.app === undefined
+          ? 'без приложения'
+          : `приложения ${spec.app.name}`;
       throw new Error(
-        `ScreenRuntime: приложение ${spec.app.name} набора ${spec.app.set.name}, а исполнитель — ${spec.set.name}`,
+        `ScreenRuntime: загрузчики кода ${spec.codes.scopeName()}, а исполнитель ${own}`,
       );
     }
     this.spec = spec;
@@ -48,8 +61,8 @@ export class ScreenRuntime {
   }
 
   /**
-   * Экземпляр из снимка канала (внешние данные): адрес не восстановлен
-   * или ревизия не целое `≥ 0` либо больше `MAX_REVISION` — отказ,
+   * Экземпляр из снимка канала (внешние данные): адрес не восстановлен,
+   * экран вне сборки кода (`unknownScreen`) или ревизия не целое `≥ 0` либо больше `MAX_REVISION` — отказ,
    * состояние не по схеме — начальное.
    */
   async restore(
@@ -61,6 +74,12 @@ export class ScreenRuntime {
       'address' in snapshot ? snapshot.address : undefined,
     );
     if (!address.ok) return err(address.error);
+    if (!this.spec.codes.has(address.value.screen)) {
+      return err({
+        reason: 'unknownScreen',
+        screen: this.ids.screen(address.value.screen),
+      });
+    }
     const revision = 'revision' in snapshot ? snapshot.revision : undefined;
     if (
       typeof revision !== 'number' ||

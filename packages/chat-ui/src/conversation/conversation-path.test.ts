@@ -14,6 +14,7 @@ import {
 import {
   type ActionSteps,
   type AnyScreenDef,
+  AppCodeLoaders,
   CodeLoader,
   CodeLoaders,
   type DataOf,
@@ -306,27 +307,28 @@ const NotesStoryDef = StoryDef.define({
   },
 });
 
+const RosterUiModuleDef = UiModuleDef.define({
+  name: 'roster',
+  label: 'Список',
+  description: 'Список людей по страницам.',
+  screens: [RosterScreenDef],
+  stories: [],
+});
+
+const PeopleUiModuleDef = UiModuleDef.define({
+  name: 'people',
+  label: 'Люди',
+  description: 'Профиль, заметки и цепочка звеньев.',
+  screens: [ProfileScreenDef, NotesScreenDef, ...HOPS],
+  stories: [NotesStoryDef],
+});
+
 const PathSetDef = UiSetDef.define({
   name: 'pathUi',
   label: 'Набор пути',
   description: 'Два UI-модуля: список людей и люди.',
   app: ExampleAppDef,
-  modules: [
-    UiModuleDef.define({
-      name: 'roster',
-      label: 'Список',
-      description: 'Список людей по страницам.',
-      screens: [RosterScreenDef],
-      stories: [],
-    }),
-    UiModuleDef.define({
-      name: 'people',
-      label: 'Люди',
-      description: 'Профиль, заметки и цепочка звеньев.',
-      screens: [ProfileScreenDef, NotesScreenDef, ...HOPS],
-      stories: [NotesStoryDef],
-    }),
-  ],
+  modules: [RosterUiModuleDef, PeopleUiModuleDef],
 });
 
 const PathAppDef = UiAppDef.define({
@@ -375,13 +377,21 @@ const views = ChatViews.of(PathSetDef, [
   ...HOPS.map((hop, i) => ScreenPresenter.for(hop, () => `Звено ${i}`)),
 ]);
 
-const codesOf = (world: World) =>
-  CodeLoaders.of(PathSetDef, [
+/** Реестры кода обоих модулей набора пути. */
+const modulesOf = (world: World) => [
+  CodeLoaders.of(RosterUiModuleDef, [
     CodeLoader.screen(RosterScreenDef, async () => new RosterCode(world)),
+  ]),
+  CodeLoaders.of(PeopleUiModuleDef, [
     CodeLoader.screen(ProfileScreenDef, async () => new ProfileCode(world)),
     CodeLoader.screen(NotesScreenDef, async () => new NotesCode(world)),
     ...HOPS.map((hop, i) => CodeLoader.screen(hop, async () => new HopCode(i))),
-  ]);
+  ]),
+];
+
+/** Сборка кода приложения пути. */
+const codesOf = (world: World) =>
+  AppCodeLoaders.of(PathAppDef, modulesOf(world));
 
 const editingMessenger = () => MemoryMessenger.editing();
 
@@ -493,7 +503,9 @@ const sceneOf = (options: {
 }) => {
   const world = worldOf();
   const { messenger } = options;
-  const kit = new RuntimeKit(codesOf(world), PathSetDef);
+  const kit = new RuntimeKit(
+    AppCodeLoaders.ofSet(PathSetDef, modulesOf(world)),
+  );
   /** Порт контекста рендера: `broken` — бросает (открытие и `restore` экрана). */
   const port = { broken: false };
   const conversation = new Conversation(

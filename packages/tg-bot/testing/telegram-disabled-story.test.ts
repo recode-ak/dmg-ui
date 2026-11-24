@@ -171,7 +171,7 @@ const world = (over: ExampleCodeOverrides = {}) => {
   const messenger = new TelegramMessenger({ api, logger });
   const conversations = new Conversations({
     app: ExampleDialogUiAppDef,
-    codes: exampleCodes(over),
+    codes: exampleCodes(over, ExampleDialogUiAppDef),
     server,
     views: exampleDialogViews,
     observer: new MemoryUiObserver(),
