@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { ok } from 'dmg-core';
-import { ExampleArch } from 'dmg-core/testing';
 import {
   ExampleAppDef,
   ListTasksUcDef,
@@ -19,7 +18,6 @@ import {
   UiModuleDef,
   UiSetDef,
 } from 'dmg-ui';
-import { UiGraphProvider } from 'dmg-ui/graph';
 import {
   ExampleUiSetDef,
   exampleCodes,
@@ -27,7 +25,7 @@ import {
   TaskCompletedNotificationDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
-import { ArchReport } from 'dmg-ui/testing/fixtures';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import { MemoryMessenger } from '../../testing';
 import { DIALOG_CHANNEL } from '../dialog';
@@ -359,23 +357,25 @@ describe('ChatExamples.collect — граница с UI-20', () => {
       textWithOptions: { max: 3, unit: 'codePoint' },
     };
 
-    const report = ArchReport.of({
-      ...ExampleArch,
-      providers: [
-        new UiGraphProvider({ set: ProbeUiSetDef, apps: [ProbeAppDef] }),
-        new ChatGraphProvider({
-          apps: [
-            {
-              app: ProbeAppDef,
-              views,
-              capabilities,
-              entryPoints: [{ entry: 'start', via: 'message', key: 'start' }],
-            },
-          ],
-          examples,
-        }),
-      ],
-    });
+    const report = ArchReport.of(
+      UiScene.appOf(
+        ProbeUiSetDef,
+        [ProbeAppDef],
+        [
+          new ChatGraphProvider({
+            apps: [
+              {
+                app: ProbeAppDef,
+                views,
+                capabilities,
+                entryPoints: [{ entry: 'start', via: 'message', key: 'start' }],
+              },
+            ],
+            examples,
+          }),
+        ],
+      ),
+    );
     const ch01 = report.rule('CH-01');
 
     expect(

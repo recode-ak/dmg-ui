@@ -3,7 +3,7 @@ import { AppGraph } from 'dmg-core/graph';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import { ExampleDialogArch } from './example-dialog.arch';
 
-// Граф учебного примера: `ExampleArch` + поставщик `dmg-ui` + представления
+// Граф учебного примера без домена: поставщик `dmg-ui` + представления
 // канала и точки входа трёх приложений — без нарушений (правила ядра, CH-01,
 // CH-02). Приложения без карточки пользователя отрезают её ребром `omits`.
 // Получатель `taskCompleted` —

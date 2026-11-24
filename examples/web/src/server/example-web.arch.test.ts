@@ -1,15 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import { ArchChecker } from 'dmg-core/arch';
 import { AppGraph } from 'dmg-core/graph';
-import { ExampleArch } from 'dmg-core/testing';
-import { UiGraphProvider } from 'dmg-ui/graph';
 import {
   ExampleUiSetDef,
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
-import { ArchReport } from 'dmg-ui/testing/fixtures';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import { PageGraphProvider, PageNotePresenter } from 'dmg-ui/web-ui';
 import {
   ExamplePagesUiAppDef,
@@ -78,20 +76,17 @@ describe('реестр на DOM в графе — экран без предст
       PageNotePresenter.for(TaskAssignedNotificationDef, () => 'a'),
       PageNotePresenter.for(TaskCompletedNotificationDef, () => 'b'),
     ]);
-    const scene = {
-      ...ExampleArch,
-      providers: [
-        new UiGraphProvider({
-          set: ExampleUiSetDef,
-          apps: [ExamplePagesUiAppDef],
-        }),
+    const scene = UiScene.appOf(
+      ExampleUiSetDef,
+      [ExamplePagesUiAppDef],
+      [
         new PageGraphProvider({
           apps: [
             { app: ExamplePagesUiAppDef, views, routes: examplePagesRoutes },
           ],
         }),
       ],
-    };
+    );
 
     const report = ArchReport.of(scene);
 

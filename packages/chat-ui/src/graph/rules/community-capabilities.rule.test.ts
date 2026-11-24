@@ -7,15 +7,13 @@ import {
   type GraphProvider,
   type GraphRule,
 } from 'dmg-core/graph';
-import { ExampleArch } from 'dmg-core/testing';
 import {
   GetTaskUcDef,
   RemoveUserUcDef,
   TaskEvents,
 } from 'dmg-core/testing/example';
-import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
-import { ArchReport } from 'dmg-ui/testing/fixtures';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import {
   ExampleDialogUiAppDef,
   ExampleWindowedUiAppDef,
@@ -100,24 +98,19 @@ const windowed = (community?: ChatCommunitySpec): ChatAppSpec => ({
 });
 
 /**
- * Сцена: домен примера, поставщик `dmg-ui`, `ChatGraphProvider` на `apps`
+ * Сцена без домена: поставщик `dmg-ui`, `ChatGraphProvider` на `apps`
  * и подставные поставщики `extra` — реестр видов общий, они ставят узлы
  * видов `dmg-ui-chat`, как пакет мессенджера.
  */
 const sceneOf = (
   apps: readonly ChatAppSpec[],
   extra: readonly GraphProvider[] = [],
-): ArchApp => ({
-  ...ExampleArch,
-  providers: [
-    new UiGraphProvider({
-      set: ExampleUiSetDef,
-      apps: apps.map((spec) => spec.app),
-    }),
-    new ChatGraphProvider({ apps, examples: EXAMPLES }),
-    ...extra,
-  ],
-});
+): ArchApp =>
+  UiScene.appOf(
+    ExampleUiSetDef,
+    apps.map((spec) => spec.app),
+    [new ChatGraphProvider({ apps, examples: EXAMPLES }), ...extra],
+  );
 
 /** Подставной поставщик сцены без своих видов: только узлы и рёбра. */
 const stub = (contribution: GraphContribution): GraphProvider => ({
@@ -323,13 +316,10 @@ describe('CH-03: свойства и охват', () => {
   test('сигнал и реакция другого поставщика под приложением без мессенджера — строка «у приложения нет мессенджера» на каждый', () => {
     // exampleWindowed есть у поставщика dmg-ui, но не у ChatGraphProvider:
     // узла chatMessenger под ним нет, сигнал и реакцию ставит подставной.
-    const scene: ArchApp = {
-      ...ExampleArch,
-      providers: [
-        new UiGraphProvider({
-          set: ExampleUiSetDef,
-          apps: [ExampleDialogUiAppDef, ExampleWindowedUiAppDef],
-        }),
+    const scene = UiScene.appOf(
+      ExampleUiSetDef,
+      [ExampleDialogUiAppDef, ExampleWindowedUiAppDef],
+      [
         new ChatGraphProvider({ apps: [dialog()], examples: EXAMPLES }),
         stub({
           nodes: [
@@ -351,7 +341,7 @@ describe('CH-03: свойства и охват', () => {
           edges: [],
         }),
       ],
-    };
+    );
     const report = ArchReport.of(scene);
 
     expect(report.code).toBe(1);

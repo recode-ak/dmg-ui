@@ -1,6 +1,5 @@
 import type { ArchApp } from 'dmg-core/arch';
 import type { GraphContribution, GraphProvider } from 'dmg-core/graph';
-import { ExampleArch } from 'dmg-core/testing';
 import { type AnyUiAppDef, UiAppDef } from 'dmg-ui';
 import {
   type ChatAppSpec,
@@ -15,7 +14,6 @@ import {
   ExampleDialogUiAppDef,
   exampleDialogViews,
 } from 'dmg-ui/chat-ui/testing';
-import { UiGraphProvider } from 'dmg-ui/graph';
 import {
   AssignedTasksScreenDef,
   ExampleUiSetDef,
@@ -27,11 +25,12 @@ import {
   TaskCompletedNotificationDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
+import { UiScene } from 'dmg-ui/testing/fixtures';
 import { TELEGRAM_CAPABILITIES, TelegramGraphProvider } from 'dmg-ui/tg-bot';
 import { EXAMPLE_CONTEXT } from './example/example-telegram.const';
 
 // Сцены графа Telegram для тестов правил TG и поставщика (в `index.ts` не
-// экспортируются): домен примера, поставщик `dmg-ui`, общая часть
+// экспортируются): сцена без домена, поставщик `dmg-ui`, общая часть
 // мессенджеров `ChatGraphProvider` и `TelegramGraphProvider`; приложение —
 // `exampleDialog` на возможностях Telegram.
 
@@ -72,15 +71,15 @@ export const telegramScene = (spec: TelegramSceneSpec): ArchApp => {
           ...(spec.community ? { community: spec.community } : {}),
         },
       ];
-  return {
-    ...ExampleArch,
-    providers: [
-      new UiGraphProvider({ set: ExampleUiSetDef, apps: [app] }),
+  return UiScene.appOf(
+    ExampleUiSetDef,
+    [app],
+    [
       new ChatGraphProvider({ apps, examples: EXAMPLES }),
       new TelegramGraphProvider(),
       ...(spec.extra ?? []),
     ],
-  };
+  );
 };
 
 /**

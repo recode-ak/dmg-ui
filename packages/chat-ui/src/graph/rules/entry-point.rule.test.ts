@@ -7,10 +7,8 @@ import {
   type GraphProvider,
   type GraphRule,
 } from 'dmg-core/graph';
-import { ExampleArch } from 'dmg-core/testing';
-import { UiGraphProvider } from 'dmg-ui/graph';
 import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
-import { ArchReport } from 'dmg-ui/testing/fixtures';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import {
   ExampleDialogUiAppDef,
   ExampleWindowedUiAppDef,
@@ -55,24 +53,19 @@ const windowed = (entryPoints?: ChatAppSpec['entryPoints']): ChatAppSpec => ({
 });
 
 /**
- * Сцена: домен примера, поставщик `dmg-ui`, `ChatGraphProvider` на `apps` и
+ * Сцена без домена: поставщик `dmg-ui`, `ChatGraphProvider` на `apps` и
  * подставные поставщики `extra` — реестр видов общий, они ставят узлы и
  * рёбра видов `dmg-ui-chat` через сборщик графа, как пакет мессенджера.
  */
 const sceneOf = (
   apps: readonly ChatAppSpec[],
   extra: readonly GraphProvider[] = [],
-): ArchApp => ({
-  ...ExampleArch,
-  providers: [
-    new UiGraphProvider({
-      set: ExampleUiSetDef,
-      apps: apps.map((spec) => spec.app),
-    }),
-    new ChatGraphProvider({ apps, examples: EXAMPLES }),
-    ...extra,
-  ],
-});
+): ArchApp =>
+  UiScene.appOf(
+    ExampleUiSetDef,
+    apps.map((spec) => spec.app),
+    [new ChatGraphProvider({ apps, examples: EXAMPLES }), ...extra],
+  );
 
 /** Подставной поставщик сцены без своих видов: только узлы и рёбра. */
 const stub = (contribution: GraphContribution): GraphProvider => ({

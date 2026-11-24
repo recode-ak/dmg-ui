@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AppGraph } from 'dmg-core/graph';
-import { ExampleArch } from 'dmg-core/testing';
 import { ExampleAppDef, ListTasksUcDef } from 'dmg-core/testing/example';
 import {
   type AnyUiAppDef,
@@ -216,7 +215,7 @@ describe('PageGraphProvider: вход не объявлен приложение
       entry: 'nowhere',
     });
     const built = new AppGraph({
-      ...ExampleArch,
+      def: ExampleAppDef,
       providers: [
         new UiGraphProvider({
           set: ExampleUiSetDef,

@@ -1,5 +1,5 @@
 import type { ArchApp } from 'dmg-core/arch';
-import { ExampleArch } from 'dmg-core/testing';
+import { ExampleAppDef } from 'dmg-core/testing';
 import type { RenderContext } from 'dmg-ui';
 import { ChatExamples, ChatGraphProvider } from 'dmg-ui/chat-ui';
 import { UiGraphProvider } from 'dmg-ui/graph';
@@ -30,13 +30,17 @@ const examples = await ChatExamples.collect({
 });
 
 /**
- * Граф учебного примера: домен `ExampleArch`, поставщик `dmg-ui` с тремя
- * приложениями и один поставщик общей части мессенджеров — `exampleDialog`
- * и урезанное `exampleTrimmed` на мессенджере с правкой, `exampleWindowed` —
- * без правки, с окном; у каждого входа — точка входа (CH-02).
+ * Граф учебного примера без домена: учебное приложение, поставщик `dmg-ui` с
+ * тремя приложениями и один поставщик общей части мессенджеров —
+ * `exampleDialog` и урезанное `exampleTrimmed` на мессенджере с правкой,
+ * `exampleWindowed` — без правки, с окном; у каждого входа — точка входа
+ * (CH-02). Проект — каталог примера, вход графа — этот файл.
  */
 export const ExampleDialogArch: ArchApp = {
-  ...ExampleArch,
+  def: ExampleAppDef,
+  project: import.meta.dir,
+  runners: [],
+  graphEntry: import.meta.path,
   providers: [
     new UiGraphProvider({
       set: ExampleUiSetDef,

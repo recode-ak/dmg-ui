@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { ok } from 'dmg-core';
 import type { ArchApp } from 'dmg-core/arch';
 import { AppGraph, DomainIds, type Graph } from 'dmg-core/graph';
-import { ExampleArch } from 'dmg-core/testing';
 import {
   CompleteTaskUcDef,
   ExampleAppDef,
@@ -21,14 +20,13 @@ import {
   UiModuleDef,
   UiSetDef,
 } from 'dmg-ui';
-import { UiGraphProvider } from 'dmg-ui/graph';
 import {
   ExampleUiSetDef,
   exampleCodes,
   TaskCardScreenDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
-import { ArchReport, StubViewProvider } from 'dmg-ui/testing/fixtures';
+import { ArchReport, StubViewProvider, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import {
   ExampleDialogArch,
@@ -131,20 +129,21 @@ const targets = (built: Graph, from: string, kind: string) =>
     .map((edge) => edge.to)
     .sort();
 
-/** Сцена: домен примера, поставщик `dmg-ui` и `ChatGraphProvider` на `apps`; без точек — по точке на вход. */
-const sceneOf = (apps: readonly AppSpec[]): ArchApp => ({
-  ...ExampleArch,
-  providers: [
-    new UiGraphProvider({
-      set: ExampleUiSetDef,
-      apps: apps.map((spec) => spec.app),
-    }),
-    new ChatGraphProvider({
-      apps: apps.map((spec) => ({ entryPoints: pointsOf(spec.app), ...spec })),
-      examples: EXAMPLES,
-    }),
-  ],
-});
+/** Сцена без домена: поставщик `dmg-ui` и `ChatGraphProvider` на `apps`; без точек — по точке на вход. */
+const sceneOf = (apps: readonly AppSpec[]): ArchApp =>
+  UiScene.appOf(
+    ExampleUiSetDef,
+    apps.map((spec) => spec.app),
+    [
+      new ChatGraphProvider({
+        apps: apps.map((spec) => ({
+          entryPoints: pointsOf(spec.app),
+          ...spec,
+        })),
+        examples: EXAMPLES,
+      }),
+    ],
+  );
 
 /** Текст броска сборки; не бросило — пустая строка. */
 const thrown = (build: () => unknown): string => {

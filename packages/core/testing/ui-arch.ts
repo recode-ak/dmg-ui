@@ -1,7 +1,7 @@
 import type { AnyUseCaseDef } from 'dmg-core';
 import { type ArchApp, reportArchCheck } from 'dmg-core/arch';
 import type { GraphProvider } from 'dmg-core/graph';
-import { ExampleAppDef, ExampleArch } from 'dmg-core/testing';
+import { ExampleAppDef } from 'dmg-core/testing';
 import { ListTasksUcDef, TaskEvents } from 'dmg-core/testing/example';
 import * as v from 'valibot';
 import { Address } from '../src/address/address';
@@ -33,9 +33,12 @@ import {
 import { UiModuleDef } from '../src/manifest/ui-module-def';
 import { type AnyUiSetDef, UiSetDef } from '../src/manifest/ui-set-def';
 
-// Помощники тестов правил графа: сборка `ArchApp` из `ExampleArch` с
-// поставщиком `dmg-ui` и прогон `reportArchCheck` (в `testing/index.ts` не
-// экспортируются).
+// Помощники тестов правил графа: сборка `ArchApp` сцены без домена — учебное
+// приложение, поставщик `dmg-ui` и каталог сцены без файлов домена — и прогон
+// `reportArchCheck` (в `testing/index.ts` не экспортируются).
+
+/** Каталог сцены: `ArchApp.project` сцен, внутри — только вход графа. */
+const SCENE_DIR = `${import.meta.dir}/scene`;
 
 /** Отчёт `arch:check`: код выхода и строки; `rule` — строки одного правила. */
 export class ArchReport {
@@ -236,15 +239,21 @@ export class UiScene {
     return schema as unknown as T;
   }
 
-  /** Приложение для `arch:check`: учебный домен, поставщик `dmg-ui` и чужие поставщики. */
+  /**
+   * Приложение для `arch:check` без домена: учебное приложение, поставщик
+   * `dmg-ui` и чужие поставщики; проект — каталог сцены без раннеров.
+   */
   static appOf(
     set: AnyUiSetDef,
     apps: readonly AnyUiAppDef[],
     providers: readonly GraphProvider[] = [],
   ): ArchApp {
     return {
-      ...ExampleArch,
+      def: ExampleAppDef,
       providers: [new UiGraphProvider({ set, apps }), ...providers],
+      project: SCENE_DIR,
+      runners: [],
+      graphEntry: `${SCENE_DIR}/scene-entry.ts`,
     };
   }
 
