@@ -30,8 +30,8 @@ describe('ClientBundle — домен на клиенте', () => {
     }
     const has = (part: string) => bundle.inputs.some((i) => i.includes(part));
     expect(has('dmg-core/src/app/')).toBe(false);
-    expect(has('testing/example/app/')).toBe(false);
-    expect(has('testing/example/runner/')).toBe(false);
+    expect(has('testing/example/backend/')).toBe(false);
+    expect(has('testing/example/runners/')).toBe(false);
     expect(bundle.outputs).toBe(1);
   });
 
@@ -46,7 +46,7 @@ describe('ClientBundle — домен на клиенте', () => {
     expect(ClientBundle.violations(bundle).join('\n')).toContain('node:fs');
   });
 
-  test('использованный ExampleApp — app/, node:*, Bun./process. в нарушениях', async () => {
+  test('использованный ExampleApp — backend/, runners/, node:*, Bun./process. в нарушениях', async () => {
     const bundle = await ClientBundle.build(
       virtual(
         'domain-app',
@@ -56,7 +56,8 @@ describe('ClientBundle — домен на клиенте', () => {
     const found = ClientBundle.violations(bundle).join('\n');
 
     expect(found).toContain('dmg-core/src/app/');
-    expect(found).toContain('dmg-core/src/testing/example/app/');
+    expect(found).toContain('dmg-core/src/testing/example/backend/');
+    expect(found).toContain('dmg-core/src/testing/example/runners/');
     expect(found).toContain('node:');
     expect(found).toContain('Bun\\.');
     expect(found).toContain('process\\.');
