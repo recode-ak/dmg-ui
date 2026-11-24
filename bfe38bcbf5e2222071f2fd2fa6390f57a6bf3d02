@@ -1,0 +1,1 @@
+Ревью Ф5 dmg-ui-layout: удалён дубль-тест AppChatViews «вне приложения» (→ A-02), withTodo в example-limits.rule.test.ts, перенос JSDoc screen-runtime.ts restore и chat-views.ts over. check 5369/265.
