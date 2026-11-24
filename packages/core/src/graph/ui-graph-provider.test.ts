@@ -35,7 +35,11 @@ import { UiGraphProvider } from './ui-graph-provider';
 import { UI_VERSION } from './ui-kinds';
 
 const provider = () =>
-  new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleStubUiAppDef] });
+  new UiGraphProvider({
+    set: ExampleUiSetDef,
+    apps: [ExampleStubUiAppDef],
+    channels: [],
+  });
 const appGraph = () =>
   new AppGraph({ def: ExampleAppDef, providers: [provider()] });
 const graph = appGraph().build();
@@ -374,7 +378,13 @@ describe('UiGraphProvider: подсказки в графе', () => {
     const scene = new UiScene({ screens: [hinted] });
     const built = new AppGraph({
       def: ExampleAppDef,
-      providers: [new UiGraphProvider({ set: scene.set, apps: [scene.app] })],
+      providers: [
+        new UiGraphProvider({
+          set: scene.set,
+          apps: [scene.app],
+          channels: [],
+        }),
+      ],
     }).build();
 
     const locals = built.node('miniUi/todo/hinted')?.props.locals as {
@@ -615,7 +625,13 @@ describe('UiGraphProvider: получатели из query UC', () => {
     const scene = new UiScene({ screens: [], notifications: [notification] });
     const built = new AppGraph({
       def: ExampleAppDef,
-      providers: [new UiGraphProvider({ set: scene.set, apps: [scene.app] })],
+      providers: [
+        new UiGraphProvider({
+          set: scene.set,
+          apps: [scene.app],
+          channels: [],
+        }),
+      ],
     }).build();
     const targets = (kind: string) =>
       built.outgoing('miniUi/todo/n', kind).map((edge) => edge.to);
@@ -848,6 +864,7 @@ describe('UiGraphProvider: дерево приложения — roots и сог
       new UiGraphProvider({
         set: ExampleUiSetDef,
         apps: [ExampleMenuStubUiAppDef, ExampleMenuTrimmedStubUiAppDef],
+        channels: [],
       }),
     ],
   }).build();
@@ -987,5 +1004,149 @@ describe('UiGraphProvider: вид поля читается из JSON Schema', (
     expect(properties.done).toMatchObject({ type: 'boolean' });
     expect(properties.day).toMatchObject({ type: 'string', format: 'date' });
     expect(properties.level).toMatchObject({ enum: ['low', 'high'] });
+  });
+});
+
+describe('UiGraphProvider: имена модулей и каналов против слоёв фронта', () => {
+  const module = (name: string, screens: AnyScreenDef[] = []) =>
+    UiModuleDef.define({
+      name,
+      label: `Модуль ${name}`,
+      description: 'Модуль для проверки имён слоёв.',
+      screens,
+      stories: [],
+    });
+  const setOf = (...modules: ReturnType<typeof module>[]) =>
+    UiSetDef.define({
+      name: 'named',
+      label: 'Имена',
+      description: 'Набор для проверки имён модулей.',
+      app: ExampleAppDef,
+      modules,
+    });
+  const todo = setOf(module('todo'));
+  /** Текст отказа сборки; сборка прошла — пустая строка. */
+  const refusal = (build: () => unknown): string => {
+    try {
+      build();
+      return '';
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  };
+
+  test('UI-модуль app — отказ сборки: текст называет модуль и занятый слой fe-app', () => {
+    const message = refusal(
+      () =>
+        new UiGraphProvider({
+          set: setOf(module('todo'), module('app')),
+          apps: [],
+          channels: [],
+        }),
+    );
+
+    expect(message).toContain('fe-app');
+    // Имя модуля — отдельно от имени слоя, в котором оно тоже есть.
+    expect(message.replaceAll('fe-app', '')).toContain('app');
+  });
+
+  test('UI-модуль dialog-kit при канале dialog — отказ сборки', () => {
+    const build = () =>
+      new UiGraphProvider({
+        set: setOf(module('todo'), module('dialog-kit')),
+        apps: [],
+        channels: [{ name: 'dialog' }],
+      });
+
+    expect(build).toThrow('dialog-kit');
+  });
+
+  test('UI-модуль dialog-kit без канала dialog — сборка проходит', () => {
+    const build = () =>
+      new UiGraphProvider({
+        set: setOf(module('todo'), module('dialog-kit')),
+        apps: [],
+        channels: [{ name: 'site' }],
+      });
+
+    expect(build).not.toThrow();
+  });
+
+  test('два UI-модуля с одним именем — слой кода без повтора, в arch:check ARC-13 «граф не собран», а не исключение', () => {
+    const set = setOf(
+      module('todo', [UiScene.screen('first')]),
+      module('todo', [UiScene.screen('second')]),
+    );
+    const layers = new UiGraphProvider({
+      set,
+      apps: [],
+      channels: [],
+    }).layers();
+
+    expect(layers.find((l) => l.name === 'fe-logic')?.perModule).toEqual([
+      'todo',
+    ]);
+    expect(ArchReport.of(UiScene.appOf(set, [])).rule('ARC-13')).toEqual([
+      expect.stringContaining('граф приложения example не собран'),
+    ]);
+  });
+
+  test('канал app — отказ: имя занято слоем fe-app', () => {
+    const message = refusal(
+      () =>
+        new UiGraphProvider({
+          set: todo,
+          apps: [],
+          channels: [{ name: 'app' }],
+        }),
+    );
+
+    expect(message).toContain('fe-app');
+  });
+
+  test('канал logic — отказ: имя занято слоем fe-logic', () => {
+    const message = refusal(
+      () =>
+        new UiGraphProvider({
+          set: todo,
+          apps: [],
+          channels: [{ name: 'logic' }],
+        }),
+    );
+
+    expect(message).toContain('fe-logic');
+  });
+
+  test('канал объявлен дважды — отказ сборки с именем канала', () => {
+    const build = () =>
+      new UiGraphProvider({
+        set: todo,
+        apps: [],
+        channels: [{ name: 'dialog' }, { name: 'dialog' }],
+      });
+
+    expect(build).toThrow('dialog');
+  });
+
+  test('база канала не объявлена — отказ сборки с именем канала', () => {
+    const build = () =>
+      new UiGraphProvider({
+        set: todo,
+        apps: [],
+        channels: [{ name: 'voice', base: 'dialog' }],
+      });
+
+    expect(build).toThrow('voice');
+  });
+
+  test('база канала — сам канал — отказ сборки', () => {
+    const build = () =>
+      new UiGraphProvider({
+        set: todo,
+        apps: [],
+        channels: [{ name: 'dialog', base: 'dialog' }],
+      });
+
+    expect(build).toThrow('dialog');
   });
 });

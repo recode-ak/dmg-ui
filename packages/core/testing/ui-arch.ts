@@ -241,7 +241,9 @@ export class UiScene {
 
   /**
    * Приложение для `arch:check` без домена: учебное приложение, поставщик
-   * `dmg-ui` и чужие поставщики; проект — каталог сцены без раннеров.
+   * `dmg-ui` без каналов и чужие поставщики; проект — каталог сцены без
+   * раннеров. Каталоги слоёв фронта — ключи без каталогов на диске: слою
+   * нужен ключ (иначе ARC-13), файлов фронта у сцены нет.
    */
   static appOf(
     set: AnyUiSetDef,
@@ -250,9 +252,17 @@ export class UiScene {
   ): ArchApp {
     return {
       def: ExampleAppDef,
-      providers: [new UiGraphProvider({ set, apps }), ...providers],
+      providers: [
+        new UiGraphProvider({ set, apps, channels: [] }),
+        ...providers,
+      ],
       project: SCENE_DIR,
       runners: [],
+      layers: {
+        ui: [`${SCENE_DIR}/platform/ui`],
+        'fe-app': [`${SCENE_DIR}/frontend/app`],
+        'fe-logic': [`${SCENE_DIR}/frontend/{m}/logic`],
+      },
       graphEntry: `${SCENE_DIR}/scene-entry.ts`,
     };
   }

@@ -220,6 +220,7 @@ describe('PageGraphProvider: вход не объявлен приложение
         new UiGraphProvider({
           set: ExampleUiSetDef,
           apps: [ExamplePagesUiAppDef],
+          channels: [],
         }),
         new PageGraphProvider({
           apps: [

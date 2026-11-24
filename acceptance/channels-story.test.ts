@@ -695,6 +695,7 @@ describe('сценарий 5 — поле входа: подпись, подск
         new UiGraphProvider({
           set: ExampleUiSetDef,
           apps: [ExamplePagesUiAppDef],
+          channels: [],
         }),
       ],
     }).build();

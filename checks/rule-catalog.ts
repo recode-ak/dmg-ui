@@ -15,7 +15,7 @@ const RULE_ID = `(?:${RULE_PREFIXES.join('|')})-\\d{2}`;
 /** Сверка текстов: правила в коде и в `rules.md` (префиксы `RULE_PREFIXES`), ссылки `D-UI-<n>` и `decisions.md`, нумерация `debt.md`. Код пакета не импортирует. */
 export class RuleCatalog {
   protected static readonly CODE_ID = new RegExp(
-    `\\bid\\s*=\\s*'(${RULE_ID})'`,
+    `\\b(?:id\\s*=|rule\\s*:)\\s*'(${RULE_ID})'`,
   );
   protected static readonly ROW_ID = new RegExp(`^\\|\\s*\`?(${RULE_ID})\\b`);
   protected static readonly HEADING_ID = new RegExp(
@@ -27,7 +27,11 @@ export class RuleCatalog {
     /\*\*Последний выданный ID:\*\*\s*DEBT-UI-(\d+)/;
   protected static readonly DEBT_ID = /DEBT-UI-(\d+)/g;
 
-  /** Правила из кода (`id = 'UI-NN'`) и из каталога (заголовок или строка таблицы) должны совпадать. */
+  /**
+   * Правила из кода — правила графа (`id = 'UI-NN'`) и слоёв (`rule: 'UI-NN'`
+   * в слое или доступе) — и из каталога (заголовок или строка таблицы) должны
+   * совпадать.
+   */
   checkRules(code: SourceFile[], catalog: SourceFile): Violation[] {
     const inCatalog = new Map<string, number>();
     catalog.lines().forEach((text, index) => {

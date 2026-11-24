@@ -232,7 +232,7 @@ export class CoreImportScanner {
       {
         include: [`${WEB_UI_TESTING}/`],
         exclude: ['.test.ts'],
-        // Привязке нужны `ExampleArch` и пример: тестовые входы разрешены.
+        // Привязке нужны `ExampleAppDef` и пример: тестовые входы разрешены.
         forbidden: forbidden.filter(
           (spec) =>
             spec !== 'dmg-core/testing/*' &&
@@ -364,7 +364,7 @@ export class CoreImportScanner {
       {
         include: [`${CHAT_UI_TESTING}/`],
         exclude: ['.test.ts'],
-        // Привязке нужны `ExampleArch` и пример: тестовые входы разрешены.
+        // Привязке нужны `ExampleAppDef` и пример: тестовые входы разрешены.
         forbidden: forbidden.filter(
           (spec) =>
             spec !== 'dmg-core/testing/*' &&

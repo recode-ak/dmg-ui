@@ -48,6 +48,26 @@ describe('RuleCatalog.checkRules — правила кода и rules.md', () =>
   });
 });
 
+describe('RuleCatalog.checkRules — ID слоёв в коде', () => {
+  const layers = [file('graph/ui-layers.ts', "    rule: 'UI-28',")];
+
+  it('ID слоя rule: UI-28 в коде без записи — нарушение в файле кода', () => {
+    const found = catalog.checkRules(layers, file('rules.md', '## Общее\n'));
+    expect(found).toEqual([
+      {
+        file: 'graph/ui-layers.ts',
+        line: 1,
+        text: 'UI-28: правила нет в rules.md',
+      },
+    ]);
+  });
+
+  it('ID слоя rule: UI-28 и строка таблицы — нарушений нет', () => {
+    const rules = file('rules.md', '| UI-28 | Описание фронта |\n');
+    expect(catalog.checkRules(layers, rules)).toEqual([]);
+  });
+});
+
 describe('RuleCatalog.checkRules — префиксы правил', () => {
   const chat = [file('r/c.rule.ts', "  readonly id = 'CH-01';")];
 

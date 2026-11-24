@@ -34,12 +34,21 @@ const examples = await ChatExamples.collect({
  * тремя приложениями и один поставщик общей части мессенджеров —
  * `exampleDialog` и урезанное `exampleTrimmed` на мессенджере с правкой,
  * `exampleWindowed` — без правки, с окном; у каждого входа — точка входа
- * (CH-02). Проект — каталог примера, вход графа — этот файл.
+ * (CH-02). Проект — каталог примера, вход графа — этот файл. Канал — `chat`;
+ * ключи слоёв фронта ведут в каталоги, которых у примера пока нет: его файлы
+ * лежат вне слоёв, пока раскладка примера не разделена по слоям.
  */
 export const ExampleDialogArch: ArchApp = {
   def: ExampleAppDef,
   project: import.meta.dir,
   runners: [],
+  layers: {
+    ui: [`${import.meta.dir}/platform/ui`],
+    'fe-app': [`${import.meta.dir}/frontend/app`],
+    'fe-logic': [`${import.meta.dir}/frontend/{m}/logic`],
+    'fe-chat': [`${import.meta.dir}/frontend/{m}/chat`],
+    'chat-kit': [`${import.meta.dir}/frontend/chat-kit`],
+  },
   graphEntry: import.meta.path,
   providers: [
     new UiGraphProvider({
@@ -49,6 +58,7 @@ export const ExampleDialogArch: ArchApp = {
         ExampleTrimmedUiAppDef,
         ExampleWindowedUiAppDef,
       ],
+      channels: [{ name: 'chat' }],
     }),
     new ChatGraphProvider({
       apps: [

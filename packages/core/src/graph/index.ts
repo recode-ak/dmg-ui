@@ -2,7 +2,10 @@
 // код экрана и исполнитель не тянут `dmg-core/graph`.
 
 export { UiGraphProvider } from './ui-graph-provider';
-export type { UiGraphSpec } from './ui-graph-provider.types';
+export type {
+  UiChannelSpec,
+  UiGraphSpec,
+} from './ui-graph-provider.types';
 export {
   UI_EDGE_KINDS,
   UI_KINDS,
