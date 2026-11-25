@@ -111,7 +111,7 @@ const telegram = new TelegramUpdates({ conversations, messenger, logger, entryPo
 Стили, цвет кнопки и подписи, правка на месте, лимиты 64/65 знаков подписи, 100/101 кнопка, 4096/4097 знаков текста, «message is not modified» как успех — подтверждены. Момент с жирным клиент показывает без жирного; Desktop на Linux не выделяет дату в цитате; со ссылкой остаётся ссылка, с кодом — код.
 
 
-**Перекрытие представления.** Акцент и момент ставит представление экрана: образец — `exampleTelegramViews` (`dmg-ui/tg-bot/testing`), перекрытие через `ChatViews.over` ([messenger-package.md](./messenger-package.md)). Другие мессенджеры показывают подпись и запасной текст.
+**Перекрытие представления.** Акцент и момент ставит представление экрана: образец — перекрытие модуля `todoTelegramViews` (`frontend/todo/telegram/todo-telegram.views.ts`) через `ChatViews.over`, сборка Telegram — `exampleTelegramViews` (`dmg-ui/example`) ([messenger-package.md](./messenger-package.md)). Другие мессенджеры показывают подпись и запасной текст.
 
 **Ограничения `ExampleTelegramPreview`** (DEBT-UI-29): превью показывает экран через `TelegramMessenger` на `MemoryBotApi`, но перехватывает `ViewMessage` на пути сборщика показа и берёт только последнее сообщение. В нём нет шапки заместителя, раскладки «Ещё», стража `MessageFit` и ссылок беседы, у вариантов ссылки `1..n`. Запрос живого бота от превью может отличаться — сверять по трассе (раздел 10).
 

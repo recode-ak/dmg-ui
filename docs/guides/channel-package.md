@@ -32,17 +32,17 @@
 5. **Точки входа** — команда, маршрут, ссылка — на входы, которые объявило приложение UI; в графе — свой вид узла (раздел 5, п. 2).
 6. **След**: на каждый входящий сигнал канал рождает `Trace.fromRequest({ requestId, channel })`.
 7. **Политику по исходам** действия (раздел 4) и **доставку уведомлений** (раздел 9).
-8. **Граф**: ребро `presents` и, если нужно, свои виды узлов и правила (раздел 5).
+8. **Граф**: если нужно, свои виды узлов и правила (раздел 5). Представления в граф не идут: их полноту держит реестр модуля (UI-06), лимиты мессенджера — тест (CH-01).
 
 ## 3. Сборка
 
-Все импорты — из публичных входов: `dmg-ui`, `dmg-ui/server`, `dmg-ui/graph`. Пакет канала лежит в `packages/<имя>/` и видит соседей только по имени входа; канал поверх `chat-ui` (как `tg-bot`) берёт общую модель беседы из `dmg-ui/chat-ui`. Оттуда же ему нужны сообщение, порт мессенджера и возможности; подробности — в гайде «Пакет мессенджера», он появится позже. Помощники тестов ядра для тестов канала — из `dmg-ui/testing/fixtures`.
+Все импорты — из публичных входов: `dmg-ui`, `dmg-ui/server`, `dmg-ui/graph`. Пакет канала лежит в `packages/<имя>/` и видит соседей только по имени входа; канал поверх `chat-ui` (как `tg-bot`) берёт общую модель беседы из `dmg-ui/chat-ui`. Оттуда же ему нужны сообщение, порт мессенджера и возможности; подробности — в гайде [Пакет мессенджера](./messenger-package.md). Помощники тестов ядра для тестов канала — из `dmg-ui/testing/fixtures`.
 
-1. **Код.** `CodeLoaders` (реестр загрузчиков набора) создаёт корень сборки; образец — `exampleCodes()`. Загрузчики другого набора — бросок при сборке.
+1. **Код.** У каждого UI-модуля свой реестр загрузчиков `CodeLoaders.of(<M>UiModuleDef, [...])` (`frontend/<m>/logic/<m>-codes.ts`); оболочка собирает реестры модулей области в `AppCodeLoaders.of(app, modules)` (приложение UI; модули — `ModuleRegistries.required(app)`) или `AppCodeLoaders.ofSet(set, modules)` (набор: превью, исполнитель без приложения). Образец — `exampleCodes(over, app?)` учебного проекта (`runners/example-codes.ts`). Неполный реестр модуля, реестр вне области, два реестра одного модуля — отказ с UI-06 (D-UI-118).
 2. **Сервер.** Один на набор: `new UiServer({ set, dispatch, context, nodes? })`. `dispatch` — бэкенд вызова UC: `new ApiAppDispatch(api)` в одном процессе или `new ModuleApiDispatch([...apis])` для модулей вне процесса; `context` — `{ bus, logger }` приложения; `nodes` — узлы канала (`ChannelNode`: `id`, `uses`, `listens`).
 3. **Сессия личности.** `server.session(source)` даёт `UiSession`: она же `UcPort` и `RefreshPort` для исполнителя. `CallerSource`: `subjectId` (субъект для сопоставления событий; у заместителя — замещаемый), `channel` (канал следа), `resolve(trace)` → `Result<Caller>`; порт канал реализует сам. Образец — узел бесед ([conversations.ts](../../packages/chat-ui/src/conversation/conversations.ts)).
-4. **Исполнитель.** `new ScreenRuntime({ set, codes, ucs: session, refresh: session, observer })`. Дальше `open(address, { context, trace })`, `restore(json, options)`. Приложение UI передай в `ScreenRuntimeSpec.app`: отрезанное составом приложения действие-переход исполнитель из вида убирает (`AppReach`, D-UI-95), представления решения о показе не принимают. Контекст рендера — `new RenderContexts(callers, places).of(uuid, trace)`: место из `PersonPlaces`, признаки — `RenderFlags` вызывающего (`RecipientCallers`), субъект — `caller.subject()` (код экрана видит его в `context.subject`, D-UI-98); вызывающий не разрешился — `delegate` и `readOnly` `false`, субъекта нет. Канал вправе собрать `{ locale, timeZone, delegate, readOnly }` и сам через `RenderFlags.of(caller.value)`. Снимок с ревизией больше `2³¹ − 1` `restore` отвергает отказом `malformed` (D-UI-42).
-5. **Уведомления.** `new UiNotifier({ app, codes, dispatch, callers, delivery, observer, context }).start()`; `callers` — `RecipientCallers` (`resolve(uuid, trace)` → `Result<Caller>`), `delivery` — `NotificationDelivery.deliver(notification)`. Запуск один: повторный `start()` без остановки бросает, подписка одна на приложение; `start()` возвращает отписку — храни её.
+4. **Исполнитель.** `new ScreenRuntime({ set, codes, ucs: session, refresh: session, observer })`, `codes` — сборка `AppCodeLoaders` той же области. Дальше `open(address, { context, trace })`, `restore(json, options)`. Приложение UI передай в `ScreenRuntimeSpec.app`: отрезанное составом приложения действие-переход исполнитель из вида убирает (`AppReach`, D-UI-95), представления решения о показе не принимают. Контекст рендера — `new RenderContexts(callers, places).of(uuid, trace)`: место из `PersonPlaces`, признаки — `RenderFlags` вызывающего (`RecipientCallers`), субъект — `caller.subject()` (код экрана видит его в `context.subject`, D-UI-98); вызывающий не разрешился — `delegate` и `readOnly` `false`, субъекта нет. Канал вправе собрать `{ locale, timeZone, delegate, readOnly }` и сам через `RenderFlags.of(caller.value)`. Снимок с ревизией больше `2³¹ − 1` `restore` отвергает отказом `malformed` (D-UI-42).
+5. **Уведомления.** `new UiNotifier({ app, codes, dispatch, callers, delivery, observer, context }).start()`, `codes` — сборка `AppCodeLoaders` приложения; `callers` — `RecipientCallers` (`resolve(uuid, trace)` → `Result<Caller>`), `delivery` — `NotificationDelivery.deliver(notification)`. Запуск один: повторный `start()` без остановки бросает, подписка одна на приложение; `start()` возвращает отписку — храни её.
 6. **Наблюдатель.** `UiObserver.record(entry)` синхронный и не бросает; в записи нет входа, данных и payload. Для тестов — `MemoryUiObserver`.
 
 Две части канала (D-UI-16): исполнитель экранов (клиент, `dmg-ui`) и серверная (`dmg-ui/server`). Между ними только JSON (раздел 6). Исполнитель не тянет `dmg-core/app` и `/graph`, поэтому работает в браузере.
@@ -50,7 +50,8 @@
 ```ts
 const server = new UiServer({ set: ExampleUiSetDef, dispatch: new ApiAppDispatch(example.api), context });
 const session = server.session(identity.source());
-const runtime = new ScreenRuntime({ set, codes, ucs: session, refresh: session, observer });
+const codes = exampleCodes({}, ExampleDialogUiAppDef); // AppCodeLoaders приложения
+const runtime = new ScreenRuntime({ set: ExampleUiSetDef, app: ExampleDialogUiAppDef, codes, ucs: session, refresh: session, observer });
 const instance = await runtime.open(address, { context: renderContext, trace: trace.toJSON() });
 ```
 
@@ -102,11 +103,11 @@ const instance = await runtime.open(address, { context: renderContext, trace: tr
 - Вид в отказе и шапку (заместитель, «только чтение» — первым абзацем первого сообщения) собирает беседа, представление их не видит.
 - `NotificationPresenter.for(def, render)` — текст уведомления по его данным.
 
-**Акцент, момент и перекрытие.** Вариант может нести нейтральный `accent` (`primary`, `positive`, `danger`), фрагмент текста — `moment` (секунды Unix и вид показа; `text` фрагмента — запасной, его показывают мессенджеры без даты): представление выставляет их, мессенджер переводит в свои поля или опускает (Telegram: `style` кнопки и сущность `date_time`). Представление под один мессенджер перекрывает общее по `id` через `ChatViews.over`; на учебном примере — `exampleTelegramViews` (`dmg-ui/tg-bot/testing`, D-UI-67), остальные экраны остаются общими.
+**Акцент, момент и перекрытие.** Вариант может нести нейтральный `accent` (`primary`, `positive`, `danger`), фрагмент текста — `moment` (секунды Unix и вид показа; `text` фрагмента — запасной, его показывают мессенджеры без даты): представление выставляет их, мессенджер переводит в свои поля или опускает (Telegram: `style` кнопки и сущность `date_time`). Представление под один мессенджер перекрывает общее через `ChatViews.over` реестра модуля; на учебном проекте — `todoTelegramViews` (`frontend/todo/telegram/todo-telegram.views.ts`, D-UI-67): `todoChatViews.over([...])`, остальные экраны модуля остаются общими.
 
 ```ts
 import { ChatViews, ScreenPresenter } from 'dmg-ui/chat-ui';
-import { ExampleUiSetDef, TaskCardScreenDef } from 'dmg-ui/testing';
+import { TaskCardScreenDef, TodoUiModuleDef } from 'dmg-ui/example';
 
 const CardView = ScreenPresenter.of(TaskCardScreenDef, {
   render: ({ data }, kit) => [
@@ -115,11 +116,11 @@ const CardView = ScreenPresenter.of(TaskCardScreenDef, {
   ],
   history: 'address',
 });
-const views = ChatViews.of(ExampleUiSetDef, [TaskListView, CardView]);
-const own = views.over([OwnCardView]); // реестр приложения своего мессенджера
+const todoChatViews = ChatViews.of(TodoUiModuleDef, [TaskListView, CardView /* … все экраны и уведомления модуля */]);
+const todoOwnViews = todoChatViews.over([OwnCardView]); // перекрытие своего мессенджера
 ```
 
-**Реестр** `ChatViews.of(set, presenters)` — представления одного приложения мессенджера по `id`; Def вне набора и два представления одного Def — бросок. `over(presenters)` даёт новый реестр, где представления пакета мессенджера перекрывают общие по `id`; прежний не меняется. Узел бесед обслуживает одно приложение и получает свой реестр (`ConversationsSpec.views`). `presented()` — `id` общих и перекрытых без повторов, для рёбер `presents`. Файлы привязки примера к каналу (`<имя>.ui-app.ts`, `<имя>.views.ts`, `<имя>.view.ts`, `<имя>.arch.ts`) называются и раскладываются по [Структуре и именованию UI](../reference/naming.md#3-пакет-канала).
+**Реестр** `ChatViews.of(module, presenters)` — представления одного UI-модуля в канале по Def: у каждого экрана и уведомления модуля ровно одно; нет, Def вне модуля, два на один Def — отказ конструктора UI-06. `over(presenters)` даёт новый реестр того же модуля, где представления мессенджера перекрывают общие; прежний не меняется. Реестры модулей приложения оболочка собирает в `AppChatViews.of(app, modules)` (набор — `ofSet`): узел бесед обслуживает одно приложение и получает его сборку (`ConversationsSpec.views`). Файлы представлений, реестров и сборок называются и раскладываются по [Структуре и именованию UI](../reference/naming.md#2-дерево-проекта).
 
 **На месте или новым** (D-UI-51). Живое место — сообщения последнего показа живого экрана или его шага: вида, вопроса поля, подтверждения, страницы «Ещё». Показ правит место на месте (`update`), если оно последнее в беседе, число сообщений совпало и место не защищено следом; иначе прежнее последнее сообщение места с вариантами уходит (`retire` с последним содержимым и ссылкой нажатого) и показ идёт новыми (`show`). Положение сбивают доставленная заметка и любой сигнал собеседника, кроме нажатия; проактивный показ (перечитывание по событию) — в место, по инициативе. Мессенджер без правки на `update` шлёт новое: ветки в беседе нет. Место хранится в снимке живого экрана.
 
@@ -129,44 +130,42 @@ const own = views.over([OwnCardView]); // реестр приложения св
 
 **Граф.** Канал — второй поставщик графа: `implements GraphProvider` (`node_modules/dmg-core/docs/guides/graph-extension.md` — шаги вида Def, видов и правил; здесь только отличия UI).
 
-1. **Ребро `presents`.** Приложение UI `presents` каждый экран и уведомление, у которых в канале есть представление; ставит его пакет канала (`UI_EDGE_KINDS.presents`, `UiIds.app(app)` — откуда, `UiIds.screen/notification` — куда). Без него срабатывает UI-06. Образец — [chat-graph-provider.ts](../../packages/chat-ui/src/graph/chat-graph-provider.ts) (D-UI-57): один поставщик `dmg-ui-chat` на все приложения мессенджеров, рёбра — от `ChatViews.presented()` реестра каждого приложения; под приложением — узел возможностей мессенджера `chatMessenger`, узлы входов беседы `chatEntry` с ребром `chatEnters` к экрану входа и точки входа `chatEntryPoint` (п. 2). Спека обязательно получает `examples` — примеры набора, собранные заранее (`await ChatExamples.collect({ set, codes })`, D-UI-58): `check` правила синхронный, а вид экрана по примеру — `Promise`.
+1. **Представления в граф не идут** (D-UI-118). Граф строится из описания и файлов оболочки; поставщик канала представлений и примеров не принимает. Полноту представлений держит конструктор реестра модуля (UI-06), лимиты мессенджера — тест на сборке представлений (`ExampleLimits`, CH-01, раздел 11). Образец поставщика — [chat-graph-provider.ts](../../packages/chat-ui/src/graph/chat-graph-provider.ts) (D-UI-57): один поставщик `dmg-ui-chat` на все приложения мессенджеров; под приложением — узел возможностей мессенджера `chatMessenger`, узлы входов беседы `chatEntry` с ребром `chatEnters` к экрану входа и точки входа `chatEntryPoint` (п. 2).
 2. **Свой вид узла** — точка входа канала. Достижимость экранов ядро считает от входов (UI-07), поэтому вход должен быть объявлен в `entries` приложения.
    - Страничный канал: точка входа — маршрут `PageRouteDef` (вид Def `pageRoute`), ребро `opens` к экрану входа — гайд [Web-канал](./web-channel.md), раздел 11.
    - Мессенджер: пакет мессенджера передаёт точки в `ChatAppSpec.entryPoints` — `{ entry, via, key }`, где `entry` — имя входа приложения, а `via` (способ) и `key` (что вводит или нажимает человек) — его слова, `chat-ui` их не трактует. Поставщик `dmg-ui-chat` ставит под приложением узел `chatEntryPoint` (`<app>/point-<вход>-<n>`, `n` — с 1 внутри входа, свойства `{ entry, via, key }`) и ребро `chatOpens` на узел `chatEntry` (имя `opens` занято страничным каналом: виды рёбер общие на граф). Точка на вход, которого нет у приложения, — бросок сборки; вход без точки — CH-02. Проверять значения `via` и `key` — дело правил пакета мессенджера: у Telegram это `command`, `menu`, `link` (`TELEGRAM_VIA`) и правила TG-01…TG-06 поставщика `TelegramGraphProvider` ([D-UI-64](../decisions.md)).
 
    ```ts
    new ChatGraphProvider({
-     apps: [{ app: ExampleDialogUiAppDef, views, capabilities, entryPoints: [
+     apps: [{ app: ExampleDialogUiAppDef, capabilities, entryPoints: [
        { entry: 'start', via: 'message', key: 'start' },
        { entry: 'assigned', via: 'message', key: 'assigned' },
      ] }],
-     examples,
    });
    ```
-3. **Свои правила — свой префикс** (ARC-13): префикс не из префиксов пакета `dmg-core` и не `UI`. У страничного канала — `PG` ([Web-канал](./web-channel.md), раздел 11), у общей части мессенджеров — `CH` (CH-01 — пример экрана и уведомления укладывается в лимиты мессенджера своего приложения, CH-02 — у входа беседы есть точка входа, CH-03 — сигнал или реакция сообщества только в приложении мессенджера, который их умеет; [rules.md](../reference/rules.md)). Правило читает граф запросами (`outgoing`, `children`), не ветвится по виду Def; то, чего в графе нет (виды примеров), получает в конструктор. Новый префикс репо — в список `RULE_PREFIXES` проверки `RuleCatalog`.
+3. **Свои правила — свой префикс** (ARC-13): префикс не из префиксов пакета `dmg-core` и не `UI`. У страничного канала — `PG` ([Web-канал](./web-channel.md), раздел 11), у общей части мессенджеров — `CH` (CH-01 — пример экрана и уведомления укладывается в лимиты мессенджера, проверка единицы тестом, а не правило графа; CH-02 — у входа беседы есть точка входа, CH-03 — сигнал или реакция сообщества только в приложении мессенджера, который их умеет; [rules.md](../reference/rules.md)). Правило читает граф запросами (`outgoing`, `children`), не ветвится по виду Def; то, чего в графе нет (возможности мессенджера), получает в конструктор. Новый префикс репо — в список `RULE_PREFIXES` проверки `RuleCatalog`.
 4. **Вызов UC из узла канала** (сигнал канала, не действие): узел объявляет `uses` и `listens` как `ChannelNode`, а ребро `invokes` ставит канал. Правило UI-10 защищает такие узлы, если у них есть ребро `refreshedBy` или `notifiedBy` к событию: граф ядра узлов канала не строит, и это ребро тоже ставит канал. Такие узлы не вызывают command UC по событию. `ChannelNode` — для прочих каналов; у мессенджеров сигналы и реакции сообщества объявляются манифестами `chat-ui` в `ChatAppSpec.community` (D-UI-60): сигнал `{ name, label, description, signal, uc, input, strangers? }` вызывает command UC (`input` — поле входа → `community` или `person`), реакция `{ name, label, description, event, uc, input, operation, targets }` по событию читает query UC (`input` — поле входа → поле payload) и берёт цель операции из полей выхода `targets`. Поставщик `dmg-ui-chat` ставит под приложением узлы `chatSignal` (`<app>/signal-<имя>`) и `chatReaction` (`<app>/reaction-<имя>`) и рёбра ядра `invokes`, `notifiedBy`, `reads`; манифест проверяет `CommunityManifest` (повтор или плохое имя, UC или событие вне приложения, пустые `input` или `targets` — бросок сборки), реакцию на command UC ловит UI-10, сигнал или операцию, которых мессенджер не умеет, — CH-03. Исполняет манифесты `Communities` (D-UI-59) — один на приложение мессенджера, с тем же объектом `community`: `receive(signal)` принимает сигнал мессенджера `{ id, kind, community, member? }` (handle группы и личность транспорта), `start()` подписывает реакции и возвращает отписку; операции — порт `messenger.community` (`exclude`, `invite`, `approve`; `inviteLink` — бросок сборки, DEBT-UI-25); переводы «мессенджер ↔ домен» — порты `people`/`members` и `keys`/`handles`.
 
    ```ts
    new ChatGraphProvider({
-     apps: [{ app: ExampleDialogUiAppDef, views, capabilities, entryPoints, community: {
+     apps: [{ app: ExampleDialogUiAppDef, capabilities, entryPoints, community: {
        signals: [{ name: 'gone', label, description, signal: 'left', uc: RemoveUserUcDef, input: { userId: 'person' } }],
        reactions: [{ name: 'drop', label, description, event: TaskEvents.assigned, uc: GetTaskUcDef,
          input: { taskId: 'taskId' }, operation: 'exclude', targets: { community: 'uuid', person: 'ownerId' } }],
      } }],
-     examples,
    });
    ```
-5. **Вход графа.** `ArchApp` собирает `providers: [new UiGraphProvider({ set, apps }), new <Канал>GraphProvider(...)]` поверх доменного приложения; образец — `ExampleDialogArch` (`dmg-ui/chat-ui/testing`), страничный канал — [Web-канал](./web-channel.md), раздел 11. Сборка с `ChatGraphProvider` асинхронная — примеры собираются до графа:
+5. **Вход графа** — файл оболочки `<имя>.graph.ts`: `GraphApp` с `providers: [new UiGraphProvider({ set, apps, channels }), new <Канал>GraphProvider(...)]` поверх доменного приложения; `ArchApp` разворачивает его (`<имя>.arch.ts`). Вход графа импортирует описание и файлы оболочки без реестров: дошёл до представлений или кода экранов — ARC-16 `dmg-core`. Сборка синхронна. Образец — `runners/dialog/example-dialog.graph.ts` и `example-dialog.arch.ts` учебного проекта; страничный канал — [Web-канал](./web-channel.md), раздел 11.
 
    ```ts
-   const examples = await ChatExamples.collect({ set: ExampleUiSetDef, codes: exampleCodes() });
-   export const Arch: ArchApp = {
-     ...ExampleArch,
+   export const ExampleDialogGraph: GraphApp = {
+     def: ExampleAppDef,
      providers: [
-       new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleDialogUiAppDef] }),
-       new ChatGraphProvider({ apps: [{ app: ExampleDialogUiAppDef, views, capabilities, entryPoints }], examples }),
+       new UiGraphProvider({ set: ExampleUiSetDef, apps: [ExampleDialogUiAppDef], channels: EXAMPLE_CHANNELS }),
+       new ChatGraphProvider({ apps: [{ app: ExampleDialogUiAppDef, capabilities, entryPoints }] }),
      ],
    };
+   export const ExampleDialogArch: ArchApp = { ...ExampleDialogGraph, ...EXAMPLE_PLACES, graphEntry };
    ```
 
    Имя поставщика `dmg-ui` уникально в графе: один `UiGraphProvider` на граф, два набора не поддержаны (DEBT-UI-12).
@@ -233,7 +232,7 @@ const own = views.over([OwnCardView]); // реестр приложения св
 ## 10. Чеклист
 
 - ARC-08 — канал импортирует только публичные входы `dmg-ui`, `dmg-core`; UC вызывает через `dispatch` сервера.
-- ARC-13 — свой префикс правил; UI-06 — ребро `presents` на каждый экран и уведомление приложения.
+- ARC-13 — свой префикс правил; UI-06 — реестр представлений каждого модуля полон, сборка приложения — из реестров его модулей.
 - ERR-01, ERR-06, ERR-07 — внешний вход не бросает, неизвестный исход — дефект канала, `warn` без данных клиента.
 - Нейтральность: в коде экрана и ядра нет слов канала; в пакете это проверяют тест импортов и сканер слов канала — образец такой проверки для своего канала.
 - Личность — из транспорта; `CallerSource.channel` задан; `requestId` новый на сигнал; `RenderContext` строится `RenderContexts` (или из `RenderFlags`).
@@ -244,7 +243,7 @@ const own = views.over([OwnCardView]); // реестр приложения св
 
 ## 11. Как тестировать
 
-- Граф — `reportArchCheck([app], print)` с поставщиками; в тестах пакета — `ArchReport.of(app)` (`dmg-ui/testing/fixtures`: код выхода и `report.rule(id)`). Сцена — `ArchApp` с доменом примера, `UiGraphProvider` и поставщиком канала; сцена с нарушением даёт код 1 и строку `ID: …`, исправленная сцена — код 0 ([page-graph-provider.rules.test.ts](../../packages/web-ui/src/graph/page-graph-provider.rules.test.ts) — образец страничного канала). У мессенджера сцена меняет одно поле `ChatAppSpec`: урезанные возможности — строка `CH-01: приложение <app>: экран …` ([example-limits.test.ts](../../packages/chat-ui/testing/limits/example-limits.test.ts)), вход без точки в `entryPoints` — `CH-02: вход <имя> приложения <app>: нет точки входа` ([entry-point.rule.test.ts](../../packages/chat-ui/src/graph/rules/entry-point.rule.test.ts)), реакция или сигнал в `community` приложения на мессенджере без них в возможностях (`MemoryMessenger.windowed`) — `CH-03: приложение <app>: реакция <id> (<операция>) — мессенджер <name> её не исполняет` ([community-capabilities.rule.test.ts](../../packages/chat-ui/src/graph/rules/community-capabilities.rule.test.ts)). Сцена одного правила ставит остальное без нарушений (точку на каждый вход, возможности по профилю), иначе код 1 держится на чужом правиле. Узлы и рёбра, которых поставщик канала сам не ставит (вход не под приложением, ребро от чужого узла, точка входа другого поставщика), сцена получает подставным поставщиком в `providers` того же `ArchApp`: реестр видов общий, и подставной поставщик ставит узлы и рёбра зарегистрированных видов через сборщик графа, а отчёт даёт тот же `ArchReport.of` ([entry-point.rule.test.ts](../../packages/chat-ui/src/graph/rules/entry-point.rule.test.ts)). Граф в обход сборщика (конструктор `Graph`) — не путь сцены: он вне публичного контракта платформы. Пакет мессенджера тестирует свои правила так же, на своём поставщике.
+- Граф — `reportArchCheck([app], print)` с поставщиками; в тестах пакета — `ArchReport.of(app)` (`dmg-ui/testing/fixtures`: код выхода и `report.rule(id)`). Сцена — `ArchApp` с доменом примера, `UiGraphProvider` и поставщиком канала; сцена с нарушением даёт код 1 и строку `ID: …`, исправленная сцена — код 0 ([page-graph-provider.rules.test.ts](../../packages/web-ui/src/graph/page-graph-provider.rules.test.ts) — образец страничного канала). Лимиты мессенджера — не сцена графа: тест вызывает `new ExampleLimits(await ChatExamples.collect({ set, codes })).check(views, capabilities)` (`dmg-ui/chat-ui/testing`) на сборке представлений приложения или набора; урезанные возможности — строка `CH-01: приложение <app>: экран …` ([example-limits.test.ts](../../packages/chat-ui/testing/limits/example-limits.test.ts)). У мессенджера сцена графа меняет одно поле `ChatAppSpec`: вход без точки в `entryPoints` — `CH-02: вход <имя> приложения <app>: нет точки входа` ([entry-point.rule.test.ts](../../packages/chat-ui/src/graph/rules/entry-point.rule.test.ts)), реакция или сигнал в `community` приложения на мессенджере без них в возможностях (`MemoryMessenger.windowed`) — `CH-03: приложение <app>: реакция <id> (<операция>) — мессенджер <name> её не исполняет` ([community-capabilities.rule.test.ts](../../packages/chat-ui/src/graph/rules/community-capabilities.rule.test.ts)). Сцена одного правила ставит остальное без нарушений (точку на каждый вход, возможности по профилю), иначе код 1 держится на чужом правиле. Узлы и рёбра, которых поставщик канала сам не ставит (вход не под приложением, ребро от чужого узла, точка входа другого поставщика), сцена получает подставным поставщиком в `providers` того же `ArchApp`: реестр видов общий, и подставной поставщик ставит узлы и рёбра зарегистрированных видов через сборщик графа, а отчёт даёт тот же `ArchReport.of` ([entry-point.rule.test.ts](../../packages/chat-ui/src/graph/rules/entry-point.rule.test.ts)). Граф в обход сборщика (конструктор `Graph`) — не путь сцены: он вне публичного контракта платформы. Пакет мессенджера тестирует свои правила так же, на своём поставщике.
 - Страничный канал: провод в памяти и на сокете, `PageText`, адрес в URL, показ до ответа, история, пример для браузера — [Web-канал](./web-channel.md), раздел 15. Когда без браузера не обойтись и как писать браузерный тест — там же: [Web-канал, раздел 15](./web-channel.md#15-как-тестировать).
 - Сквозные сценарии (TST-09) — по одному на канал и мессенджер: приложение `ExampleApp` из `dmg-core/testing/example`, `UiServer`, `UiNotifier` с доставкой канала, два пользователя. Беседа на обоих подставных мессенджерах (`MemoryMessenger.editing()` и `windowed(clock)`, один реестр представлений и один `exampleCodes()`; текст уведомления проверяется в чате получателя, ожидание — `conversations.settled()` и `bus.delivered()`) — [conversation-story.test.ts](../../packages/chat-ui/testing/conversation-story.test.ts); Telegram — [telegram-story.test.ts](../../packages/tg-bot/testing/telegram-story.test.ts) и [telegram-community-story.test.ts](../../packages/tg-bot/testing/telegram-community-story.test.ts); страничный канал — [page-story.test.ts](../../packages/web-ui/testing/page-story.test.ts). Поверх каналов — [channels-story.test.ts](../../acceptance/channels-story.test.ts) (одна сторис, все каналы).
 - Политики — тестом на каждый исход с `MemoryUiObserver`, у беседы — на обоих подставных мессенджерах (`describe.each`); примеры рендера — `ExamplePreview` и снимки.

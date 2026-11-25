@@ -1,6 +1,6 @@
 # Сторис, экран, уведомление — гайд
 
-**Назначение:** как автор UI объявляет сторис, экран и уведомление манифестами, пишет код экрана и как всё это исполняется. Пример — учебный набор [platform/ui/todo/finish-tasks/](../../packages/example/src/platform/ui/todo/finish-tasks/task-card.screen.ts) (импортируется из `dmg-ui/example`; привязка к диалоговому каналу — `dmg-ui/chat-ui/testing`). Пакет канала — в [channel-package.md](./channel-package.md). Имена и раскладка файлов — [naming.md](../reference/naming.md).
+**Назначение:** как автор UI объявляет сторис, экран и уведомление манифестами, пишет код экрана и как всё это исполняется. Пример — учебный набор [platform/ui/todo/finish-tasks/](../../packages/example/src/platform/ui/todo/finish-tasks/task-card.screen.ts) (импортируется из `dmg-ui/example`; код — `frontend/todo/logic/`, представления — `frontend/todo/<канал>/`, оболочки — `runners/`). Пакет канала — в [channel-package.md](./channel-package.md). Имена и раскладка файлов — [naming.md](../reference/naming.md).
 
 ---
 
@@ -104,7 +104,7 @@ new ScreenHelp(ExampleDialogUiAppDef).of(menuView);
 
 `NotificationCode<D>`: `load({ payload, read })` собирает данные уведомления от имени получателя, `links(data, payload)` возвращает адреса из `links()` манифеста. Образец — [task-assigned.ncode.ts](../../packages/example/src/frontend/todo/logic/shared/task-assigned.ncode.ts).
 
-Код подключает корень сборки реестром `CodeLoaders.of(set, [CodeLoader.screen(def, async () => new (await import('./x.scode')).XScreenCode()), CodeLoader.notification(def, async () => new (await import('./x.ncode')).XNotificationCode())])`; загрузчик возвращает объект кода, а не модуль, и нужен каждому экрану и уведомлению набора (образец — [example-codes.ts](../../packages/example/src/runners/example-codes.ts)).
+Код модуля подключает реестр модуля `CodeLoaders.of(<M>UiModuleDef, [CodeLoader.screen(def, async () => new (await import('./x.scode')).XScreenCode()), CodeLoader.notification(def, async () => new (await import('./x.ncode')).XNotificationCode())])` в `frontend/<m>/logic/<m>-codes.ts`; загрузчик возвращает объект кода, а не модуль, и нужен каждому экрану и уведомлению модуля — иначе отказ конструктора UI-06 (образец — [profile-codes.ts](../../packages/example/src/frontend/profile/logic/profile-codes.ts)). Оболочка собирает реестры модулей приложения в `AppCodeLoaders.of(app, modules)` (образец — [example-codes.ts](../../packages/example/src/runners/example-codes.ts)).
 
 ## 5. Исполнение
 
@@ -127,6 +127,14 @@ new ScreenHelp(ExampleDialogUiAppDef).of(menuView);
 
 Уведомление исполняет сервер на каждого получателя: данные читаются от его имени, ссылки берутся только из `links()` (D-UI-23). Событие перечитывает экран, но только читает; command UC по событию не исполняется (D-UI-22).
 
+**Ответ фронта на событие домена — три способа:**
+
+- **уведомление** — `NotificationDef` и `.ncode`: сообщение человеку вне потока; `load` собирает данные от его имени, `links` — адреса экранов. Тост, окно или сообщение — решение представления канала;
+- **перечитывание** — `refresh` экрана: открытый экран обновляется в фоне и только читает;
+- **области страницы web** — где это видно: экран в общей области страницы (`side`, `modal`) перечитывается на месте, ссылку уведомления канал открывает в области по `placements` ([web-channel.md](./web-channel.md#7-области-и-окно), D-UI-78).
+
+Реакции «выполнить на фронте» в обход этих трёх нет: её не видно в графе.
+
 Каталог для документации и снимков: `new ScreenPreview({ set, codes })` даёт `screen(def, 'имя примера', context)` и `notification(def, 'имя')`; они строят вид и данные по `examples`, не зовя `load` и порты.
 
 ## 6. Два пути данных
@@ -137,12 +145,15 @@ new ScreenHelp(ExampleDialogUiAppDef).of(menuView);
 
 Граф проверяет `bun run arch:check` с поставщиком `UiGraphProvider` (`dmg-ui/graph`). Каталог — [rules.md](../reference/rules.md).
 
+Граф — ещё и документ: `dmg-core graph` по входу графа оболочки пишет `graph.json`. Его читают инструменты разработки — MCP об устройстве приложения и документация по графу (виды узлов, связи сторис, признак раздела `section` у `uiModule`); в пакетах их нет. MCP как транспорт приложения для агентов — адаптер в раннере по манифестам UC, а не часть графа UI; в пакетах его тоже нет.
+
 - Сторис: UI-01 (вызывающие допущены к UC экранов), UI-02, UI-03, UI-04, UI-23, UI-24 (связь подтверждена переходом), UI-25 (одна цель у выхода), UI-35 (экраны только своего модуля), UI-36 (цель исхода и ссылка уведомления в чужой модуль — только `start` его сторис).
 - Модуль: UI-37 (≥2 пользователя у вспомогательного).
 - Экран: UI-08 (`reads` — только query), UI-09 (`uc` — только command), UI-12 (только UC для человека), UI-15, UI-16, UI-17, UI-19, UI-21.
 - Тексты и примеры: UI-13 (заполнены, включая необязательную `hint`), UI-14 (`description` у полей), UI-20 (примеры по схемам), UI-26 (нет `examples` у `F.sensitive`), UI-27 (вид поля входа поддержан).
 - Уведомление: UI-18 (поля получателей).
-- Канал и приложение: UI-05, UI-06 (представление), UI-07, UI-10; общее — UI-11, UI-22.
+- Канал и приложение: UI-05, UI-07, UI-10; общее — UI-11, UI-22.
+- Вне графа: UI-06 (у каждого экрана и уведомления модуля — загрузчик и представление; отказ конструктора реестра и сборки), CH-01 (примеры в лимитах мессенджера; тест `ExampleLimits`).
 
 ## 8. Ловушки
 
@@ -155,7 +166,7 @@ new ScreenHelp(ExampleDialogUiAppDef).of(menuView);
 
 ## 9. Как тестировать
 
-- Состав и связи — `arch:check` и граф (`ExampleDialogArch` из `dmg-ui/chat-ui/testing`, `ExamplePagesArch` из `dmg-ui/web-ui/testing` — образец сборки `ArchApp`); отдельные тесты манифестов не нужны (TST-09).
+- Состав и связи — `arch:check` и граф (`ExampleDialogArch` и `ExampleWebArch` из `dmg-ui/example` — образец входа графа и сборки `ArchApp`); отдельные тесты манифестов не нужны (TST-09).
 - Код экрана — тестом через `ScreenRuntime` с `MemoryUiObserver` из `dmg-ui/testing`: открыть, выполнить действие, проверить исход и записи (`kinds()`).
 - Примеры — снимками: `ExamplePreview` из `dmg-ui/testing` рендерит пример через представление канала.
 - Имена и раскладка файлов набора и канала — тестом с `UiFileNames` из `dmg-ui/testing` (правило `NM-01`): суффикс ↔ вид, имя `<Имя><Вид>`, папка UI-модуля, тест рядом; образец теста — [naming.md §7](../reference/naming.md#7-проверка).
