@@ -8,7 +8,7 @@ import type { Violation } from './violation.types';
  * `*.types.ts`); адаптер по относительному пути берут `main.ts`, `probe.ts`,
  * тесты и он сам; абсолютных путей в импортах нет. Выход относительным путём
  * держат `PackageDirections` (из пакета) и слои (из места). `import(переменная)`
- * не ловится (DEBT-UI-5).
+ * не ловится (DEBT-UI-61).
  *
  * @see D-UI-68, D-UI-111, `docs/reference/rules.md`
  */
