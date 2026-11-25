@@ -10,7 +10,8 @@ import { SourceFile } from './source-tree';
 // `node:*`, ни `bun:*`, ни серверных входов платформы. Раннер `web` делит
 // клиент и сервер: клиент не видит сервер и тестовую фикстуру, сервер и
 // фикстура не видят клиента — иначе корневая программа потянула бы DOM-код;
-// `common/` видит только себя. Чужие каналы (Telegram, диалог) не видит никто.
+// `common/` видит только себя. Чужие каналы (Telegram, диалог) не видит никто:
+// ни по имени входа, ни относительным путём к их видам, kit и раннерам.
 
 const P = 'packages/example/src';
 const WEB = `${P}/runners/web`;
@@ -65,6 +66,42 @@ describe('CoreImportScanner — канал web учебного проекта, 
     eachViolates(VIEW, ['../server/x', '../testing/example-world']);
     eachViolates(CLIENT, ['../server/x', '../testing/example-world']);
     eachViolates(SHELL, ['./server/x', './testing/example-world']);
+  });
+
+  it('клиент, view/ и оболочка не берут относительным путём чужие каналы и раннеры', () => {
+    eachViolates(CLIENT, [
+      '../../../frontend/todo/chat',
+      '../../../frontend/users/chat/view-user/user-card.view',
+      '../../../frontend/todo/telegram',
+      '../../../frontend/telegram-kit/example-moment.const',
+      '../../tg-bot/example-bot',
+      '../../dialog/example-dialog-views',
+    ]);
+    eachViolates(VIEW, ['../../dialog/example-dialog-views']);
+    eachViolates(SHELL, ['../tg-bot/example-telegram-views']);
+  });
+
+  it('вид модуля web и web-kit не берут относительным путём чужие каналы и раннеры', () => {
+    eachViolates(FRONT, [
+      '../../chat/shared/task-list.view',
+      '../../telegram',
+      '../../../telegram-kit/example-moment.const',
+      '../../../../runners/dialog/example-dialog-views',
+    ]);
+    eachViolates(`${P}/frontend/web-kit/example-views.ts`, [
+      '../todo/chat',
+      '../../runners/tg-bot/example-bot',
+    ]);
+  });
+
+  it('свой канал и общее раннера web относительным путём — чисто', () => {
+    const text = [
+      "import { todoWebViews } from '../../../frontend/todo/web';",
+      "import { RegionModel } from '../../../frontend/web-kit/region-model.types';",
+      "import { exampleCodes } from '../../example-codes';",
+    ].join('\n');
+
+    expect(scan(text, CLIENT)).toEqual([]);
   });
 
   it('клиент не видят view/, common/ и оболочка', () => {

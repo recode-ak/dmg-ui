@@ -83,7 +83,9 @@ export class CoreImportScanner {
    * выход из пакета — `PackageDirections`. Раннер `web`: `common/` не знает
    * никого, в сборку для браузера (оболочка в корне, `common/`, `view/`,
    * `client/`) среда и серверные входы не попадают, они не видят сервер и
-   * фикстуру тестов `testing/`; сервер (`node:*`, `bun:*`, `dmg-core/app`,
+   * фикстуру тестов `testing/`; виды и kit web и браузерная часть раннера
+   * `web` не берут относительным путём чужие каналы (`chat`, `telegram`,
+   * `telegram-kit`) и раннеры `dialog`, `tg-bot`; сервер (`node:*`, `bun:*`, `dmg-core/app`,
    * `dmg-core/arch`) и `testing/` не видят клиента. Приёмочный каталог
    * `acceptance/` не ограничен, но в `packages/` заходит только по именам
    * входов: относительно и по `dmg-ui/...`, не совпадающему с входом из
@@ -152,6 +154,16 @@ export class CoreImportScanner {
       'dmg-ui/testing',
       'dmg-ui/web-ui',
       'dmg-ui/web-ui/testing',
+    ];
+    // Чужие каналы и раннеры для канала web: относительным путём их не берёт
+    // ни вид модуля, ни kit, ни раннер web (раннеры — один слой, его границы
+    // внутри слоёв не проверяют).
+    const foreignToWeb = [
+      `${FRONTEND}/*/chat`,
+      `${FRONTEND}/*/telegram`,
+      `${FRONTEND}/telegram-kit`,
+      `${RUNNERS}/dialog`,
+      `${RUNNERS}/tg-bot`,
     ];
     return new CoreImportScanner([
       {
@@ -312,6 +324,7 @@ export class CoreImportScanner {
         // Виды web едут в сборку для браузера.
         forbidden: browserForbidden,
         allowed: [...exampleAllowed, 'dmg-ui/web-ui'],
+        forbiddenPaths: foreignToWeb,
       },
       {
         include: [`${RUNNERS}/`],
@@ -386,6 +399,7 @@ export class CoreImportScanner {
           `${WEB_RUNNER}/client`,
           `${WEB_RUNNER}/server`,
           `${WEB_RUNNER}/testing`,
+          ...foreignToWeb,
         ],
       },
       {
@@ -406,6 +420,7 @@ export class CoreImportScanner {
           `${WEB_RUNNER}/client`,
           `${WEB_RUNNER}/server`,
           `${WEB_RUNNER}/testing`,
+          ...foreignToWeb,
         ],
       },
       {
@@ -413,7 +428,11 @@ export class CoreImportScanner {
         exclude: ['.test.ts'],
         forbidden: browserForbidden,
         allowed: browserAllowed,
-        forbiddenPaths: [`${WEB_RUNNER}/server`, `${WEB_RUNNER}/testing`],
+        forbiddenPaths: [
+          `${WEB_RUNNER}/server`,
+          `${WEB_RUNNER}/testing`,
+          ...foreignToWeb,
+        ],
       },
       {
         include: [`${WEB_RUNNER}/server/`],
@@ -618,6 +637,17 @@ export class CoreImportScanner {
     });
   }
 
+  /** Путь внутри каталога (или сам каталог); сегмент `*` каталога — любой один сегмент. */
+  protected within(dir: string, target: string): boolean {
+    if (!dir.includes('*')) {
+      return target === dir || target.startsWith(`${dir}/`);
+    }
+    const parts = target.split('/');
+    return dir
+      .split('/')
+      .every((segment, i) => segment === '*' || segment === parts[i]);
+  }
+
   protected reason(
     zone: ImportZone,
     path: string,
@@ -625,8 +655,7 @@ export class CoreImportScanner {
   ): string | undefined {
     if (specifier.startsWith('.')) {
       const target = posix.join(posix.dirname(path), specifier);
-      const inside = (dir: string) =>
-        target === dir || target.startsWith(`${dir}/`);
+      const inside = (dir: string) => this.within(dir, target);
       const hit = (zone.forbiddenPaths ?? []).some(inside);
       const outside =
         zone.allowedPaths !== undefined && !zone.allowedPaths.some(inside);

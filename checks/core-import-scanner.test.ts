@@ -252,6 +252,25 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       });
     }
 
+    it('сегмент * в forbiddenPaths — любой один сегмент пути', () => {
+      const scanner = new CoreImportScanner([
+        {
+          include: ['packages/a/'],
+          exclude: [],
+          forbidden: [],
+          forbiddenPaths: ['packages/a/*/chat'],
+        },
+      ]);
+      const run = (spec: string) =>
+        scanner.scan([SourceFile.of('packages/a/x.ts', `import '${spec}';`)]);
+
+      expect(run('./todo/chat')).toHaveLength(1);
+      expect(run('./users/chat/view/y')).toHaveLength(1);
+      expect(run('./todo/web/y')).toEqual([]);
+      expect(run('./todo/chatty/y')).toEqual([]);
+      expect(run('./chat/y')).toEqual([]);
+    });
+
     it('своя зона не трогает спецификаторы вне списка', () => {
       const found = custom.scan([
         SourceFile.of('packages/a/x.ts', "import 'dmg-core/graph';"),

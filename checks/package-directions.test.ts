@@ -230,22 +230,22 @@ describe('PackageDirections — направления между пакетам
     const scanRepo = (path: string, text: string) =>
       PackageDirections.standard(manifest()).scan([SourceFile.of(path, text)]);
 
-    for (const spec of [
-      'dmg-ui',
-      'dmg-ui/testing',
-      'dmg-ui/chat-ui',
-      'dmg-ui/chat-ui/testing',
-      'dmg-ui/tg-bot',
-      'dmg-ui/tg-bot/testing',
-      'dmg-ui/web-ui',
-      'dmg-ui/web-ui/testing',
-    ]) {
-      it(`example видит «${spec}»`, () => {
-        expect(
-          scanRepo('packages/example/src/runners/f.ts', `import '${spec}';`),
-        ).toEqual([]);
-      });
-    }
+    it('example видит ядро, каналы и их тестовые входы', () => {
+      const text = [
+        'dmg-ui',
+        'dmg-ui/testing',
+        'dmg-ui/chat-ui',
+        'dmg-ui/chat-ui/testing',
+        'dmg-ui/tg-bot',
+        'dmg-ui/tg-bot/testing',
+        'dmg-ui/web-ui',
+        'dmg-ui/web-ui/testing',
+      ]
+        .map((spec) => `import '${spec}';`)
+        .join('\n');
+
+      expect(scanRepo('packages/example/src/runners/f.ts', text)).toEqual([]);
+    });
 
     it('вход учебного проекта (index.ts) видит ядро', () => {
       expect(
@@ -271,18 +271,31 @@ describe('PackageDirections — направления между пакетам
       });
     }
 
-    for (const path of [
-      'packages/core/testing/f.ts',
-      'packages/core/src/f.test.ts',
-      'packages/chat-ui/testing/limits/f.ts',
-      'packages/chat-ui/src/dialog/f.test.ts',
-      'packages/tg-bot/testing/f.ts',
-      'packages/tg-bot/src/f.test.ts',
-      'packages/web-ui/testing/text-views/f.ts',
-      'packages/web-ui/src/f.test.ts',
-    ]) {
-      it(`${path} → «dmg-ui/example» разрешено: тестовый код`, () => {
-        expect(scanRepo(path, "import 'dmg-ui/example';")).toEqual([]);
+    for (const [pkg, paths] of [
+      ['core', ['packages/core/testing/f.ts', 'packages/core/src/f.test.ts']],
+      [
+        'chat-ui',
+        [
+          'packages/chat-ui/src/dialog/f.test.ts',
+          'packages/chat-ui/testing/limits/f.ts',
+        ],
+      ],
+      [
+        'tg-bot',
+        ['packages/tg-bot/testing/f.ts', 'packages/tg-bot/src/f.test.ts'],
+      ],
+      [
+        'web-ui',
+        [
+          'packages/web-ui/src/f.test.ts',
+          'packages/web-ui/testing/text-views/f.ts',
+        ],
+      ],
+    ] as const) {
+      it(`${pkg} → «dmg-ui/example» разрешено из тестового кода: testing/ и *.test.ts`, () => {
+        for (const path of paths) {
+          expect(scanRepo(path, "import 'dmg-ui/example';")).toEqual([]);
+        }
       });
     }
 

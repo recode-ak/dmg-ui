@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { ArchChecker } from 'dmg-core/arch';
 import { AppGraph } from 'dmg-core/graph';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import { MainMenuScreenDef, StartWorkStoryDef } from '../../platform/ui';
@@ -14,7 +13,7 @@ import { ExampleWebArch } from './example-web.arch';
 // как у приложения диалога.
 
 describe('ExampleWebArch', () => {
-  test('arch:check — код 0, итоговые строки без нарушений, ArchChecker молчит', () => {
+  test('arch:check — код 0, итоговые строки без нарушений', () => {
     const report = ArchReport.of(ExampleWebArch);
 
     expect(report.code).toBe(0);
@@ -22,7 +21,6 @@ describe('ExampleWebArch', () => {
       'arch:check example: нарушений — 0',
       'arch:check: нарушений нет',
     ]);
-    expect(ArchChecker.of(ExampleWebArch).check()).toEqual([]);
   });
 
   test('в графе нет узлов приложения диалога', () => {
@@ -32,7 +30,9 @@ describe('ExampleWebArch', () => {
       .map((node) => node.id);
 
     expect(ids).toContain('examplePages');
-    expect(ids).not.toContain('exampleStub');
+    for (const app of ['exampleDialog', 'exampleTrimmed', 'exampleWindowed']) {
+      expect(ids).not.toContain(app);
+    }
   });
 });
 
@@ -44,10 +44,9 @@ describe('меню в приложении страниц', () => {
     expect(ExamplePagesUiAppDef.stories[0]).toBe(StartWorkStoryDef);
   });
 
-  test('маршрут /menu ведёт на вход menu и не пересекается с общим путём экрана — PG-06 молчит', () => {
+  test('маршрут /menu ведёт на вход menu', () => {
     const route = examplePagesRoutes.find((r) => r.entry === 'menu');
 
     expect(route?.path).toBe('/menu');
-    expect(ArchReport.of(ExampleWebArch).rule('PG-06')).toEqual([]);
   });
 });
