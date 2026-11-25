@@ -12,7 +12,7 @@ export const RULE_PREFIXES = ['UI', 'PG', 'CH', 'TG', 'NM'] as const;
 /** Номер правила с префиксом репо: `(UI|PG|CH|TG|NM)-NN`. */
 const RULE_ID = `(?:${RULE_PREFIXES.join('|')})-\\d{2}`;
 
-/** Сверка текстов: правила в коде и в `rules.md` (префиксы `RULE_PREFIXES`), ссылки `D-UI-<n>` и `decisions.md`, нумерация `debt.md`. Код пакета не импортирует. */
+/** Сверка текстов: правила в коде и в `rules.md` (префиксы `RULE_PREFIXES`), ссылки `D-UI-<n>` и `decisions.md`, сценарии `GR-UI-NN` и их реестр, нумерация `debt.md`. Код пакета не импортирует. */
 export class RuleCatalog {
   protected static readonly CODE_ID = new RegExp(
     `\\b(?:id\\s*=|rule\\s*:)\\s*'(${RULE_ID})'`,
@@ -23,6 +23,8 @@ export class RuleCatalog {
   );
   protected static readonly DECISION_REF = /D-UI-(\d+)/g;
   protected static readonly DECISION_DEF = /^\*\*D-UI-(\d+)\./;
+  protected static readonly SCENARIO_REF = /\bGR-UI-\d{2}\b/g;
+  protected static readonly SCENARIO_DEF = /^\|\s*`?(GR-UI-\d{2})\b/;
   protected static readonly DEBT_LAST =
     /\*\*Последний выданный ID:\*\*\s*DEBT-UI-(\d+)/;
   protected static readonly DEBT_ID = /DEBT-UI-(\d+)/g;
@@ -85,6 +87,31 @@ export class RuleCatalog {
               file: file.path,
               line: index + 1,
               text: `${match[0]}: решения нет в ${decisions.path}`,
+            });
+          }
+        }
+      });
+    }
+    return found;
+  }
+
+  /** Каждое `GR-UI-NN` из `sources` объявлено строкой таблицы `| GR-UI-NN | …` реестра сценариев. */
+  checkScenarios(sources: SourceFile[], registry: SourceFile): Violation[] {
+    const declared = new Set(
+      registry
+        .lines()
+        .map((text) => RuleCatalog.SCENARIO_DEF.exec(text)?.[1])
+        .filter((id): id is string => id !== undefined),
+    );
+    const found: Violation[] = [];
+    for (const file of sources) {
+      file.lines().forEach((text, index) => {
+        for (const [id] of text.matchAll(RuleCatalog.SCENARIO_REF)) {
+          if (!declared.has(id)) {
+            found.push({
+              file: file.path,
+              line: index + 1,
+              text: `${id}: сценария нет в ${registry.path}`,
             });
           }
         }

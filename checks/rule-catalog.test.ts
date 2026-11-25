@@ -186,6 +186,56 @@ describe('RuleCatalog.checkDebt — нумерация debt.md', () => {
   });
 });
 
+describe('RuleCatalog.checkScenarios — GR-UI в реестре сценариев', () => {
+  const registry = file(
+    'docs/concepts/frontend-layers.md',
+    [
+      '| ID | Сценарий | Что требует | Статус |',
+      '|---|---|---|---|',
+      '| GR-UI-01 | Фронт-модуль уходит | пакет | предусмотрен |',
+      '| `GR-UI-02` | Канал уходит | оболочка | предусмотрен |',
+    ].join('\n'),
+  );
+
+  it('объявленные в таблице реестра сценарии проходят', () => {
+    const src = [file('docs/decisions.md', 'Сценарии: GR-UI-01, GR-UI-02.')];
+    expect(catalog.checkScenarios(src, registry)).toEqual([]);
+  });
+
+  it('необъявленный GR-UI-99 — нарушение с файлом и строкой', () => {
+    const src = [file('docs/guides/a.md', 'строка\nсм. GR-UI-99 и GR-UI-01')];
+    expect(catalog.checkScenarios(src, registry)).toEqual([
+      {
+        file: 'docs/guides/a.md',
+        line: 2,
+        text: 'GR-UI-99: сценария нет в docs/concepts/frontend-layers.md',
+      },
+    ]);
+  });
+
+  it('упоминание в прозе реестра сценарий не объявляет', () => {
+    const prose = file('r.md', 'GR-UI-03 — разделы на разных фреймворках\n');
+    const src = [file('a.ts', '// GR-UI-03')];
+    expect(catalog.checkScenarios(src, prose)).toHaveLength(1);
+  });
+
+  it('GR-UI-1 не считается объявлением GR-UI-10, заготовка GR-UI-NN — не ссылка', () => {
+    const one = file('r.md', '| GR-UI-01 | х | у | предусмотрен |\n');
+    expect(
+      catalog.checkScenarios([file('a.md', 'GR-UI-10')], one),
+    ).toHaveLength(1);
+    expect(
+      catalog.checkScenarios([file('a.md', 'серия GR-UI-NN')], one),
+    ).toEqual([]);
+  });
+
+  it('сценарии бэка GR-NN dmg-core — не сценарии пакета', () => {
+    expect(
+      catalog.checkScenarios([file('a.md', 'GR-01, GR-02')], registry),
+    ).toEqual([]);
+  });
+});
+
 describe('каталог правил и решения репо', () => {
   const read = (path: string) => {
     const found = TextTree.file(ROOT, path);
@@ -216,6 +266,21 @@ describe('каталог правил и решения репо', () => {
     ]);
     const decisions = read('docs/decisions.md');
     expect(format(catalog.checkDecisions(sources, decisions))).toEqual([]);
+  });
+
+  it('каждое GR-UI-NN из кода и документов объявлено в реестре docs/concepts/frontend-layers.md', () => {
+    const optional = ['README.md', 'llms.txt', 'debt.md'].flatMap((path) => {
+      const f = TextTree.file(ROOT, path);
+      return f ? [f] : [];
+    });
+    const sources = notSelf([
+      ...TextTree.read(ROOT, 'packages', ['.ts']),
+      ...TextTree.read(ROOT, 'checks', ['.ts']),
+      ...TextTree.read(ROOT, 'docs', ['.md']),
+      ...optional,
+    ]);
+    const registry = read('docs/concepts/frontend-layers.md');
+    expect(format(catalog.checkScenarios(sources, registry))).toEqual([]);
   });
 
   it('debt.md: последний выданный ID равен максимуму', () => {
