@@ -1,4 +1,5 @@
-import { SHARED_FOLDER, UI_ZONE_WORDS } from './ui-file-names.const';
+import { SHARED_FOLDER } from '../src/graph/ui-graph-provider.const';
+import { UI_ZONE_WORDS } from './ui-file-names.const';
 import type {
   UiFileKind,
   UiFilePath,

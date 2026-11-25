@@ -50,9 +50,9 @@ export type UiSetProps = {
   readonly app: string;
 };
 
-/** `props` узла `uiModule`. */
+/** `props` узла `uiModule` (D-UI-119). */
 export type UiModuleProps = {
-  /** Раздел (`true`) или вспомогательный модуль; считается на наборе (D-UI-119). */
+  /** Раздел (`true`) или вспомогательный модуль; считается на наборе. */
   readonly section: boolean;
 };
 

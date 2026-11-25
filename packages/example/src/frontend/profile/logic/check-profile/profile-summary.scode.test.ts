@@ -17,7 +17,7 @@ const open = (kit: RuntimeKit) =>
   );
 
 describe('экран profileSummary', () => {
-  test('загрузка зовёт getUser с uuid субъекта, а не с параметром адреса', async () => {
+  test('загрузка зовёт getUser с uuid субъекта', async () => {
     const kit = new RuntimeKit();
     kit.ucs.answer(GetUserUcDef, ok({ userId: OWNER, active: true }));
 

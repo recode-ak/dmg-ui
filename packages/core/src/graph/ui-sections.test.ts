@@ -4,6 +4,7 @@ import { ExampleAppDef } from 'dmg-core/testing';
 import { ExampleUiSetDef } from 'dmg-ui/example';
 import { UiScene, UiSetScene } from '../../testing/ui-arch';
 import { UiIds } from '../address/ui-ids';
+import type { StoryDef } from '../manifest/story-def';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import { UiGraphProvider } from './ui-graph-provider';
 import { UiGraphReader } from './ui-graph-reader';
@@ -138,7 +139,7 @@ describe('UiSections — раздел и вспомогательный моду
     );
   });
 
-  test('S-05 связи внутри своего модуля не делают модуль вспомогательным и не идут в источники', () => {
+  test('S-05 вход из своей сторис не делает модуль разделом и не идёт в источники', () => {
     // В card ведёт reports, в edit — только card своего модуля.
     const edit = story('edit', [screen('form')]);
     const card = story('card', [screen('person')], { leads: () => [edit] });
@@ -160,7 +161,7 @@ describe('UiSections — раздел и вспомогательный моду
     });
 
     expect(verdicts(scene.set, PEOPLE)).toEqual(
-      both({ section: true, sources: [REPORTS] }),
+      both({ section: false, sources: [REPORTS] }),
     );
   });
 
@@ -202,6 +203,28 @@ describe('UiSections — раздел и вспомогательный моду
     );
     expect(verdicts(scene.set, TASKS)).toEqual(
       both({ section: true, sources: [] }),
+    );
+  });
+
+  test('S-09 цикл своих сторис без внешнего входа — вспомогательный без источников', () => {
+    // Недостижимость такого модуля называет UI-07.
+    const edit: StoryDef = story('edit', [screen('form')], {
+      leads: () => [card],
+    });
+    const card = story('card', [screen('person')], { leads: () => [edit] });
+    const menu = story('menu', [screen('hub')]);
+    const scene = new UiSetScene({
+      modules: {
+        tasks: { screens: [...menu.screens], stories: [menu] },
+        people: {
+          screens: [...card.screens, ...edit.screens],
+          stories: [card, edit],
+        },
+      },
+    });
+
+    expect(verdicts(scene.set, PEOPLE)).toEqual(
+      both({ section: false, sources: [] }),
     );
   });
 

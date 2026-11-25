@@ -92,9 +92,6 @@ export const UI_FILE_KINDS: readonly UiFileKind[] = [
   { suffix: 'arch', zone: 'shell', ending: 'Arch', head: 'pascal' },
 ];
 
-/** Папка общих экранов модуля в описании (экран двух и больше сторис) и в его зеркалах; имя сторис `shared` занято. */
-export const SHARED_FOLDER = 'shared';
-
 /** Слова зон в тексте нарушения места: чей вид («вид описания») и где лежит файл («в описании»). */
 export const UI_ZONE_WORDS: Readonly<Record<UiPlaceZone, UiZoneWords>> = {
   ui: { of: 'описания', at: 'в описании' },

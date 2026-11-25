@@ -9,6 +9,7 @@ import {
 import { UiIds } from '../address/ui-ids';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import { UiEdges } from './ui-edges';
+import { SHARED_FOLDER } from './ui-graph-provider.const';
 import type { UiGraphSpec } from './ui-graph-provider.types';
 import { UI_KINDS, UI_PROVIDER, UI_VERSION } from './ui-kinds';
 import { UiLayers } from './ui-layers';
@@ -63,9 +64,9 @@ export class UiGraphProvider implements GraphProvider {
   // экранов модуля: сторис `shared` заняла бы её.
   private static verifyStoryNames(set: AnyUiSetDef): void {
     for (const module of set.modules) {
-      if (module.stories.some((story) => story.name === 'shared')) {
+      if (module.stories.some((story) => story.name === SHARED_FOLDER)) {
         throw new Error(
-          `набор UI: сторис shared модуля ${module.name} — имя занято папкой общих экранов модуля`,
+          `набор UI: сторис ${SHARED_FOLDER} модуля ${module.name} — имя занято папкой общих экранов модуля`,
         );
       }
     }

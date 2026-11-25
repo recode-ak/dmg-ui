@@ -111,7 +111,7 @@ export class UiGraphReader {
   }
 
   /** `id` стартовых экранов сторис модуля. */
-  moduleStarts(moduleId: string): Set<string> {
+  moduleStarts(moduleId: string): ReadonlySet<string> {
     const starts = new Set<string>();
     for (const node of this.graph.children(moduleId)) {
       if (node.kind !== UI_NODE_KINDS.story) continue;

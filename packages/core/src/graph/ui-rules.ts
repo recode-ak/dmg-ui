@@ -37,9 +37,8 @@ export class UiRules {
   /**
    * Правила по порядку ID: UI-01…UI-27, кроме UI-06 — полноту реестров
    * держат их конструкторы (`UiCompleteness`), затем граница модулей
-   * UI-35…UI-37. Набор нужен только UI-20
-   * (примеры проверяются схемами valibot); `UiIds` здесь не строится и не
-   * бросает.
+   * UI-35…UI-37. Набор нужен только UI-20 (примеры проверяются схемами
+   * valibot); `UiIds` здесь не строится и не бросает.
    */
   static of(set: AnyUiSetDef): readonly GraphRule[] {
     return new UiRules(set).list();

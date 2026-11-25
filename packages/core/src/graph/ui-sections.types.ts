@@ -4,9 +4,3 @@ export type SectionStory = {
   readonly module: string;
   readonly leads: readonly string[];
 };
-
-/** Связь в счёте: модуль сторис начала и `id` сторис конца. */
-export type SectionLink = {
-  readonly from: string;
-  readonly to: string;
-};
