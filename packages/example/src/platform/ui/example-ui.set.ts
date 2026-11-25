@@ -1,5 +1,6 @@
 import { ExampleAppDef } from 'dmg-core/testing/example';
 import { UiSetDef } from 'dmg-ui';
+import { ProfileUiModuleDef } from './profile/profile.ui-module';
 import { TodoUiModuleDef } from './todo/todo.ui-module';
 import { UsersUiModuleDef } from './users/users.ui-module';
 
@@ -9,5 +10,5 @@ export const ExampleUiSetDef = UiSetDef.define({
   label: 'UI учебного приложения',
   description: 'Набор UI-модулей поверх учебного приложения.',
   app: ExampleAppDef,
-  modules: [TodoUiModuleDef, UsersUiModuleDef],
+  modules: [TodoUiModuleDef, UsersUiModuleDef, ProfileUiModuleDef],
 });

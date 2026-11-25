@@ -1,6 +1,7 @@
 import { type AnyUiAppDef, ModuleRegistries } from 'dmg-ui';
 import { ExampleUiSetDef } from 'dmg-ui/example';
 import { AppPageViews } from 'dmg-ui/web-ui';
+import { profilePagesViews } from './profile-pages.views';
 import { todoPagesViews } from './todo-pages.views';
 import { usersPagesViews } from './users-pages.views';
 
@@ -9,7 +10,7 @@ import { usersPagesViews } from './users-pages.views';
  * целиком (превью, граф), с `app` — приложения из реестров его модулей.
  */
 export const examplePagesViews = (app?: AnyUiAppDef): AppPageViews => {
-  const modules = [todoPagesViews, usersPagesViews];
+  const modules = [todoPagesViews, usersPagesViews, profilePagesViews];
   if (app === undefined) return AppPageViews.ofSet(ExampleUiSetDef, modules);
   const required = ModuleRegistries.required(app);
   return AppPageViews.of(

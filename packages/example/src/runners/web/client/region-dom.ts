@@ -3,12 +3,12 @@ import type {
   PageViewState,
   ViewSource,
 } from 'dmg-ui/web-ui';
+import { ControlIds } from '../../../frontend/web-kit/control-ids';
 import type {
   HelpModel,
   RegionModel,
 } from '../../../frontend/web-kit/region-model.types';
 import { HELP_TEXTS } from '../../../frontend/web-kit/view-texts.const';
-import { ControlIds } from '../view/control-ids';
 import { BodyDom } from './body-dom';
 import { CLIENT_TEXTS } from './client-texts.const';
 import { h } from './dom-element';

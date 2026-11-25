@@ -1,3 +1,4 @@
+import { ControlIds } from '../../../frontend/web-kit/control-ids';
 import type {
   ActionModel,
   CardBody,
@@ -7,7 +8,6 @@ import type {
   TaskRowModel,
 } from '../../../frontend/web-kit/region-model.types';
 import { EXAMPLE_PEOPLE } from '../common/example-people.const';
-import { ControlIds } from '../view/control-ids';
 import type { DraftKey } from '../view/form-drafts.types';
 import type { BodyDomSpec } from './body-dom.types';
 import { CLIENT_TEXTS } from './client-texts.const';

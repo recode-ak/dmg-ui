@@ -33,7 +33,7 @@ exports[`ExamplePreview через DialogRenderer — снимки пример�
 exports[`ExamplePreview через DialogRenderer — снимки примеров mainMenu start 1`] = `
 "Начать работу
 
-[Мои задачи] [Назначенные мне] [Закрыть]"
+[Мои задачи] [Назначенные мне] [Мой профиль] [Закрыть]"
 `;
 
 exports[`ExamplePreview через DialogRenderer — снимки примеров уведомление taskAssigned sample 1`] = `"Вам назначена задача: Хлеб"`;

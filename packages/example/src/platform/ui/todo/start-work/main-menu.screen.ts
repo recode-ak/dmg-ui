@@ -1,5 +1,6 @@
 import { type AnyScreenDef, ScreenDef } from 'dmg-ui';
 import * as v from 'valibot';
+import { ProfileSummaryScreenDef } from '../../profile/check-profile/profile-summary.screen';
 import { AssignedTasksScreenDef } from '../follow-assigned/assigned-tasks.screen';
 import { TaskListScreenDef } from '../shared/task-list.screen';
 
@@ -10,7 +11,7 @@ import { TaskListScreenDef } from '../shared/task-list.screen';
 export const MainMenuScreenDef = ScreenDef.define({
   name: 'mainMenu',
   label: 'Начать работу',
-  description: 'Меню: свои задачи и поручения.',
+  description: 'Меню: свои задачи, поручения и профиль.',
   hint: 'Отсюда начинается работа: выберите раздел',
   reads: [],
   data: v.object({}),
@@ -24,6 +25,11 @@ export const MainMenuScreenDef = ScreenDef.define({
       label: 'Назначенные мне',
       description: 'Задачи, которые поручили вызывающему.',
       to: (): readonly AnyScreenDef[] => [AssignedTasksScreenDef],
+    },
+    profile: {
+      label: 'Мой профиль',
+      description: 'Сводка своей учётной записи.',
+      to: (): readonly AnyScreenDef[] => [ProfileSummaryScreenDef],
     },
     close: {
       label: 'Закрыть',
@@ -39,7 +45,7 @@ export const MainMenuScreenDef = ScreenDef.define({
   examples: {
     start: {
       label: 'Меню',
-      description: 'Меню без данных: три действия.',
+      description: 'Меню без данных: четыре действия.',
       params: {},
       data: {},
     },

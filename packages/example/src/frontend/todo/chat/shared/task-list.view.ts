@@ -1,7 +1,7 @@
 import { TaskErrors } from 'dmg-core/testing/example';
 import { ScreenPresenter } from 'dmg-ui/chat-ui';
 import { TaskListScreenDef } from '../../../../platform/ui';
-import { TaskLines } from './task-lines';
+import { TaskLines } from '../../logic/shared/task-lines';
 
 /** Список задач в диалоге: задачи с отметкой выбора; свой ответ на предел открытых. */
 export const TaskListView = ScreenPresenter.for(

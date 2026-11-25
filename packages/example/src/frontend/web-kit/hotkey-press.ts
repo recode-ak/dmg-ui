@@ -1,5 +1,5 @@
-import { FIELD_HOTKEY } from '../../../frontend/web-kit/view-texts.const';
 import type { KeyFacts } from './hotkey-press.types';
+import { FIELD_HOTKEY } from './view-texts.const';
 
 /**
  * Решение по нажатию клавиши на странице: «/» вне поля ввода — клавиша поля

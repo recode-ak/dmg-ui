@@ -5,6 +5,8 @@ import {
   PageReconnector,
   PageSystemClock,
 } from 'dmg-ui/web-ui';
+import { HotkeyPress } from '../../../frontend/web-kit/hotkey-press';
+import { LinkClick } from '../../../frontend/web-kit/link-click';
 import type { RegionModel } from '../../../frontend/web-kit/region-model.types';
 import { exampleCodes } from '../../example-codes';
 import type { ExampleRegion } from '../common/example-web.types';
@@ -16,8 +18,6 @@ import { exampleWebViews } from '../example-web-views';
 import { ExampleGestures } from '../view/example-gestures';
 import { ExampleStepPlace } from '../view/example-step-place';
 import { FormDrafts } from '../view/form-drafts';
-import { HotkeyPress } from '../view/hotkey-press';
-import { LinkClick } from '../view/link-click';
 import { RegionFrame } from '../view/region-frame';
 import { CLIENT_TEXTS, CONSOLE_FAULT } from './client-texts.const';
 import { DialogDom } from './dialog-dom';

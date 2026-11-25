@@ -1,12 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import type { FieldKind } from 'dmg-ui';
 import type { PageForm, PageFormField, PageFormSet } from 'dmg-ui/web-ui';
-import type {
-  ActionModel,
-  FieldModel,
-  FormModel,
-} from '../../../frontend/web-kit/region-model.types';
 import { RegionControls } from './region-controls';
+import type { ActionModel, FieldModel, FormModel } from './region-model.types';
 
 // Вид действий и полей, который решает модель, а не DOM: причина отключённого,
 // виджет поля по `kind` и вариантам, пределы числа, строка подсказки. Входы —

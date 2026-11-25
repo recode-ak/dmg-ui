@@ -4,6 +4,7 @@ import {
   type CodeLoaders,
   ModuleRegistries,
 } from 'dmg-ui';
+import { profileCodes } from '../frontend/profile/logic';
 import { todoCodes } from '../frontend/todo/logic';
 import { usersCodes } from '../frontend/users/logic';
 import { ExampleUiSetDef } from '../platform/ui';
@@ -20,7 +21,11 @@ export const exampleCodes = (
   over: ExampleCodeOverrides = {},
   app?: AnyUiAppDef,
 ): AppCodeLoaders => {
-  const modules: readonly CodeLoaders[] = [todoCodes(over), usersCodes(over)];
+  const modules: readonly CodeLoaders[] = [
+    todoCodes(over),
+    usersCodes(over),
+    profileCodes(over),
+  ];
   if (app === undefined) return AppCodeLoaders.ofSet(ExampleUiSetDef, modules);
   const required = ModuleRegistries.required(app);
   return AppCodeLoaders.of(

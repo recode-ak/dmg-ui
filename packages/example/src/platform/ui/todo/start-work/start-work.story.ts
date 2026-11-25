@@ -1,4 +1,5 @@
 import { type AnyStoryDef, StoryDef } from 'dmg-ui';
+import { CheckProfileStoryDef } from '../../profile/check-profile/check-profile.story';
 import { FinishTasksStoryDef } from '../finish-tasks/finish-tasks.story';
 import { FollowAssignedStoryDef } from '../follow-assigned/follow-assigned.story';
 import { PlanTasksStoryDef } from '../plan-tasks/plan-tasks.story';
@@ -26,5 +27,6 @@ export const StartWorkStoryDef = StoryDef.define({
     PlanTasksStoryDef,
     FinishTasksStoryDef,
     FollowAssignedStoryDef,
+    CheckProfileStoryDef,
   ],
 });

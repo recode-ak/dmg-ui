@@ -4,6 +4,9 @@ import {
   type PageFormSet,
   type PageViewState,
 } from 'dmg-ui/web-ui';
+import { ControlIds } from '../../../frontend/web-kit/control-ids';
+import { HelpLines } from '../../../frontend/web-kit/help-lines';
+import { RegionControls } from '../../../frontend/web-kit/region-controls';
 import type {
   RegionMark,
   RegionModel,
@@ -16,9 +19,6 @@ import {
 import { ExamplePagesUiAppDef } from '../example-pages.ui-app';
 import { exampleWebViews } from '../example-web-views';
 import { BodyFreeze } from './body-freeze';
-import { ControlIds } from './control-ids';
-import { HelpLines } from './help-lines';
-import { RegionControls } from './region-controls';
 
 /** Прежний показ: тело, ревизия и лист справки того же вида. */
 type Shown = {

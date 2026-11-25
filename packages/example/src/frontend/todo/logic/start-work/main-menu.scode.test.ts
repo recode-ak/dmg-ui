@@ -4,15 +4,22 @@ import {
   ASSIGNED_ID,
   LIST_ID,
   MainMenuScreenDef,
+  OWNER,
 } from '../../../../platform/ui';
 
 // Меню «Начать работу»: чтений нет, действия — переходы в сторис и выход.
 
+const PROFILE_SCREEN = 'exampleUi/profile/profileSummary';
 const trace = requestTrace('r-menu');
 const open = () =>
   new RuntimeKit().runtime.open(MainMenuScreenDef.at({}), RuntimeKit.options());
 const act = async (action: string) =>
   (await open()).act({ action, revision: 1, trace });
+const withSubject = (subject?: { uuid: string; hasRole: () => boolean }) =>
+  new RuntimeKit().runtime.open(
+    MainMenuScreenDef.at({}),
+    RuntimeKit.options({ subject }),
+  );
 
 describe('экран mainMenu', () => {
   test('загрузка ничего не читает: данные пусты, действия — все действия Def в их порядке', async () => {
@@ -43,6 +50,31 @@ describe('экран mainMenu', () => {
     expect(await act('assigned')).toMatchObject({
       kind: 'moved',
       address: { screen: ASSIGNED_ID },
+    });
+  });
+
+  test('profile переходит на «Мой профиль»', async () => {
+    const instance = await withSubject({ uuid: OWNER, hasRole: () => false });
+
+    expect(
+      await instance.act({ action: 'profile', revision: 1, trace }),
+    ).toMatchObject({
+      kind: 'moved',
+      address: { screen: PROFILE_SCREEN },
+    });
+  });
+
+  test('без субъекта «Мой профиль» скрыт, нажатие — unavailable', async () => {
+    const instance = await withSubject();
+
+    expect(instance.view().actions.map((action) => action.name)).not.toContain(
+      'profile',
+    );
+    expect(
+      await instance.act({ action: 'profile', revision: 1, trace }),
+    ).toEqual({
+      kind: 'unavailable',
+      reason: 'disabled',
     });
   });
 

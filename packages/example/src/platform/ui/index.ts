@@ -3,6 +3,9 @@
 
 export { exampleSubject } from './example-subject';
 export { ExampleUiSetDef } from './example-ui.set';
+export { CheckProfileStoryDef } from './profile/check-profile/check-profile.story';
+export { ProfileSummaryScreenDef } from './profile/check-profile/profile-summary.screen';
+export { ProfileUiModuleDef } from './profile/profile.ui-module';
 export { FinishTasksStoryDef } from './todo/finish-tasks/finish-tasks.story';
 export { TaskCardScreenDef } from './todo/finish-tasks/task-card.screen';
 export { AssignedTasksScreenDef } from './todo/follow-assigned/assigned-tasks.screen';

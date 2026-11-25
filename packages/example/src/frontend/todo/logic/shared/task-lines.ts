@@ -1,6 +1,6 @@
 import type { TaskRow } from '../../../../platform/ui';
 
-/** Строки задач в тексте реплики: отметка выбора и статус. */
+/** Строки задач текстом: отметка выбора и статус. */
 export class TaskLines {
   constructor(
     private readonly tasks: readonly TaskRow[],

@@ -6,12 +6,8 @@ import type {
   FieldModel,
   FormModel,
   ScreenControls,
-} from '../../../frontend/web-kit/region-model.types';
-import {
-  FIELD_HOTKEY,
-  FIELD_TEXTS,
-  PERSON_FIELD,
-} from '../../../frontend/web-kit/view-texts.const';
+} from './region-model.types';
+import { FIELD_HOTKEY, FIELD_TEXTS, PERSON_FIELD } from './view-texts.const';
 
 /**
  * Действия и формы экрана из модели формы пакета: действие без полей — кнопка,

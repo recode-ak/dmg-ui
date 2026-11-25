@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 // Состав входа `dmg-ui/example` (D-UI-121): учебный проект поверх учебного
 // приложения `dmg-core` — описание UI и константы его данных, код модулей
-// `todo` и `users` и их сборка, реестры видов диалогового канала и оболочки
+// `todo`, `users` и `profile` и их сборка, реестры видов диалогового канала и оболочки
 // раннеров `dialog`, `tg-bot`, `web`. Вход видит только тестовый код пакетов.
 
 /** Описание UI: набор, модули, сторис, экраны, уведомления, данные примера. */
@@ -10,6 +10,7 @@ const UI = [
   'ASSIGNED_ID',
   'AssignedTasksScreenDef',
   'CARD_ID',
+  'CheckProfileStoryDef',
   'ExampleUiSetDef',
   'FinishTasksStoryDef',
   'FollowAssignedStoryDef',
@@ -18,6 +19,8 @@ const UI = [
   'MainMenuScreenDef',
   'OWNER',
   'PlanTasksStoryDef',
+  'ProfileSummaryScreenDef',
+  'ProfileUiModuleDef',
   'StartWorkStoryDef',
   'TASK_A',
   'TASK_B',
@@ -35,22 +38,25 @@ const UI = [
   'taskState',
 ];
 
-/** Код модулей: реестры, классы кода экранов и уведомлений, сборка обоих модулей. */
+/** Код модулей: реестры, классы кода экранов и уведомлений, сборка модулей. */
 const CODE = [
   'AssignedTasksScreenCode',
   'MainMenuScreenCode',
+  'ProfileSummaryScreenCode',
   'TaskAssignedNotificationCode',
   'TaskCardScreenCode',
   'TaskCompletedNotificationCode',
+  'TaskLines',
   'TaskListScreenCode',
   'UserCardScreenCode',
   'exampleCodes',
+  'profileCodes',
   'todoCodes',
   'usersCodes',
 ];
 
 /** Реестры видов модулей в диалоговом канале. */
-const CHANNELS = ['todoChatViews', 'usersChatViews'];
+const CHANNELS = ['profileChatViews', 'todoChatViews', 'usersChatViews'];
 
 /** Оболочки раннеров: графы, приложения UI, сборки видов, маршруты, провод, раскладки, превью Telegram. */
 const RUNNERS = [

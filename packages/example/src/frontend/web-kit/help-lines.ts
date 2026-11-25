@@ -1,9 +1,6 @@
 import type { HelpItem, HelpSheet } from 'dmg-ui';
-import type {
-  HelpModel,
-  HelpSection,
-} from '../../../frontend/web-kit/region-model.types';
-import { HELP_TEXTS } from '../../../frontend/web-kit/view-texts.const';
+import type { HelpModel, HelpSection } from './region-model.types';
+import { HELP_TEXTS } from './view-texts.const';
 
 /**
  * Модель справки области по листу `HelpSheet`: разделы «действия» и

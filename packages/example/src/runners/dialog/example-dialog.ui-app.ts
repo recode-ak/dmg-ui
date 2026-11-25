@@ -2,6 +2,7 @@ import { UiAppDef } from 'dmg-ui';
 import { DIALOG_CHANNEL } from 'dmg-ui/chat-ui';
 import {
   AssignedTasksScreenDef,
+  CheckProfileStoryDef,
   ExampleUiSetDef,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
@@ -15,8 +16,8 @@ import {
 } from '../../platform/ui';
 
 /**
- * Приложение UI учебного примера в диалоговом канале: меню, сторис задач и
- * карточка пользователя, все уведомления, три входа — список «в начало»,
+ * Приложение UI учебного примера в диалоговом канале: меню, сторис задач,
+ * карточка пользователя и профиль, все уведомления, три входа — список «в начало»,
  * поручения и меню.
  */
 export const ExampleDialogUiAppDef = UiAppDef.define({
@@ -31,6 +32,7 @@ export const ExampleDialogUiAppDef = UiAppDef.define({
     FinishTasksStoryDef,
     FollowAssignedStoryDef,
     ViewUserStoryDef,
+    CheckProfileStoryDef,
   ],
   notifications: [TaskAssignedNotificationDef, TaskCompletedNotificationDef],
   entries: {

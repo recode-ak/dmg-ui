@@ -1,13 +1,17 @@
-// Вход учебного проекта (D-UI-121): описание UI и сборки кода модулей `todo`
-// и `users` поверх учебного приложения `dmg-core`, реестры представлений
+// Вход учебного проекта (D-UI-121): описание UI и сборки кода модулей `todo`,
+// `users` и `profile` поверх учебного приложения `dmg-core`, реестры представлений
 // каналов и оболочки раннеров — граф `dialog`, бот Telegram и страницы.
 
+export { profileChatViews } from './src/frontend/profile/chat';
+export { profileCodes } from './src/frontend/profile/logic';
+export { ProfileSummaryScreenCode } from './src/frontend/profile/logic/check-profile/profile-summary.scode';
 export { todoChatViews } from './src/frontend/todo/chat';
 export { todoCodes } from './src/frontend/todo/logic';
 export { TaskCardScreenCode } from './src/frontend/todo/logic/finish-tasks/task-card.scode';
 export { AssignedTasksScreenCode } from './src/frontend/todo/logic/follow-assigned/assigned-tasks.scode';
 export { TaskAssignedNotificationCode } from './src/frontend/todo/logic/shared/task-assigned.ncode';
 export { TaskCompletedNotificationCode } from './src/frontend/todo/logic/shared/task-completed.ncode';
+export { TaskLines } from './src/frontend/todo/logic/shared/task-lines';
 export { TaskListScreenCode } from './src/frontend/todo/logic/shared/task-list.scode';
 export { MainMenuScreenCode } from './src/frontend/todo/logic/start-work/main-menu.scode';
 export { usersChatViews } from './src/frontend/users/chat';
@@ -17,6 +21,7 @@ export {
   ASSIGNED_ID,
   AssignedTasksScreenDef,
   CARD_ID,
+  CheckProfileStoryDef,
   ExampleUiSetDef,
   exampleSubject,
   FinishTasksStoryDef,
@@ -26,6 +31,8 @@ export {
   MainMenuScreenDef,
   OWNER,
   PlanTasksStoryDef,
+  ProfileSummaryScreenDef,
+  ProfileUiModuleDef,
   StartWorkStoryDef,
   TASK_A,
   TASK_B,

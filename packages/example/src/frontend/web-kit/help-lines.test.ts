@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { HelpSheet } from 'dmg-ui';
-import { HELP_TEXTS } from '../../../frontend/web-kit/view-texts.const';
 import { HelpLines } from './help-lines';
+import { HELP_TEXTS } from './view-texts.const';
 
 // Модель справки области по листу `HelpSheet`: заголовок, подсказка и разделы
 // строк; подписи разделов и слово «недоступно» — из `HELP_TEXTS`. Чистая
