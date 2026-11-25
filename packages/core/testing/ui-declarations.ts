@@ -23,6 +23,9 @@ export class UiDeclarations {
   private static readonly EXPORTED =
     /\bexport\s+(?:abstract\s+)?(?:const|let|class|function)\s+(\w+)/g;
 
+  /** `from '<./…|../…>'` импорта или реэкспорта — по нему выводится место экрана. */
+  private static readonly RELATIVE_FROM = /\bfrom\s+(['"])(\.\.?\/[^'"]*)\1/g;
+
   private readonly text: string;
 
   constructor(source: string) {
@@ -46,6 +49,13 @@ export class UiDeclarations {
       name: match[1] ?? '',
       line: this.lineAt(match.index),
     }));
+  }
+
+  /** Относительные спецификаторы `from './…'` и `from '../…'` — в порядке текста; псевдонимы путей и пакеты — нет. */
+  imports(): string[] {
+    return [...this.text.matchAll(UiDeclarations.RELATIVE_FROM)].map(
+      (match) => match[2] ?? '',
+    );
   }
 
   private lineAt(offset: number): number {

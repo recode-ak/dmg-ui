@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test';
+import { join } from 'node:path';
+import { type ArchApp, ArchChecker } from 'dmg-core/arch';
 import { AppGraph } from 'dmg-core/graph';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import { ExampleDialogArch } from './example-dialog.arch';
 
 // Граф учебного примера без домена: поставщик `dmg-ui` + возможности
 // мессенджера и точки входа трёх приложений — без нарушений (правила ядра,
-// CH-02, CH-03); лимиты примеров (CH-01) — `example-dialog.views.test.ts`.
+// CH-02, CH-03); лимиты примеров (CH-01) — `example-dialog-views.test.ts`.
 // Приложения без карточки пользователя отрезают её ребром `omits`.
 // Получатель `taskCompleted` — системный query UC на ребре `recipients`, не
 // чтение (UI-12, D-UI-23).
@@ -23,6 +25,24 @@ describe('граф учебного примера', () => {
     expect(report.lines).toEqual([
       'arch:check example: нарушений — 0',
       'arch:check: нарушений нет',
+    ]);
+  });
+
+  test('вход графа на сборке видов — ARC-16: доходит до реализаций каналов модулей', () => {
+    const app: ArchApp = {
+      ...ExampleDialogArch,
+      graphEntry: join(import.meta.dir, 'example-dialog-views.ts'),
+    };
+    const via =
+      'ARC-16: вход графа src/runners/dialog/example-dialog-views.ts доходит до реализации: src/runners/dialog/example-dialog-views.ts импортирует';
+
+    expect(
+      ArchChecker.of(app)
+        .check()
+        .map((v) => v.format()),
+    ).toEqual([
+      `${via} fe-chat todo: ../../frontend/todo/chat`,
+      `${via} fe-chat users: ../../frontend/users/chat`,
     ]);
   });
 
