@@ -152,6 +152,23 @@ export class UiLayers {
         );
       }
     }
+    this.verifyBaseCycles();
+  }
+
+  // Цикл баз — каналы видели бы друг друга: два пакета зависят друг от друга.
+  private verifyBaseCycles(): void {
+    const bases = new Map(this.channels.map((c) => [c.name, c.base]));
+    for (const { name } of this.channels) {
+      const chain = [name];
+      for (let next = bases.get(name); next !== undefined; ) {
+        chain.push(next);
+        if (next === name) {
+          throw new Error(`слои фронта: цикл баз каналов ${chain.join(' → ')}`);
+        }
+        if (chain.indexOf(next) < chain.length - 1) break;
+        next = bases.get(next);
+      }
+    }
   }
 
   // Каталог модуля — `<фронт>/<модуль>`, рядом с `<фронт>/app` и

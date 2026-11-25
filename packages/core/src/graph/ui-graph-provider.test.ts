@@ -1186,4 +1186,34 @@ describe('UiGraphProvider: имена модулей и каналов прот�
 
     expect(build).toThrow('dialog');
   });
+
+  test('цикл баз каналов — отказ сборки с цепочкой: каналы видели бы друг друга', () => {
+    const build = () =>
+      new UiGraphProvider({
+        set: todo,
+        apps: [],
+        channels: [
+          { name: 'dialog', base: 'voice' },
+          { name: 'voice', base: 'radio' },
+          { name: 'radio', base: 'dialog' },
+        ],
+      });
+
+    expect(build).toThrow('dialog → voice → radio → dialog');
+  });
+
+  test('цепочка баз без цикла — сборка без отказа', () => {
+    const build = () =>
+      new UiGraphProvider({
+        set: todo,
+        apps: [],
+        channels: [
+          { name: 'radio' },
+          { name: 'dialog', base: 'radio' },
+          { name: 'voice', base: 'dialog' },
+        ],
+      });
+
+    expect(build).not.toThrow();
+  });
 });
