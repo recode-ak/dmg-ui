@@ -93,4 +93,5 @@ flowchart LR
 
 - Куда положить файл и где его зарегистрировать — [naming.md](../reference/naming.md); правила с ID — [rules.md](../reference/rules.md).
 - Написать сторис, экран и уведомление — [story-screen-notification.md](../guides/story-screen-notification.md); пакет канала — [channel-package.md](../guides/channel-package.md).
+- Вынести фронт-модуль канала или канал целиком в свой репозиторий — [extract-frontend-module.md](../guides/extract-frontend-module.md); общий кирпич между модулями и разделами на разных фреймворках — [shared-brick.md](../guides/shared-brick.md).
 - Решения раскладки — [D-UI-116…D-UI-121](../decisions.md#раскладка-фронта-и-единица-выноса).
