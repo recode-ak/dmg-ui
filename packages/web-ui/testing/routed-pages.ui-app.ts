@@ -4,7 +4,7 @@ import {
   TASK_A,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
 import { PAGE_CHANNEL } from 'dmg-ui/web-ui';
 
 /** Текст входа: тексты не проверяются. */

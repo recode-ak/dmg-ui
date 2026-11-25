@@ -9,7 +9,7 @@ import {
   LIST_ID,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
 import * as v from 'valibot';
 import type { PagePlacement, PageRegionName } from './page-client.types';
 import { PagePlacements } from './page-placements';

@@ -6,20 +6,17 @@ import {
   ASSIGNED_ID,
   AssignedTasksScreenDef,
   CARD_ID,
+  ExamplePagesUiAppDef,
   exampleCodes,
+  examplePagesRoutes,
   LIST_ID,
-  MemoryUiObserver,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import * as v from 'valibot';
-import {
-  ExamplePagesUiAppDef,
-  examplePagesRoutes,
-  ManualPageClock,
-  MemoryPageHistory,
-} from '../../testing';
+import { ManualPageClock, MemoryPageHistory } from '../../testing';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import type { PageViewState } from '../view/page-view-state.types';
 import type {

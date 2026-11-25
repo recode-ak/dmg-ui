@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { err, ok } from 'dmg-core';
 import type { InstanceView } from 'dmg-ui';
-import { CARD_ID, TASK_A } from 'dmg-ui/testing';
+import { CARD_ID, TASK_A } from 'dmg-ui/example';
 import * as v from 'valibot';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import type { PageViewState } from '../view/page-view-state.types';

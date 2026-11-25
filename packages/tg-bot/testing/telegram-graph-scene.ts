@@ -8,9 +8,9 @@ import {
   DIALOG_CHANNEL,
   type MessengerCapabilities,
 } from 'dmg-ui/chat-ui';
-import { ExampleDialogUiAppDef } from 'dmg-ui/chat-ui/testing';
 import {
   AssignedTasksScreenDef,
+  ExampleDialogUiAppDef,
   ExampleUiSetDef,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
@@ -18,7 +18,7 @@ import {
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
 import { UiScene } from 'dmg-ui/testing/fixtures';
 import { TELEGRAM_CAPABILITIES, TelegramGraphProvider } from 'dmg-ui/tg-bot';
 

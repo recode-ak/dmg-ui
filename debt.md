@@ -41,7 +41,7 @@
 - **Триггер:** второй набор UI в приложении.
 
 ### DEBT-UI-13: `task-lines.ts` дублируется в двух привязках примера
-- **Место:** `packages/chat-ui/testing/example/task-lines.ts`, `packages/web-ui/testing/example/task-lines.ts` — класс `TaskLines`.
+- **Место:** `packages/example/src/frontend/todo/chat/shared/task-lines.ts`, `packages/web-ui/testing/text-views/task-lines.ts` — класс `TaskLines`.
 - **Суть:** строки задач в теле реплики и в теле страницы строятся одной и той же логикой; общий помощник не вынесен, потому что привязки примера к каналам друг друга не знают: они в разных пакетах, а соседа импортируют только по имени входа (`PackageDirections`, `CoreImportScanner`).
 - **Погашает:** вынос помощника во вход, доступный обеим привязкам (с разрешением этого входа в зонах привязок в `CoreImportScanner`).
 
@@ -104,7 +104,7 @@
 - **Погашает:** операция `decline` в `chat-ui` и метод порта `declineChatJoinRequest` в `tg-bot`.
 
 ### DEBT-UI-29: превью Telegram перехватывает `ViewMessage`
-- **Место:** `packages/tg-bot/testing/example/example-telegram-preview.ts` (`ExampleTelegramPreview.message`) — вид превращается в `Message` перехватом вывода на пути `DialogRenderer`, а не публичным показом.
+- **Место:** `packages/example/src/runners/tg-bot/example-telegram-preview.ts` (`ExampleTelegramPreview.message`) — вид превращается в `Message` перехватом вывода на пути `DialogRenderer`, а не публичным показом.
 - **Суть:** превью не повторяет беседу целиком (гайд «Telegram» это документирует): нет шапки заместителя, раскладки «Ещё» и стража `MessageFit`, берётся только последнее сообщение, ссылки вариантов — `1..n`.
 - **Триггер:** проекту нужен показ «вид → `Message`» или запрос превью разошёлся с живым.
 - **Погашает:** публичный показ «вид → `Message`» в `chat-ui`; после него превью становится тонким.
@@ -174,13 +174,13 @@
 - **Триггер:** представлению нужна доступность по ожидаемым данным (кнопка гаснет сразу) или второе действие той же области уходит, не дожидаясь ответа на первое.
 
 ### DEBT-UI-42: два набора представлений и два пути форм у учебного примера
-- **Место:** `packages/web-ui/testing/example/*.view.ts` (текст), `packages/web-ui/src/view/page-renderer.ts` (форма текстом по виду экземпляра), `examples/web/src/view/*` (DOM, форма по `PageFormModel` состояния области), `examples/web/src/view/task-assigned.view.ts`, `examples/web/src/view/task-completed.view.ts` (копии двух уведомлений), `examples/web/src/view/example-gestures.ts` (`toggleTask(taskId, region)`).
+- **Место:** `packages/web-ui/testing/text-views/*.view.ts` (текст), `packages/web-ui/src/view/page-renderer.ts` (форма текстом по виду экземпляра), `packages/example/src/runners/web/view/*` (DOM, форма по `PageFormModel` состояния области), `packages/example/src/runners/web/view/task-assigned.view.ts`, `packages/example/src/runners/web/view/task-completed.view.ts` (копии двух уведомлений), `packages/example/src/runners/web/view/example-gestures.ts` (`toggleTask(taskId, region)`).
 - **Суть:** представления экранов учебного примера написаны дважды (текст для тестов и снимков, DOM для браузера) плюс телеграм-представления: правка экрана требует правки трёх мест. Форму текстом строит `PageRenderer` из вида экземпляра, DOM — `PageFormModel` из состояния области (с `entered`, `expected`, `offline`): к общей модели вида они не сводятся, цели разные. Два уведомления дублируют текстовый набор. Отметка строки списка и окна «Назначенные мне» идёт через `local(region, 'toggle', { taskId })` по `uuid`: `local` принимает подписи вариантов, а подпись, не совпавшая ни с одним, проходит как есть, — это обход, не API жеста; две задачи с одним названием на нём держатся тестом.
-- **Погашает:** сцены показа итога до ответа в `examples/web/src/view/example-gestures.test.ts` (после ответа, второе действие, отказ, локальное действие) вероятно повторяют сцены уровня клиента в `packages/web-ui/src/client/page-client.test.ts`; уникальное для примера — форма ожидаемого итога `completed` и проход итога по схеме данных экрана: сверить и снять дубли при погашении. Общая модель вида в пакете представлений при втором DOM-потребителе (привязка к фреймворку) или при расхождении наборов; жест `local` со значением варианта в пакете.
+- **Погашает:** сцены показа итога до ответа в `packages/example/src/runners/web/view/example-gestures.test.ts` (после ответа, второе действие, отказ, локальное действие) вероятно повторяют сцены уровня клиента в `packages/web-ui/src/client/page-client.test.ts`; уникальное для примера — форма ожидаемого итога `completed` и проход итога по схеме данных экрана: сверить и снять дубли при погашении. Общая модель вида в пакете представлений при втором DOM-потребителе (привязка к фреймворку) или при расхождении наборов; жест `local` со значением варианта в пакете.
 - **Триггер:** второй DOM-потребитель страничного канала или правка экрана учебного примера, затронувшая оба набора.
 
 ### DEBT-UI-43: пауза переподключения без ускорения по сети
-- **Место:** `packages/web-ui/src/client/page-reconnector.ts` (`PageReconnector`) — вызова «попробовать сейчас» нет; привязка страницы примера (`examples/web/src/client/example-page.ts`) слушает `pagehide` и `pageshow`, но не `online` и `visibilitychange`.
+- **Место:** `packages/web-ui/src/client/page-reconnector.ts` (`PageReconnector`) — вызова «попробовать сейчас» нет; привязка страницы примера (`packages/example/src/runners/web/client/example-page.ts`) слушает `pagehide` и `pageshow`, но не `online` и `visibilitychange`.
 - **Суть:** после обрыва пауза до следующей попытки растёт до 30 с (`RECONNECT`, D-UI-74); человек, вернувший сеть или вкладку, ждёт конца паузы с пометкой «Нет связи», хотя связь уже есть. Мешает при перезапуске сервера на глазах и при возврате на вкладку.
 - **Погашает:** вызов `PageReconnector`, который сбрасывает паузу текущей попытки, и привязка страницы, зовущая его по `online` и `visibilitychange` (D-UI-85).
 - **Триггер:** замечание людей у первого web-приложения потребителя пакета.
@@ -209,17 +209,17 @@
 - **Погашает:** файловое хранилище бесед в `chat-ui` (вход `node`-окружения) с тестами формата.
 
 ### DEBT-UI-53: доступность сторис и основание двери не видны графу
-- **Место:** `packages/core/src/screen/screen-code.ts` (карта `ScreenCode.availability`, D-UI-98) и её учебные записи `packages/core/testing/example/todo/*.scode.ts`; `packages/core/src/manifest/story-def.types.ts` (`StorySpec.access` и `rules`, D-UI-94) — только объявление; `packages/core/src/runtime/screen-help.ts` (`ScreenHelp.general`, D-UI-107).
+- **Место:** `packages/core/src/screen/screen-code.ts` (карта `ScreenCode.availability`, D-UI-98) и её учебные записи `packages/example/src/frontend/todo/logic/*/*.scode.ts`; `packages/core/src/manifest/story-def.types.ts` (`StorySpec.access` и `rules`, D-UI-94) — только объявление; `packages/core/src/runtime/screen-help.ts` (`ScreenHelp.general`, D-UI-107).
 - **Суть:** доступность двери (действия-перехода в сторис) вычисляет код экрана-источника тем же объектом правила, что объявлен у сторис, но связь объявления и двери не видна ни графу, ни проверкам: дверь с другим правилом или без правила при объявленном `access` сторис код не ловит. Граф показывает объявленное: кому и когда положена сторис (`access`), а дверь и действие читаются через `invokes` → UC и `leadsTo` → стартовый экран сторис; на чём решает экран, граф не отражает — основание (`policy`, `rule`, своё условие) остаётся в коде экрана (D-UI-101). Общая справка (без живого экрана) называет только корни приложения без объявленного `access`: доступ сторис ядро не вычисляет, а «скрытого в справке нет»; приложение, где закрыты все корни, получает «Справки пока нет.» (D-UI-107).
 - **Триггер:** вторая дверь с тем же правилом сторис (два экрана-источника одной сторис) или потребность PO видеть расхождение объявления сторис и двери; тогда — `access?` у действия-двери в `ActionSpec` и правило сверки с `access` цели. Для справки — когда ядро вычислит доступ сторис по субъекту: `ScreenHelp.general` называет доступные корни с `access`.
 
 ### DEBT-UI-54: два сборщика state учебной задачи
-- **Место:** `packages/core/testing/task-state.ts` и `exampleTask` в `packages/core/testing/example/todo/example-tasks.ts`.
+- **Место:** `packages/example/src/platform/ui/todo/shared/task-state.ts` и `exampleTask` в `packages/example/src/platform/ui/todo/shared/example-tasks.ts`.
 - **Суть:** два сборщика одного state задачи с одними константами владельца; слить мешает цикл импорта: общий корень констант (`OWNER`) должен лежать вне графа, который их импортирует. Правка формы state требует правки обоих.
 - **Триггер:** следующая правка state задачи или отдельный срез общего корня констант учебного набора.
 
 ### DEBT-UI-56: формат даты не доходит до поля страницы
-- **Место:** `packages/core/src/schema/field-description.ts` (`FieldShape.kind: 'date'` из `isoDate`, `isoDateTime` и `isoTimestamp`), `examples/web/src/view/region-controls.ts` (виджет `date`).
+- **Место:** `packages/core/src/schema/field-description.ts` (`FieldShape.kind: 'date'` из `isoDate`, `isoDateTime` и `isoTimestamp`), `packages/example/src/runners/web/view/region-controls.ts` (виджет `date`).
 - **Суть:** ядро делает вид `date` из любой строки с `iso_date`, `iso_date_time` или `iso_timestamp`, но `FieldShape` формат не несёт. Страница ставит `<input type="date">` (значение `ГГГГ-ММ-ДД`): для поля `isoDateTime` или `isoTimestamp` оно не подойдёт — человек не введёт время, а схема отвергнет дату без времени. Учебное поле `remindOn` — `v.isoDate`, у него расхождения нет (D-UI-106).
 - **Триггер:** первое поле даты со временем у потребителя пакета; тогда — формат в `FieldShape` и виджет `datetime-local` или текст.
 
@@ -229,12 +229,12 @@
 - **Триггер:** ложный красный при обычной нагрузке или правка истории страницы (`PageHistory`, режим `deferred` подставы, D-UI-104).
 
 ### DEBT-UI-58: учебный набор не расширяется без правки чужих тестов
-- **Место:** учебный набор ядра (`packages/core/testing/example`) и тесты, закрепляющие его размер и состав: графы каналов (`ui-graph-provider`, `chat-graph-provider`, `page-graph-provider*`), `code-loaders`, `story-tree`, `ui-module-def`, `example-limits.rule`, `page-urls`, `page-client`, `examples/web` (`example-web.arch`, `example-views`), `acceptance/channels-story`, `checks/package-manifest.testing`.
-- **Суть:** проба роли (трек `dmg-ui-naming`, экран и уведомление в `todo`) потребовала правки 14 тестов с жёсткими числами узлов и рёбер и ручными списками, плюс точек подключения, которых нет в колонке «Точка регистрации» `naming.md` §1: вход `dmg-ui/testing`, `ExampleCodeOverrides`, `ui-app.fixture.ts`, `example-trimmed.ui-app.ts`, свой реестр представлений `examples/web`. Имена роль выбрала верно по `naming.md`, но цена учебного среза — ≈50 файлов; новый вид или пример в наборе дорожает с каждым каналом. Как сделать экран достижимым (UI-07) дёшево — действием-переходом, а не входом, — нигде не сказано.
+- **Место:** учебный набор ядра (`packages/core/testing/example`) и тесты, закрепляющие его размер и состав: графы каналов (`ui-graph-provider`, `chat-graph-provider`, `page-graph-provider*`), `code-loaders`, `story-tree`, `ui-module-def`, `example-limits.rule`, `page-urls`, `page-client`, `packages/example/src/runners/web` (`example-web.arch`, `example-web-views`), `acceptance/channels-story`, `checks/package-manifest.testing`.
+- **Суть:** проба роли (трек `dmg-ui-naming`, экран и уведомление в `todo`) потребовала правки 14 тестов с жёсткими числами узлов и рёбер и ручными списками, плюс точек подключения, которых нет в колонке «Точка регистрации» `naming.md` §1: вход `dmg-ui/testing`, `ExampleCodeOverrides`, `ui-app.fixture.ts`, `example-trimmed.ui-app.ts`, свой реестр представлений `packages/example/src/runners/web`. Имена роль выбрала верно по `naming.md`, но цена учебного среза — ≈50 файлов; новый вид или пример в наборе дорожает с каждым каналом. Как сделать экран достижимым (UI-07) дёшево — действием-переходом, а не входом, — нигде не сказано.
 - **Триггер:** следующее расширение учебного набора; тогда — числа графа выводить из набора или проверять свойства, а не счёт, и памятку «как добавить вид в учебный набор» в гайд.
 
 ### DEBT-UI-59: клавиши страницы — только «/» в примере
-- **Место:** `examples/web/src/view/hotkey-press.ts`, `region-controls.ts` (`hotkey` у первого поля основной формы), D-UI-115.
+- **Место:** `packages/example/src/runners/web/view/hotkey-press.ts`, `region-controls.ts` (`hotkey` у первого поля основной формы), D-UI-115.
 - **Суть:** горячая клавиша есть одна и решена примером; у пакета `web-ui` нет способа назначить клавиши действиям и полям экрана. Цель — таблица клавиш web-канала (как таблица входов Telegram, D-UI-64): клавиша → действие или поле экрана, правило графа на дубли и на клавиши браузера, список клавиш в справке. Def действия клавиш не несёт: ядро нейтрально к каналу (D-UI-100). Объём — примерно фаза: `web-ui`, правило графа, справка, пример.
 - **Триггер:** первый web-экран потребителя с частой однотипной работой (например, проверка работ ментором) или просьба о второй клавише.
 - **Погашает:** таблица клавиш в приложении страниц `web-ui` с правилом графа и показом в справке; `HotkeyPress` примера — на таблицу.

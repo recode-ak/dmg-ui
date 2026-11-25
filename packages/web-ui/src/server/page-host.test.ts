@@ -12,6 +12,7 @@ import {
   TaskEvents,
 } from 'dmg-core/testing/example';
 import type { Place } from 'dmg-ui';
+import { ExamplePagesUiAppDef, ExampleUiSetDef } from 'dmg-ui/example';
 import {
   ApiAppDispatch,
   type DeliveredNotification,
@@ -19,9 +20,7 @@ import {
   type RecipientCallers,
   UiServer,
 } from 'dmg-ui/server';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { exampleUser, oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
-import { ExamplePagesUiAppDef } from '../../testing';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import type { ServerMessage as ServerMsg } from '../wire/page-messages.types';
 import { MAX_CLIENT_TEXT, MAX_SERVER_TEXT } from '../wire/page-wire.const';

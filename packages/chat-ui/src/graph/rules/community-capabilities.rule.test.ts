@@ -12,13 +12,13 @@ import {
   RemoveUserUcDef,
   TaskEvents,
 } from 'dmg-core/testing/example';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
-import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import {
   ExampleDialogUiAppDef,
+  ExampleUiSetDef,
   ExampleWindowedUiAppDef,
-  MemoryMessenger,
-} from '../../../testing';
+} from 'dmg-ui/example';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
+import { MemoryMessenger } from '../../../testing';
 import type { ChatCommunitySpec } from '../../community/community.types';
 import type { MessengerCapabilities } from '../../messenger/messenger.types';
 import { type ChatAppSpec, ChatGraphProvider } from '../chat-graph-provider';

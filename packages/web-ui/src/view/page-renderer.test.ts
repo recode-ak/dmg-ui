@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { ActionField, InstanceView } from 'dmg-ui';
-import { LIST_ID } from 'dmg-ui/testing';
-import { examplePagesViews } from '../../testing';
+import { LIST_ID } from 'dmg-ui/example';
+import { examplePagesViews } from '../../testing/text-views/example-pages.views';
 import { PageRenderer } from './page-renderer';
 
 // Строка поля формы в тексте страницы: подпись, необязательность, вид ввода

@@ -4,7 +4,8 @@ import { join, resolve } from 'node:path';
 
 // Общий tsconfig не знает браузера: типы DOM подключает только пакет, который
 // собирается под браузер, иначе они протекли бы в код сервера и каналов.
-// Клиент примера для браузера — своя программа с DOM; корневая её не видит.
+// DOM-клиент раннера web учебного проекта — своя программа с DOM; корневая
+// его не видит.
 
 const ROOT = resolve(import.meta.dir, '..');
 
@@ -20,7 +21,8 @@ const config = (path: string): Config =>
 const options = (): { lib?: string[]; types?: string[] } =>
   config('tsconfig.json').compilerOptions ?? {};
 
-const EXAMPLE_WEB = 'examples/web/tsconfig.json';
+const WEB_RUNNER = 'packages/example/src/runners/web';
+const EXAMPLE_WEB = `${WEB_RUNNER}/tsconfig.json`;
 
 describe('общий tsconfig.json — без типов браузера', () => {
   it('lib без DOM', () => {
@@ -38,18 +40,22 @@ describe('общий tsconfig.json — без типов браузера', () =
   });
 });
 
-describe('examples/web/tsconfig.json — программа клиента с DOM', () => {
+describe('tsconfig.json раннера web — программа клиента с DOM', () => {
   it('exclude пуст: унаследованный из общего скрыл бы клиент', () => {
     expect(config(EXAMPLE_WEB).exclude).toEqual([]);
   });
 
-  it('include — клиент, модели представлений и общее, без сервера', () => {
+  it('include — клиент, DOM-помощники и общее, без сервера', () => {
     const include = config(EXAMPLE_WEB).include ?? [];
 
-    expect(include).toContain('src/client');
-    expect(include).toContain('src/view');
-    expect(include).toContain('src/common');
+    expect(include).toContain('client');
+    expect(include).toContain('view');
+    expect(include).toContain('common');
     expect(include.filter((path) => path.includes('server'))).toEqual([]);
+  });
+
+  it('корневая программа исключает клиент раннера web', () => {
+    expect(config('tsconfig.json').exclude).toEqual([`${WEB_RUNNER}/client`]);
   });
 });
 
@@ -58,10 +64,10 @@ describe('общий tsconfig.json — браузерный клиент DevTool
     expect(config('tsconfig.json').include ?? []).toContain('browser');
   });
 
-  it('include по-прежнему содержит packages, checks, acceptance и examples', () => {
+  it('include по-прежнему содержит packages, checks и acceptance', () => {
     const include = config('tsconfig.json').include ?? [];
 
-    for (const path of ['packages', 'checks', 'acceptance', 'examples']) {
+    for (const path of ['packages', 'checks', 'acceptance']) {
       expect(include).toContain(path);
     }
   });

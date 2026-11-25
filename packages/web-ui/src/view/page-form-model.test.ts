@@ -3,7 +3,7 @@ import { CoreErrors, ErrorDef, err, ok } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
 import { ListTasksUcDef, TaskEvents } from 'dmg-core/testing/example';
 import type { ActionView, FieldIssue, ScreenInstance } from 'dmg-ui';
-import { ExampleUiSetDef, TASK_A, TASK_B } from 'dmg-ui/testing';
+import { ExampleUiSetDef, TASK_A, TASK_B } from 'dmg-ui/example';
 import { RuntimeKit, requestTrace } from 'dmg-ui/testing/fixtures';
 import type { PageForm, PageFormField } from './page-form.types';
 import { PageFormModel } from './page-form-model';

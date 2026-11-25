@@ -4,7 +4,7 @@ import {
   FollowAssignedStoryDef,
   MainMenuScreenDef,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
 import { Browser } from './browser';
 import type { BrowserPage } from './browser-page';
 import { ExampleWebFixture } from './example-web.fixture';

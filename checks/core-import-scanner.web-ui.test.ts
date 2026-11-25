@@ -293,7 +293,7 @@ describe('CoreImportScanner — корень страничного канала
 });
 
 describe('CoreImportScanner — привязка примера (packages/web-ui/testing/)', () => {
-  const BINDING = 'packages/web-ui/testing/example/example-pages.arch.ts';
+  const BINDING = 'packages/web-ui/testing/text-views/example-pages.views.ts';
 
   it('разрешены граф, сборка ArchApp, пример, помощники, ядро и канал по имени входа', () => {
     const text = [
@@ -309,6 +309,7 @@ describe('CoreImportScanner — привязка примера (packages/web-ui
       "import { TaskListScreenDef } from 'dmg-ui/testing';",
       "import { T0 } from 'dmg-ui/testing/fixtures';",
       "import { PageViews } from 'dmg-ui/web-ui';",
+      "import { ExamplePagesUiAppDef } from 'dmg-ui/example';",
       "import { TaskLines } from './task-lines';",
     ].join('\n');
 

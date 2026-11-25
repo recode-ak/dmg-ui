@@ -26,10 +26,11 @@ import {
   TaskEvents,
   UserErrors,
 } from 'dmg-core/testing/example';
+import { ExampleDialogUiAppDef } from 'dmg-ui/example';
 import { ApiAppDispatch, type UcDispatch, type UcRequest } from 'dmg-ui/server';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import { ExampleDialogUiAppDef, MemoryMessenger } from '../../testing';
+import { MemoryMessenger } from '../../testing';
 import {
   MAX_PEER_LENGTH,
   MAX_SIGNAL_ID,

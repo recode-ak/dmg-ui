@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { InstanceView } from 'dmg-ui';
-import { LIST_ID, TASK_A } from 'dmg-ui/testing';
-import { examplePagesViews } from '../../testing';
+import { LIST_ID, TASK_A } from 'dmg-ui/example';
+import { examplePagesViews } from '../../testing/text-views/example-pages.views';
 import { ViewCell } from '../client/view-cell';
 import type { PageTextTarget } from './page-region-presenter.types';
 import { PageRenderer } from './page-renderer';

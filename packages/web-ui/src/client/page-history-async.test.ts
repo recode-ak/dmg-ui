@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AddressJson } from 'dmg-ui';
-import { ASSIGNED_ID, CARD_ID, LIST_ID, TASK_A } from 'dmg-ui/testing';
+import { ASSIGNED_ID, CARD_ID, LIST_ID, TASK_A } from 'dmg-ui/example';
 import { MemoryPageHistory } from '../../testing';
 import type { PageSlotJson, PageSnapshot } from './page-client.types';
 import { PageHistory } from './page-history';

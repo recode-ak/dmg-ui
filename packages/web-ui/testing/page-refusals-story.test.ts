@@ -7,25 +7,23 @@ import {
   useTempDir,
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
-import { ApiAppDispatch, type PersonPlaces, UiServer } from 'dmg-ui/server';
 import {
   CARD_ID,
+  ExamplePagesUiAppDef,
   ExampleUiSetDef,
   exampleCodes,
+  examplePagesRoutes,
   LIST_ID,
-  MemoryUiObserver,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
+import { ApiAppDispatch, type PersonPlaces, UiServer } from 'dmg-ui/server';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { PageClient } from '../src/client/page-client';
 import { PageText } from '../src/client/page-text';
 import { PageHost } from '../src/server/page-host';
 import { PageWire } from '../src/wire/page-wire';
 import type { PageServerPort, ServerLink } from '../src/wire/page-wire.types';
-import {
-  ExamplePagesUiAppDef,
-  examplePagesRoutes,
-  examplePagesViews,
-} from './index';
+import { examplePagesViews } from './text-views/example-pages.views';
 
 // Пути отказа вкладки через провод: снимок одной личности под токеном другой
 // упирается в сервер (вызывающий — по токену, чужая задача не отдаётся); сообщение сервера не по схеме отказывает

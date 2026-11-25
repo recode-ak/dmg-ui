@@ -510,7 +510,7 @@ describe('UiFileNames (NM-01) — тест рядом', () => {
     });
 
     it('T6: сквозной тест в подкаталоге testing — нарушение', () => {
-      const path = 'pkg/testing/example/whatever.test.ts';
+      const path = 'pkg/testing/limits/whatever.test.ts';
       const found = run(plus(test(path)), layout);
 
       has(found, path, 'NM-01 тест', '«whatever.test.ts» без файла рядом');

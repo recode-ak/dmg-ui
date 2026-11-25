@@ -1,4 +1,4 @@
-import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { ExampleUiSetDef } from 'dmg-ui/example';
 import { type PageClient, PageFormModel, type PageWire } from 'dmg-ui/web-ui';
 import * as v from 'valibot';
 

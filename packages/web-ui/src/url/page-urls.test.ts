@@ -13,13 +13,14 @@ import {
 } from 'dmg-ui';
 import {
   AssignedTasksScreenDef,
+  ExamplePagesUiAppDef,
+  examplePagesRoutes,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
 import * as v from 'valibot';
-import { ExamplePagesUiAppDef, examplePagesRoutes } from '../../testing';
 import { RoutedPagesUiAppDef } from '../../testing/routed-pages.ui-app';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { type PageRoute, type PageUrlRejection, PageUrls } from './page-urls';

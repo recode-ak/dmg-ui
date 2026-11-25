@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { err, ok } from 'dmg-core';
 import { MemoryLogger } from 'dmg-core/testing';
-import { ExampleDialogUiAppDef } from 'dmg-ui/chat-ui/testing';
+import { ExampleDialogUiAppDef } from 'dmg-ui/example';
 import { MemoryBotApi } from '../../testing';
 import { TelegramMenu } from './telegram-menu';
 

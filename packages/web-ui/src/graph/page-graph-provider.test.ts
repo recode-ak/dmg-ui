@@ -10,14 +10,14 @@ import {
   UiModuleDef,
   UiSetDef,
 } from 'dmg-ui';
-import { UiGraphProvider } from 'dmg-ui/graph';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
-import * as v from 'valibot';
 import {
-  ExamplePagesArch,
   ExamplePagesUiAppDef,
+  ExampleUiSetDef,
+  ExampleWebArch,
   examplePagesRoutes,
-} from '../../testing';
+} from 'dmg-ui/example';
+import { UiGraphProvider } from 'dmg-ui/graph';
+import * as v from 'valibot';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';
 import { PageGraphProvider } from './page-graph-provider';
@@ -83,7 +83,7 @@ const OtherAppDef = UiAppDef.define({
   },
 });
 
-const graph = () => new AppGraph(ExamplePagesArch).build();
+const graph = () => new AppGraph(ExampleWebArch).build();
 const TASKS = 'examplePages/tasks';
 const ASSIGNED = 'examplePages/assigned';
 const MENU = 'examplePages/menu';
@@ -343,10 +343,10 @@ describe('PageGraphProvider: сборка — броски только стру
 
 describe('PageGraphProvider: документ', () => {
   test('два прогона на независимых сборках дают одну строку', () => {
-    const first = new AppGraph(ExamplePagesArch)
+    const first = new AppGraph(ExampleWebArch)
       .document(PAGE_VERSION)
       .serialize();
-    const again = new AppGraph(ExamplePagesArch)
+    const again = new AppGraph(ExampleWebArch)
       .document(PAGE_VERSION)
       .serialize();
 
@@ -354,7 +354,7 @@ describe('PageGraphProvider: документ', () => {
   });
 
   test('поставщики документа — dmg-core, dmg-ui и dmg-ui-pages', () => {
-    const names = new AppGraph(ExamplePagesArch)
+    const names = new AppGraph(ExampleWebArch)
       .document(PAGE_VERSION)
       .toJSON()
       .providers.map((provider) => provider.name);

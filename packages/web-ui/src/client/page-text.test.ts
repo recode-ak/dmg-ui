@@ -3,17 +3,15 @@ import { ok } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
 import {
   ASSIGNED_ID,
+  ExamplePagesUiAppDef,
   exampleCodes,
-  MemoryUiObserver,
+  examplePagesRoutes,
   TASK_A,
   TASK_B,
   TaskCardScreenDef,
-} from 'dmg-ui/testing';
-import {
-  ExamplePagesUiAppDef,
-  examplePagesRoutes,
-  examplePagesViews,
-} from '../../testing';
+} from 'dmg-ui/example';
+import { MemoryUiObserver } from 'dmg-ui/testing';
+import { examplePagesViews } from '../../testing/text-views/example-pages.views';
 import type {
   ClientMessage as ClientMsg,
   ServerMessage as ServerMsg,

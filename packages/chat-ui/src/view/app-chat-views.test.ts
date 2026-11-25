@@ -1,18 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import { UiIds } from 'dmg-ui';
 import {
+  ExampleDialogUiAppDef,
   ExampleUiSetDef,
+  ExampleWindowedUiAppDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskListScreenDef,
-  UserCardScreenDef,
-} from 'dmg-ui/testing';
-import {
-  ExampleDialogUiAppDef,
-  ExampleWindowedUiAppDef,
   todoChatViews,
+  UserCardScreenDef,
   usersChatViews,
-} from '../../testing';
+} from 'dmg-ui/example';
 import { AppChatViews } from './app-chat-views';
 import { ScreenPresenter } from './screen-presenter';
 

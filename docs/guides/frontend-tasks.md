@@ -14,7 +14,7 @@
 
 **Как читать блоки кода.** Первая строка блока — `// из: путь`: остальные строки взяты из этого файла по порядку, дословно; пропуски строк допустимы. Сочинённого кода в гайде нет: чего нет в файле, того нет и в блоке.
 
-Тексты «в беседе», «в Telegram», «на странице» — те, что показывают тесты и [примеры](../../examples/tg-bot/README.md) ([web](../../examples/web/README.md)); они даны для понимания, а не как контракт: контракт — исходы и вид экрана ядра.
+Тексты «в беседе», «в Telegram», «на странице» — те, что показывают тесты и [примеры](../../packages/example/src/runners/tg-bot/README.md) ([web](../../packages/example/src/runners/web/README.md)); они даны для понимания, а не как контракт: контракт — исходы и вид экрана ядра.
 
 ---
 
@@ -154,7 +154,7 @@ export const FollowAssignedStoryDef = StoryDef.define({
 ```
 
 ```ts
-// из: packages/chat-ui/testing/example/example-trimmed.ui-app.ts
+// из: packages/example/src/runners/dialog/example-trimmed.ui-app.ts
 stories: [
   StartWorkStoryDef,
   PlanTasksStoryDef,
@@ -205,7 +205,7 @@ tasks: {
 **Как объявить.** Для беседы объявлять нечего: окна в ней нет, карточка — следующий экран. Для страницы окно — размещение экрана в области `modal`; приложение и умолчание канала («из корня — в панель») не меняются, размещение передаёт сборка вкладки:
 
 ```ts
-// из: packages/web-ui/testing/example/example-window.placements.ts
+// из: packages/example/src/runners/web/example-window.placements.ts
 export const exampleWindowPlacements: readonly PagePlacement[] = [
   { screen: TaskCardScreenDef, region: 'modal' },
 ];

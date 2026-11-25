@@ -16,19 +16,17 @@ import {
 import { Conversations, MemoryConversationStore } from 'dmg-ui/chat-ui';
 import {
   ExampleDialogUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
   exampleDialogViews,
-} from 'dmg-ui/chat-ui/testing';
+} from 'dmg-ui/example';
 import {
   ApiAppDispatch,
   type PersonPlaces,
   type UcDispatch,
   UiServer,
 } from 'dmg-ui/server';
-import {
-  ExampleUiSetDef,
-  exampleCodes,
-  MemoryUiObserver,
-} from 'dmg-ui/testing';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { TelegramMessenger, TelegramUpdates } from 'dmg-ui/tg-bot';
 import { type BotChatLine, MemoryBotApi, TestUpdates } from '.';

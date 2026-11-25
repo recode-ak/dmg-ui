@@ -100,13 +100,13 @@ bun run check
 
 `check` запускает biome, `tsc --noEmit` и `bun test` (файлы `*.browser.test.ts` обычный `bun test` пропускает). Браузерные тесты — отдельно, `bun run browser`: запуск, Chrome и когда они нужны — [Web-канал, раздел 15](docs/guides/web-channel.md#15-как-тестировать). Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.5.1`), сверяет их с `exports` установленного пакета, импортирует одиннадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
-Запускаемый пример на живом Telegram — [`examples/tg-bot`](examples/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
+Запускаемый пример на живом Telegram — [`packages/example/src/runners/tg-bot`](packages/example/src/runners/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
 
-Запускаемый пример в браузере — [`examples/web`](examples/web/README.md) (вход `dmg-ui/web-ui`, гайд [Web-канал](docs/guides/web-channel.md), [D-UI-85](docs/decisions.md)): `bun run example:web` (сервер на `Bun.serve`, страница на DOM без фреймворка, два человека, «медленный сервер»); чек-лист ручной проверки — в README примера. Без зависимостей сверх пакета.
+Запускаемый пример в браузере — [`packages/example/src/runners/web`](packages/example/src/runners/web/README.md) (вход `dmg-ui/web-ui`, гайд [Web-канал](docs/guides/web-channel.md), [D-UI-85](docs/decisions.md)): `bun run example:web` (сервер на `Bun.serve`, страница на DOM без фреймворка, два человека, «медленный сервер»); чек-лист ручной проверки — в README примера. Без зависимостей сверх пакета.
 
 ## Статус
 
-Версия `0.5.1` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Что сломано для потребителя: в `0.5.1` (с `0.5.0`) — ничего, патч примера `examples/web` ([D-UI-115](docs/decisions.md)); в `0.5.0` (с `0.4.0`) — [D-UI-114](docs/decisions.md), в `0.4.0` (с `0.3.2`) — [D-UI-109](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
+Версия `0.5.1` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Что сломано для потребителя: в `0.5.1` (с `0.5.0`) — ничего, патч примера `packages/example/src/runners/web` ([D-UI-115](docs/decisions.md)); в `0.5.0` (с `0.4.0`) — [D-UI-114](docs/decisions.md), в `0.4.0` (с `0.3.2`) — [D-UI-109](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
 
 ## Лицензия
 

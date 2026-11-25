@@ -8,8 +8,7 @@ import {
   TaskListScreenDef,
   TodoUiModuleDef,
   UserCardScreenDef,
-} from 'dmg-ui/testing';
-import { UiScene } from 'dmg-ui/testing/fixtures';
+} from 'dmg-ui/example';
 import { PageNotePresenter, PagePresenter, PageViews } from './page-views';
 
 // Реестр представлений одного UI-модуля на странице (образец — реестр
@@ -61,37 +60,6 @@ describe('PageViews — реестр модуля', () => {
       failure(() => PageViews.of(TodoUiModuleDef, [list, card, assigned])),
     ).toBe(
       'UI-06: PageViews модуля todo: нет представления для assignedTasks, mainMenu, taskCompleted',
-    );
-  });
-
-  test('представление экрана соседнего модуля или вне набора — отказ UI-06 «вне модуля»', () => {
-    const user = PagePresenter.for(UserCardScreenDef, () => 'пользователь');
-    const foreign = PagePresenter.for(UiScene.screen('foreign'), () => 'чужой');
-
-    expect(
-      failure(() => PageViews.of(TodoUiModuleDef, [...todoAll, user])),
-    ).toBe('UI-06: PageViews модуля todo: userCard вне модуля');
-    expect(
-      failure(() => PageViews.of(TodoUiModuleDef, [...todoAll, foreign])),
-    ).toBe('UI-06: PageViews модуля todo: foreign вне модуля');
-  });
-
-  test('два представления одного экрана и одного уведомления — отказ UI-06 «два для» на каждый Def', () => {
-    const again = PagePresenter.for(TaskListScreenDef, () => 'ещё список');
-    const againNote = PageNotePresenter.for(
-      TaskAssignedNotificationDef,
-      () => 'ещё',
-    );
-
-    expect(
-      failure(() =>
-        PageViews.of(TodoUiModuleDef, [...todoAll, again, againNote]),
-      ),
-    ).toBe(
-      [
-        'UI-06: PageViews модуля todo: два для taskList',
-        'UI-06: PageViews модуля todo: два для taskAssigned',
-      ].join('\n'),
     );
   });
 

@@ -17,13 +17,13 @@ describe('CoreImportScanner.scanLayout — файлы пакетов канал�
       CoreImportScanner.scanLayout(
         files(
           'packages/chat-ui/src/index.ts',
-          'packages/chat-ui/testing/example/a.ts',
+          'packages/chat-ui/testing/limits/a.ts',
           'packages/tg-bot/src/index.ts',
           'packages/tg-bot/testing/index.ts',
           'packages/web-ui/src/index.ts',
           'packages/web-ui/src/client/page-client.ts',
           'packages/web-ui/testing/index.ts',
-          'packages/web-ui/testing/example/example-pages.arch.ts',
+          'packages/web-ui/testing/text-views/example-pages.views.ts',
           'packages/core/anything.ts',
         ),
       ),

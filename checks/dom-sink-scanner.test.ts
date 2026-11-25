@@ -6,12 +6,14 @@ import type { Violation } from './violation.types';
 
 // Строки людей (названия задач, замечания, заметки, тексты уведомлений)
 // попадают в DOM только текстом. Приёмники разбора разметки и исполнения
-// строки в коде примера для браузера и клиента страничного пакета запрещены:
+// строки в канале web учебного проекта (раннер `web` и фронт) и клиенте
+// страничного пакета запрещены:
 // без них текст людей не может стать разметкой или кодом. Тесты не
 // проверяются; член чужого объекта и часть имени — не нарушение.
 
 const ROOT = resolve(import.meta.dir, '..');
-const EXAMPLE = 'examples/web/src/client/x.ts';
+const WEB = 'packages/example/src/runners/web';
+const EXAMPLE = `${WEB}/client/x.ts`;
 const PAGE_CLIENT = 'packages/web-ui/src/client/x.ts';
 
 const scan = (text: string, path: string): Violation[] =>
@@ -57,15 +59,24 @@ describe('DomSinkScanner — приёмники разметки и исполн
 describe('DomSinkScanner — зона проверки', () => {
   const line = 'el.innerHTML = value;';
 
-  for (const dir of ['client', 'view', 'server', 'common']) {
-    it(`examples/web/src/${dir}/ проверяется целиком`, () => {
-      expect(scan(line, `examples/web/src/${dir}/x.ts`)).toHaveLength(1);
+  for (const dir of ['client', 'view', 'server', 'common', 'testing']) {
+    it(`раннер web: ${dir}/ проверяется целиком`, () => {
+      expect(scan(line, `${WEB}/${dir}/x.ts`)).toHaveLength(1);
     });
   }
 
-  it('корневой файл examples/web/src/ проверяется', () => {
-    expect(scan(line, 'examples/web/src/x.ts')).toHaveLength(1);
+  it('оболочка в корне раннера web проверяется', () => {
+    expect(scan(line, `${WEB}/example-web-views.ts`)).toHaveLength(1);
   });
+
+  for (const path of [
+    'packages/example/src/frontend/todo/web/shared/task-list.view.ts',
+    'packages/example/src/frontend/web-kit/example-screen-view.ts',
+  ]) {
+    it(`фронт учебного проекта ${path} проверяется`, () => {
+      expect(scan(line, path)).toHaveLength(1);
+    });
+  }
 
   it('вложенный каталог клиента страничного пакета проверяется', () => {
     expect(scan(line, 'packages/web-ui/src/client/deep/x.ts')).toHaveLength(1);
@@ -76,7 +87,8 @@ describe('DomSinkScanner — зона проверки', () => {
     'packages/web-ui/src/view/x.ts',
     'packages/core/src/x.ts',
     'packages/chat-ui/src/x.ts',
-    'examples/tg-bot/src/x.ts',
+    'packages/example/src/runners/tg-bot/x.ts',
+    'packages/example/src/platform/ui/x.ts',
     'checks/x.ts',
     'acceptance/x.ts',
   ]) {
@@ -86,8 +98,8 @@ describe('DomSinkScanner — зона проверки', () => {
   }
 
   for (const path of [
-    'examples/web/src/client/x.test.ts',
-    'examples/web/src/view/x.test.ts',
+    `${WEB}/client/x.test.ts`,
+    `${WEB}/view/x.test.ts`,
     'packages/web-ui/src/client/x.test.ts',
   ]) {
     it(`тест ${path} не проверяется`, () => {
@@ -121,18 +133,19 @@ describe('DomSinkScanner — не приёмники', () => {
 });
 
 describe('DomSinkScanner — реальный репо', () => {
-  it('на packages и examples — ноль нарушений', () => {
-    const files = [
-      ...SourceTree.read(ROOT, 'packages'),
-      ...SourceTree.read(ROOT, 'examples'),
-    ];
-
-    expect(new DomSinkScanner().scan(files)).toEqual([]);
+  it('на packages — ноль нарушений', () => {
+    expect(
+      new DomSinkScanner().scan(SourceTree.read(ROOT, 'packages')),
+    ).toEqual([]);
   });
 
-  it('клиент packages/web-ui/src/client/ не пуст: проверка не вхолостую', () => {
-    const files = SourceTree.read(ROOT, 'packages/web-ui/src/client');
-
-    expect(files.length).toBeGreaterThan(0);
-  });
+  for (const dir of [
+    'packages/web-ui/src/client',
+    `${WEB}/client`,
+    'packages/example/src/frontend/web-kit',
+  ]) {
+    it(`${dir}/ не пуст: проверка не вхолостую`, () => {
+      expect(SourceTree.read(ROOT, dir).length).toBeGreaterThan(0);
+    });
+  }
 });

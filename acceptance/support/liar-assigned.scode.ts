@@ -7,7 +7,7 @@ import {
   ScreenCode,
   type StateOf,
 } from 'dmg-ui';
-import { AssignedTasksScreenDef } from 'dmg-ui/testing';
+import { AssignedTasksScreenDef } from 'dmg-ui/example';
 
 type Assigned = typeof AssignedTasksScreenDef;
 

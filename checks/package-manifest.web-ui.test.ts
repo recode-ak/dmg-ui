@@ -37,9 +37,9 @@ import type {
 // текстовая страница, сообщения, провод в памяти, мост и конец сокета,
 // переподключатель и часы вкладки, ворота соединения, кодек адреса в URL,
 // модель формы области, привязка истории вкладки — в `dmg-ui/web-ui`;
-// привязка учебного примера к каналу, подставные часы и история — в
-// `dmg-ui/web-ui/testing`. Внутренние помощники клиента, представлений,
-// сервера, истории и кодека адреса наружу не выходят.
+// подставные часы и история — в `dmg-ui/web-ui/testing`; привязка учебного
+// проекта к каналу — вход `dmg-ui/example`. Внутренние помощники клиента,
+// представлений, сервера, истории и кодека адреса наружу не выходят.
 
 const WEB_UI = [
   'AppPageViews',
@@ -203,16 +203,10 @@ export type WebUiUrlTypes = [
 ];
 
 describe('вход dmg-ui/web-ui/testing', () => {
-  it('состав — привязка учебного примера к страничному каналу, его субъект на проводе, подставные часы и история', async () => {
+  it('состав — подставные часы и история вкладки', async () => {
     expect(Object.keys(await import('dmg-ui/web-ui/testing')).sort()).toEqual([
-      'ExamplePagesArch',
-      'ExamplePagesUiAppDef',
       'ManualPageClock',
       'MemoryPageHistory',
-      'examplePagesRoutes',
-      'examplePagesViews',
-      'exampleSubjectWire',
-      'exampleWindowPlacements',
     ]);
   });
 });

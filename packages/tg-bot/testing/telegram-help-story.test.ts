@@ -35,21 +35,19 @@ import {
 } from 'dmg-ui/chat-ui';
 import {
   ExampleDialogUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
   exampleDialogViews,
-} from 'dmg-ui/chat-ui/testing';
+  FollowAssignedStoryDef,
+  MainMenuScreenDef,
+} from 'dmg-ui/example';
 import {
   ApiAppDispatch,
   type PersonPlaces,
   type UcDispatch,
   UiServer,
 } from 'dmg-ui/server';
-import {
-  ExampleUiSetDef,
-  exampleCodes,
-  FollowAssignedStoryDef,
-  MainMenuScreenDef,
-  MemoryUiObserver,
-} from 'dmg-ui/testing';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { TelegramMessenger, TelegramUpdates } from 'dmg-ui/tg-bot';
 import * as v from 'valibot';

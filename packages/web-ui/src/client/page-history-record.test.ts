@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ASSIGNED_ID, CARD_ID, LIST_ID, TASK_A } from 'dmg-ui/testing';
+import { ASSIGNED_ID, CARD_ID, LIST_ID, TASK_A } from 'dmg-ui/example';
 import type { PageSlotJson, PageSnapshot } from './page-client.types';
 import {
   PAGE_HISTORY_VERSION,

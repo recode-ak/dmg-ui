@@ -55,7 +55,13 @@
       ]
     },
     {
-      "includes": ["packages/*/src/**", "!**/*.test.ts"],
+      "includes": [
+        "packages/*/src/**",
+        "!**/*.test.ts",
+        "!packages/example/src/runners/tg-bot/main.ts",
+        "!packages/example/src/runners/tg-bot/probe.ts",
+        "!packages/example/src/runners/web/server/main.ts"
+      ],
       "plugins": ["./node_modules/dmg-core/biome-plugins/arc-09-no-env.grit"]
     }
   ]

@@ -2,213 +2,189 @@ import { describe, expect, it } from 'bun:test';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CoreImportScanner } from './core-import-scanner';
-import { SourceFile, SourceTree } from './source-tree';
+import { SourceFile } from './source-tree';
 
-// Зоны примера для браузера (`examples/web/src/`): общее (`common/`), модели
-// представлений (`view/`), клиент (`client/`), сервер (`server/`). `common/`,
-// `view/` и `client/` едут в сборку для браузера: ни `node:*`, ни `bun:*`, ни
-// серверных входов платформы. Клиент видит `view/` и `common/`; `view/` —
-// только себя и `common/`; сервер видит `common/` и `view/` (реестр для
-// графа), но не клиента — иначе корневая программа потянула бы DOM-код.
-// Чужие пакеты (библиотека Telegram, каналы-соседи) не видит никто.
+// Канал web учебного проекта едет в сборку для браузера: виды модулей
+// (`frontend/<m>/web/`), kit (`frontend/web-kit/`) и раннер `web` — оболочка
+// в корне, общее (`common/`), DOM-помощники (`view/`) и клиент (`client/`). Ни
+// `node:*`, ни `bun:*`, ни серверных входов платформы. Раннер `web` делит
+// клиент и сервер: клиент не видит сервер и тестовую фикстуру, сервер и
+// фикстура не видят клиента — иначе корневая программа потянула бы DOM-код;
+// `common/` видит только себя. Чужие каналы (Telegram, диалог) не видит никто.
 
-const WEB = 'examples/web/src';
+const P = 'packages/example/src';
+const WEB = `${P}/runners/web`;
 const COMMON = `${WEB}/common/example-people.const.ts`;
 const VIEW = `${WEB}/view/region-frame.ts`;
 const CLIENT = `${WEB}/client/example-page.ts`;
+const SHELL = `${WEB}/example-pages.ui-app.ts`;
 const SERVER = `${WEB}/server/example-web-server.ts`;
+const FIXTURE = `${WEB}/testing/example-world.ts`;
+const FRONT = `${P}/frontend/todo/web/shared/task-list.view.ts`;
 
 const scan = (text: string, path: string) =>
   CoreImportScanner.standard().scan([SourceFile.of(path, text)]);
 
-const BROWSER_ZONES: [string, string][] = [
-  ['common', COMMON],
-  ['view', VIEW],
-  ['client', CLIENT],
-];
+/** Каждый спецификатор в файле — ровно одно нарушение. */
+const eachViolates = (path: string, specs: readonly string[]) => {
+  for (const spec of specs) {
+    expect(scan(`import { a } from '${spec}';`, path)).toHaveLength(1);
+  }
+};
 
-const FOREIGN = [
-  "import { a } from 'dmg-ui/chat-ui';",
-  "import { a } from 'dmg-ui/tg-bot';",
-  "import { a } from 'dmg-ui/chat-ui/testing';",
-];
+/** Чужие каналы: их не видит ни один каталог канала web. */
+const FOREIGN = ['dmg-ui/chat-ui', 'dmg-ui/tg-bot', 'dmg-ui/chat-ui/testing'];
 
-describe('CoreImportScanner — каталоги примера, едущие в браузер', () => {
+describe('CoreImportScanner — канал web учебного проекта, едущий в браузер', () => {
+  const BROWSER_ZONES: [string, string][] = [
+    ['common', COMMON],
+    ['view', VIEW],
+    ['client', CLIENT],
+    ['оболочка', SHELL],
+    ['вид модуля todo', FRONT],
+    ['вид модуля users', `${P}/frontend/users/web/view-user/user-card.view.ts`],
+    ['web-kit', `${P}/frontend/web-kit/example-screen-view.ts`],
+  ];
+
   for (const [name, path] of BROWSER_ZONES) {
-    for (const text of [
-      "import fs from 'node:fs';",
-      "import fs from 'fs';",
-      "import { a } from 'dmg-core/app';",
-      "import { a } from 'dmg-core/arch';",
-      "import { a } from 'dmg-core/testing';",
-      "import { UiServer } from 'dmg-ui/server';",
-      "import { a } from 'dmg-ui/graph';",
-      "import { a } from '../server/x';",
-      "import { a } from '../../../tg-bot/src/x';",
-    ]) {
-      it(`${text} в ${name}/ — нарушение`, () => {
-        expect(scan(text, path)).toHaveLength(1);
-      });
-    }
+    it(`${name}: среда, серверные входы, граф, тестовые входы и чужие каналы — нарушения`, () => {
+      eachViolates(path, [
+        'node:fs',
+        'fs',
+        'dmg-core/app',
+        'dmg-core/arch',
+        'dmg-ui/server',
+        'dmg-ui/graph',
+        'dmg-core/testing',
+        ...FOREIGN,
+      ]);
+    });
   }
 
-  it('клиент: `../client/x` из view/ и common/ — нарушение', () => {
-    expect(scan("import { a } from '../client/x';", VIEW)).toHaveLength(1);
-    expect(scan("import { a } from '../client/x';", COMMON)).toHaveLength(1);
+  it('view/, client/ и оболочка не видят сервер и тестовую фикстуру раннера', () => {
+    eachViolates(VIEW, ['../server/x', '../testing/example-world']);
+    eachViolates(CLIENT, ['../server/x', '../testing/example-world']);
+    eachViolates(SHELL, ['./server/x', './testing/example-world']);
   });
 
-  it('view/ из common/ — нарушение: общий каталог не знает никого', () => {
-    expect(scan("import { a } from '../view/x';", COMMON)).toHaveLength(1);
+  it('клиент не видят view/, common/ и оболочка', () => {
+    eachViolates(VIEW, ['../client/x']);
+    eachViolates(COMMON, ['../client/x']);
+    eachViolates(SHELL, ['./client/x']);
   });
 
-  it('разрешённый набор view/: себя, common/, valibot, dmg-core, dmg-ui, web-ui и тестовые входы учебного домена', () => {
-    const text = [
-      "import * as v from 'valibot';",
-      "import { Result } from 'dmg-core';",
-      "import { ScreenRuntime } from 'dmg-ui';",
-      "import { PageClient } from 'dmg-ui/web-ui';",
-      "import { ListTasksUcDef } from 'dmg-core/testing/example';",
-      "import { taskRow } from 'dmg-ui/testing';",
-      "import { examplePagesRoutes } from 'dmg-ui/web-ui/testing';",
-      "import { RegionModel } from './region-model.types';",
-      "import { EXAMPLE_PEOPLE } from '../common/example-people.const';",
-    ].join('\n');
-
-    expect(scan(text, VIEW)).toEqual([]);
-  });
-
-  it('разрешённый набор client/: то же, что у view/, плюс view/ и common/', () => {
-    const text = [
-      "import * as v from 'valibot';",
-      "import { Result } from 'dmg-core';",
-      "import { ScreenRuntime } from 'dmg-ui';",
-      "import { PageClient } from 'dmg-ui/web-ui';",
-      "import { ListTasksUcDef } from 'dmg-core/testing/example';",
-      "import { taskRow } from 'dmg-ui/testing';",
-      "import { examplePagesRoutes } from 'dmg-ui/web-ui/testing';",
-      "import { dom } from './dom-element';",
-      "import { RegionFrame } from '../view/region-frame';",
-      "import { EXAMPLE_PEOPLE } from '../common/example-people.const';",
-    ].join('\n');
-
-    expect(scan(text, CLIENT)).toEqual([]);
-  });
-
-  it('разрешённый набор common/: только соседи и valibot', () => {
+  it('common/ видит только себя и valibot', () => {
     const text = [
       "import * as v from 'valibot';",
       "import { EXAMPLE_REGIONS } from './example-web.const';",
     ].join('\n');
 
     expect(scan(text, COMMON)).toEqual([]);
+    eachViolates(COMMON, ['../view/x', 'dmg-ui']);
   });
-});
 
-describe('CoreImportScanner — сервер примера (examples/web/src/server/)', () => {
-  for (const text of [
-    "import fs from 'node:fs';",
-    "import { serve } from 'bun:ffi';",
-    "import { App } from 'dmg-core/app';",
-    "import { ArchChecker } from 'dmg-core/arch';",
-    "import { ExampleApp } from 'dmg-core/testing/example';",
-    "import { UiServer } from 'dmg-ui/server';",
-    "import { UiGraphProvider } from 'dmg-ui/graph';",
-    "import { a } from '../view/x';",
-    "import { a } from '../common/x';",
-  ]) {
-    it(`${text} — чисто`, () => {
-      expect(scan(text, SERVER)).toEqual([]);
-    });
-  }
-
-  it('разрешённый набор сервера целиком — чисто', () => {
+  it('разрешённый набор view/: себя, common/, kit, оболочку, описание, valibot, dmg-core, dmg-ui, web-ui и учебный домен', () => {
     const text = [
       "import * as v from 'valibot';",
       "import { Result } from 'dmg-core';",
-      "import { ExampleApp } from 'dmg-core/testing';",
       "import { ScreenRuntime } from 'dmg-ui';",
+      "import { PageClient } from 'dmg-ui/web-ui';",
+      "import { ListTasksUcDef } from 'dmg-core/testing/example';",
+      "import { ControlIds } from './control-ids';",
+      "import { EXAMPLE_PEOPLE } from '../common/example-people.const';",
+      "import { RegionModel } from '../../../frontend/web-kit/region-model.types';",
+      "import { exampleWebViews } from '../example-web-views';",
+      "import { LIST_ID } from '../../../platform/ui';",
+    ].join('\n');
+
+    expect(scan(text, VIEW)).toEqual([]);
+  });
+
+  it('разрешённый набор client/: то же, что у view/, плюс view/ и сборка кода', () => {
+    const text = [
+      "import { PageClient } from 'dmg-ui/web-ui';",
+      "import { dom } from './dom-element';",
+      "import { RegionFrame } from '../view/region-frame';",
+      "import { exampleCodes } from '../../example-codes';",
+      "import { ExamplePagesUiAppDef } from '../example-pages.ui-app';",
+    ].join('\n');
+
+    expect(scan(text, CLIENT)).toEqual([]);
+  });
+
+  it('вид модуля web: valibot, dmg-core, dmg-ui, web-ui и учебный домен — чисто, тестовые входы — нарушение', () => {
+    const text = [
+      "import * as v from 'valibot';",
+      "import { Result } from 'dmg-core';",
+      "import { ScreenDef } from 'dmg-ui';",
+      "import { PageViews } from 'dmg-ui/web-ui';",
+      "import { ListTasksUcDef } from 'dmg-core/testing/example';",
+    ].join('\n');
+
+    expect(scan(text, FRONT)).toEqual([]);
+    eachViolates(FRONT, ['dmg-ui/testing', 'dmg-ui/web-ui/testing']);
+  });
+});
+
+describe('CoreImportScanner — сервер и фикстура раннера web', () => {
+  it('разрешённый набор сервера целиком — чисто', () => {
+    const text = [
+      "import fs from 'node:fs';",
+      "import { serve } from 'bun:ffi';",
+      "import * as v from 'valibot';",
+      "import { App } from 'dmg-core/app';",
+      "import { ArchChecker } from 'dmg-core/arch';",
+      "import { ExampleApp } from 'dmg-core/testing';",
+      "import { ListTasksUcDef } from 'dmg-core/testing/example';",
+      "import { UiServer } from 'dmg-ui/server';",
+      "import { UiGraphProvider } from 'dmg-ui/graph';",
       "import { PageHost } from 'dmg-ui/web-ui';",
-      "import { examplePagesRoutes } from 'dmg-ui/web-ui/testing';",
-      "import { ExampleArch } from 'dmg-ui/testing';",
+      "import { ManualPageClock } from 'dmg-ui/web-ui/testing';",
+      "import { ExamplePreview } from 'dmg-ui/testing';",
       "import { fixtures } from 'dmg-ui/testing/fixtures';",
       "import { ExampleWeb } from './example-web';",
+      "import { a } from '../view/x';",
+      "import { a } from '../common/x';",
+      "import { a } from '../example-web-views';",
+      "import { exampleCodes } from '../../example-codes';",
     ].join('\n');
 
     expect(scan(text, SERVER)).toEqual([]);
   });
 
-  it('клиент примера — нарушение: серверу DOM-код не нужен', () => {
-    const found = scan("import { a } from '../client/x';", SERVER);
-
-    expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ file: SERVER, line: 1 });
-  });
-
-  it('относительный выход за каталог примера — нарушение', () => {
-    expect(
-      scan("import { a } from '../../../tg-bot/src/x';", SERVER),
-    ).toHaveLength(1);
-  });
-});
-
-describe('CoreImportScanner — чужие пакеты в примере для браузера', () => {
-  const zones: [string, string][] = [...BROWSER_ZONES, ['server', SERVER]];
-
-  for (const [name, path] of zones) {
-    for (const text of FOREIGN) {
-      it(`${text} в ${name}/ — нарушение`, () => {
-        expect(scan(text, path)).toHaveLength(1);
-      });
-    }
-  }
-});
-
-describe('пример не устанавливается', () => {
-  const ROOT = resolve(import.meta.dir, '..');
-
-  it('своего package.json у примера нет', () => {
-    expect(existsSync(resolve(ROOT, 'examples/web/package.json'))).toBe(false);
-  });
-});
-
-describe('CoreImportScanner — общая фикстура примера (examples/web/src/testing/)', () => {
-  const FIXTURE = `${WEB}/testing/example-world.ts`;
-
-  it('разрешённый набор — чисто', () => {
+  it('разрешённый набор фикстуры — чисто', () => {
     const text = [
       "import { join } from 'node:path';",
       "import { test } from 'bun:test';",
-      "import * as v from 'valibot';",
       "import { AwaitingBus } from 'dmg-core/testing';",
-      "import { ExampleApp } from 'dmg-core/testing/example';",
       "import { UiServer } from 'dmg-ui/server';",
       "import { PageHost } from 'dmg-ui/web-ui';",
       "import { PLACES } from '../server/example-web.const';",
       "import { EXAMPLE_PEOPLE } from '../common/example-people.const';",
-      "import { exampleWebPlacements } from '../view/example-web.placements';",
+      "import { exampleWebPlacements } from '../example-web.placements';",
     ].join('\n');
 
     expect(scan(text, FIXTURE)).toEqual([]);
   });
 
-  it('клиент примера — нарушение', () => {
-    expect(scan("import { a } from '../client/x';", FIXTURE)).toHaveLength(1);
-  });
+  const NODE_ZONES: [string, string][] = [
+    ['сервер', SERVER],
+    ['фикстура', FIXTURE],
+  ];
 
-  for (const text of FOREIGN) {
-    it(`${text} — нарушение`, () => {
-      expect(scan(text, FIXTURE)).toHaveLength(1);
+  for (const [name, path] of NODE_ZONES) {
+    it(`${name}: клиент раннера и чужие каналы — нарушения`, () => {
+      eachViolates(path, ['../client/x', ...FOREIGN]);
     });
   }
 });
 
-describe('CoreImportScanner — реальный пример', () => {
-  it('на examples/web — ноль нарушений', () => {
-    const files = SourceTree.read(
-      resolve(import.meta.dir, '..'),
-      'examples/web',
-    );
+describe('учебный проект не устанавливается', () => {
+  const ROOT = resolve(import.meta.dir, '..');
 
-    expect(CoreImportScanner.standard().scan(files)).toEqual([]);
+  it('своего package.json у проекта нет', () => {
+    expect(existsSync(resolve(ROOT, 'packages/example/package.json'))).toBe(
+      false,
+    );
   });
 });

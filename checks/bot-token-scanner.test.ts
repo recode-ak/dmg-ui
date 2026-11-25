@@ -20,8 +20,8 @@ describe('BotTokenScanner — токен в текстовых файлах', ()
   for (const path of [
     'packages/x/a.ts',
     'docs/a.md',
-    'examples/tg-bot/a.json',
-    'examples/tg-bot/.env.example',
+    'packages/example/src/runners/tg-bot/a.json',
+    'packages/example/src/runners/tg-bot/.env.example',
     'package.json',
     'trace.jsonl',
     'notes.txt',
@@ -119,14 +119,7 @@ describe('BotTokenScanner — реальный репо', () => {
     '.example',
     '.snap',
   ];
-  const dirs = [
-    'packages',
-    'checks',
-    'acceptance',
-    'docs',
-    'examples',
-    'scripts',
-  ];
+  const dirs = ['packages', 'checks', 'acceptance', 'docs', 'scripts'];
 
   test('на реальном репо — ноль нарушений', () => {
     const files = [

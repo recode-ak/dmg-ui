@@ -14,7 +14,7 @@ import {
   type ChatSignalSpec,
   Communities,
 } from 'dmg-ui/chat-ui';
-import { ExampleDialogUiAppDef } from 'dmg-ui/chat-ui/testing';
+import { ExampleDialogUiAppDef } from 'dmg-ui/example';
 import type { UcDispatch, UcRequest } from 'dmg-ui/server';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { TelegramMessenger, TelegramUpdates } from 'dmg-ui/tg-bot';

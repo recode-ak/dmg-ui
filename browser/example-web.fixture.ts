@@ -1,9 +1,9 @@
 import { MemoryLogger } from 'dmg-core/testing';
-import { ExampleWebServer } from '../examples/web/src/server/example-web-server';
-import type { ExampleWebServerHandle } from '../examples/web/src/server/example-web-server.types';
+import { ExampleWebServer } from '../packages/example/src/runners/web/server/example-web-server';
+import type { ExampleWebServerHandle } from '../packages/example/src/runners/web/server/example-web-server.types';
 import type { BrowserPage } from './browser-page';
 
-/** Сервер примера `examples/web` на свободном порту: цель браузерных тестов. */
+/** Сервер раннера `web` учебного проекта на свободном порту: цель браузерных тестов. */
 export class ExampleWebFixture {
   private constructor(private readonly server: ExampleWebServerHandle) {}
 

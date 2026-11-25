@@ -15,27 +15,24 @@ import {
   PlainText,
 } from 'dmg-ui/chat-ui';
 import {
+  ExampleDialogUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
+  exampleDialogViews,
+  TaskAssignedNotificationDef,
+  TaskCompletedNotificationDef,
+  TaskListScreenDef,
+} from 'dmg-ui/example';
+import {
   ApiAppDispatch,
   type PersonPlaces,
   UiNotifier,
   UiServer,
 } from 'dmg-ui/server';
-import {
-  ExampleUiSetDef,
-  exampleCodes,
-  MemoryUiObserver,
-  TaskAssignedNotificationDef,
-  TaskCompletedNotificationDef,
-  TaskListScreenDef,
-} from 'dmg-ui/testing';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import {
-  ExampleDialogUiAppDef,
-  exampleDialogViews,
-  MemoryMessenger,
-  type MessengerEntry,
-} from './index';
+import { MemoryMessenger, type MessengerEntry } from './index';
 
 // Сквозной тест сторис на беседе (TST-09 — единственный; бывший
 // `ui-two-users.test.ts`): пользователи A и B, учебное приложение во

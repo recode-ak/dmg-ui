@@ -15,7 +15,7 @@ const KEY = (names: string) => `\\[\\s*['"\`](?:${names})['"\`]\\s*\\]`;
 
 /**
  * Глобалы браузера и среды: API браузера, которых не видит `tsc`, вне
- * адаптеров клиента и клиента примера; `Bun` и `process` в `web-ui/src`. Голое
+ * адаптеров клиента и DOM-клиента учебного проекта; `Bun` и `process` в `web-ui/src`. Голое
  * имя ловит и ключ `globalThis['…']`, и деструктуризацию; член (`globalThis.x`)
  * — отдельной альтернативой. Не ловит: `globalThis?.x`, `(globalThis as any).x`,
  * алиасы, вычисляемые ключи. Строка и комментарий с именем — нарушение.
@@ -23,9 +23,11 @@ const KEY = (names: string) => `\\[\\s*['"\`](?:${names})['"\`]\\s*\\]`;
  * @see D-UI-111, `docs/reference/rules.md`
  */
 export class BrowserGlobalScanner {
-  protected static readonly BROWSER_ZONES = ['packages/', 'examples/'];
-  /** Клиент примера для браузера: DOM и сокет — его работа. */
-  protected static readonly BROWSER_ALLOWED = ['examples/web/src/client/'];
+  protected static readonly BROWSER_ZONES = ['packages/'];
+  /** DOM-клиент раннера web учебного проекта: DOM и сокет — его работа. */
+  protected static readonly BROWSER_ALLOWED = [
+    'packages/example/src/runners/web/client/',
+  ];
   /**
    * Клиент страничного пакета получает среду аргументом: страница однажды
    * сможет работать и на сервере. Браузер трогают только адаптеры.

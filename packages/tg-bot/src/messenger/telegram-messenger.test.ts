@@ -21,17 +21,15 @@ import {
 } from 'dmg-ui/chat-ui';
 import {
   ExampleDialogUiAppDef,
-  exampleDialogViews,
-  todoChatViews,
-  usersChatViews,
-} from 'dmg-ui/chat-ui/testing';
-import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
-import {
   ExampleUiSetDef,
   exampleCodes,
-  MemoryUiObserver,
+  exampleDialogViews,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+  todoChatViews,
+  usersChatViews,
+} from 'dmg-ui/example';
+import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import { MemoryBotApi } from '../../testing';

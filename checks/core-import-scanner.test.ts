@@ -130,7 +130,7 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       "import fs from 'node:fs';",
       "import { x } from 'dmg-core/testing';",
       "import { a } from '../graph/index';",
-      "import { a } from '../../testing/example';",
+      "import { a } from '../../testing/index';",
     ]) {
       it(`${text} в server/ — нарушение`, () => {
         expect(scan(text, SERVER)).toHaveLength(1);
@@ -166,17 +166,6 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       expect(
         scan("import { a } from '../server/index';", `${SRC}/screen/a.ts`),
       ).toHaveLength(1);
-    });
-  });
-
-  describe('учебный проект — относительные только внутри него', () => {
-    it('заглушки тестов ядра (testing/ui-*.ts) в проекте — нарушение', () => {
-      const text =
-        "import { RuntimeKit } from '../../../core/testing/ui-runtime.fixture';";
-
-      expect(scan(text, 'packages/example/src/platform/ui/f.ts')).toHaveLength(
-        1,
-      );
     });
   });
 
@@ -238,6 +227,31 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
       expect(run('packages/a/src/x.ts', '../lib/t')).toEqual([]);
     });
 
+    const star = new CoreImportScanner([
+      {
+        include: ['packages/a/*/logic/'],
+        exclude: [],
+        forbidden: ['node:*'],
+      },
+    ]);
+    const inStar = (path: string) =>
+      star.scan([SourceFile.of(path, "import 'node:fs';")]);
+
+    it('сегмент * в include — любой один сегмент пути', () => {
+      expect(inStar('packages/a/todo/logic/x.ts')).toHaveLength(1);
+      expect(inStar('packages/a/users/logic/view-user/x.ts')).toHaveLength(1);
+    });
+
+    for (const path of [
+      'packages/a/logic/x.ts',
+      'packages/a/todo/deep/logic/x.ts',
+      'packages/a/todo/logical/x.ts',
+    ]) {
+      it(`сегмент * не покрывает ${path}`, () => {
+        expect(inStar(path)).toEqual([]);
+      });
+    }
+
     it('своя зона не трогает спецификаторы вне списка', () => {
       const found = custom.scan([
         SourceFile.of('packages/a/x.ts', "import 'dmg-core/graph';"),
@@ -265,6 +279,7 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
     'packages/chat-ui',
     'packages/tg-bot',
     'packages/web-ui',
+    'packages/example',
     'acceptance',
   ]) {
     it(`на реальном ${dir} — ноль нарушений`, () => {
@@ -292,13 +307,14 @@ describe('CoreImportScanner — browser/ (клиент DevTools и раннер)
 
   it('относительный импорт сервера примера разрешён', () => {
     const text =
-      "import { ExampleWebServer } from '../examples/web/src/server/example-web-server';";
+      "import { ExampleWebServer } from '../packages/example/src/runners/web/server/example-web-server';";
 
     expect(scan(text, BROWSER)).toEqual([]);
   });
 
   it('относительный импорт клиента примера — нарушение: DOM-код не нужен', () => {
-    const text = "import { a } from '../examples/web/src/client/main';";
+    const text =
+      "import { a } from '../packages/example/src/runners/web/client/main';";
 
     expect(scan(text, BROWSER)).toHaveLength(1);
   });
@@ -337,8 +353,8 @@ describe('CoreImportScanner — зоны видят файлы репо', () => 
   }
 
   it('каждая зона standard() захватывает хотя бы один файл репо', () => {
-    const files = ['packages', 'examples', 'acceptance', 'browser'].flatMap(
-      (dir) => SourceTree.read(ROOT, dir),
+    const files = ['packages', 'acceptance', 'browser'].flatMap((dir) =>
+      SourceTree.read(ROOT, dir),
     );
     const probe = new Probe(
       Reflect.get(CoreImportScanner.standard(), 'zones') as ImportZone[],

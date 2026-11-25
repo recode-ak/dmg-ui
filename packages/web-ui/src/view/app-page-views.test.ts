@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import { UiIds } from 'dmg-ui';
 import {
+  ExamplePagesUiAppDef,
   ExampleUiSetDef,
   TaskAssignedNotificationDef,
   TaskListScreenDef,
   UserCardScreenDef,
-} from 'dmg-ui/testing';
-import { ExamplePagesUiAppDef } from '../../testing';
-import { todoPagesViews } from '../../testing/example/todo-pages.views';
-import { usersPagesViews } from '../../testing/example/users-pages.views';
+} from 'dmg-ui/example';
+import { todoPagesViews } from '../../testing/text-views/todo-pages.views';
+import { usersPagesViews } from '../../testing/text-views/users-pages.views';
 import { AppPageViews } from './app-page-views';
 
 // Сборка представлений страницы для области — приложения UI или набора

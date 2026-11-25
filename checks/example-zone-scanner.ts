@@ -1,20 +1,22 @@
-import { dirname, join, normalize } from 'node:path/posix';
 import { ModuleSpecifiers } from './module-specifiers';
 import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
 /**
- * Зона примеров `examples/*`: `grammy` и `@grammyjs/*` — только в адаптере
- * `examples/tg-bot/src/grammy-*.ts` (и его `*.test.ts`, `*.types.ts`); адаптер
- * по относительному пути берут `main.ts`, `probe.ts`, тесты и он сам; из примера
- * не выйти за его каталог. `import(переменная)` не ловится (DEBT-UI-5).
+ * Зона учебного проекта `packages/example`: `grammy` и `@grammyjs/*` — только в
+ * адаптере раннера `tg-bot` (`runners/tg-bot/grammy-*.ts`, его `*.test.ts` и
+ * `*.types.ts`); адаптер по относительному пути берут `main.ts`, `probe.ts`,
+ * тесты и он сам; абсолютных путей в импортах нет. Выход относительным путём
+ * держат `PackageDirections` (из пакета) и слои (из места). `import(переменная)`
+ * не ловится (DEBT-UI-5).
  *
  * @see D-UI-68, D-UI-111, `docs/reference/rules.md`
  */
 export class ExampleZoneScanner {
-  protected static readonly ZONES = 'examples';
+  protected static readonly ZONES = 'packages/example';
 
-  protected static readonly ADAPTER_DIR = 'examples/tg-bot/src/';
+  protected static readonly ADAPTER_DIR =
+    'packages/example/src/runners/tg-bot/';
 
   /** Файл адаптера: `grammy-*.ts` в каталоге адаптера, его `*.test.ts` и `*.types.ts` тоже. */
   protected static readonly ADAPTER_FILE = /^grammy-[^/]+\.ts$/;
@@ -47,8 +49,8 @@ export class ExampleZoneScanner {
     if (ExampleZoneScanner.reachesAdapter(path, specifier)) {
       return `${specifier}: адаптер библиотеки берут только main.ts, probe.ts и тесты`;
     }
-    if (ExampleZoneScanner.inZone(path) && !this.staysInZone(path, specifier)) {
-      return `${specifier}: пример не выходит за свой каталог ${ExampleZoneScanner.ZONES}/<пример>`;
+    if (ExampleZoneScanner.inZone(path) && specifier.startsWith('/')) {
+      return `${specifier}: абсолютный путь в учебном проекте — только относительные пути и имена входов`;
     }
     return undefined;
   }
@@ -78,14 +80,5 @@ export class ExampleZoneScanner {
 
   protected static inZone(path: string): boolean {
     return path.startsWith(`${ExampleZoneScanner.ZONES}/`);
-  }
-
-  /** Каталог примера — второй сегмент пути; абсолютный и выходящий за него путь не остаётся в зоне. */
-  protected staysInZone(path: string, specifier: string): boolean {
-    if (specifier.startsWith('/')) return false;
-    if (!specifier.startsWith('.')) return true;
-    const home = path.split('/').slice(0, 2).join('/');
-    const target = normalize(join(dirname(path), specifier));
-    return target.startsWith(`${home}/`);
   }
 }

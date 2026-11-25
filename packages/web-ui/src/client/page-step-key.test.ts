@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AddressJson } from 'dmg-ui';
-import { LIST_ID } from 'dmg-ui/testing';
+import { LIST_ID } from 'dmg-ui/example';
 import { PageStepKey } from './page-step-key';
 
 // Ключ места, по которому история отличает шаг от замены: без правила

@@ -28,7 +28,7 @@ describe('BrowserGlobalScanner — глобалы браузера вне кли
     `${SRC}/server/x.ts`,
     'packages/core/testing/x.ts',
     'packages/tg-bot/src/x.ts',
-    'examples/tg-bot/src/x.ts',
+    'packages/example/src/runners/tg-bot/x.ts',
   ];
 
   for (const path of zones) {
@@ -66,20 +66,23 @@ describe('BrowserGlobalScanner — глобалы браузера вне кли
   });
 });
 
-describe('BrowserGlobalScanner — пример для браузера вне клиента', () => {
-  // Разрешение сужено до `examples/web/src/client/`: серверу и чистым
-  // моделям представлений глобалы браузера не нужны, зона должна краснеть.
-  it('new WebSocket(url) на сервере примера — нарушение', () => {
-    const path = 'examples/web/src/server/x.ts';
+describe('BrowserGlobalScanner — раннер web учебного проекта вне клиента', () => {
+  // Разрешение сужено до `runners/web/client/` учебного проекта: серверу и
+  // DOM-помощникам глобалы браузера не нужны, зона должна краснеть.
+  it('new WebSocket(url) на сервере раннера web — нарушение', () => {
+    const path = 'packages/example/src/runners/web/server/x.ts';
 
     expect(scan('const s = new WebSocket(u);', path)).toEqual([
       { file: path, line: 1, text: 'WebSocket' },
     ]);
   });
 
-  it('сервер примера: Bun и process разрешены (проверка среды — только packages/web-ui/src)', () => {
+  it('сервер раннера web: Bun и process разрешены (проверка среды — только packages/web-ui/src)', () => {
     expect(
-      scan('Bun.serve(x);\nprocess.exit(1);', 'examples/web/src/server/x.ts'),
+      scan(
+        'Bun.serve(x);\nprocess.exit(1);',
+        'packages/example/src/runners/web/server/x.ts',
+      ),
     ).toEqual([]);
   });
 });
@@ -132,12 +135,16 @@ describe('BrowserGlobalScanner — разрешённые зоны и не гл�
     'const l = localStorage;',
   ].join('\n');
 
-  it('в клиенте примера для браузера глобалы разрешены', () => {
-    expect(scan(lines, 'examples/web/src/client/main.ts')).toEqual([]);
+  it('в клиенте раннера web глобалы разрешены', () => {
+    expect(
+      scan(lines, 'packages/example/src/runners/web/client/main.ts'),
+    ).toEqual([]);
   });
 
-  it('вложенный каталог клиента примера тоже разрешён', () => {
-    expect(scan(lines, 'examples/web/src/client/view/x.ts')).toEqual([]);
+  it('вложенный каталог клиента раннера web тоже разрешён', () => {
+    expect(
+      scan(lines, 'packages/example/src/runners/web/client/view/x.ts'),
+    ).toEqual([]);
   });
 
   for (const path of [
@@ -155,7 +162,7 @@ describe('BrowserGlobalScanner — разрешённые зоны и не гл�
     });
   }
 
-  it('код вне packages и examples не проверяется', () => {
+  it('код вне packages не проверяется', () => {
     expect(scan(lines, 'checks/x.ts')).toEqual([]);
     expect(scan(lines, 'acceptance/x.ts')).toEqual([]);
   });
@@ -202,11 +209,11 @@ describe('BrowserGlobalScanner — globalThis: член, ключ, дестру�
     });
   }
 
-  it('разрешены в клиенте примера для браузера', () => {
+  it('разрешены в клиенте раннера web', () => {
     expect(
       scan(
         "const n = globalThis.navigator;\nconst w = globalThis['WebSocket'];\nconst { localStorage } = globalThis;",
-        'examples/web/src/client/x.ts',
+        'packages/example/src/runners/web/client/x.ts',
       ),
     ).toEqual([]);
   });
@@ -239,7 +246,7 @@ describe('BrowserGlobalScanner — Bun и process в packages/web-ui/src/', () =
     for (const path of [
       'packages/web-ui/testing/x.ts',
       'packages/tg-bot/src/x.ts',
-      'examples/web/src/client/main.ts',
+      'packages/example/src/runners/web/client/main.ts',
     ]) {
       expect(scan('Bun.serve(x);\nprocess.exit(1);', path)).toEqual([]);
     }
@@ -267,10 +274,7 @@ describe('BrowserGlobalScanner — Bun и process через globalThis', () => 
 });
 
 describe('BrowserGlobalScanner — реальный репо', () => {
-  const real = () => [
-    ...SourceTree.read(ROOT, 'packages'),
-    ...SourceTree.read(ROOT, 'examples'),
-  ];
+  const real = () => [...SourceTree.read(ROOT, 'packages')];
 
   it('клиент packages/web-ui/src/client/ не пуст: проверка не вхолостую', () => {
     expect(real().some((file) => file.path.startsWith(`${SRC}/client/`))).toBe(
@@ -278,9 +282,11 @@ describe('BrowserGlobalScanner — реальный репо', () => {
     );
   });
 
-  it('клиент примера examples/web/src/client/ не пуст: исключение не фантом', () => {
+  it('клиент раннера web packages/example/src/runners/web/client/ не пуст: исключение не фантом', () => {
     expect(
-      real().some((file) => file.path.startsWith('examples/web/src/client/')),
+      real().some((file) =>
+        file.path.startsWith('packages/example/src/runners/web/client/'),
+      ),
     ).toBe(true);
   });
 
@@ -299,7 +305,7 @@ describe('BrowserGlobalScanner — реальный репо', () => {
     }
   });
 
-  it('на packages и examples — ноль нарушений', () => {
+  it('на packages — ноль нарушений', () => {
     expect(new BrowserGlobalScanner().scan(real())).toEqual([]);
   });
 });

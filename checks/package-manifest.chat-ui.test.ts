@@ -3,11 +3,12 @@ import { describe, expect, it } from 'bun:test';
 // Составы входов диалогового пакета и вход его общих помощников тестов
 // (D-UI-32): диалог, сообщение, помощники лимита, страж и схема возможностей
 // мессенджера, поставщик графа, узел бесед, хранилище бесед в памяти, схема
-// снимка беседы и исполнитель сообщества — в `dmg-ui/chat-ui`; привязка
-// примера, подставной мессенджер, примеры набора и проверка лимитов примеров
-// (CH-01) — в `dmg-ui/chat-ui/testing`; девять помощников ядра — в
+// снимка беседы и исполнитель сообщества — в `dmg-ui/chat-ui`; подставной
+// мессенджер, примеры набора и проверка лимитов примеров (CH-01) — в
+// `dmg-ui/chat-ui/testing`; девять помощников ядра — в
 // `dmg-ui/testing/fixtures`; мессенджер Telegram — в `dmg-ui/tg-bot`,
-// подставной порт Bot API — в `dmg-ui/tg-bot/testing`.
+// подставной порт Bot API и построитель апдейтов — в `dmg-ui/tg-bot/testing`.
+// Привязки учебного проекта к каналам — вход `dmg-ui/example`.
 
 const CHAT_UI = [
   'AppChatViews',
@@ -54,18 +55,11 @@ describe('вход dmg-ui/chat-ui', () => {
 });
 
 describe('вход dmg-ui/chat-ui/testing', () => {
-  it('состав — привязка учебного примера к диалогу (три приложения), подставной мессенджер, примеры набора и проверка лимитов примеров', async () => {
+  it('состав — подставной мессенджер, примеры набора и проверка лимитов примеров', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui/testing')).sort()).toEqual([
       'ChatExamples',
-      'ExampleDialogArch',
-      'ExampleDialogUiAppDef',
       'ExampleLimits',
-      'ExampleTrimmedUiAppDef',
-      'ExampleWindowedUiAppDef',
       'MemoryMessenger',
-      'exampleDialogViews',
-      'todoChatViews',
-      'usersChatViews',
     ]);
   });
 });
@@ -103,13 +97,10 @@ describe('вход dmg-ui/tg-bot', () => {
 });
 
 describe('вход dmg-ui/tg-bot/testing', () => {
-  it('состав — подставной порт Bot API, построитель апдейтов и перекрытие примера под Telegram', async () => {
+  it('состав — подставной порт Bot API и построитель апдейтов', async () => {
     expect(Object.keys(await import('dmg-ui/tg-bot/testing')).sort()).toEqual([
-      'EXAMPLE_MOMENT',
-      'ExampleTelegramPreview',
       'MemoryBotApi',
       'TestUpdates',
-      'exampleTelegramViews',
     ]);
   });
 });

@@ -6,7 +6,7 @@ import {
   TASK_A,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
 import { RoutedPagesUiAppDef } from '../../testing/routed-pages.ui-app';
 import { PageLayoutUrls } from './page-layout-urls';
 import { type PageRoute, type PageUrlRejection, PageUrls } from './page-urls';

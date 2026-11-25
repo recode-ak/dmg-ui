@@ -15,6 +15,14 @@ import {
 } from 'dmg-core/testing/example';
 import { type AnyUiAppDef, UiAppDef } from 'dmg-ui';
 import {
+  ExampleDialogUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
+  exampleDialogViews,
+  TaskCardScreenDef,
+  TaskListScreenDef,
+} from 'dmg-ui/example';
+import {
   ApiAppDispatch,
   type DeliveredNotification,
   type PersonPlaces,
@@ -22,21 +30,10 @@ import {
   type UcRequest,
   UiServer,
 } from 'dmg-ui/server';
-import {
-  ExampleUiSetDef,
-  exampleCodes,
-  MemoryUiObserver,
-  TaskCardScreenDef,
-  TaskListScreenDef,
-} from 'dmg-ui/testing';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import {
-  ExampleDialogUiAppDef,
-  exampleDialogViews,
-  MemoryMessenger,
-  type MessengerEntry,
-} from '../../testing';
+import { MemoryMessenger, type MessengerEntry } from '../../testing';
 import { PlainText } from '../message/plain-text';
 import type { OptionLimits } from '../messenger/messenger.types';
 import {

@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "lib": ["ESNext", "DOM"],
-    "types": ["bun", "node"]
-  },
-  "include": ["src/client", "src/view", "src/common"],
-  "exclude": []
-}

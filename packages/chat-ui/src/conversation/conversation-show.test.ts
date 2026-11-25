@@ -24,22 +24,20 @@ import {
   UiModuleDef,
   UiSetDef,
 } from 'dmg-ui';
-import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
-import {
-  ExampleUiSetDef,
-  exampleCodes,
-  MemoryUiObserver,
-  TaskListScreenDef,
-} from 'dmg-ui/testing';
-import { RuntimeKit, T0, testRenderContext } from 'dmg-ui/testing/fixtures';
-import * as v from 'valibot';
 import {
   ExampleDialogUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
   exampleDialogViews,
-  MemoryMessenger,
+  TaskListScreenDef,
   todoChatViews,
   usersChatViews,
-} from '../../testing';
+} from 'dmg-ui/example';
+import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
+import { MemoryUiObserver } from 'dmg-ui/testing';
+import { RuntimeKit, T0, testRenderContext } from 'dmg-ui/testing/fixtures';
+import * as v from 'valibot';
+import { MemoryMessenger } from '../../testing';
 import { DIALOG_CHANNEL } from '../dialog/dialog-channel.const';
 import { DialogTraces } from '../dialog/dialog-traces';
 import type { Message } from '../message/message.types';

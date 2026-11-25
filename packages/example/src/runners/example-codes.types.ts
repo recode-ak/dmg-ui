@@ -1,5 +1,5 @@
-import type { TodoCodeOverrides } from '../frontend/todo/logic/todo-codes.types';
-import type { UsersCodeOverrides } from '../frontend/users/logic/users-codes.types';
+import type { TodoCodeOverrides } from '../frontend/todo/logic';
+import type { UsersCodeOverrides } from '../frontend/users/logic';
 
 /**
  * Подмена кода экранов и уведомлений примера (тесты): пересечение подмен

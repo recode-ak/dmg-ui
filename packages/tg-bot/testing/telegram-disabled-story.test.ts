@@ -17,23 +17,21 @@ import {
 import { type ActionSteps, Availability, ScreenCode } from 'dmg-ui';
 import { Conversations, MemoryConversationStore } from 'dmg-ui/chat-ui';
 import {
+  type ExampleCodeOverrides,
   ExampleDialogUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
   exampleDialogViews,
-} from 'dmg-ui/chat-ui/testing';
+  TaskCardScreenDef,
+  TaskListScreenDef,
+} from 'dmg-ui/example';
 import {
   ApiAppDispatch,
   type PersonPlaces,
   type UcDispatch,
   UiServer,
 } from 'dmg-ui/server';
-import {
-  type ExampleCodeOverrides,
-  ExampleUiSetDef,
-  exampleCodes,
-  MemoryUiObserver,
-  TaskCardScreenDef,
-  TaskListScreenDef,
-} from 'dmg-ui/testing';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { TelegramMessenger, TelegramUpdates } from 'dmg-ui/tg-bot';
 import {

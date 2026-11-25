@@ -9,14 +9,17 @@ const END = `(?!${NAME})`;
 /**
  * Приёмники разметки и исполнения строки (`innerHTML`, `outerHTML`,
  * `insertAdjacentHTML`, `document.write`, `createContextualFragment`,
- * `DOMParser`, `srcdoc`, `eval(`, `new Function`, `javascript:`) в примере
- * `examples/web/src/` и клиенте `packages/web-ui/src/client/` без `.test.ts`:
+ * `DOMParser`, `srcdoc`, `eval(`, `new Function`, `javascript:`) в раннере
+ * `web` и фронте учебного проекта (`packages/example/src/runners/web/`,
+ * `packages/example/src/frontend/`) и клиенте `packages/web-ui/src/client/`
+ * без `.test.ts`:
  * строки людей попадают в DOM только текстом. Не ловит собранное из частей
  * и вычисляемый ключ; часть имени не нарушение, слово в комментарии — нарушение.
  */
 export class DomSinkScanner {
   protected static readonly ZONES = [
-    'examples/web/src/',
+    'packages/example/src/runners/web/',
+    'packages/example/src/frontend/',
     'packages/web-ui/src/client/',
   ];
 

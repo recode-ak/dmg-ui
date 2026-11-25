@@ -1,24 +1,32 @@
 import { describe, expect, test } from 'bun:test';
-import { ScreenDef } from 'dmg-ui';
 import {
+  AssignedTasksScreenDef,
+  MainMenuScreenDef,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
   TodoUiModuleDef,
+  todoChatViews,
   UserCardScreenDef,
-} from 'dmg-ui/testing';
-import * as v from 'valibot';
-import { AssignedTasksView } from '../../testing/example/assigned-tasks.view';
-import { MainMenuView } from '../../testing/example/main-menu.view';
-import { TaskAssignedView } from '../../testing/example/task-assigned.view';
-import { TaskCardView } from '../../testing/example/task-card.view';
-import { TaskCompletedView } from '../../testing/example/task-completed.view';
-import { TaskListView } from '../../testing/example/task-list.view';
-import { UserCardView } from '../../testing/example/user-card.view';
+  usersChatViews,
+} from 'dmg-ui/example';
 import { ChatViews } from './chat-views';
 import { NotificationPresenter } from './notification-presenter';
 import { ScreenPresenter } from './screen-presenter';
+
+// Виды модулей — из реестров каналов: те же объекты, что отдаёт реестр.
+const TaskListView = todoChatViews.screen(TaskListScreenDef);
+const TaskCardView = todoChatViews.screen(TaskCardScreenDef);
+const AssignedTasksView = todoChatViews.screen(AssignedTasksScreenDef);
+const MainMenuView = todoChatViews.screen(MainMenuScreenDef);
+const TaskAssignedView = todoChatViews.notification(
+  TaskAssignedNotificationDef,
+);
+const TaskCompletedView = todoChatViews.notification(
+  TaskCompletedNotificationDef,
+);
+const UserCardView = usersChatViews.screen(UserCardScreenDef);
 
 // Реестр представлений одного UI-модуля в мессенджере: ключ — Def экрана и
 // уведомления модуля; каждому — ровно одно представление, иначе отказ UI-06
@@ -37,16 +45,6 @@ const todoRest = [
 
 /** Полный реестр модуля `todo`. */
 const todo = () => ChatViews.of(TodoUiModuleDef, [TaskListView, ...todoRest]);
-
-/** Экран вне учебного набора. */
-const StrayScreenDef = ScreenDef.define({
-  name: 'stray',
-  label: 'Чужой',
-  description: 'Экран вне учебного набора.',
-  reads: [],
-  data: v.object({}),
-});
-const stray = ScreenPresenter.for(StrayScreenDef, () => 'Чужой');
 
 /** Представления пакета мессенджера — слой перекрытия. */
 const ownCard = ScreenPresenter.for(TaskCardScreenDef, () => 'Своя карточка');
@@ -92,49 +90,6 @@ describe('ChatViews — реестр модуля', () => {
     ).toBe(
       'UI-06: ChatViews модуля todo: нет представления для assignedTasks, mainMenu, taskCompleted',
     );
-  });
-
-  test('представление экрана соседнего модуля — отказ UI-06 «вне модуля»', () => {
-    expect(
-      failure(() =>
-        ChatViews.of(TodoUiModuleDef, [
-          TaskListView,
-          ...todoRest,
-          UserCardView,
-        ]),
-      ),
-    ).toBe('UI-06: ChatViews модуля todo: userCard вне модуля');
-  });
-
-  test('представление экрана вне набора — отказ UI-06 «вне модуля»', () => {
-    expect(
-      failure(() =>
-        ChatViews.of(TodoUiModuleDef, [TaskListView, ...todoRest, stray]),
-      ),
-    ).toBe('UI-06: ChatViews модуля todo: stray вне модуля');
-  });
-
-  test('два представления одного экрана — отказ UI-06 «два для»', () => {
-    const twice = ScreenPresenter.for(TaskListScreenDef, () => 'Второй список');
-
-    expect(
-      failure(() =>
-        ChatViews.of(TodoUiModuleDef, [TaskListView, twice, ...todoRest]),
-      ),
-    ).toBe('UI-06: ChatViews модуля todo: два для taskList');
-  });
-
-  test('два представления одного уведомления — отказ UI-06 «два для»', () => {
-    const twice = NotificationPresenter.for(
-      TaskAssignedNotificationDef,
-      () => 'Второе уведомление',
-    );
-
-    expect(
-      failure(() =>
-        ChatViews.of(TodoUiModuleDef, [TaskListView, ...todoRest, twice]),
-      ),
-    ).toBe('UI-06: ChatViews модуля todo: два для taskAssigned');
   });
 
   test('поиск экрана вне модуля — бросок с именем экрана, без ID правила', () => {

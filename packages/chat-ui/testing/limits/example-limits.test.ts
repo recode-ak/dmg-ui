@@ -27,19 +27,15 @@ import {
 } from 'dmg-ui/chat-ui';
 import {
   ExampleUiSetDef,
+  ExampleWindowedUiAppDef,
   exampleCodes,
+  exampleDialogViews,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
-} from 'dmg-ui/testing';
-import * as v from 'valibot';
-import {
-  ChatExamples,
-  ExampleLimits,
-  ExampleWindowedUiAppDef,
-  exampleDialogViews,
-  MemoryMessenger,
   todoChatViews,
-} from '../index';
+} from 'dmg-ui/example';
+import * as v from 'valibot';
+import { ChatExamples, ExampleLimits, MemoryMessenger } from '../index';
 
 // CH-01: пример экрана и уведомления укладывается в лимиты мессенджера.
 // Тест собирает примеры набора один раз и вызывает `check` на паре «сборка

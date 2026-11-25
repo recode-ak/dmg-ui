@@ -11,15 +11,15 @@ import {
   TaskEvents,
 } from 'dmg-core/testing/example';
 import type { AnyUiAppDef } from 'dmg-ui';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
-import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
-import * as v from 'valibot';
 import {
   ExampleDialogArch,
   ExampleDialogUiAppDef,
+  ExampleUiSetDef,
   ExampleWindowedUiAppDef,
-  MemoryMessenger,
-} from '../../testing';
+} from 'dmg-ui/example';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
+import * as v from 'valibot';
+import { MemoryMessenger } from '../../testing';
 import type { ChatCommunitySpec } from '../community/community.types';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
 import { ChatGraphProvider } from './chat-graph-provider';

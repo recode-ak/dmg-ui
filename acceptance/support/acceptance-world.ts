@@ -26,11 +26,17 @@ import {
   Conversations,
   MemoryConversationStore,
 } from 'dmg-ui/chat-ui';
+import { MemoryMessenger } from 'dmg-ui/chat-ui/testing';
 import {
+  type ExampleCodeOverrides,
   ExampleDialogUiAppDef,
+  ExamplePagesUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
   exampleDialogViews,
-  MemoryMessenger,
-} from 'dmg-ui/chat-ui/testing';
+  examplePagesRoutes,
+  exampleSubjectWire,
+} from 'dmg-ui/example';
 import {
   ApiAppDispatch,
   type PersonPlaces,
@@ -39,12 +45,7 @@ import {
   UiNotifier,
   UiServer,
 } from 'dmg-ui/server';
-import {
-  type ExampleCodeOverrides,
-  ExampleUiSetDef,
-  exampleCodes,
-  MemoryUiObserver,
-} from 'dmg-ui/testing';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import {
   PageClient,
@@ -53,11 +54,6 @@ import {
   type PagePlacement,
   PageWire,
 } from 'dmg-ui/web-ui';
-import {
-  ExamplePagesUiAppDef,
-  examplePagesRoutes,
-  exampleSubjectWire,
-} from 'dmg-ui/web-ui/testing';
 import { DialogPerson, type Who } from './dialog-person';
 import { PageTab } from './page-tab';
 

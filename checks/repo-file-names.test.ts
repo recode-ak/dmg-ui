@@ -11,15 +11,13 @@ import type { Violation } from './violation.types';
 const ROOT = resolve(import.meta.dir, '..');
 
 // Временная раскладка до перевода `UiFileNames` на `UiNamesLayout` по
-// раскладке учебного проекта (D-UI-119): каталог проекта пока вне зон.
+// раскладке учебного проекта (D-UI-119): проект пока целиком вне зон мест.
 const LAYOUT: UiNamesLayout = {
   sets: [],
   channels: [
     'packages/chat-ui/testing',
     'packages/tg-bot/testing',
     'packages/web-ui/testing',
-    'examples/web/src',
-    'examples/tg-bot/src',
   ],
   others: [
     'acceptance',
@@ -32,7 +30,7 @@ const LAYOUT: UiNamesLayout = {
     'packages/web-ui/src',
     'packages/example',
   ],
-  tests: ['packages', 'examples', 'acceptance', 'checks', 'browser'],
+  tests: ['packages', 'acceptance', 'checks', 'browser'],
 };
 
 const format = (found: readonly Violation[]) =>

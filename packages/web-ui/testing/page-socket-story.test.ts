@@ -13,18 +13,21 @@ import {
 } from 'dmg-core/testing/example';
 import type { Place } from 'dmg-ui';
 import {
+  CARD_ID,
+  ExamplePagesUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
+  examplePagesRoutes,
+  exampleSubjectWire,
+  LIST_ID,
+} from 'dmg-ui/example';
+import {
   ApiAppDispatch,
   type PersonPlaces,
   UiNotifier,
   UiServer,
 } from 'dmg-ui/server';
-import {
-  CARD_ID,
-  ExampleUiSetDef,
-  exampleCodes,
-  LIST_ID,
-  MemoryUiObserver,
-} from 'dmg-ui/testing';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import { PageBrowserSocket } from '../src/client/page-browser-socket';
 import { PageClient } from '../src/client/page-client';
@@ -43,12 +46,7 @@ import type { PageViewState } from '../src/view/page-view-state.types';
 import type { ViewSource } from '../src/view/view-source.types';
 import type { ServerMessage as ServerMsg } from '../src/wire/page-messages.types';
 import { MAX_CLIENT_TEXT, MAX_SERVER_TEXT } from '../src/wire/page-wire.const';
-import {
-  ExamplePagesUiAppDef,
-  examplePagesRoutes,
-  exampleSubjectWire,
-  ManualPageClock,
-} from './index';
+import { ManualPageClock } from './index';
 
 // Страничный канал на настоящем сокете Bun: ворота до открытия, мост сокета
 // к хосту, конец сокета у клиента и адаптер сокета браузера. Проверяет

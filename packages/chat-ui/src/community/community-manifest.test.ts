@@ -6,8 +6,9 @@ import {
   RemoveUserUcDef,
   TaskEvents,
 } from 'dmg-core/testing/example';
+import { ExampleDialogUiAppDef } from 'dmg-ui/example';
 import * as v from 'valibot';
-import { ExampleDialogUiAppDef, MemoryMessenger } from '../../testing';
+import { MemoryMessenger } from '../../testing';
 import { ChatGraphProvider } from '../graph/chat-graph-provider';
 import type { ChatCommunitySpec } from './community.types';
 import { CommunityManifest } from './community-manifest';

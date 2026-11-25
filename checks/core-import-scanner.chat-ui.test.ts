@@ -31,7 +31,7 @@ describe('CoreImportScanner — канал диалога (packages/chat-ui/src/
 
   for (const text of [
     "import { ScreenRuntime } from '../../../core/src/runtime/screen-runtime';",
-    "import { TaskListScreenDef } from '../../testing/example/todo/task-list.screen';",
+    "import { TaskListScreenDef } from '../../../example/src/platform/ui/todo/shared/task-list.screen';",
     "import fs from 'node:fs';",
     "import { ExampleApp } from 'dmg-core/testing/example';",
     "import { useTempDir } from 'dmg-core/testing';",
@@ -39,6 +39,48 @@ describe('CoreImportScanner — канал диалога (packages/chat-ui/src/
   ]) {
     it(`${text} в канале — нарушение`, () => {
       expect(scan(text, CHANNEL)).toHaveLength(1);
+    });
+  }
+});
+
+describe('CoreImportScanner — граф диалогового канала (packages/chat-ui/src/graph/)', () => {
+  const GRAPH = 'packages/chat-ui/src/graph/chat-graph-provider.ts';
+  const RULE = 'packages/chat-ui/src/graph/rules/entry-point.rule.ts';
+
+  it('разрешены граф платформы, ядро, свои правила, манифест сообществ и возможности мессенджера', () => {
+    const text = [
+      "import * as v from 'valibot';",
+      "import { Trace } from 'dmg-core';",
+      "import type { GraphProvider } from 'dmg-core/graph';",
+      "import { ScreenDef } from 'dmg-ui';",
+      "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
+      "import { CHAT_KINDS } from './chat-kinds';",
+      "import { EntryPointRule } from './rules/entry-point.rule';",
+      "import { CommunityManifest } from '../community/community-manifest';",
+      "import { CAPABILITIES } from '../messenger/capabilities-schema';",
+    ].join('\n');
+
+    expect(scan(text, GRAPH)).toEqual([]);
+  });
+
+  it('правило графа видит возможности мессенджера из подкаталога rules/', () => {
+    const text =
+      "import type { Capabilities } from '../../messenger/messenger.types';";
+
+    expect(scan(text, RULE)).toEqual([]);
+  });
+
+  for (const text of [
+    "import { EventSubscriber } from 'dmg-core/app';",
+    "import { RenderFlags } from 'dmg-ui/server';",
+    "import fs from 'node:fs';",
+    "import { ChatViews } from '../view/chat-views';",
+    "import { DialogRenderer } from '../dialog/dialog-renderer';",
+    "import { Conversation } from '../conversation/conversation';",
+    "import { Communities } from '../community/communities';",
+  ]) {
+    it(`${text} в графе канала — нарушение: граф без реализаций`, () => {
+      expect(scan(text, GRAPH)).toHaveLength(1);
     });
   }
 });
@@ -54,7 +96,7 @@ describe('CoreImportScanner — код канала не знает тесты, 
 });
 
 describe('CoreImportScanner — тестовый вход канала (packages/chat-ui/testing/)', () => {
-  const BINDING = 'packages/chat-ui/testing/example/example-dialog.arch.ts';
+  const BINDING = 'packages/chat-ui/testing/limits/example-limits.ts';
 
   it('разрешены граф, сборка ArchApp, пример, канал по имени входа и соседи', () => {
     const text = [
@@ -68,6 +110,7 @@ describe('CoreImportScanner — тестовый вход канала (packages
       "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
       "import { TaskListScreenDef } from 'dmg-ui/testing';",
       "import { ChatViews } from 'dmg-ui/chat-ui';",
+      "import { ExampleDialogArch } from 'dmg-ui/example';",
       "import { TaskLines } from './task-lines';",
     ].join('\n');
 
@@ -155,7 +198,7 @@ describe('CoreImportScanner — приёмочный каталог моноре
   for (const text of [
     "import { a } from 'dmg-ui/packages/core/src/x';",
     "import { a } from 'dmg-ui/chat-ui/src/x';",
-    "import { a } from 'dmg-ui/chat-ui/testing/example';",
+    "import { a } from 'dmg-ui/chat-ui/testing/limits';",
     "import { a } from 'dmg-ui/nope';",
   ]) {
     it(`${text} в acceptance — не имя входа, нарушение`, () => {
@@ -169,7 +212,7 @@ describe('CoreImportScanner — приёмочный каталог моноре
 });
 
 describe('CoreImportScanner — тестовый каталог пакета tg-bot (packages/tg-bot/testing/)', () => {
-  const TESTING = 'packages/tg-bot/testing/example.ts';
+  const TESTING = 'packages/tg-bot/testing/telegram-graph-scene.ts';
 
   it('тестовые входы, пример, dmg-ui/chat-ui/testing и dmg-ui/tg-bot разрешены; соседи внутри каталога тоже', () => {
     const text = [
@@ -183,6 +226,7 @@ describe('CoreImportScanner — тестовый каталог пакета tg-
       "import { ExampleDialogArch } from 'dmg-ui/chat-ui/testing';",
       "import { DialogChannel } from 'dmg-ui/chat-ui';",
       "import { TgChannel } from 'dmg-ui/tg-bot';",
+      "import { exampleTelegramViews } from 'dmg-ui/example';",
       "import { a } from './helper';",
     ].join('\n');
 

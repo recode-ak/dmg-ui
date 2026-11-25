@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { PackageDirections } from './package-directions';
 import { PackageManifest } from './package-manifest';
 import { SourceFile, SourceTree } from './source-tree';
@@ -226,15 +225,8 @@ describe('PackageDirections — направления между пакетам
   });
 
   // Учебный проект `packages/example/` (D-UI-121): вход `dmg-ui/example`.
-  // Манифест репо дополняется этим входом, пока его нет в exports.
   describe('таблица репо: учебный проект example', () => {
-    const manifest = () => {
-      const json = JSON.parse(
-        readFileSync(join(ROOT, 'package.json'), 'utf8'),
-      ) as { exports: Record<string, string> };
-      json.exports['./example'] = './packages/example/index.ts';
-      return PackageManifest.parse(JSON.stringify(json));
-    };
+    const manifest = () => PackageManifest.read(ROOT);
     const scanRepo = (path: string, text: string) =>
       PackageDirections.standard(manifest()).scan([SourceFile.of(path, text)]);
 
@@ -282,7 +274,7 @@ describe('PackageDirections — направления между пакетам
     for (const path of [
       'packages/core/testing/f.ts',
       'packages/core/src/f.test.ts',
-      'packages/chat-ui/testing/example/f.ts',
+      'packages/chat-ui/testing/limits/f.ts',
       'packages/chat-ui/src/dialog/f.test.ts',
       'packages/tg-bot/testing/f.ts',
       'packages/tg-bot/src/f.test.ts',

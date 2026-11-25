@@ -88,8 +88,8 @@ describe('ChannelDecisionScanner — зона проверки', () => {
     'packages/chat-ui/testing/x.ts',
     'packages/tg-bot/testing/x.ts',
     'packages/web-ui/testing/x.ts',
-    'examples/web/src/x.ts',
-    'examples/tg-bot/src/x.ts',
+    'packages/example/src/runners/web/x.ts',
+    'packages/example/src/runners/tg-bot/x.ts',
     'checks/x.ts',
     'acceptance/x.ts',
   ]) {

@@ -9,14 +9,17 @@ import {
 import { ExampleApp, type ExampleUser } from 'dmg-core/testing/example';
 import type { Place } from 'dmg-ui';
 import {
+  ExamplePagesUiAppDef,
+  ExampleUiSetDef,
+  exampleSubjectWire,
+} from 'dmg-ui/example';
+import {
   ApiAppDispatch,
   type PersonPlaces,
   type RecipientCallers,
   UiServer,
 } from 'dmg-ui/server';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { exampleUser, T0 } from 'dmg-ui/testing/fixtures';
-import { ExamplePagesUiAppDef, exampleSubjectWire } from '../../testing';
 import type { ServerMessage as ServerMsg } from '../wire/page-messages.types';
 import { PageHost } from './page-host';
 import { HOST_LOGS } from './page-server.const';

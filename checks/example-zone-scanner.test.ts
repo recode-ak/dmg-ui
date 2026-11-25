@@ -4,15 +4,16 @@ import { resolve } from 'node:path';
 import { ExampleZoneScanner } from './example-zone-scanner';
 import { SourceFile, SourceTree } from './source-tree';
 
-// Зона примера (`examples/tg-bot`): библиотека Telegram видна только файлам
-// адаптера (`grammy-*.ts`), а пример берёт соседей только по именам входов.
-// Реальный репо сканируется без `checks/`: фикстуры тестов называют библиотеку
-// прямо.
+// Учебный проект (`packages/example`): библиотека Telegram видна только файлам
+// адаптера (`grammy-*.ts`) раннера `tg-bot`, абсолютных путей в импортах нет.
+// Выход из проекта относительным путём держат `PackageDirections` (из пакета)
+// и слои (из места). Реальный репо сканируется без `checks/`: фикстуры тестов
+// называют библиотеку прямо.
 
 const ROOT = resolve(import.meta.dir, '..');
 const LIB = 'grammy';
 const LIB_TYPES = '@grammyjs/types';
-const EXAMPLE = 'examples/tg-bot/src';
+const EXAMPLE = 'packages/example/src/runners/tg-bot';
 
 const importFrom = (specifier: string): string =>
   `export const a = 1;\nimport { x } from '${specifier}';\n`;
@@ -49,7 +50,7 @@ describe('ExampleZoneScanner — библиотека Telegram вне приме
   });
 });
 
-describe('ExampleZoneScanner — внутри examples/tg-bot/src/', () => {
+describe('ExampleZoneScanner — внутри раннера tg-bot учебного проекта', () => {
   for (const name of ['main.ts', 'tracing-bot-api.ts', 'example-bot.test.ts']) {
     test(`${name} — библиотека запрещена`, () => {
       const found = scan(`${EXAMPLE}/${name}`, importFrom(LIB));
@@ -125,98 +126,52 @@ describe('ExampleZoneScanner — адаптер определяется шаб�
   }
 });
 
-describe('ExampleZoneScanner — пример не выходит из своего каталога', () => {
-  test('абсолютный путь в файле примера — нарушение', () => {
-    const found = scan(
-      `${EXAMPLE}/main.ts`,
-      importFrom('/home/x/dmg-ui/packages/tg-bot/src/index'),
-    );
-    expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ file: `${EXAMPLE}/main.ts`, line: 2 });
-  });
-
-  test('другой пример: выход за свой каталог — нарушение', () => {
-    const path = 'examples/other/src/main.ts';
-    expect(scan(path, importFrom('../../tg-bot/src/x'))).toHaveLength(1);
-    expect(scan(path, importFrom('../../../packages/x'))).toHaveLength(1);
-    expect(scan(path, importFrom('./x'))).toEqual([]);
-  });
-
-  test('библиотека в другом примере — нарушение', () => {
-    const found = scan('examples/other/src/grammy-polling.ts', importFrom(LIB));
-    expect(found).toHaveLength(1);
-  });
-
-  const escapes = [
-    '../../../packages/tg-bot/src/index',
-    '../../..',
-    '../../other/x',
-  ];
-  for (const specifier of escapes) {
-    test(`относительный «${specifier}» — нарушение`, () => {
-      const found = scan(`${EXAMPLE}/main.ts`, importFrom(specifier));
+describe('ExampleZoneScanner — абсолютный путь в учебном проекте', () => {
+  for (const path of [
+    `${EXAMPLE}/main.ts`,
+    `${EXAMPLE}/example-bot.test.ts`,
+    'packages/example/src/runners/web/server/x.ts',
+    'packages/example/src/frontend/todo/chat/x.ts',
+  ]) {
+    test(`абсолютный путь в ${path} — нарушение`, () => {
+      const found = scan(
+        path,
+        importFrom('/home/x/dmg-ui/packages/tg-bot/src/index'),
+      );
       expect(found).toHaveLength(1);
-      expect(found[0]).toMatchObject({ file: `${EXAMPLE}/main.ts`, line: 2 });
-      expect(found[0]?.text).toContain(specifier);
+      expect(found[0]).toMatchObject({ file: path, line: 2 });
     });
   }
 
-  test('выход из тестового файла примера — нарушение', () => {
-    const found = scan(
-      `${EXAMPLE}/example-bot.test.ts`,
-      importFrom('../../../packages/tg-bot/src/index'),
-    );
-    expect(found).toHaveLength(1);
-  });
-
-  for (const specifier of ['dmg-ui/tg-bot', './example-env', '../README']) {
+  for (const specifier of [
+    'dmg-ui/tg-bot',
+    './example-env',
+    '../README',
+    '../../platform/ui',
+  ]) {
     test(`«${specifier}» — чисто`, () => {
       expect(scan(`${EXAMPLE}/main.ts`, importFrom(specifier))).toEqual([]);
     });
   }
 
-  test('относительный выход вне examples/ этим сканером не проверяется', () => {
+  test('файл grammy-* вне раннера tg-bot — библиотека запрещена', () => {
+    const found = scan(
+      'packages/example/src/runners/web/server/grammy-polling.ts',
+      importFrom(LIB),
+    );
+    expect(found).toHaveLength(1);
+  });
+
+  test('относительные пути этим сканером не проверяются', () => {
     expect(
-      scan('packages/tg-bot/src/x.ts', importFrom('../../chat-ui/src/index')),
+      scan(`${EXAMPLE}/main.ts`, importFrom('../../../../tg-bot/src/index')),
     ).toEqual([]);
   });
 });
 
-describe('ExampleZoneScanner — пример для браузера (examples/web/)', () => {
-  const WEB = 'examples/web/src';
-
-  for (const dir of ['server']) {
-    test(`${dir}/: выход за каталог примера относительным путём — нарушение`, () => {
-      const path = `${WEB}/${dir}/x.ts`;
-      for (const specifier of [
-        '../../../tg-bot/src/x',
-        '../../../../packages/web-ui/src/index',
-        '../../..',
-      ]) {
-        const found = scan(path, importFrom(specifier));
-        expect(found).toHaveLength(1);
-        expect(found[0]).toMatchObject({ file: path, line: 2 });
-        expect(found[0]?.text).toContain(specifier);
-      }
-    });
-
-    test(`${dir}/: абсолютный путь — нарушение`, () => {
-      expect(
-        scan(`${WEB}/${dir}/x.ts`, importFrom('/home/x/dmg-ui/packages/x')),
-      ).toHaveLength(1);
-    });
-  }
-
-  for (const specifier of ['./x', '../view/x', '../../README']) {
-    test(`«${specifier}» внутри каталога примера — чисто`, () => {
-      expect(scan(`${WEB}/server/x.ts`, importFrom(specifier))).toEqual([]);
-    });
-  }
-});
-
 describe('ExampleZoneScanner — реальный репо', () => {
   test('main.ts и probe.ts существуют и без исключения берут адаптер — не фантомы', () => {
-    const files = SourceTree.read(ROOT, 'examples/tg-bot');
+    const files = SourceTree.read(ROOT, EXAMPLE);
 
     for (const name of ['main.ts', 'probe.ts']) {
       const file = files.find((f) => f.path === `${EXAMPLE}/${name}`);
@@ -233,12 +188,14 @@ describe('ExampleZoneScanner — реальный репо', () => {
   test('на реальном репо — ноль нарушений', () => {
     // `checks/` не сканируется: фикстуры её тестов называют библиотеку прямо.
     // `scripts/` может отсутствовать или не содержать `.ts`.
-    const dirs = ['packages', 'acceptance', 'examples', 'scripts'];
+    const dirs = ['packages', 'acceptance', 'scripts'];
     const files = dirs
       .filter((dir) => existsSync(resolve(ROOT, dir)))
       .flatMap((dir) => SourceTree.read(ROOT, dir));
     expect(files.some((file) => file.path.startsWith('packages/'))).toBe(true);
-    expect(files.some((file) => file.path.startsWith('examples/'))).toBe(true);
+    expect(files.some((file) => file.path.startsWith(`${EXAMPLE}/`))).toBe(
+      true,
+    );
     expect(new ExampleZoneScanner().scan(files)).toEqual([]);
   });
 });

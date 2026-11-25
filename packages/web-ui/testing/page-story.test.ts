@@ -7,19 +7,22 @@ import {
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
 import {
+  ASSIGNED_ID,
+  CARD_ID,
+  ExamplePagesUiAppDef,
+  ExampleUiSetDef,
+  exampleCodes,
+  examplePagesRoutes,
+  exampleSubjectWire,
+  LIST_ID,
+} from 'dmg-ui/example';
+import {
   ApiAppDispatch,
   type PersonPlaces,
   UiNotifier,
   UiServer,
 } from 'dmg-ui/server';
-import {
-  ASSIGNED_ID,
-  CARD_ID,
-  ExampleUiSetDef,
-  exampleCodes,
-  LIST_ID,
-  MemoryUiObserver,
-} from 'dmg-ui/testing';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { oplogRecords, T0 } from 'dmg-ui/testing/fixtures';
 import {
   ClientMessage,
@@ -31,12 +34,7 @@ import {
   ServerMessage,
 } from 'dmg-ui/web-ui';
 import * as v from 'valibot';
-import {
-  ExamplePagesUiAppDef,
-  examplePagesRoutes,
-  examplePagesViews,
-  exampleSubjectWire,
-} from './index';
+import { examplePagesViews } from './text-views/example-pages.views';
 
 type ClientMsg = v.InferOutput<typeof ClientMessage>;
 type ServerMsg = v.InferOutput<typeof ServerMessage>;

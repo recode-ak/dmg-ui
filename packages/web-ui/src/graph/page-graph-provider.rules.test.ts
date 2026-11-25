@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { UiAppDef } from 'dmg-ui';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { ExamplePagesUiAppDef, ExampleUiSetDef } from 'dmg-ui/example';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
-import { ExamplePagesUiAppDef } from '../../testing';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';
 import { PageGraphProvider } from './page-graph-provider';

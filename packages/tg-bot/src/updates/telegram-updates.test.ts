@@ -14,14 +14,12 @@ import {
 } from 'dmg-ui/chat-ui';
 import {
   ExampleDialogUiAppDef,
-  exampleDialogViews,
-} from 'dmg-ui/chat-ui/testing';
-import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
-import {
   ExampleUiSetDef,
   exampleCodes,
-  MemoryUiObserver,
-} from 'dmg-ui/testing';
+  exampleDialogViews,
+} from 'dmg-ui/example';
+import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { T0 } from 'dmg-ui/testing/fixtures';
 import { MemoryBotApi, TestUpdates } from '../../testing';
 import { TelegramMessenger } from '../messenger/telegram-messenger';

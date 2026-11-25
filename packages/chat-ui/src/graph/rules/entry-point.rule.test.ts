@@ -7,13 +7,13 @@ import {
   type GraphProvider,
   type GraphRule,
 } from 'dmg-core/graph';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
-import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import {
   ExampleDialogUiAppDef,
+  ExampleUiSetDef,
   ExampleWindowedUiAppDef,
-  MemoryMessenger,
-} from '../../../testing';
+} from 'dmg-ui/example';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
+import { MemoryMessenger } from '../../../testing';
 import { type ChatAppSpec, ChatGraphProvider } from '../chat-graph-provider';
 
 // CH-02: у каждого входа беседы приложения (`chatEntry`) есть входящее ребро

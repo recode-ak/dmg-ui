@@ -2,14 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { ok, Trace } from 'dmg-core';
 import { MemoryLogger, testUuid } from 'dmg-core/testing';
 import { ListAssignedTasksUcDef, TaskEvents } from 'dmg-core/testing/example';
+import { ExampleDialogUiAppDef, exampleDialogViews } from 'dmg-ui/example';
 import type { DeliveredNotification } from 'dmg-ui/server';
 import { RuntimeKit, T0, testRenderContext } from 'dmg-ui/testing/fixtures';
-import {
-  ExampleDialogUiAppDef,
-  exampleDialogViews,
-  MemoryMessenger,
-  type MessengerEntry,
-} from '../../testing';
+import { MemoryMessenger, type MessengerEntry } from '../../testing';
 import { DialogTraces } from '../dialog/dialog-traces';
 import type { Message } from '../message/message.types';
 import { PlainText } from '../message/plain-text';

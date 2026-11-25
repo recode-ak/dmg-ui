@@ -6,8 +6,8 @@ import {
   useTempDir,
 } from 'dmg-core/testing';
 import { ExampleApp } from 'dmg-core/testing/example';
+import { ExampleUiSetDef } from 'dmg-ui/example';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
-import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { ExampleStubUiAppDef, T0 } from 'dmg-ui/testing/fixtures';
 import { PageHost } from './page-host';
 

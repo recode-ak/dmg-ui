@@ -19,8 +19,8 @@ const REQUIRED = [
   'docs/reference/rules.md',
   'docs/reference/naming.md',
   'docs/decisions.md',
-  'examples/tg-bot/README.md',
-  'examples/web/README.md',
+  'packages/example/src/runners/tg-bot/README.md',
+  'packages/example/src/runners/web/README.md',
   'llms.txt',
   'debt.md',
 ];
@@ -125,7 +125,7 @@ describe('документы репо', () => {
         return file ? [file] : [];
       }),
       ...TextTree.read(ROOT, 'docs', ['.md']),
-      ...TextTree.read(ROOT, 'examples', ['.md']),
+      ...TextTree.read(ROOT, 'packages/example', ['.md']),
     ];
     const found = new DocsLinkChecker(ROOT).check(files);
     expect(found.map((v) => `${v.file}:${v.line} ${v.text}`)).toEqual([]);

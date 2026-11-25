@@ -33,7 +33,7 @@ import {
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import { ChatExamples, ExampleLimits, MemoryMessenger } from '../index';

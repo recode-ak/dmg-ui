@@ -14,6 +14,7 @@ import {
 } from 'dmg-ui';
 import {
   AssignedTasksScreenDef,
+  ExamplePagesUiAppDef,
   ExampleUiSetDef,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
@@ -21,10 +22,9 @@ import {
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import { ExamplePagesUiAppDef } from '../../testing';
 import { RoutedPagesUiAppDef } from '../../testing/routed-pages.ui-app';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';

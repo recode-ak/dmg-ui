@@ -27,7 +27,7 @@
 
 Порядок: один массив точек входа (раздел 5) идёт и в `ChatAppSpec.entryPoints`, и в `TelegramUpdatesSpec.entryPoints`; `Conversations` получает `messenger`, `people`, `peers` (общая часть — [messenger-package.md](./messenger-package.md)); `TelegramUpdates` — `conversations`, `messenger`, `logger`, `entryPoints`, `bot` и, если есть сообщество, `communities`; при старте — `UiNotifier.start()` и `menu.publish()`.
 
-**Образец — [examples/tg-bot](../../examples/tg-bot/README.md)**: `ExampleBot` ([example-bot.ts](../../examples/tg-bot/src/example-bot.ts)) собирает всё на порте `BotApi`, не зная сети и библиотеки; `GrammyBotApi` и `GrammyPolling` — адаптер порта и опрос на `grammy`, их проект пишет под свою библиотеку (D-UI-68).
+**Образец — [packages/example/src/runners/tg-bot](../../packages/example/src/runners/tg-bot/README.md)**: `ExampleBot` ([example-bot.ts](../../packages/example/src/runners/tg-bot/example-bot.ts)) собирает всё на порте `BotApi`, не зная сети и библиотеки; `GrammyBotApi` и `GrammyPolling` — адаптер порта и опрос на `grammy`, их проект пишет под свою библиотеку (D-UI-68).
 
 ## 3. Подача апдейтов и подлинность
 
@@ -164,7 +164,7 @@ const telegram = new TelegramUpdates({ conversations, messenger, logger, entryPo
 - **Адаптер на loopback.** Тест адаптера и опроса идёт на `127.0.0.1` с поддельным сервером Bot API: проверяется тело запроса на проводе, отказы, сбой транспорта без токена; внешней сети нет (D-UI-68).
 - **Что показывает пример** (D-UI-105, D-UI-106, D-UI-107, D-UI-108): отключённое действие с тостом, подсказку поля, `/help` отдельным сообщением, автокнопку «Назад» и `/back`, «К моим задачам». С одним аккаунтом «К моим задачам» достижимо самоназначением: «Хлеб» → «Назначить» → свой uuid → `/assigned` → «Карточка исполнителя». Тест «подписи без повторов» — в приёмке и `telegram-back-story.test.ts`.
 - **Браузерные тесты** Telegram не касаются: правило, когда они нужны, — [Web-канал, раздел 15](./web-channel.md#15-как-тестировать). Что закрыто в Telegram по задачам фронта — [Задачи фронта](./frontend-tasks.md).
-- **Пример `examples/tg-bot`** запускается на живом Telegram: запуск, переменные, чек-лист ручной проверки, проба `bun run example:tg:probe <chat_id>` — в [README примера](../../examples/tg-bot/README.md). Консоль при обычной работе молчит (в ней только `warn` и `error`, ERR-07); что уходит в Telegram, показывает трасса `EXAMPLE_TG_TRACE` — файл JSON-строк по вызову, в нём тексты и id людей, в git он не попадает. `.env.development` Bun читает без настроек.
+- **Пример `packages/example/src/runners/tg-bot`** запускается на живом Telegram: запуск, переменные, чек-лист ручной проверки, проба `bun run example:tg:probe <chat_id>` — в [README примера](../../packages/example/src/runners/tg-bot/README.md). Консоль при обычной работе молчит (в ней только `warn` и `error`, ERR-07); что уходит в Telegram, показывает трасса `EXAMPLE_TG_TRACE` — файл JSON-строк по вызову, в нём тексты и id людей, в git он не попадает. `.env.development` Bun читает без настроек.
 
 ## 11. Что не проверено на живом Telegram
 

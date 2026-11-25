@@ -7,28 +7,24 @@ import { ExampleAppDef } from 'dmg-core/testing/example';
 import { type HelpSheet, ScreenHelp } from 'dmg-ui';
 import type { ConversationExit } from 'dmg-ui/chat-ui';
 import {
-  ExampleDialogUiAppDef,
-  ExampleTrimmedUiAppDef,
-} from 'dmg-ui/chat-ui/testing';
-import { UiGraphProvider } from 'dmg-ui/graph';
-import {
   ASSIGNED_ID,
+  ExampleDialogUiAppDef,
+  ExamplePagesUiAppDef,
+  ExampleTrimmedUiAppDef,
   ExampleUiSetDef,
+  exampleWindowPlacements,
   FollowAssignedStoryDef,
   LIST_ID,
   MainMenuScreenDef,
-  type MemoryUiObserver,
   TaskListScreenDef,
   UserCardScreenDef,
   ViewUserStoryDef,
-} from 'dmg-ui/testing';
+} from 'dmg-ui/example';
+import { UiGraphProvider } from 'dmg-ui/graph';
+import type { MemoryUiObserver } from 'dmg-ui/testing';
 import { oplogRecords } from 'dmg-ui/testing/fixtures';
 import type { PageHistoryEntry, PagePlacement } from 'dmg-ui/web-ui';
-import {
-  ExamplePagesUiAppDef,
-  exampleWindowPlacements,
-  MemoryPageHistory,
-} from 'dmg-ui/web-ui/testing';
+import { MemoryPageHistory } from 'dmg-ui/web-ui/testing';
 import * as v from 'valibot';
 import {
   A,

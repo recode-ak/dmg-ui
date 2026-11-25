@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { exampleCodes, MemoryUiObserver } from 'dmg-ui/testing';
+import { exampleCodes, examplePagesRoutes } from 'dmg-ui/example';
+import { MemoryUiObserver } from 'dmg-ui/testing';
 import { ExampleStubUiAppDef } from 'dmg-ui/testing/fixtures';
-import { examplePagesRoutes } from '../../testing';
 import type { ClientEnd } from '../wire/page-wire.types';
 import { PageClient } from './page-client';
 
