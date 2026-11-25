@@ -13,6 +13,7 @@ import type {
 } from './ui-graph-reader.types';
 import { UI_EDGE_KINDS, UI_NODE_KINDS } from './ui-kinds';
 import { UI_PROPS } from './ui-props';
+import type { SectionStory } from './ui-sections.types';
 
 /**
  * Общие запросы правил к графу: узлы видов ядра UI с разобранными свойствами,
@@ -97,6 +98,38 @@ export class UiGraphReader {
     return storyIds
       .flatMap((story) => this.leadsOf(story))
       .filter((lead) => this.startOf(lead) === to);
+  }
+
+  /**
+   * `id` UI-модуля узла набора (экрана, сторис, уведомления) — его `parent`;
+   * узла нет (внешний конец) или он не в модуле — `undefined`.
+   */
+  moduleOf(id: string): string | undefined {
+    const parent = this.graph.node(id)?.parent;
+    if (parent === undefined) return undefined;
+    return this.kindOf(parent) === UI_NODE_KINDS.module ? parent : undefined;
+  }
+
+  /** `id` стартовых экранов сторис модуля. */
+  moduleStarts(moduleId: string): Set<string> {
+    const starts = new Set<string>();
+    for (const node of this.graph.children(moduleId)) {
+      if (node.kind !== UI_NODE_KINDS.story) continue;
+      const start = this.startOf(node.id);
+      if (start !== undefined) starts.add(start);
+    }
+    return starts;
+  }
+
+  /** Сторис модулей набора с их связями — вход `UiSections.ofGraph`. */
+  sectionStories(): SectionStory[] {
+    const found: SectionStory[] = [];
+    for (const node of this.nodes(UI_NODE_KINDS.story)) {
+      const module = this.moduleOf(node.id);
+      if (module === undefined) continue;
+      found.push({ id: node.id, module, leads: this.leadsOf(node.id) });
+    }
+    return found;
   }
 
   /** Сторис приложения UI. */

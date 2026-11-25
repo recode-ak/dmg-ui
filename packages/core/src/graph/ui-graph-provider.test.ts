@@ -313,9 +313,14 @@ describe('UiGraphProvider: свойства узлов', () => {
     });
   });
 
-  test('набор — доменное приложение, модуль — пустые props, уведомление — получатели', () => {
+  test('P-01 модуль — props.section: todo и profile — разделы, users — вспомогательный', () => {
+    expect(props('exampleUi/todo')).toEqual({ section: true });
+    expect(props('exampleUi/profile')).toEqual({ section: true });
+    expect(props('exampleUi/users')).toEqual({ section: false });
+  });
+
+  test('набор — доменное приложение, уведомление — получатели', () => {
     expect(props('exampleUi')).toEqual({ app: 'example' });
-    expect(props('exampleUi/todo')).toEqual({});
     expect(props('exampleUi/todo/taskAssigned')).toEqual({
       recipients: { from: 'payload', fields: ['assigneeId'] },
       examples: ['sample'],
@@ -1097,6 +1102,30 @@ describe('UiGraphProvider: имена модулей и каналов прот�
     expect(ArchReport.of(UiScene.appOf(set, [])).rule('ARC-13')).toEqual([
       expect.stringContaining('граф приложения example не собран'),
     ]);
+  });
+
+  test('P-02 сторис shared — отказ сборки: текст называет модуль и папку общих экранов', () => {
+    const list = UiScene.screen('list');
+    const tasks = UiModuleDef.define({
+      name: 'tasks',
+      label: 'Модуль tasks',
+      description: 'Модуль со сторис зарезервированного имени.',
+      screens: [list],
+      stories: [UiScene.story('shared', [list])],
+    });
+
+    const message = refusal(
+      () =>
+        new UiGraphProvider({
+          set: setOf(module('todo'), tasks),
+          apps: [],
+          channels: [],
+        }),
+    );
+
+    expect(message).toBe(
+      'набор UI: сторис shared модуля tasks — имя занято папкой общих экранов модуля',
+    );
   });
 
   test('канал app — отказ: имя занято слоем fe-app', () => {

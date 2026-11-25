@@ -57,7 +57,8 @@ export const UI_KINDS: GraphKinds = {
     {
       kind: UI_NODE_KINDS.module,
       label: 'UI-модуль',
-      description: 'UI-модуль набора: экраны, сторис и уведомления.',
+      description:
+        'UI-модуль набора: экраны, сторис и уведомления; раздел или вспомогательный (`section`).',
       props: UI_PROPS.uiModule,
     },
     {

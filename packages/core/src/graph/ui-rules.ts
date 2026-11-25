@@ -1,13 +1,16 @@
 import type { GraphRule } from 'dmg-core/graph';
 import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
+import { AuxiliaryModuleRule } from './rules/auxiliary-module.rule';
 import { CatchesOfUcRule } from './rules/catches-of-uc.rule';
 import { EventNodeCommandRule } from './rules/event-node-command.rule';
 import { ExamplesBySchemaRule } from './rules/examples-by-schema.rule';
 import { ExitTargetsRule } from './rules/exit-targets.rule';
 import { ExitWithoutOutcomeRule } from './rules/exit-without-outcome.rule';
 import { FilledTextsRule } from './rules/filled-texts.rule';
+import { ForeignTargetRule } from './rules/foreign-target.rule';
 import { InvokesOnlyCommandRule } from './rules/invokes-only-command.rule';
 import { LocalActionNamesRule } from './rules/local-action-names.rule';
+import { ModuleScreensRule } from './rules/module-screens.rule';
 import { OrphanReferenceRule } from './rules/orphan-reference.rule';
 import { PrimaryActionRule } from './rules/primary-action.rule';
 import { ReadsOnlyQueryRule } from './rules/reads-only-query.rule';
@@ -33,7 +36,8 @@ export class UiRules {
 
   /**
    * Правила по порядку ID: UI-01…UI-27, кроме UI-06 — полноту реестров
-   * держат их конструкторы (`UiCompleteness`). Набор нужен только UI-20
+   * держат их конструкторы (`UiCompleteness`), затем граница модулей
+   * UI-35…UI-37. Набор нужен только UI-20
    * (примеры проверяются схемами valibot); `UiIds` здесь не строится и не
    * бросает.
    */
@@ -69,6 +73,9 @@ export class UiRules {
       new ExitTargetsRule(),
       new SensitiveExamplesRule(),
       new UnsupportedFieldKindRule(),
+      new ModuleScreensRule(),
+      new ForeignTargetRule(),
+      new AuxiliaryModuleRule(),
     ];
   }
 }

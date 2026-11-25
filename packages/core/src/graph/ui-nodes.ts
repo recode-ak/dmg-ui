@@ -20,6 +20,7 @@ import type {
   UiAppProps,
   UiExitProps,
   UiLocalProps,
+  UiModuleProps,
   UiNotificationProps,
   UiOutcomeAfterProps,
   UiRecipientsProps,
@@ -27,17 +28,22 @@ import type {
   UiSetProps,
   UiStoryProps,
 } from './ui-props.types';
+import { UiSections } from './ui-sections';
 
 /**
  * Узлы графа по Def набора UI и приложений UI. `id` — только через `UiIds`;
  * порядок ключей `props` фиксирован, ключ без значения не пишется.
  */
 export class UiNodes {
+  private readonly sections: UiSections;
+
   constructor(
     private readonly set: AnyUiSetDef,
     private readonly apps: readonly AnyUiAppDef[],
     private readonly ids: UiIds,
-  ) {}
+  ) {
+    this.sections = UiSections.ofSet(set, ids);
+  }
 
   list(): GraphNodeInput[] {
     const nodes: GraphNodeInput[] = [this.setNode()];
@@ -68,13 +74,15 @@ export class UiNodes {
   }
 
   private moduleNode(module: AnyUiModuleDef): GraphNodeInput {
+    const id = this.ids.module(module);
+    const props: UiModuleProps = { section: this.sections.section(id) };
     return {
       kind: UI_NODE_KINDS.module,
-      id: this.ids.module(module),
+      id,
       label: module.label,
       description: module.description,
       visible: module.visible,
-      props: {},
+      props,
     };
   }
 

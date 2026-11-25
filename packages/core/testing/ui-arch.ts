@@ -280,3 +280,69 @@ export class UiScene {
     return ArchReport.of(this.arch(providers));
   }
 }
+
+/** Модуль многомодульной сцены: экраны, сторис и уведомления; тексты модуля заполняет сцена. */
+export type SceneModuleParts = {
+  readonly screens: readonly AnyScreenDef[];
+  readonly stories?: readonly AnyStoryDef[];
+  readonly notifications?: readonly AnyNotificationDef[];
+};
+
+/** Части многомодульной сцены: модули по именам и состав приложения UI. */
+export type SetSceneParts = {
+  /** Модули набора по именам, в порядке набора. */
+  readonly modules: Readonly<Record<string, SceneModuleParts>>;
+  /** Сторис приложения UI; по умолчанию — все сторис набора. */
+  readonly appStories?: readonly AnyStoryDef[];
+  /** Входы приложения UI; по умолчанию — один, на первый экран первого модуля. */
+  readonly entries?: Readonly<Record<string, EntrySpec>>;
+};
+
+/**
+ * Набор `miniUi` из нескольких модулей и приложение UI `miniConsole` поверх
+ * учебного домена — для границы модулей (UI-35…UI-37, `UiSections`). Def
+ * экранов и сторис — от `UiScene`; уведомления приложения — все уведомления набора.
+ */
+export class UiSetScene {
+  readonly set: AnyUiSetDef;
+  readonly app: AnyUiAppDef;
+
+  constructor(parts: SetSceneParts) {
+    const modules = Object.entries(parts.modules).map(([name, module]) =>
+      UiModuleDef.define({
+        name,
+        label: `Модуль ${name}`,
+        description: `Модуль ${name} сцены.`,
+        screens: module.screens,
+        stories: module.stories ?? [],
+        notifications: module.notifications ?? [],
+      }),
+    );
+    this.set = UiSetDef.define({
+      name: 'miniUi',
+      label: 'Минимальный набор',
+      description: 'Набор UI из нескольких модулей одной сцены теста.',
+      app: ExampleAppDef,
+      modules,
+    });
+    const first = modules[0]?.screens[0];
+    this.app = UiAppDef.define({
+      name: 'miniConsole',
+      label: 'Минимальное приложение',
+      description: 'Приложение UI одной сцены теста.',
+      set: this.set,
+      channel: 'mini-channel',
+      stories: parts.appStories ?? modules.flatMap((m) => m.stories),
+      notifications: modules.flatMap((m) => m.notifications ?? []),
+      entries: parts.entries ?? (first ? { start: UiScene.entry(first) } : {}),
+    });
+  }
+
+  arch(): ArchApp {
+    return UiScene.appOf(this.set, [this.app]);
+  }
+
+  report(): ArchReport {
+    return ArchReport.of(this.arch());
+  }
+}

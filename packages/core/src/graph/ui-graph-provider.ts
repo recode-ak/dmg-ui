@@ -7,6 +7,7 @@ import {
   type SourceLayer,
 } from 'dmg-core/graph';
 import { UiIds } from '../address/ui-ids';
+import type { AnyUiSetDef } from '../manifest/ui-set-def.types';
 import { UiEdges } from './ui-edges';
 import type { UiGraphSpec } from './ui-graph-provider.types';
 import { UI_KINDS, UI_PROVIDER, UI_VERSION } from './ui-kinds';
@@ -23,11 +24,13 @@ export class UiGraphProvider implements GraphProvider {
   readonly name = UI_PROVIDER;
   readonly version = UI_VERSION;
 
-  // Слои — в конструкторе: имя модуля или канала, занятое слоем, — отказ
-  // сборки поставщика, до проверки архитектуры.
+  // Слои и имена сторис — в конструкторе: имя модуля или канала, занятое
+  // слоем, и сторис `shared` — отказ сборки поставщика, до проверки
+  // архитектуры.
   private readonly frontLayers: UiLayers;
 
   constructor(private readonly spec: UiGraphSpec) {
+    UiGraphProvider.verifyStoryNames(spec.set);
     this.frontLayers = new UiLayers(spec.set, spec.channels);
   }
 
@@ -54,6 +57,18 @@ export class UiGraphProvider implements GraphProvider {
 
   layers(): readonly SourceLayer[] {
     return this.frontLayers.list();
+  }
+
+  // Папка сторис — `<модуль>/<сторис>/`, рядом с `<модуль>/shared/` общих
+  // экранов модуля: сторис `shared` заняла бы её.
+  private static verifyStoryNames(set: AnyUiSetDef): void {
+    for (const module of set.modules) {
+      if (module.stories.some((story) => story.name === 'shared')) {
+        throw new Error(
+          `набор UI: сторис shared модуля ${module.name} — имя занято папкой общих экранов модуля`,
+        );
+      }
+    }
   }
 
   private static idsOf(spec: UiGraphSpec): UiIds {

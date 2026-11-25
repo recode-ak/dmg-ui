@@ -43,7 +43,7 @@ const entry = v.strictObject({
  */
 export const UI_PROPS = {
   uiSet: v.strictObject({ app: v.string() }),
-  uiModule: v.strictObject({}),
+  uiModule: v.strictObject({ section: v.boolean() }),
   story: v.strictObject({
     hint: v.optional(v.string()),
     callers: v.array(v.string()),
