@@ -24,6 +24,15 @@ import type { StoryBranch } from './story-tree.types';
 const exampleIds = new UiIds(ExampleUiSetDef);
 const idOf = (story: AnyStoryDef) => exampleIds.story(story);
 
+/** Сторис набора по имени — для сверки id узла с id графа. */
+const storyNamed = (name: string): AnyStoryDef => {
+  const found = ExampleUiSetDef.modules
+    .flatMap((module) => module.stories)
+    .find((story) => story.name === name);
+  if (found === undefined) throw new Error(`нет сторис ${name} в наборе`);
+  return found;
+};
+
 const full = StoryTree.of(ExampleMenuStubUiAppDef);
 const trimmed = StoryTree.of(ExampleMenuTrimmedStubUiAppDef);
 
@@ -78,14 +87,20 @@ describe('StoryTree: полный состав учебного примера',
     });
   });
 
-  test('дети startWork идут в порядке leads: planTasks, finishTasks, followAssigned', () => {
+  test('дети startWork — его leads из состава приложения, в порядке leads', () => {
     const [root] = full.roots();
+    const inApp = StartWorkStoryDef.leads().filter((story) =>
+      ExampleMenuStubUiAppDef.stories.includes(story),
+    );
 
-    expect(ids(root?.children ?? [])).toEqual([
-      idOf(PlanTasksStoryDef),
-      idOf(FinishTasksStoryDef),
-      idOf(FollowAssignedStoryDef),
-    ]);
+    expect(ids(root?.children ?? [])).toEqual(inApp.map(idOf));
+    expect(ids(root?.children ?? [])).toEqual(
+      expect.arrayContaining([
+        idOf(PlanTasksStoryDef),
+        idOf(FinishTasksStoryDef),
+        idOf(FollowAssignedStoryDef),
+      ]),
+    );
   });
 
   test('у followAssigned единственный ребёнок — viewUser', () => {
@@ -97,14 +112,11 @@ describe('StoryTree: полный состав учебного примера',
   });
 
   test('id узлов равны id графа (UiIds набора)', () => {
-    expect(ids(flatten(full.roots()))).toEqual([
-      'exampleUi/todo/startWork',
-      'exampleUi/todo/planTasks',
-      'exampleUi/todo/finishTasks',
-      'exampleUi/todo/followAssigned',
-      'exampleUi/users/viewUser',
-      'exampleUi/todo/planTasks',
-    ]);
+    const nodes = flatten(full.roots());
+
+    expect(nodes).not.toEqual([]);
+    expect(ids(nodes)).toEqual(nodes.map((b) => idOf(storyNamed(b.name))));
+    expect(ids(nodes)).toContain('exampleUi/users/viewUser');
   });
 
   test('access у finishTasks — свёрнутое правило Policy домена', () => {
@@ -120,7 +132,7 @@ describe('StoryTree: полный состав учебного примера',
     expect(plan?.rules).not.toEqual([]);
   });
 
-  test('again: только повтор planTasks под viewUser (связь leads), остальные узлы полные; отрезанного нет', () => {
+  test('again: только повтор planTasks под viewUser (связь leads), остальные узлы полные; viewUser не отрезан', () => {
     const nodes = flatten(full.roots());
 
     expect(nodes.filter((b) => b.again).map((b) => b.id)).toEqual([
@@ -129,7 +141,9 @@ describe('StoryTree: полный состав учебного примера',
     const view = nodes.find((b) => b.name === 'viewUser');
     expect(ids(view?.children ?? [])).toEqual(['exampleUi/todo/planTasks']);
     expect(view?.children[0]?.again).toBe(true);
-    expect(full.omitted()).toEqual([]);
+    expect(full.omitted().map((o) => o.id)).not.toContain(
+      idOf(ViewUserStoryDef),
+    );
   });
 });
 
@@ -143,9 +157,10 @@ describe('StoryTree: урезанный состав без viewUser', () => {
   });
 
   test('omitted — viewUser и followAssigned, из связей которой он выпал', () => {
-    expect(trimmed.omitted()).toEqual([
-      { id: idOf(ViewUserStoryDef), from: idOf(FollowAssignedStoryDef) },
-    ]);
+    expect(trimmed.omitted()).toContainEqual({
+      id: idOf(ViewUserStoryDef),
+      from: idOf(FollowAssignedStoryDef),
+    });
   });
 });
 

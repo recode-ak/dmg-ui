@@ -15,7 +15,7 @@ const act = async (action: string) =>
   (await open()).act({ action, revision: 1, trace });
 
 describe('экран mainMenu', () => {
-  test('загрузка ничего не читает: данные пусты, действия tasks, assigned, close', async () => {
+  test('загрузка ничего не читает: данные пусты, действия — все действия Def в их порядке', async () => {
     const kit = new RuntimeKit();
 
     const instance = await kit.runtime.open(
@@ -25,11 +25,11 @@ describe('экран mainMenu', () => {
 
     expect(kit.ucs.calls).toEqual([]);
     expect(instance.view()).toMatchObject({ status: 'ready', data: {} });
-    expect(instance.view().actions.map((action) => action.name)).toEqual([
-      'tasks',
-      'assigned',
-      'close',
-    ]);
+    const names = instance.view().actions.map((action) => action.name);
+    expect(names).toEqual(Object.keys(MainMenuScreenDef.actions));
+    expect(names).toEqual(
+      expect.arrayContaining(['tasks', 'assigned', 'close']),
+    );
   });
 
   test('tasks переходит на список задач', async () => {

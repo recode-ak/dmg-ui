@@ -31,7 +31,6 @@ import {
   exampleDialogViews,
   TaskListScreenDef,
   todoChatViews,
-  usersChatViews,
 } from 'dmg-ui/example';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
 import { MemoryUiObserver } from 'dmg-ui/testing';
@@ -395,6 +394,18 @@ const ShowAppDef = UiAppDef.define({
     },
   },
 });
+
+/**
+ * Сборка беседы примера, где базовый реестр `todo` заменён `todo` — реестром с
+ * перекрытием; реестры остальных модулей — из сборки приложения примера.
+ */
+const dialogWithTodo = (todo: ChatViews): AppChatViews =>
+  AppChatViews.of(
+    ExampleDialogUiAppDef,
+    exampleDialogViews(ExampleDialogUiAppDef)
+      .registries()
+      .map((registry) => (registry === todoChatViews ? todo : registry)),
+  );
 
 const views = AppChatViews.ofSet(ShowSetDef, [
   ChatViews.of(ShowUiModuleDef, [
@@ -1104,15 +1115,14 @@ describe('Conversation — перекрытие представлений по�
       dispatch: new ApiAppDispatch(example.api),
       context: { bus, logger: new MemoryLogger() },
     });
-    const own = AppChatViews.of(ExampleDialogUiAppDef, [
+    const own = dialogWithTodo(
       todoChatViews.over([
         ScreenPresenter.of(TaskListScreenDef, {
           render: (view, kit) =>
             kit.message(`Список мессенджера: ${view.data?.tasks.length ?? 0}`),
         }),
       ]),
-      usersChatViews,
-    ]);
+    );
     const nodeOf = (registry: AppChatViews) => {
       const messenger = MemoryMessenger.editing();
       const conversations = new Conversations({
@@ -1168,7 +1178,7 @@ describe('Conversation — акцент варианта', () => {
       dispatch: new ApiAppDispatch(example.api),
       context: { bus, logger: new MemoryLogger() },
     });
-    const accented = AppChatViews.of(ExampleDialogUiAppDef, [
+    const accented = dialogWithTodo(
       todoChatViews.over([
         ScreenPresenter.of(TaskListScreenDef, {
           render: (view, kit) =>
@@ -1184,8 +1194,7 @@ describe('Conversation — акцент варианта', () => {
             ),
         }),
       ]),
-      usersChatViews,
-    ]);
+    );
     const nodeOf = (registry: AppChatViews) => {
       const messenger = MemoryMessenger.editing();
       const conversations = new Conversations({
@@ -1249,15 +1258,14 @@ describe('Conversations — место в снимке и размер пока�
     });
     // Фрагмент длиннее предела схемы сообщения места: мессенджер его
     // принимает, снимок — нет.
-    const huge = AppChatViews.of(ExampleDialogUiAppDef, [
+    const huge = dialogWithTodo(
       todoChatViews.over([
         ScreenPresenter.of(TaskListScreenDef, {
           render: (_view, kit) =>
             kit.message(`Список ${'x'.repeat(MAX_FRAGMENT_TEXT)}`),
         }),
       ]),
-      usersChatViews,
-    ]);
+    );
     const store = new MemoryConversationStore();
     const messenger = MemoryMessenger.editing();
     const nodeOf = () =>

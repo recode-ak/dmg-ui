@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import {
   AssignedTasksScreenCode,
   AssignedTasksScreenDef,
-  ExampleUiSetDef,
   MainMenuScreenCode,
   MainMenuScreenDef,
   TaskAssignedNotificationCode,
@@ -16,9 +15,9 @@ import {
   TodoUiModuleDef,
   UserCardScreenCode,
   UserCardScreenDef,
-  usersCodes,
 } from 'dmg-ui/example';
 import * as v from 'valibot';
+import { ExampleStubUiAppDef } from '../../testing/ui-app.fixture';
 import { RuntimeKit } from '../../testing/ui-runtime.fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { AppCodeLoaders } from './app-code-loaders';
@@ -78,7 +77,10 @@ const failure = async (run: () => unknown): Promise<string | undefined> => {
   return undefined;
 };
 
-/** Сборка набора примера со счётчиком вызовов загрузчика списка. */
+/**
+ * Сборка приложения задач примера (только модуль `todo`) со счётчиком вызовов
+ * загрузчика списка.
+ */
 const counted = () => {
   const calls = { list: 0 };
   const todo = CodeLoaders.of(TodoUiModuleDef, [
@@ -88,7 +90,7 @@ const counted = () => {
     }),
     ...todoRest,
   ]);
-  const codes = AppCodeLoaders.ofSet(ExampleUiSetDef, [todo, usersCodes()]);
+  const codes = AppCodeLoaders.of(ExampleStubUiAppDef, [todo]);
   return { calls, codes };
 };
 

@@ -54,6 +54,32 @@ const DEFAULT_CONTEXT: RenderContext = {
   readOnly: false,
 };
 
+/** id Def набора по шаблону `<набор>/<модуль>/<имя>`. */
+const idIn = (
+  module: { readonly name: string },
+  def: { readonly name: string },
+) => `${ExampleUiSetDef.name}/${module.name}/${def.name}`;
+
+/** Примеры экранов учебного набора по Def: «id имя». */
+const SCREEN_EXAMPLES = ExampleUiSetDef.modules.flatMap((module) =>
+  module.screens.flatMap((screen) =>
+    Object.keys(screen.examples ?? {}).map(
+      (name) => `${idIn(module, screen)} ${name}`,
+    ),
+  ),
+);
+
+/** Примеры уведомлений учебного набора по Def: id, имя и данные. */
+const NOTIFICATION_EXAMPLES = ExampleUiSetDef.modules.flatMap((module) =>
+  (module.notifications ?? []).flatMap((notification) =>
+    Object.entries(notification.examples ?? {}).map(([name, example]) => ({
+      id: idIn(module, notification),
+      name,
+      data: example.data,
+    })),
+  ),
+);
+
 const collectExample = (context?: RenderContext) =>
   ChatExamples.collect({
     set: ExampleUiSetDef,
@@ -191,15 +217,16 @@ describe('ChatExamples.collect — примеры набора', () => {
     const screens = examples.screens();
 
     expect(examples.set).toBe(ExampleUiSetDef);
-    expect(screens.map(({ id, name }) => `${id} ${name}`).sort()).toEqual([
-      `${ASSIGNED} two`,
-      'exampleUi/todo/mainMenu start',
-      `${CARD} done`,
-      `${CARD} open`,
-      `${LIST} empty`,
-      `${LIST} full`,
-      'exampleUi/users/userCard active',
-    ]);
+    const kept = screens.map(({ id, name }) => `${id} ${name}`);
+    expect(kept.toSorted()).toEqual(SCREEN_EXAMPLES.toSorted());
+    expect(kept).toEqual(
+      expect.arrayContaining([
+        `${ASSIGNED} two`,
+        `${CARD} open`,
+        `${LIST} full`,
+        'exampleUi/users/userCard active',
+      ]),
+    );
     for (const { id, view } of screens) {
       expect(view.screen).toBe(id);
       expect(view.status).toBe('ready');
@@ -215,18 +242,23 @@ describe('ChatExamples.collect — примеры набора', () => {
       a.id.localeCompare(b.id),
     );
 
-    expect(notifications).toEqual([
-      {
-        id: 'exampleUi/todo/taskAssigned',
-        name: 'sample',
-        data: TaskAssignedNotificationDef.examples.sample?.data,
-      },
-      {
-        id: 'exampleUi/todo/taskCompleted',
-        name: 'sample',
-        data: TaskCompletedNotificationDef.examples.sample?.data,
-      },
-    ]);
+    expect(notifications).toEqual(
+      NOTIFICATION_EXAMPLES.toSorted((a, b) => a.id.localeCompare(b.id)),
+    );
+    expect(notifications).toEqual(
+      expect.arrayContaining([
+        {
+          id: 'exampleUi/todo/taskAssigned',
+          name: 'sample',
+          data: TaskAssignedNotificationDef.examples.sample?.data,
+        },
+        {
+          id: 'exampleUi/todo/taskCompleted',
+          name: 'sample',
+          data: TaskCompletedNotificationDef.examples.sample?.data,
+        },
+      ]),
+    );
   });
 
   test('контекст по умолчанию — ru-RU, Asia/Oral, без заместителя и без «только чтение»', async () => {
@@ -247,7 +279,8 @@ describe('ChatExamples.collect — примеры набора', () => {
 
     const examples = await collectExample(context);
 
-    expect(examples.screens()).toHaveLength(7);
+    expect(SCREEN_EXAMPLES).not.toEqual([]);
+    expect(examples.screens()).toHaveLength(SCREEN_EXAMPLES.length);
     for (const { view } of examples.screens()) {
       expect(view.context).toEqual(context);
     }

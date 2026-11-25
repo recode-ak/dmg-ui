@@ -4,6 +4,7 @@ import {
   ExampleDialogUiAppDef,
   ExampleUiSetDef,
   ExampleWindowedUiAppDef,
+  exampleDialogViews,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
   TaskListScreenDef,
@@ -12,6 +13,7 @@ import {
   usersChatViews,
 } from 'dmg-ui/example';
 import { AppChatViews } from './app-chat-views';
+import type { ChatViews } from './chat-views';
 import { ScreenPresenter } from './screen-presenter';
 
 // Сборка представлений мессенджера для области — приложения UI или набора
@@ -26,9 +28,13 @@ const CARD = ids.screen(TaskCardScreenDef);
 const USER = ids.screen(UserCardScreenDef);
 const ASSIGNED = ids.notification(TaskAssignedNotificationDef);
 
+/** Базовые реестры всех модулей учебного набора — из сборки набора примера. */
+const ALL = exampleDialogViews().registries();
+/** Те же реестры без `registry`. */
+const without = (registry: ChatViews) => ALL.filter((one) => one !== registry);
+
 /** Сборка набора примера из базовых реестров модулей. */
-const ofSet = () =>
-  AppChatViews.ofSet(ExampleUiSetDef, [todoChatViews, usersChatViews]);
+const ofSet = () => AppChatViews.ofSet(ExampleUiSetDef, ALL);
 
 /** Текст броска вызова; не бросил — `undefined`. */
 const failure = (run: () => unknown): string | undefined => {
@@ -83,11 +89,13 @@ describe('AppChatViews — состав', () => {
   });
 
   test('registry — реестр модуля-хозяина Def; registries — реестры в порядке передачи', () => {
-    const views = ofSet();
+    const reversed = ALL.toReversed();
+    const views = AppChatViews.ofSet(ExampleUiSetDef, reversed);
 
     expect(views.registry(UserCardScreenDef)).toBe(usersChatViews);
     expect(views.registry(TaskAssignedNotificationDef)).toBe(todoChatViews);
-    expect(views.registries()).toEqual([todoChatViews, usersChatViews]);
+    expect(ALL).toContain(usersChatViews);
+    expect(views.registries()).toEqual(reversed);
   });
 
   test('registry: Def модуля вне сборки — бросок с именами Def и приложения', () => {
@@ -106,7 +114,7 @@ describe('AppChatViews — состав', () => {
 
     const views = AppChatViews.ofSet(ExampleUiSetDef, [
       todoChatViews.over([ownCard]),
-      usersChatViews,
+      ...without(todoChatViews),
     ]);
 
     expect(views.screen(CARD)).toBe(ownCard);
@@ -118,7 +126,9 @@ describe('AppChatViews — состав', () => {
 describe('AppChatViews — полнота сборки (UI-06)', () => {
   test('сборка приложения без реестра модуля приложения — отказ UI-06 с именем ChatViews', () => {
     expect(
-      failure(() => AppChatViews.of(ExampleDialogUiAppDef, [todoChatViews])),
+      failure(() =>
+        AppChatViews.of(ExampleDialogUiAppDef, without(usersChatViews)),
+      ),
     ).toBe(
       'UI-06: ChatViews приложения exampleDialog: нет реестра модуля users',
     );
@@ -133,9 +143,8 @@ describe('AppChatViews — полнота сборки (UI-06)', () => {
     expect(
       failure(() =>
         AppChatViews.ofSet(ExampleUiSetDef, [
-          todoChatViews,
+          ...ALL,
           todoChatViews.over([ownCard]),
-          usersChatViews,
         ]),
       ),
     ).toBe('UI-06: ChatViews набора exampleUi: два реестра модуля todo');
@@ -143,7 +152,9 @@ describe('AppChatViews — полнота сборки (UI-06)', () => {
 
   test('сборка набора без реестра модуля — отказ UI-06 набора', () => {
     expect(
-      failure(() => AppChatViews.ofSet(ExampleUiSetDef, [todoChatViews])),
+      failure(() =>
+        AppChatViews.ofSet(ExampleUiSetDef, without(usersChatViews)),
+      ),
     ).toBe('UI-06: ChatViews набора exampleUi: нет реестра модуля users');
   });
 });

@@ -7,6 +7,7 @@ import {
   TaskListScreenDef,
   UserCardScreenDef,
 } from 'dmg-ui/example';
+import { examplePagesViews } from '../../testing/text-views/example-pages.views';
 import { todoPagesViews } from '../../testing/text-views/todo-pages.views';
 import { usersPagesViews } from '../../testing/text-views/users-pages.views';
 import { AppPageViews } from './app-page-views';
@@ -23,9 +24,8 @@ const USER = ids.screen(UserCardScreenDef);
 const ASSIGNED = ids.notification(TaskAssignedNotificationDef);
 const MISSING = 'exampleUi/todo/missing';
 
-/** Сборка набора примера. */
-const ofSet = () =>
-  AppPageViews.ofSet(ExampleUiSetDef, [todoPagesViews, usersPagesViews]);
+/** Сборка набора примера: реестры всех его модулей. */
+const ofSet = () => examplePagesViews();
 
 /** Текст броска вызова; не бросил — `undefined`. */
 const failure = (run: () => unknown): string | undefined => {
@@ -66,10 +66,7 @@ describe('AppPageViews — поиск по id', () => {
   });
 
   test('сборка приложения — его набор и приложение; сборка набора — без приложения', () => {
-    const app = AppPageViews.of(ExamplePagesUiAppDef, [
-      todoPagesViews,
-      usersPagesViews,
-    ]);
+    const app = examplePagesViews(ExamplePagesUiAppDef);
 
     expect(app.set).toBe(ExampleUiSetDef);
     expect(app.app).toBe(ExamplePagesUiAppDef);

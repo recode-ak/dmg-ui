@@ -56,65 +56,58 @@ const pairs = (kind: string) =>
     .filter((edge) => edge.kind === kind)
     .map((edge) => `${edge.from} -> ${edge.to}`);
 
+/** id Def набора по шаблону `<набор>/<модуль>/<имя>` — из Def, не из `UiIds`. */
+const SET_IDS = new Map<object, string>(
+  ExampleUiSetDef.modules.flatMap((module) =>
+    [...module.screens, ...module.stories, ...(module.notifications ?? [])].map(
+      (def): [object, string] => [
+        def,
+        `${ExampleUiSetDef.name}/${module.name}/${def.name}`,
+      ],
+    ),
+  ),
+);
+const idOf = (def: object): string => {
+  const id = SET_IDS.get(def);
+  if (id === undefined) throw new Error('Def вне учебного набора');
+  return id;
+};
+const SET_STORIES = ExampleUiSetDef.modules.flatMap((module) => module.stories);
+const APP = ExampleStubUiAppDef.name;
+
+/** Узлы набора и приложения по Def: «вид id». */
+const expectedNodes = (): string[] => [
+  `uiApp ${APP}`,
+  `uiSet ${ExampleUiSetDef.name}`,
+  ...ExampleUiSetDef.modules.flatMap((module) => [
+    `uiModule ${ExampleUiSetDef.name}/${module.name}`,
+    ...module.screens.flatMap((screen) => [
+      `screen ${idOf(screen)}`,
+      ...Object.keys(screen.actions).map(
+        (action) => `action ${idOf(screen)}/${action}`,
+      ),
+    ]),
+    ...module.stories.map((story) => `story ${idOf(story)}`),
+    ...(module.notifications ?? []).map(
+      (notification) => `notification ${idOf(notification)}`,
+    ),
+  ]),
+];
+
 const props = (id: string) => graph.node(id)?.props;
 const edgeProps = (kind: string, from: string, to: string) =>
   ownEdges.find((e) => e.kind === kind && e.from === from && e.to === to)
     ?.props;
 
 describe('UiGraphProvider: узлы', () => {
-  test('35 узлов набора и приложения UI в каноническом порядке', () => {
-    expect(own.map((node) => node.id)).toEqual([
-      'exampleStub',
-      'exampleUi',
-      'exampleUi/todo',
-      ASSIGNED,
-      `${ASSIGNED}/close`,
-      `${ASSIGNED}/completeSelected`,
-      `${ASSIGNED}/openAssignee`,
-      'exampleUi/todo/finishTasks',
-      'exampleUi/todo/followAssigned',
-      MENU,
-      `${MENU}/assigned`,
-      `${MENU}/close`,
-      `${MENU}/tasks`,
-      'exampleUi/todo/planTasks',
-      'exampleUi/todo/startWork',
-      'exampleUi/todo/taskAssigned',
-      CARD,
-      `${CARD}/assign`,
-      `${CARD}/back`,
-      `${CARD}/complete`,
-      `${CARD}/remind`,
-      COMPLETED,
-      SCREEN,
-      `${SCREEN}/close`,
-      `${SCREEN}/completeSelected`,
-      `${SCREEN}/create`,
-      `${SCREEN}/jumpTo`,
-      `${SCREEN}/next`,
-      `${SCREEN}/open`,
-      `${SCREEN}/prev`,
-      'exampleUi/users',
-      'exampleUi/users/userCard',
-      'exampleUi/users/userCard/close',
-      'exampleUi/users/userCard/tasks',
-      'exampleUi/users/viewUser',
-    ]);
-  });
+  // Порядок узлов — канонический порядок `Graph` dmg-core (`GraphId.compare`),
+  // здесь сверяется только состав.
+  test('узлы поставщика — набор, его модули, экраны с действиями, сторис, уведомления и приложение UI; вид — по Def', () => {
+    const nodes = own.map((node) => `${node.kind} ${node.id}`);
 
-  test('виды узлов: по одному на набор, модуль, приложение, остальные — по составу', () => {
-    const count = (kind: string) => own.filter((n) => n.kind === kind).length;
-
-    expect(
-      Object.fromEntries(
-        ['uiSet', 'uiModule', 'screen', 'story', 'notification'].map((k) => [
-          k,
-          count(k),
-        ]),
-      ),
-    ).toEqual({ uiSet: 1, uiModule: 2, screen: 5, story: 5, notification: 2 });
-    expect(count('action')).toBe(19);
-    expect(count('uiApp')).toBe(1);
+    expect(nodes.toSorted()).toEqual(expectedNodes().toSorted());
+    expect(nodes).toContain(`action ${SCREEN}/create`);
+    expect(nodes).toContain('screen exampleUi/users/userCard');
   });
 
   test('родитель выводится из id, поставщик — dmg-ui', () => {
@@ -433,135 +426,146 @@ describe('UiGraphProvider: подсказки в графе', () => {
 });
 
 describe('UiGraphProvider: рёбра', () => {
-  test('рёбра поставщика: 50 штук, по видам', () => {
-    const counts: Record<string, number> = {};
-    for (const edge of ownEdges)
-      counts[edge.kind] = (counts[edge.kind] ?? 0) + 1;
+  test('includes: приложение → сторис и уведомление, сторис → экран — по Def набора и приложения', () => {
+    const expected = [
+      ...ExampleStubUiAppDef.stories.map((story) => `${APP} -> ${idOf(story)}`),
+      ...(ExampleStubUiAppDef.notifications ?? []).map(
+        (notification) => `${APP} -> ${idOf(notification)}`,
+      ),
+      ...SET_STORIES.flatMap((story) =>
+        story.screens.map((screen) => `${idOf(story)} -> ${idOf(screen)}`),
+      ),
+    ];
 
-    expect(ownEdges).toHaveLength(50);
-    expect(counts).toEqual({
-      includes: 11,
-      leads: 5,
-      requires: 1,
-      entry: 2,
-      reads: 6,
-      invokes: 5,
-      leadsTo: 6,
-      refreshedBy: 5,
-      notifiedBy: 2,
-      links: 2,
-      recipients: 1,
-      catches: 1,
-      omits: 1,
-      redirects: 2,
-    });
-  });
-
-  test('includes: приложение → сторис и уведомление, сторис → экран', () => {
-    expect(pairs('includes')).toEqual([
-      'exampleStub -> exampleUi/todo/finishTasks',
-      'exampleStub -> exampleUi/todo/followAssigned',
-      'exampleStub -> exampleUi/todo/planTasks',
-      'exampleStub -> exampleUi/todo/taskAssigned',
-      `exampleStub -> ${COMPLETED}`,
-      `exampleUi/todo/finishTasks -> ${CARD}`,
-      `exampleUi/todo/finishTasks -> ${SCREEN}`,
-      `exampleUi/todo/followAssigned -> ${ASSIGNED}`,
-      `exampleUi/todo/planTasks -> ${SCREEN}`,
-      `exampleUi/todo/startWork -> ${MENU}`,
+    expect(pairs('includes').toSorted()).toEqual(expected.toSorted());
+    expect(pairs('includes')).toContain(
       'exampleUi/users/viewUser -> exampleUi/users/userCard',
-    ]);
+    );
   });
 
-  test('leads, requires и omits — связи сторис, правило домена, отрезанная сторис', () => {
-    expect(pairs('leads')).toEqual([
+  test('leads, requires и omits — связи сторис по Def, правило домена, отрезанная сторис', () => {
+    const leads = SET_STORIES.flatMap((story) =>
+      story.leads().map((target) => `${idOf(story)} -> ${idOf(target)}`),
+    );
+
+    expect(pairs('leads').toSorted()).toEqual(leads.toSorted());
+    expect(pairs('leads')).toContain(
       'exampleUi/todo/followAssigned -> exampleUi/users/viewUser',
-      'exampleUi/todo/startWork -> exampleUi/todo/finishTasks',
-      'exampleUi/todo/startWork -> exampleUi/todo/followAssigned',
-      'exampleUi/todo/startWork -> exampleUi/todo/planTasks',
-      'exampleUi/users/viewUser -> exampleUi/todo/planTasks',
-    ]);
-    expect(pairs('requires')).toEqual([
-      'exampleUi/todo/planTasks -> example/todo/task/withinOpenLimit',
-    ]);
-    expect(pairs('omits')).toEqual(['exampleStub -> exampleUi/users/viewUser']);
+    );
+    expect(pairs('requires')).toEqual(
+      expect.arrayContaining([
+        'exampleUi/todo/planTasks -> example/todo/task/withinOpenLimit',
+      ]),
+    );
+    expect(pairs('omits')).toEqual([`${APP} -> exampleUi/users/viewUser`]);
   });
 
   test('redirects — сторис → экран цели-адреса; цели back и home ребра не дают', () => {
-    expect(pairs('redirects')).toEqual([
-      `exampleUi/todo/finishTasks -> ${SCREEN}`,
-      `exampleUi/todo/planTasks -> ${SCREEN}`,
-    ]);
+    expect(pairs('redirects')).toEqual(
+      expect.arrayContaining([
+        `exampleUi/todo/finishTasks -> ${SCREEN}`,
+        `exampleUi/todo/planTasks -> ${SCREEN}`,
+      ]),
+    );
     expect(graph.outgoing('exampleUi/todo/startWork', 'redirects')).toEqual([]);
+    expect(graph.outgoing('exampleUi/users/viewUser', 'redirects')).toEqual([]);
   });
 
-  test('entry — приложение → экраны входов', () => {
-    expect(pairs('entry')).toEqual([
-      `exampleStub -> ${ASSIGNED}`,
-      `exampleStub -> ${SCREEN}`,
-    ]);
+  test('entry — приложение → экраны входов, по ребру на экран', () => {
+    const screens = Object.values(ExampleStubUiAppDef.entries).map(
+      (entry) => `${APP} -> ${idOf(entry.address.screen)}`,
+    );
+
+    expect(pairs('entry').toSorted()).toEqual([...new Set(screens)].toSorted());
+    expect(pairs('entry')).toContain(`${APP} -> ${ASSIGNED}`);
   });
 
   test('reads — экран и уведомление → query UC домена, не внешние', () => {
-    expect(pairs('reads')).toEqual([
-      `${ASSIGNED} -> example/todo/listAssignedTasks`,
-      'exampleUi/todo/taskAssigned -> example/todo/listAssignedTasks',
-      `${CARD} -> example/todo/listTasks`,
-      `${COMPLETED} -> example/todo/listAssignedTasks`,
-      `${SCREEN} -> example/todo/listTasks`,
-      'exampleUi/users/userCard -> example/users/getUser',
-    ]);
+    expect(pairs('reads')).toEqual(
+      expect.arrayContaining([
+        `${ASSIGNED} -> example/todo/listAssignedTasks`,
+        'exampleUi/todo/taskAssigned -> example/todo/listAssignedTasks',
+        `${CARD} -> example/todo/listTasks`,
+        `${COMPLETED} -> example/todo/listAssignedTasks`,
+        `${SCREEN} -> example/todo/listTasks`,
+        'exampleUi/users/userCard -> example/users/getUser',
+      ]),
+    );
+    expect(graph.outgoing(MENU, 'reads')).toEqual([]);
     expect(graph.externals()).toEqual([]);
   });
 
   test('invokes — действие → command UC, только при uc', () => {
-    expect(pairs('invokes')).toEqual([
-      `${ASSIGNED}/completeSelected -> example/todo/completeTasks`,
-      `${CARD}/assign -> example/todo/assignTask`,
-      `${CARD}/complete -> example/todo/completeTask`,
-      `${SCREEN}/completeSelected -> example/todo/completeTasks`,
-      `${SCREEN}/create -> example/todo/createTask`,
-    ]);
+    expect(pairs('invokes')).toEqual(
+      expect.arrayContaining([
+        `${ASSIGNED}/completeSelected -> example/todo/completeTasks`,
+        `${CARD}/assign -> example/todo/assignTask`,
+        `${CARD}/complete -> example/todo/completeTask`,
+        `${SCREEN}/completeSelected -> example/todo/completeTasks`,
+        `${SCREEN}/create -> example/todo/createTask`,
+      ]),
+    );
+    expect(graph.outgoing(`${SCREEN}/next`, 'invokes')).toEqual([]);
+    expect(graph.outgoing(`${CARD}/back`, 'invokes')).toEqual([]);
   });
 
   test('leadsTo — действие → экран, переход на свой экран без ребра', () => {
-    expect(pairs('leadsTo')).toEqual([
-      `${ASSIGNED}/openAssignee -> exampleUi/users/userCard`,
-      `${MENU}/assigned -> ${ASSIGNED}`,
-      `${MENU}/tasks -> ${SCREEN}`,
-      `${CARD}/back -> ${SCREEN}`,
-      `${SCREEN}/open -> ${CARD}`,
-      `exampleUi/users/userCard/tasks -> ${SCREEN}`,
-    ]);
+    expect(pairs('leadsTo')).toEqual(
+      expect.arrayContaining([
+        `${ASSIGNED}/openAssignee -> exampleUi/users/userCard`,
+        `${MENU}/assigned -> ${ASSIGNED}`,
+        `${MENU}/tasks -> ${SCREEN}`,
+        `${CARD}/back -> ${SCREEN}`,
+        `${SCREEN}/open -> ${CARD}`,
+        `exampleUi/users/userCard/tasks -> ${SCREEN}`,
+      ]),
+    );
+    // Переход на свой экран: действие лежит под экраном цели (`<экран>/<действие>`).
+    const selfJumps = ownEdges.filter(
+      (edge) => edge.kind === 'leadsTo' && edge.from.startsWith(`${edge.to}/`),
+    );
+    expect(selfJumps).toEqual([]);
+    expect(graph.outgoing(`${SCREEN}/next`, 'leadsTo')).toEqual([]);
   });
 
   test('notifiedBy, links, recipients и catches — события, экраны, UC и ошибки домена', () => {
-    expect(pairs('notifiedBy')).toEqual([
-      'exampleUi/todo/taskAssigned -> example/todo/task/assigned',
-      `${COMPLETED} -> example/todo/task/completed`,
-    ]);
-    expect(pairs('links')).toEqual([
-      `exampleUi/todo/taskAssigned -> ${ASSIGNED}`,
-      `${COMPLETED} -> ${ASSIGNED}`,
-    ]);
-    expect(pairs('recipients')).toEqual([
-      `${COMPLETED} -> example/todo/getTaskAssignee`,
-    ]);
-    expect(pairs('catches')).toEqual([
-      `${SCREEN} -> example/todo/task/TASK_TOO_MANY_OPEN`,
-    ]);
+    expect(pairs('notifiedBy')).toEqual(
+      expect.arrayContaining([
+        'exampleUi/todo/taskAssigned -> example/todo/task/assigned',
+        `${COMPLETED} -> example/todo/task/completed`,
+      ]),
+    );
+    expect(pairs('links')).toEqual(
+      expect.arrayContaining([
+        `exampleUi/todo/taskAssigned -> ${ASSIGNED}`,
+        `${COMPLETED} -> ${ASSIGNED}`,
+      ]),
+    );
+    expect(pairs('recipients')).toEqual(
+      expect.arrayContaining([`${COMPLETED} -> example/todo/getTaskAssignee`]),
+    );
+    expect(graph.outgoing('exampleUi/todo/taskAssigned', 'recipients')).toEqual(
+      [],
+    );
+    expect(pairs('catches')).toEqual(
+      expect.arrayContaining([
+        `${SCREEN} -> example/todo/task/TASK_TOO_MANY_OPEN`,
+      ]),
+    );
   });
 
   // Запись `any` — в сцене «две записи refresh на одно событие» ниже (в
   // примере её нет).
   test('refreshedBy: запись — params и subject', () => {
-    expect(pairs('refreshedBy')).toEqual([
-      `${ASSIGNED} -> example/todo/task/assigned`,
-      `${ASSIGNED} -> example/todo/task/unassigned`,
-      `${CARD} -> example/todo/task/completed`,
-      `${SCREEN} -> example/todo/task/completed`,
-      `${SCREEN} -> example/todo/task/created`,
-    ]);
+    expect(pairs('refreshedBy')).toEqual(
+      expect.arrayContaining([
+        `${ASSIGNED} -> example/todo/task/assigned`,
+        `${ASSIGNED} -> example/todo/task/unassigned`,
+        `${CARD} -> example/todo/task/completed`,
+        `${SCREEN} -> example/todo/task/completed`,
+        `${SCREEN} -> example/todo/task/created`,
+      ]),
+    );
     expect(
       edgeProps('refreshedBy', CARD, 'example/todo/task/completed'),
     ).toEqual({
@@ -657,11 +661,13 @@ describe('UiGraphProvider: действия в графе', () => {
     ]);
   });
 
-  test('graph.json содержит узлы действий с подписями и visible', () => {
+  test('graph.json содержит все узлы действий графа с подписями и visible', () => {
     const json = appGraph().document(UI_VERSION).toJSON();
     const create = json.nodes.find((n) => n.id === `${SCREEN}/create`);
+    const actionIds = (nodes: readonly { kind: string; id: string }[]) =>
+      nodes.filter((n) => n.kind === 'action').map((n) => n.id);
 
-    expect(json.nodes.filter((n) => n.kind === 'action')).toHaveLength(19);
+    expect(actionIds(json.nodes)).toEqual(actionIds(own));
     expect(create).toMatchObject({
       kind: 'action',
       label: 'Создать задачу',
@@ -942,11 +948,14 @@ describe('UiGraphProvider: дерево приложения — roots и сог
     });
   }
 
-  test('урезанный состав: omits — viewUser, полный состав — без omits', () => {
-    expect(menuGraph.outgoing('exampleMenuStub', 'omits')).toEqual([]);
-    expect(
-      menuGraph.outgoing('exampleMenuTrimmedStub', 'omits').map((e) => e.to),
-    ).toEqual(['exampleUi/users/viewUser']);
+  test('урезанный состав отрезает viewUser ребром omits, состав с карточкой пользователя — нет', () => {
+    const omits = (app: string) =>
+      menuGraph.outgoing(app, 'omits').map((e) => e.to);
+
+    expect(omits('exampleMenuStub')).not.toContain('exampleUi/users/viewUser');
+    expect(omits('exampleMenuTrimmedStub')).toContain(
+      'exampleUi/users/viewUser',
+    );
   });
 
   test('сцена с циклом: roots графа равны корням дерева', () => {

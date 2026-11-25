@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { F } from 'dmg-core';
-import { Graph } from 'dmg-core/graph';
+import { Graph, GraphId } from 'dmg-core/graph';
 import { ExampleAppDef, ListTasksUcDef } from 'dmg-core/testing/example';
 import {
   type Address,
   type AnyUiAppDef,
+  type AnyUiModuleDef,
   type AnyUiSetDef,
   ScreenDef,
   type StrictSchema,
@@ -22,6 +23,7 @@ import {
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
   TaskListScreenDef,
+  TodoUiModuleDef,
 } from 'dmg-ui/example';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
@@ -543,28 +545,40 @@ describe('PG-06: маршрут не пересекается с общим пу
     ]);
   });
 
-  test('/todo/:x на учебном наборе — строка на каждый из четырёх экранов модуля, порядок по id', () => {
+  /** Строки PG-06 шаблона `template` на экраны `modules` учебного набора, порядок по id. */
+  const clashes = (template: string, modules: readonly AnyUiModuleDef[]) =>
+    modules
+      .flatMap((module) =>
+        module.screens.map((screen) => `/${module.name}/${screen.name}`),
+      )
+      .map((path) => ({ id: `${ExampleUiSetDef.name}${path}`, path }))
+      .toSorted((a, b) => GraphId.compare(a.id, b.id))
+      .map(
+        ({ id, path }) =>
+          `PG-06: маршрут examplePages/wide: шаблон ${template} совпадает с общим путём экрана ${id} (${path})`,
+      );
+
+  test('/todo/:x на учебном наборе — строка на каждый экран модуля todo, порядок по id', () => {
     const report = examplePages(route('wide', '/todo/:x', 'start'));
 
     expect(report.code).toBe(1);
-    expect(report.rule('PG-06')).toEqual([
-      'PG-06: маршрут examplePages/wide: шаблон /todo/:x совпадает с общим путём экрана exampleUi/todo/assignedTasks (/todo/assignedTasks)',
+    expect(report.rule('PG-06')).toEqual(
+      clashes('/todo/:x', [TodoUiModuleDef]),
+    );
+    expect(report.rule('PG-06')).toContain(
       'PG-06: маршрут examplePages/wide: шаблон /todo/:x совпадает с общим путём экрана exampleUi/todo/mainMenu (/todo/mainMenu)',
-      'PG-06: маршрут examplePages/wide: шаблон /todo/:x совпадает с общим путём экрана exampleUi/todo/taskCard (/todo/taskCard)',
-      'PG-06: маршрут examplePages/wide: шаблон /todo/:x совпадает с общим путём экрана exampleUi/todo/taskList (/todo/taskList)',
-    ]);
+    );
   });
 
   test('/:m/:s — тоже строка на каждый экран набора', () => {
     const report = examplePages(route('wide', '/:m/:s', 'start'));
 
-    expect(report.rule('PG-06')).toEqual([
-      'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/assignedTasks (/todo/assignedTasks)',
-      'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/mainMenu (/todo/mainMenu)',
-      'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/taskCard (/todo/taskCard)',
-      'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/todo/taskList (/todo/taskList)',
+    expect(report.rule('PG-06')).toEqual(
+      clashes('/:m/:s', ExampleUiSetDef.modules),
+    );
+    expect(report.rule('PG-06')).toContain(
       'PG-06: маршрут examplePages/wide: шаблон /:m/:s совпадает с общим путём экрана exampleUi/users/userCard (/users/userCard)',
-    ]);
+    );
   });
 
   test('маршрут /menu входа menu общего пути экрана mainMenu не пересекает — PG-06 молчит', () => {

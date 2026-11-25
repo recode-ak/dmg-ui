@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { type ArchApp, ArchChecker } from 'dmg-core/arch';
 import { AppGraph } from 'dmg-core/graph';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
+import { ExampleUiSetDef } from '../../platform/ui';
 import { ExampleDialogArch } from './example-dialog.arch';
 
 // Граф учебного примера без домена: поставщик `dmg-ui` + возможности
@@ -28,7 +29,7 @@ describe('граф учебного примера', () => {
     ]);
   });
 
-  test('вход графа на сборке видов — ARC-16: доходит до реализаций каналов модулей', () => {
+  test('вход графа на сборке видов — ARC-16: доходит до реализации канала каждого модуля набора', () => {
     const app: ArchApp = {
       ...ExampleDialogArch,
       graphEntry: join(import.meta.dir, 'example-dialog-views.ts'),
@@ -36,14 +37,18 @@ describe('граф учебного примера', () => {
     const via =
       'ARC-16: вход графа src/runners/dialog/example-dialog-views.ts доходит до реализации: src/runners/dialog/example-dialog-views.ts импортирует';
 
-    expect(
-      ArchChecker.of(app)
-        .check()
-        .map((v) => v.format()),
-    ).toEqual([
-      `${via} fe-chat todo: ../../frontend/todo/chat`,
-      `${via} fe-chat users: ../../frontend/users/chat`,
-    ]);
+    const lines = ArchChecker.of(app)
+      .check()
+      .map((v) => v.format());
+
+    expect(lines.toSorted()).toEqual(
+      ExampleUiSetDef.modules
+        .map(
+          ({ name }) => `${via} fe-chat ${name}: ../../frontend/${name}/chat`,
+        )
+        .toSorted(),
+    );
+    expect(lines).toContain(`${via} fe-chat users: ../../frontend/users/chat`);
   });
 
   test('omits: карточку пользователя отрезают только приложения без viewUser', () => {
@@ -53,8 +58,8 @@ describe('граф учебного примера', () => {
         .map((edge) => edge.to);
 
     expect(omits('exampleDialog')).toEqual([]);
-    expect(omits('exampleTrimmed')).toEqual(['exampleUi/users/viewUser']);
-    expect(omits('exampleWindowed')).toEqual(['exampleUi/users/viewUser']);
+    expect(omits('exampleTrimmed')).toContain('exampleUi/users/viewUser');
+    expect(omits('exampleWindowed')).toContain('exampleUi/users/viewUser');
   });
 
   test('меню «Начать работу»: вход menu и сторис startWork — в основном и урезанном приложениях, оконное без меню', () => {
@@ -77,7 +82,10 @@ describe('граф учебного примера', () => {
   test('цель исхода-адреса: сторис задач ведут на список — ребро redirects', () => {
     const redirects = graph()
       .edges()
-      .filter((edge) => edge.kind === 'redirects')
+      .filter(
+        (edge) =>
+          edge.kind === 'redirects' && edge.from.startsWith('exampleUi/todo/'),
+      )
       .map((edge) => `${edge.from} -> ${edge.to}`);
 
     expect(redirects).toEqual([

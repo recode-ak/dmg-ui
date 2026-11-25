@@ -26,7 +26,6 @@ import {
   exampleDialogViews,
   TaskListScreenDef,
   todoChatViews,
-  usersChatViews,
 } from 'dmg-ui/example';
 import { ApiAppDispatch, UiServer } from 'dmg-ui/server';
 import { MemoryUiObserver } from 'dmg-ui/testing';
@@ -1066,14 +1065,21 @@ describe('TelegramMessenger — в узле бесед', () => {
 
   test('текст экрана 5000 UTF-16 приходит в sendMessage обрезанным стражем до 4096', async () => {
     const api = new MemoryBotApi();
-    const long = AppChatViews.of(ExampleDialogUiAppDef, [
-      todoChatViews.over([
-        ScreenPresenter.of(TaskListScreenDef, {
-          render: (_view, kit) => kit.message('ж'.repeat(5000)),
-        }),
-      ]),
-      usersChatViews,
-    ]);
+    // Реестр `todo` — с перекрытием списка, остальные — из сборки примера.
+    const long = AppChatViews.of(
+      ExampleDialogUiAppDef,
+      exampleDialogViews(ExampleDialogUiAppDef)
+        .registries()
+        .map((registry) =>
+          registry === todoChatViews
+            ? todoChatViews.over([
+                ScreenPresenter.of(TaskListScreenDef, {
+                  render: (_view, kit) => kit.message('ж'.repeat(5000)),
+                }),
+              ])
+            : registry,
+        ),
+    );
     const conversations = node(api, long);
 
     await conversations.receive({

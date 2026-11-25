@@ -72,7 +72,10 @@ const CREATE_OFF = '🚫 Создать задачу';
 const CARD = 'Карточка исполнителя';
 const USER_CARD = 'exampleUi/users/userCard';
 const MENU_ID = 'exampleUi/todo/mainMenu';
-const MENU_LABELS = ['Мои задачи', 'Назначенные мне', 'Закрыть'];
+/** Подписи действий меню из Def, в их порядке: основное приложение беседы показывает все. */
+const MENU_LABELS = Object.values(MainMenuScreenDef.actions).map(
+  (action) => action.label,
+);
 /** Подписи из Def: листание назад и переход «К моим задачам»; «Назад» — автокнопка канала, не действие экрана. */
 const PREV = TaskListScreenDef.actions.prev.label;
 const toTasks = () => UserCardScreenDef.actions.tasks.label;
@@ -451,7 +454,7 @@ describe('сценарий 2 — «Назначенные мне» → карт�
     expect(a.labels()).toContain(CARD);
     expect(a.labels()).toContain('Назад');
     await a.press('Назад');
-    expect(a.labels().slice(0, 3)).toEqual(MENU_LABELS);
+    expect(a.labels().slice(0, MENU_LABELS.length)).toEqual(MENU_LABELS);
     expect(a.labels()).not.toContain('Назад');
   });
 
@@ -486,7 +489,7 @@ describe('сценарий 2 — «Назначенные мне» → карт�
     expect(a.labels()).toContain(CARD);
     expect(a.labels()).toContain(BACK);
     await a.press(BACK);
-    expect(a.labels().slice(0, 3)).toEqual(MENU_LABELS);
+    expect(a.labels().slice(0, MENU_LABELS.length)).toEqual(MENU_LABELS);
     expect(a.labels()).not.toContain(BACK);
   });
 
@@ -1062,13 +1065,16 @@ describe('сценарий 6 — меню → «Мои задачи» → окн
     expect(tab.client.region('side').status).toBe('empty');
   };
 
-  test('беседа, меню: вход menu даёт «Мои задачи», «Назначенные мне» и «Закрыть»', async () => {
+  test('беседа, меню: вход menu даёт действия меню в порядке Def — «Мои задачи», «Назначенные мне», …, «Закрыть»', async () => {
     const w = worldOf('dialog-menu');
     const a = w.person(A);
 
     await a.enter('menu');
 
-    expect(a.labels().slice(0, 3)).toEqual(MENU_LABELS);
+    expect(a.labels().slice(0, MENU_LABELS.length)).toEqual(MENU_LABELS);
+    expect(MENU_LABELS).toEqual(
+      expect.arrayContaining(['Мои задачи', 'Назначенные мне', 'Закрыть']),
+    );
   });
 
   test('беседа, меню → список → карточка → «К списку»: «Назад» ведёт в меню', async () => {
@@ -1076,7 +1082,7 @@ describe('сценарий 6 — меню → «Мои задачи» → окн
 
     await a.press('Назад');
 
-    expect(a.labels().slice(0, 3)).toEqual(MENU_LABELS);
+    expect(a.labels().slice(0, MENU_LABELS.length)).toEqual(MENU_LABELS);
     expect(a.labels()).not.toContain('Назад');
   });
 
@@ -1195,15 +1201,19 @@ describe('сценарий 7 — справка по живому экрану: 
     ['меню', 'menu', '/menu'],
     ['«Мои задачи»', 'start', '/'],
   ])(
-    '%s: лист справки на одном виде равен для приложений обоих каналов; текст беседы называет те же подписи, подсказки и причины',
+    '%s: лист справки на одном виде равен для приложений обоих каналов одного состава; текст беседы называет те же подписи, подсказки и причины',
     async (_, entry, route) => {
-      const w = worldOf(`help-same-${entry}`);
+      // Состав основного приложения беседы шире страниц; у беседы без
+      // карточки пользователя меню и список — те же, что у страниц.
+      const w = worldOf(`help-same-${entry}`, {
+        dialogApp: ExampleTrimmedUiAppDef,
+      });
       const a = w.person(A);
       const tab = await w.tab(A);
       await tab.client.route(route);
       const view = mainView(tab);
       const page = new ScreenHelp(ExamplePagesUiAppDef).of(view);
-      const dialog = new ScreenHelp(ExampleDialogUiAppDef).of(view);
+      const dialog = new ScreenHelp(ExampleTrimmedUiAppDef).of(view);
 
       await a.enter(entry);
       await a.help();
@@ -1393,15 +1403,14 @@ describe('нейтральность — один код экранов на д�
     expect(await pages.tasksOf()).toEqual(expected);
   });
 
-  test('приложения каналов делят сторис и набор', () => {
-    expect(ExamplePagesUiAppDef.stories).toHaveLength(
-      ExampleDialogUiAppDef.stories.length,
-    );
+  test('приложения каналов делят набор; сторис приложения страниц — из сторис беседы', () => {
+    expect(ExamplePagesUiAppDef.stories).not.toEqual([]);
     expect(
-      ExamplePagesUiAppDef.stories.every(
-        (story, index) => story === ExampleDialogUiAppDef.stories[index],
+      ExamplePagesUiAppDef.stories.filter(
+        (story) => !ExampleDialogUiAppDef.stories.includes(story),
       ),
-    ).toBe(true);
+    ).toEqual([]);
+    expect(ExamplePagesUiAppDef.stories).toContain(FollowAssignedStoryDef);
     expect(ExamplePagesUiAppDef.set).toBe(ExampleDialogUiAppDef.set);
   });
 

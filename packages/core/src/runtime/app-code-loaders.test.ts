@@ -1,10 +1,13 @@
 import { describe, expect, test } from 'bun:test';
+import { ExampleAppDef } from 'dmg-core/testing/example';
 import {
   ExampleUiSetDef,
+  exampleCodes,
   OWNER,
   TaskAssignedNotificationCode,
   TaskAssignedNotificationDef,
   TaskListScreenDef,
+  TodoUiModuleDef,
   todoCodes,
   UserCardScreenCode,
   UserCardScreenDef,
@@ -20,6 +23,7 @@ import {
 import { ScreenDef } from '../manifest/screen-def';
 import { UiAppDef } from '../manifest/ui-app-def';
 import { UiModuleDef } from '../manifest/ui-module-def';
+import { UiSetDef } from '../manifest/ui-set-def';
 import { AppCodeLoaders } from './app-code-loaders';
 import { CodeLoader, CodeLoaders } from './code-loaders';
 import { ModuleRegistries } from './module-registries';
@@ -27,6 +31,18 @@ import { ModuleRegistries } from './module-registries';
 // Сборка кода области — приложения UI или набора целиком — из реестров
 // модулей: у каждого модуля области ровно один реестр, иначе отказ UI-06 со
 // всеми нарушениями. Код экрана и уведомления — из реестра модуля-хозяина.
+
+/**
+ * Набор сцены из двух модулей примера, `users` первым: полнота сборки набора
+ * проверяется на нём — состав учебного набора растёт, а тексты отказа точные.
+ */
+const PairUiSetDef = UiSetDef.define({
+  name: 'pairUi',
+  label: 'Два модуля примера',
+  description: 'Набор сцены: пользователи и задачи.',
+  app: ExampleAppDef,
+  modules: [UsersUiModuleDef, TodoUiModuleDef],
+});
 
 /** Модуль вне набора примера и его реестр кода. */
 const StrayScreenDef = ScreenDef.define({
@@ -136,36 +152,35 @@ describe('AppCodeLoaders — полнота сборки приложения', 
 describe('AppCodeLoaders — полнота сборки набора', () => {
   test('нет реестра модуля набора — отказ UI-06 с именами набора и модуля', async () => {
     expect(
-      await failure(() => AppCodeLoaders.ofSet(ExampleUiSetDef, [todoCodes()])),
-    ).toBe('UI-06: CodeLoaders набора exampleUi: нет реестра модуля users');
+      await failure(() => AppCodeLoaders.ofSet(PairUiSetDef, [todoCodes()])),
+    ).toBe('UI-06: CodeLoaders набора pairUi: нет реестра модуля users');
   });
 
-  test('реестры всех модулей набора — сборка без отказа', async () => {
+  test('реестры всех модулей набора — сборка без отказа; сборка кода учебного набора полна', async () => {
     expect(
       await failure(() =>
-        AppCodeLoaders.ofSet(ExampleUiSetDef, [todoCodes(), usersCodes()]),
+        AppCodeLoaders.ofSet(PairUiSetDef, [todoCodes(), usersCodes()]),
       ),
     ).toBeUndefined();
+    expect(await failure(() => exampleCodes())).toBeUndefined();
   });
 
   test('реестр модуля другого набора — отказ UI-06 «вне набора»', async () => {
     expect(
       await failure(() =>
-        AppCodeLoaders.ofSet(ExampleUiSetDef, [
+        AppCodeLoaders.ofSet(PairUiSetDef, [
           todoCodes(),
           usersCodes(),
           strayCodes(),
         ]),
       ),
-    ).toBe(
-      'UI-06: CodeLoaders набора exampleUi: реестр модуля stray вне набора',
-    );
+    ).toBe('UI-06: CodeLoaders набора pairUi: реестр модуля stray вне набора');
   });
 
   test('нарушения сборки сразу — один отказ, строка UI-06 на каждое: нет, вне, два', async () => {
     expect(
       await failure(() =>
-        AppCodeLoaders.ofSet(ExampleUiSetDef, [
+        AppCodeLoaders.ofSet(PairUiSetDef, [
           todoCodes(),
           strayCodes(),
           todoCodes(),
@@ -173,9 +188,9 @@ describe('AppCodeLoaders — полнота сборки набора', () => {
       ),
     ).toBe(
       [
-        'UI-06: CodeLoaders набора exampleUi: нет реестра модуля users',
-        'UI-06: CodeLoaders набора exampleUi: реестр модуля stray вне набора',
-        'UI-06: CodeLoaders набора exampleUi: два реестра модуля todo',
+        'UI-06: CodeLoaders набора pairUi: нет реестра модуля users',
+        'UI-06: CodeLoaders набора pairUi: реестр модуля stray вне набора',
+        'UI-06: CodeLoaders набора pairUi: два реестра модуля todo',
       ].join('\n'),
     );
   });
@@ -183,9 +198,9 @@ describe('AppCodeLoaders — полнота сборки набора', () => {
 
 describe('ModuleRegistries.required — модули области', () => {
   test('набор — все его модули в порядке набора', () => {
-    expect(names(ModuleRegistries.required(ExampleUiSetDef))).toEqual([
-      'todo',
+    expect(names(ModuleRegistries.required(PairUiSetDef))).toEqual([
       'users',
+      'todo',
     ]);
   });
 
@@ -219,10 +234,7 @@ describe('ModuleRegistries.required — модули области', () => {
 describe('AppCodeLoaders — область и код', () => {
   test('сборка приложения — его набор и приложение; сборка набора — без приложения', () => {
     const app = AppCodeLoaders.of(ExampleStubUiAppDef, [todoCodes()]);
-    const set = AppCodeLoaders.ofSet(ExampleUiSetDef, [
-      todoCodes(),
-      usersCodes(),
-    ]);
+    const set = exampleCodes();
 
     expect(app.set).toBe(ExampleUiSetDef);
     expect(app.app).toBe(ExampleStubUiAppDef);
@@ -238,7 +250,7 @@ describe('AppCodeLoaders — область и код', () => {
         return new UserCardScreenCode();
       }),
     ]);
-    const codes = AppCodeLoaders.ofSet(ExampleUiSetDef, [todoCodes(), users]);
+    const codes = AppCodeLoaders.ofSet(PairUiSetDef, [todoCodes(), users]);
 
     const unit = await codes.screen(UserCardScreenDef);
 
@@ -248,10 +260,7 @@ describe('AppCodeLoaders — область и код', () => {
 
   test('код уведомления — из реестра модуля-хозяина', async () => {
     const note = new TaskAssignedNotificationCode();
-    const codes = AppCodeLoaders.ofSet(ExampleUiSetDef, [
-      todoCodes({ assignedNote: note }),
-      usersCodes(),
-    ]);
+    const codes = exampleCodes({ assignedNote: note });
 
     expect(await codes.notification(TaskAssignedNotificationDef)).toBe(note);
   });
