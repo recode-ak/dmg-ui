@@ -98,9 +98,9 @@ src/
 | `platform/ui` | `@<scope>/ui` | `.` | `dmg-ui`, `kernel`, домен; реализаций фронта не объявляет (ARC-16) |
 | `frontend/app` | `@<scope>/fe-app` | `.` | `@<scope>/ui`, домен, `dmg-ui` |
 | `frontend/<m>/logic` | `@<scope>/fe-<m>` | `.` — реестр кода | `@<scope>/ui`, `@<scope>/fe-app`, `dmg-ui` |
-| `frontend/<m>/<канал>` | `@<scope>/fe-<m>-<канал>` | `.` — реестр представлений; `./public` — кирпичи | `@<scope>/fe-<m>`, `@<scope>/ui`, `@<scope>/fe-app`, `@<scope>/<канал>-kit`, `./public` чужих модулей, база канала, `dmg-ui/<канал>` |
+| `frontend/<m>/<канал>` | `@<scope>/fe-<m>-<канал>` | `.` — реестр представлений; `./public` — кирпичи | `@<scope>/fe-<m>`, `@<scope>/ui`, `@<scope>/fe-app`, `@<scope>/<канал>-kit`, `./public` чужих модулей, база канала, `dmg-ui` |
 | `frontend/<канал>-kit` | `@<scope>/<канал>-kit` | `.` | `@<scope>/ui`, `@<scope>/fe-app`, `<база>-kit`, `dmg-ui` |
-| `runners/<r>` | пакет раннера | — | всё, что собирает оболочка; модули — только через `.` |
+| `runners/<r>` | пакет раннера | — (или `.`) | всё, что собирает оболочка; модули — только через `.` |
 
 Каждый импорт объявлен в `package.json` единицы (ARC-14), между единицами — только имя пакета и вход из `exports` (ARC-15). Имя модуля с дефисом может совпасть с парой «модуль × канал» (`fe-x-web`) — выбирай имена модулей без такого совпадения. Вынос пары в свой репозиторий — [extract-frontend-module.md](../guides/extract-frontend-module.md).
 

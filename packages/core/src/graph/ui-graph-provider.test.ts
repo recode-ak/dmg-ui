@@ -1202,6 +1202,21 @@ describe('UiGraphProvider: имена модулей и каналов прот�
     expect(build).toThrow('dialog → voice → radio → dialog');
   });
 
+  test('канал-хвост ведёт в цикл без себя — отказ с циклом, не зависание', () => {
+    const build = () =>
+      new UiGraphProvider({
+        set: todo,
+        apps: [],
+        channels: [
+          { name: 'radio', base: 'dialog' },
+          { name: 'dialog', base: 'voice' },
+          { name: 'voice', base: 'dialog' },
+        ],
+      });
+
+    expect(build).toThrow('dialog → voice → dialog');
+  });
+
   test('цепочка баз без цикла — сборка без отказа', () => {
     const build = () =>
       new UiGraphProvider({

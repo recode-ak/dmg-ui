@@ -54,7 +54,7 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui/server` | `UiServer`, `UiSession`, уведомитель `UiNotifier`, привязки к `ApiApp` и `ModuleApi`, контекст рендера | [Пакет канала](docs/guides/channel-package.md) |
 | `dmg-ui/testing` | помощник рендера примеров `ExamplePreview`, наблюдатель `MemoryUiObserver`, проверка имён файлов UI `UiFileNames` | [Структура и именование UI](docs/reference/naming.md#7-проверка) |
 | `dmg-ui/testing/fixtures` | девять помощников тестов ядра для пакетов каналов | [Пакет канала](docs/guides/channel-package.md) |
-| `dmg-ui/example` | учебный проект: описание, код и представления модулей, сборки реестров, приложения UI и входы графа оболочек | [Слои фронта](docs/concepts/frontend-layers.md) |
+| `dmg-ui/example` | учебный проект: описание, код и представления модулей, сборки реестров, приложения UI и сборки `arch:check` оболочек (`ExampleDialogArch`, `ExampleWebArch`) | [Слои фронта](docs/concepts/frontend-layers.md) |
 | `dmg-ui/chat-ui` | общая часть мессенджеров: беседы, представления, сообщество, граф и правила `CH-NN`, порт мессенджера | [Пакет мессенджера](docs/guides/messenger-package.md) |
 | `dmg-ui/chat-ui/testing` | подставной мессенджер `MemoryMessenger`, примеры набора `ChatExamples` и проверка лимитов `ExampleLimits` (CH-01) | [Пакет мессенджера](docs/guides/messenger-package.md#9-как-тестировать) |
 | `dmg-ui/tg-bot` | мессенджер Telegram поверх порта Bot API, приём апдейтов, меню, правила `TG-NN` | [Telegram](docs/guides/telegram.md) |
@@ -112,7 +112,7 @@ bun run check
 
 ## Статус
 
-Версия `0.6.0` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Что сломано для потребителя: в `0.6.0` (с `0.5.x`) — раскладка фронта, реестры на модуль, граф без представлений, учебный проект — [D-UI-122](docs/decisions.md); в `0.5.1` (с `0.5.0`) — ничего, патч примера `packages/example/src/runners/web` ([D-UI-115](docs/decisions.md)); в `0.5.0` (с `0.4.0`) — [D-UI-114](docs/decisions.md), в `0.4.0` (с `0.3.2`) — [D-UI-109](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
+Версия `0.6.0` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Что сломано для потребителя: в `0.6.0` (с `0.5.x`) — раскладка фронта, реестры на модуль, граф без представлений, учебный проект — [D-UI-122](docs/decisions.md); в `0.5.1` (с `0.5.0`) — ничего, патч примера `examples/web` ([D-UI-115](docs/decisions.md)); в `0.5.0` (с `0.4.0`) — [D-UI-114](docs/decisions.md), в `0.4.0` (с `0.3.2`) — [D-UI-109](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
 
 ## Лицензия
 

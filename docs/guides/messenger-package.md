@@ -23,8 +23,8 @@
 3. **Сигналы**: апдейт мессенджера → `ConversationSignal` (`enter`, `text`, `press`, `attachment`, `cancel`, `back`, `help`; у каждого `id`, `peer`, `sender`) → `Conversations.receive`. Сигналы сообщества — `CommunitySignal` → `Communities.receive`. Входящие внешние данные: `receive` не бросает.
 4. **Порт сообщества** — если мессенджер исполняет операции (`CommunityPort`); без него реакции сообщества не собираются.
 5. **Точки входа** — `ChatAppSpec.entryPoints`: `{ entry, via, key }`, где `entry` — вход приложения, а `via` и `key` — слова мессенджера (команда, ссылка, кнопка меню); `chat-ui` их не трактует.
-6. **`ChatAppSpec`** — `{ app, views, capabilities, entryPoints?, community? }` для поставщика графа.
-7. **Перекрытие представлений** — `ChatViews.over(presenters)`: новый реестр, где представления пакета перекрывают общие по `id`; прежний не меняется. Так пакет показывает то, что умеет только его мессенджер, не меняя экраны набора.
+6. **`ChatAppSpec`** — `{ app, capabilities, entryPoints?, community? }` для поставщика графа; представлений спека не принимает (D-UI-118).
+7. **Перекрытие представлений** — `ChatViews.over(presenters)`: новый реестр, где представления пакета перекрывают общие по Def; прежний не меняется. Перекрывается реестр UI-модуля (`<m>ChatViews.over`): так пакет показывает то, что умеет только его мессенджер, не меняя экраны модуля.
 
 Порты проекта для узла бесед (`ConversationsSpec`): `people(sender)` — личность транспорта → uuid, единственный источник личности; `peers(person)` — uuid → собеседник; `store` (`ConversationStore`, `load`/`save` по `peer`); `callers`, `places`, `server`, `codes`, `views`, `observer`, `logger`; необязательный `exits` (`ConversationExits`) — приёмник выходов сторис вне набора UI (D-UI-90, раздел 3); необязательный `texts` (`ConversationTextOverrides`) — замена текстов ответа на устаревшую кнопку, `closed` и `unknownRef` (D-UI-92). Остальное — [channel-package.md](./channel-package.md), разделы 3 и 5.
 
