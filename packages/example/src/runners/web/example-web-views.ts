@@ -6,8 +6,8 @@ import { ExampleUiSetDef } from '../../platform/ui';
 import { AppExampleViews } from './view/app-example-views';
 
 /**
- * Сборка представлений примера на DOM: без `app` — набора целиком (граф,
- * кадр области), с `app` — приложения из реестров его модулей.
+ * Сборка представлений примера на DOM: без `app` — набора целиком (кадр
+ * области), с `app` — приложения из реестров его модулей.
  */
 export const exampleWebViews = (app?: AnyUiAppDef): AppExampleViews => {
   const modules = [todoWebViews, usersWebViews, profileWebViews];

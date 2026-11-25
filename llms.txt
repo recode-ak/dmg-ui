@@ -38,7 +38,7 @@
 - [Учебный проект](packages/example/src/platform/ui/example-ui.set.ts): `ExampleUiSetDef` и модули `todo`, `profile`, `users`; код и представления — `packages/example/src/frontend/`, оболочки и входы графа — `packages/example/src/runners/`; вход `dmg-ui/example` (D-UI-121)
 - [Мессенджер Telegram](docs/guides/telegram.md#2-сборка): `TelegramMessenger` поверх узкого порта Bot API, подставной порт `MemoryBotApi`
 - [Меню и граф Telegram](docs/guides/telegram.md#5-точки-входа-и-меню): `TelegramMenu`, `TelegramGraphProvider` и правила TG-01…TG-06
-- [Учебный пример под Telegram](docs/guides/telegram.md#10-тестирование-и-пример): `exampleTelegramViews`, `ExampleTelegramPreview`
+- [Учебный пример под Telegram](docs/guides/telegram.md#7-возможности-telegram): `exampleTelegramViews`, `ExampleTelegramPreview`
 - [Апдейты Telegram](docs/guides/telegram.md#3-подача-апдейтов-и-подлинность): `TelegramUpdates`, `TELEGRAM_ALLOWED_UPDATES`, сообщество группы — [раздел 6](docs/guides/telegram.md#6-сообщество)
 - [Привязка сервера на `Bun.serve`](docs/guides/web-channel.md#44-привязка-к-bunserve): шесть условий, пульс, пределы кадра и очереди
 - [Контракт представления](docs/guides/web-channel.md#3-контракт-представления): `ViewSource`, `PageRegionPresenter`, `PageViewState`

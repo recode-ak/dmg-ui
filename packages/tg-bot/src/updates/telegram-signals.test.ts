@@ -90,7 +90,7 @@ describe('TelegramSignals — текст и команды', () => {
       kind: 'signal',
       signal: { ...HEAD, kind: 'cancel' },
     });
-    expect(signal(command('/back@u7_bot'))).toEqual({
+    expect(signal(command('/back@example_bot'))).toEqual({
       kind: 'signal',
       signal: { ...HEAD, kind: 'back' },
     });
@@ -170,7 +170,7 @@ describe('TelegramSignals — точки входа: команда по таб�
   test('/x@bot — суффикс бота отброшен', () => {
     const of = withTable([point('start', 'command', 'x')]);
 
-    expect(of(command('/x@u7_bot'))).toStrictEqual(entered('start'));
+    expect(of(command('/x@example_bot'))).toStrictEqual(entered('start'));
   });
 
   test('имя не в таблице → enter с заглушкой UNKNOWN_ENTRY', async () => {
@@ -179,7 +179,7 @@ describe('TelegramSignals — точки входа: команда по таб�
 
     expect(unknown).not.toBe('start');
     expect(of(command('/nope'))).toStrictEqual(entered(unknown));
-    expect(of(command('/nope@u7_bot'))).toStrictEqual(entered(unknown));
+    expect(of(command('/nope@example_bot'))).toStrictEqual(entered(unknown));
   });
 
   test('вход приложения без точки командой не открывается: /assigned без точки → заглушка', async () => {
@@ -208,7 +208,9 @@ describe('TelegramSignals — точки входа: параметр ссылк
   });
 
   test('/start@bot abc — то же', () => {
-    expect(of(command('/start@u7_bot abc'))).toStrictEqual(entered('assigned'));
+    expect(of(command('/start@example_bot abc'))).toStrictEqual(
+      entered('assigned'),
+    );
   });
 
   test('параметр в формате, но не в таблице → вход точки /start', () => {
@@ -275,7 +277,7 @@ describe('TelegramSignals — точки входа: регистр', () => {
     const of = withTable([point('start', 'command', 'tasks')]);
 
     expect(of(command('/Tasks'))).toStrictEqual(entered('start'));
-    expect(of(command('/TASKS@u7_bot'))).toStrictEqual(entered('start'));
+    expect(of(command('/TASKS@example_bot'))).toStrictEqual(entered('start'));
   });
 
   test('/Start → как /start', () => {
@@ -1139,7 +1141,7 @@ describe('TelegramSignals — /help: сигнал беседы раньше та
     const of = withTable([START]);
 
     expect(of(command('/help'))).toStrictEqual(HELP);
-    expect(of(command('/help@u7_bot'))).toStrictEqual(HELP);
+    expect(of(command('/help@example_bot'))).toStrictEqual(HELP);
     expect(of(command('/Help'))).toStrictEqual(HELP);
   });
 

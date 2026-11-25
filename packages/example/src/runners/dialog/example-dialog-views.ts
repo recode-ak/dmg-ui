@@ -7,7 +7,7 @@ import { ExampleUiSetDef } from '../../platform/ui';
 
 /**
  * Сборка представлений учебного примера в диалоговом канале: без `app` —
- * набора целиком (превью, граф), с `app` — приложения из реестров его модулей.
+ * набора целиком (превью), с `app` — приложения из реестров его модулей.
  */
 export const exampleDialogViews = (app?: AnyUiAppDef): AppChatViews => {
   const modules = [todoChatViews, usersChatViews, profileChatViews];

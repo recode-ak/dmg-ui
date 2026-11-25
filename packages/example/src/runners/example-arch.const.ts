@@ -18,8 +18,8 @@ export const EXAMPLE_CHANNELS: readonly UiChannelSpec[] = [
 
 /**
  * Места слоёв и раннеры учебного проекта, общие для графов `dialog` и `web`
- * (ARC-13). Слои `fe-app` и `chat-kit` объявлены без каталогов: набор проекта
- * их не заводит.
+ * (ARC-13). Каталоги слоёв `fe-app` и `chat-kit` названы, но файлов в них
+ * нет: набор проекта их не заводит.
  */
 export const EXAMPLE_PLACES: Pick<ArchApp, 'project' | 'runners' | 'layers'> = {
   project: PROJECT,
