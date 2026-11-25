@@ -163,19 +163,20 @@ const RULES = new Set([
   'UI-34',
 ]);
 
-/**
- * Строки нарушений правил единиц и слоёв фронта; с `file` — только по этому
- * файлу (путь от проекта). Поля `file` у нарушений ARC-14/15 нет: файл — первое
- * слово текста строки.
- */
-function linesOf(rule?: string, file?: string): string[] {
+/** Строки нарушений правила `rule`, без него — всех правил единиц и слоёв фронта. */
+function linesOf(rule?: string): string[] {
   return ArchChecker.of(app())
     .check()
     .filter((v) => (rule === undefined ? RULES.has(v.rule) : v.rule === rule))
-    .map((v) => v.format())
-    .filter(
-      (line) => file === undefined || line.startsWith(`${rule}: ${file} `),
-    );
+    .map((v) => v.format());
+}
+
+/**
+ * Строки нарушений правила `rule` по файлу `file` (путь от проекта). Поля
+ * `file` нет у нарушений ARC-14…16: файл — первое слово текста строки.
+ */
+function fileLinesOf(rule: string, file: string): string[] {
+  return linesOf(rule).filter((line) => line.startsWith(`${rule}: ${file} `));
 }
 
 describe('единица выноса фронта: monorepo на пакетах по слоям', () => {
@@ -225,7 +226,7 @@ describe('единица выноса фронта: monorepo на пакетах
       { [LIST]: ['@t/ui', '@t/dialog-kit', '@t/fe-users-dialog/src/card'] },
     );
 
-    expect(linesOf('ARC-15', LIST)).toEqual([
+    expect(fileLinesOf('ARC-15', LIST)).toEqual([
       `ARC-15: ${LIST} (@t/fe-todo-dialog) импортирует @t/fe-users-dialog мимо exports (или пакет не установлен — bun install): @t/fe-users-dialog/src/card`,
     ]);
   });
@@ -238,8 +239,16 @@ describe('единица выноса фронта: monorepo на пакетах
       },
     });
 
-    expect(linesOf('ARC-14', LIST)).toEqual([
+    expect(fileLinesOf('ARC-14', LIST)).toEqual([
       `ARC-14: ${LIST} (@t/fe-todo-dialog) импортирует @t/dialog-kit — нет в package.json единицы: @t/dialog-kit`,
+    ]);
+  });
+
+  it('канал модуля берёт соседа через index, а не public — UI-32', () => {
+    install({}, { [LIST]: ['@t/ui', '@t/dialog-kit', '@t/fe-users-dialog'] });
+
+    expect(linesOf('UI-32')).toEqual([
+      `UI-32: ${LIST} (fe-dialog) импортирует fe-dialog users мимо public.ts: @t/fe-users-dialog`,
     ]);
   });
 });

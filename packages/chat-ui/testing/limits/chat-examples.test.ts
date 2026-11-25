@@ -378,8 +378,8 @@ describe('ChatExamples.collect — граница с UI-20', () => {
       'UI-20: probeUi/desk/probe: пример badState не по схеме state',
     ]);
     expect(ch01.length).toBeGreaterThan(0);
-    expect(ch01.filter((line) => line.includes(', пример good: '))).toEqual(
-      ch01,
-    );
+    expect(ch01.filter((line) => line.includes(', пример good: '))).toEqual([
+      ...ch01,
+    ]);
   });
 });

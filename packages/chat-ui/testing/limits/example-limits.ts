@@ -26,7 +26,10 @@ export class ExampleLimits {
   constructor(private readonly examples: ChatExamples) {}
 
   /** Нарушения сборки на возможностях: экраны, затем уведомления — в порядке примеров. */
-  check(views: AppChatViews, capabilities: MessengerCapabilities): string[] {
+  check(
+    views: AppChatViews,
+    capabilities: MessengerCapabilities,
+  ): readonly string[] {
     this.verify(views, capabilities);
     const ids = new UiIds(views.set);
     const area =
