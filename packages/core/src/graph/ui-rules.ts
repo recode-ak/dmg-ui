@@ -15,7 +15,6 @@ import { RecipientFieldsRule } from './rules/recipient-fields.rule';
 import { RefreshRecordRule } from './rules/refresh-record.rule';
 import { SchemaFieldTextsRule } from './rules/schema-field-texts.rule';
 import { ScreenUsesHiddenRule } from './rules/screen-uses-hidden.rule';
-import { ScreenWithoutPresentationRule } from './rules/screen-without-presentation.rule';
 import { ScreenWithoutStoryRule } from './rules/screen-without-story.rule';
 import { SensitiveExamplesRule } from './rules/sensitive-examples.rule';
 import { StoryCallersRule } from './rules/story-callers.rule';
@@ -33,8 +32,10 @@ export class UiRules {
   private constructor(private readonly set: AnyUiSetDef) {}
 
   /**
-   * Правила по порядку ID: UI-01…UI-27. Набор нужен только UI-20 (примеры
-   * проверяются схемами valibot); `UiIds` здесь не строится и не бросает.
+   * Правила по порядку ID: UI-01…UI-27, кроме UI-06 — полноту реестров
+   * держат их конструкторы (`UiCompleteness`). Набор нужен только UI-20
+   * (примеры проверяются схемами valibot); `UiIds` здесь не строится и не
+   * бросает.
    */
   static of(set: AnyUiSetDef): readonly GraphRule[] {
     return new UiRules(set).list();
@@ -47,7 +48,6 @@ export class UiRules {
       new TransitionOutsideStoryRule(),
       new ExitWithoutOutcomeRule(),
       new TransitionOutsideAppRule(),
-      new ScreenWithoutPresentationRule(),
       new UnreachableScreenRule(),
       new ReadsOnlyQueryRule(),
       new InvokesOnlyCommandRule(),

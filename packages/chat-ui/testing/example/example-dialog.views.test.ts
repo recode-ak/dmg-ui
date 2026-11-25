@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import type { RenderContext } from 'dmg-ui';
 import { DialogRenderer } from 'dmg-ui/chat-ui';
 import {
   AssignedTasksScreenDef,
@@ -12,7 +13,15 @@ import {
   TaskCompletedNotificationDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
-import { exampleDialogViews } from '../index';
+import {
+  ChatExamples,
+  ExampleDialogUiAppDef,
+  ExampleLimits,
+  ExampleTrimmedUiAppDef,
+  ExampleWindowedUiAppDef,
+  exampleDialogViews,
+  MemoryMessenger,
+} from '../index';
 
 // Помощник рендера примеров: вид примера из Def через представление
 // канала — здесь `DialogRenderer` диалогового канала: ему нужны только
@@ -90,5 +99,39 @@ describe('ExamplePreview через DialogRenderer — снимки пример
     expect(delegate).toContain('[🚫 Выполнить выбранные]');
     expect(delegate).not.toContain('[Выполнить выбранные]');
     expect(delegate).not.toEqual(own);
+  });
+});
+
+/**
+ * Контекст примеров: место примеров по умолчанию и субъект примеров — без
+ * субъекта действия по правам скрыты, и CH-01 видит урезанный вид (D-UI-99).
+ */
+const EXAMPLES_CONTEXT: RenderContext = {
+  locale: 'ru-RU',
+  timeZone: 'Asia/Oral',
+  delegate: false,
+  readOnly: false,
+  subject: exampleSubject,
+};
+
+describe('CH-01 учебного примера', () => {
+  test('CH-01: учебный пример в лимитах мессенджеров трёх приложений — нарушений нет', async () => {
+    const limits = new ExampleLimits(
+      await ChatExamples.collect({
+        set: ExampleUiSetDef,
+        codes: exampleCodes(),
+        context: EXAMPLES_CONTEXT,
+      }),
+    );
+    const editing = MemoryMessenger.editing().capabilities;
+
+    expect([
+      ...limits.check(exampleDialogViews(ExampleDialogUiAppDef), editing),
+      ...limits.check(exampleDialogViews(ExampleTrimmedUiAppDef), editing),
+      ...limits.check(
+        exampleDialogViews(ExampleWindowedUiAppDef),
+        MemoryMessenger.windowed(() => 0).capabilities,
+      ),
+    ]).toEqual([]);
   });
 });

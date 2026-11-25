@@ -2,9 +2,9 @@
 // схема снимка беседы; представления беседы — сообщения с вариантами-
 // намерениями, реестр модуля с перекрытием под мессенджер и сборка области;
 // сообщение, помощники лимита, порт мессенджера, его возможности и страж
-// лимитов; поставщик графа общей части мессенджеров, его имя и примеры для
-// его правил, рендерер примеров, манифесты сообщества и их исполнитель; узел
-// бесед доставляет и уведомления.
+// лимитов; поставщик графа общей части мессенджеров и его имя, рендерер
+// примеров, манифесты сообщества и их исполнитель; узел бесед доставляет и
+// уведомления.
 
 export {
   Communities,
@@ -38,12 +38,6 @@ export { Conversations } from './conversation/conversations';
 export { MemoryConversationStore } from './conversation/memory-conversation-store';
 
 export { DIALOG_CHANNEL, DialogRenderer } from './dialog';
-export {
-  ChatExamples,
-  type ChatExamplesSpec,
-  type ChatNotificationExample,
-  type ChatScreenExample,
-} from './graph/chat-examples';
 export {
   type ChatAppSpec,
   type ChatEntryPointSpec,

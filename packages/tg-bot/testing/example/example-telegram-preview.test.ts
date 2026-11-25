@@ -12,10 +12,8 @@ import {
   TaskCompletedNotificationDef,
   TaskListScreenDef,
 } from 'dmg-ui/testing';
-import { ArchReport } from 'dmg-ui/testing/fixtures';
 import type { InlineKeyboardButton, MessageEntity } from 'dmg-ui/tg-bot';
 import { ExampleTelegramPreview, exampleTelegramViews } from '../index';
-import { MENU_POINT, telegramScene } from '../telegram-graph-scene';
 import { EXAMPLE_CONTEXT } from './example-telegram.const';
 
 // Перекрытие общего представления под Telegram (D-UI-67): `exampleTelegramViews`
@@ -213,28 +211,6 @@ describe('Telegram: перекрытые экраны — ключевые по�
       request.text.endsWith('\n-----\nВы выбрали: Выполнить выбранные'),
     ).toBe(true);
     expect(request).not.toHaveProperty('reply_markup');
-  });
-});
-
-describe('сцена графа Telegram на exampleTelegramViews', () => {
-  test('CH-01…CH-03 и TG-01…TG-06 без нарушений, код 0', () => {
-    const report = ArchReport.of(
-      telegramScene({
-        entryPoints: [
-          { entry: 'start', via: 'command', key: 'start' },
-          { entry: 'assigned', via: 'menu', key: 'assigned' },
-          { entry: 'assigned', via: 'link', key: 'assigned' },
-          MENU_POINT,
-        ],
-        views: exampleTelegramViews(),
-      }),
-    );
-
-    expect(report.lines).toEqual([
-      'arch:check example: нарушений — 0',
-      'arch:check: нарушений нет',
-    ]);
-    expect(report.code).toBe(0);
   });
 });
 

@@ -24,7 +24,7 @@ import {
 } from 'dmg-ui/testing';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import { ExamplePagesUiAppDef, examplePagesViews } from '../../testing';
+import { ExamplePagesUiAppDef } from '../../testing';
 import { RoutedPagesUiAppDef } from '../../testing/routed-pages.ui-app';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';
@@ -104,7 +104,7 @@ const onExample = (
   routes: readonly PageRouteDef[],
 ): Scene => ({
   set: ExampleUiSetDef,
-  apps: [{ app, views: examplePagesViews(), routes }],
+  apps: [{ app, routes }],
 });
 
 const reportOf = (scene: Scene) =>
@@ -127,8 +127,7 @@ const routedPages = (...routes: readonly PageRouteDef[]) =>
 /**
  * Набор `soloUi` с модулем `module`, экраном входа без параметров и экраном
  * `odd` с параметрами `params` и примерами `examples`; приложения страниц на
- * нём — `apps`. Реестр представлений — пустой по структуре: графу нужны
- * только `set` и `presented()`.
+ * нём — `apps`.
  */
 const solo = (
   params: StrictSchema,
@@ -188,10 +187,9 @@ const solo = (
       entries: { start: entryOf(HomeScreenDef.at({})) },
     }),
   );
-  const views = { set, presented: () => [] };
   const scene = (routes: readonly PageRouteDef[]): Scene => ({
     set,
-    apps: apps.map((app) => ({ app, views, routes })),
+    apps: apps.map((app) => ({ app, routes })),
   });
   return { set, scene, apps };
 };
@@ -340,12 +338,10 @@ describe('PG-04: маршруты приложения не совпадают �
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: examplePagesViews(),
           routes: [TASKS, ASSIGNED, route('same', '/x', 'start')],
         },
         {
           app: SecondPagesAppDef,
-          views: examplePagesViews(),
           routes: [TASKS, ASSIGNED, route('same', '/x', 'start')],
         },
       ],
@@ -731,28 +727,21 @@ describe('Круг «адрес → URL → адрес» на примерах �
 });
 
 describe('Два приложения web в одном поставщике графа', () => {
-  // Второе приложение — свои маршруты (другие имена и другие входы) и свой
-  // набор представлений: поставщик не берёт чужие данные у первого.
+  // Второе приложение — свои маршруты (другие имена и другие входы):
+  // поставщик не берёт чужие данные у первого.
   const SECOND_ROUTES = [
     route('home', '/', 'assigned'),
     route('list', '/list', 'start'),
-  ];
-  const SECOND_PRESENTED = [
-    'exampleUi/todo/assignedTasks',
-    'exampleUi/todo/taskCard',
-    'exampleUi/todo/taskList',
   ];
   const scene: Scene = {
     set: ExampleUiSetDef,
     apps: [
       {
         app: ExamplePagesUiAppDef,
-        views: examplePagesViews(),
         routes: [TASKS, ASSIGNED, MENU],
       },
       {
         app: LeanPagesAppDef,
-        views: { set: ExampleUiSetDef, presented: () => SECOND_PRESENTED },
         routes: SECOND_ROUTES,
       },
     ],

@@ -1,19 +1,19 @@
 import type { InstanceView } from 'dmg-ui';
-import type { Message } from '../../message/message.types';
-import type {
-  LimitCut,
-  MessengerCapabilities,
-} from '../../messenger/messenger.types';
-import type { AppChatViews } from '../../view/app-chat-views';
-import { ScreenComposer } from '../../view/screen-composer';
-import type { ViewMessage } from '../../view/view.types';
+import {
+  type AppChatViews,
+  type LimitCut,
+  type Message,
+  type MessengerCapabilities,
+  ScreenComposer,
+  type ViewMessage,
+} from 'dmg-ui/chat-ui';
 import { ExampleFit } from './example-fit';
 import { STUB_REF } from './example-limits.const';
 
 /**
  * Мера показа экрана для CH-01: показ с «Назад» (худший случай), каждое
  * сообщение — подгонкой стража; номера сообщения и варианта — с 1. Дефект
- * представления — бросок `compose`, строку о нём пишет правило.
+ * представления — бросок `compose`, строку о нём пишет `ExampleLimits`.
  */
 export class ScreenLimits {
   private readonly composer: ScreenComposer;

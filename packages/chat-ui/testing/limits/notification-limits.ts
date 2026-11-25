@@ -1,8 +1,8 @@
-import { TextBuilder } from '../../message/text-builder';
-import type {
-  LimitCut,
-  MessengerCapabilities,
-} from '../../messenger/messenger.types';
+import {
+  type LimitCut,
+  type MessengerCapabilities,
+  TextBuilder,
+} from 'dmg-ui/chat-ui';
 import { ExampleFit } from './example-fit';
 import { STUB_REF } from './example-limits.const';
 import type { NoticeLink } from './example-limits.types';

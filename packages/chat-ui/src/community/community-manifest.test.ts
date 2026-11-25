@@ -6,14 +6,8 @@ import {
   RemoveUserUcDef,
   TaskEvents,
 } from 'dmg-core/testing/example';
-import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
 import * as v from 'valibot';
-import {
-  ExampleDialogUiAppDef,
-  exampleDialogViews,
-  MemoryMessenger,
-} from '../../testing';
-import { ChatExamples } from '../graph/chat-examples';
+import { ExampleDialogUiAppDef, MemoryMessenger } from '../../testing';
 import { ChatGraphProvider } from '../graph/chat-graph-provider';
 import type { ChatCommunitySpec } from './community.types';
 import { CommunityManifest } from './community-manifest';
@@ -23,11 +17,6 @@ import { CommunityManifest } from './community-manifest';
 // реакции повторено в приложении или не сегмент `GraphId`; UC или событие
 // вне приложения (`DefIndex` модулей приложения); пустые `input` или
 // `targets`. Текст — имя приложения и манифеста, без значений манифеста.
-
-const EXAMPLES = await ChatExamples.collect({
-  set: ExampleUiSetDef,
-  codes: exampleCodes(),
-});
 
 /** Сигнал `left` → `removeUser`. */
 const GONE = {
@@ -93,12 +82,10 @@ const providerOf = (community: ChatCommunitySpec) => () =>
     apps: [
       {
         app: ExampleDialogUiAppDef,
-        views: exampleDialogViews(),
         capabilities: MemoryMessenger.editing().capabilities,
         community,
       },
     ],
-    examples: EXAMPLES,
   });
 
 type Broken = {

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { UiAppDef } from 'dmg-ui';
 import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
-import { ExamplePagesUiAppDef, examplePagesViews } from '../../testing';
+import { ExamplePagesUiAppDef } from '../../testing';
 import { PAGE_CHANNEL } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';
 import { PageGraphProvider } from './page-graph-provider';
@@ -30,9 +30,7 @@ const reportOf = (routes: readonly PageRouteDef[]) =>
       [ExamplePagesUiAppDef],
       [
         new PageGraphProvider({
-          apps: [
-            { app: ExamplePagesUiAppDef, views: examplePagesViews(), routes },
-          ],
+          apps: [{ app: ExamplePagesUiAppDef, routes }],
         }),
       ],
     ),
@@ -121,12 +119,10 @@ describe('PG-02: два приложения в одном поставщике'
             apps: [
               {
                 app: ExamplePagesUiAppDef,
-                views: examplePagesViews(),
                 routes: [TASKS, ASSIGNED, MENU],
               },
               {
                 app: SecondPagesAppDef,
-                views: examplePagesViews(),
                 routes: second,
               },
             ],

@@ -28,7 +28,7 @@ export class AppChatViews {
     );
   }
 
-  /** Сборка набора целиком: превью и граф. */
+  /** Сборка набора целиком: превью и CH-01. */
   static ofSet(set: AnyUiSetDef, modules: readonly ChatViews[]): AppChatViews {
     return new AppChatViews(
       ModuleRegistries.ofSet(ChatViews.completeness, set, modules),
@@ -77,14 +77,5 @@ export class AppChatViews {
   /** Реестры модулей в порядке передачи. */
   registries(): readonly ChatViews[] {
     return this.modules.registries();
-  }
-
-  /** `id` экранов и уведомлений модулей сборки — для рёбер `presents` графа. */
-  presented(): readonly string[] {
-    const { ids } = this.modules;
-    return this.registries().flatMap(({ module }) => [
-      ...module.screens.map((def) => ids.screen(def)),
-      ...module.notifications.map((def) => ids.notification(def)),
-    ]);
   }
 }

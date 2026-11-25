@@ -12,33 +12,27 @@ import {
   RemoveUserUcDef,
   TaskEvents,
 } from 'dmg-core/testing/example';
-import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import {
   ExampleDialogUiAppDef,
   ExampleWindowedUiAppDef,
-  exampleDialogViews,
   MemoryMessenger,
 } from '../../../testing';
 import type { ChatCommunitySpec } from '../../community/community.types';
 import type { MessengerCapabilities } from '../../messenger/messenger.types';
-import { ChatExamples } from '../chat-examples';
 import { type ChatAppSpec, ChatGraphProvider } from '../chat-graph-provider';
 
 // CH-03: сигнал (`chatSignal`) и реакция (`chatReaction`) прямо
 // под приложением UI — только если мессенджер приложения (свойства узла
 // `chatMessenger` того же приложения) принимает этот сигнал или исполняет
 // эту операцию. `editing` умеет всё, у `windowed` возможности сообщества
-// пустые — это сцена нарушения. Свойства не по схеме: CH-03 молчит, строку
-// о возможностях даёт CH-01. Тексты — без данных манифеста (ERR-07).
+// пустые — это сцена нарушения. Свойства не по схеме: CH-03 молчит — свои
+// узлы поставщик ставит только по схеме, возможности не по схеме — бросок
+// конструктора. Тексты — без данных манифеста (ERR-07).
 
 const EDITING = MemoryMessenger.editing().capabilities;
 const WINDOWED = MemoryMessenger.windowed(() => 0).capabilities;
-
-const EXAMPLES = await ChatExamples.collect({
-  set: ExampleUiSetDef,
-  codes: exampleCodes(),
-});
 
 /** Сигнал `left` → `removeUser`. */
 const GONE = {
@@ -83,7 +77,6 @@ const dialog = (
   capabilities: MessengerCapabilities = EDITING,
 ): ChatAppSpec => ({
   app: ExampleDialogUiAppDef,
-  views: exampleDialogViews(),
   capabilities,
   entryPoints: pointsOf(ExampleDialogUiAppDef),
   ...(community ? { community } : {}),
@@ -91,7 +84,6 @@ const dialog = (
 
 const windowed = (community?: ChatCommunitySpec): ChatAppSpec => ({
   app: ExampleWindowedUiAppDef,
-  views: exampleDialogViews(),
   capabilities: WINDOWED,
   entryPoints: pointsOf(ExampleWindowedUiAppDef),
   ...(community ? { community } : {}),
@@ -109,7 +101,7 @@ const sceneOf = (
   UiScene.appOf(
     ExampleUiSetDef,
     apps.map((spec) => spec.app),
-    [new ChatGraphProvider({ apps, examples: EXAMPLES }), ...extra],
+    [new ChatGraphProvider({ apps }), ...extra],
   );
 
 /** Подставной поставщик сцены без своих видов: только узлы и рёбра. */
@@ -207,11 +199,10 @@ describe('CH-03: сигнал или реакция только в прилож
 });
 
 describe('CH-03: свойства и охват', () => {
-  test('свойства chatMessenger не по схеме — check не бросает, CH-03 молчит, строку о возможностях даёт CH-01', () => {
+  test('свойства chatMessenger не по схеме — check не бросает, CH-03 молчит', () => {
     const scene = sceneOf([dialog(), windowed(COMMUNITY)]);
     const built = new AppGraph(scene).build();
     const rule = ruleOf(scene, 'CH-03');
-    const limits = ruleOf(scene, 'CH-01');
     // Сборщик графа проверяет свойства схемой вида и узел не по схеме не
     // пропустит: сцена собирает граф конструктором `Graph` в обход него,
     // как граф с чужими правками. Другого пути к такому графу нет.
@@ -234,9 +225,6 @@ describe('CH-03: свойства и охват', () => {
       lines = rule?.check(broken) ?? ['не вызван'];
     }).not.toThrow();
     expect(lines).toEqual([]);
-    expect(limits?.check(broken)).toEqual([
-      'приложение exampleWindowed: возможности мессенджера не по схеме',
-    ]);
   });
 
   test('свойства chatReaction не по схеме — check не бросает, о сломанной реакции строки нет, строка сигнала остаётся', () => {
@@ -320,7 +308,7 @@ describe('CH-03: свойства и охват', () => {
       ExampleUiSetDef,
       [ExampleDialogUiAppDef, ExampleWindowedUiAppDef],
       [
-        new ChatGraphProvider({ apps: [dialog()], examples: EXAMPLES }),
+        new ChatGraphProvider({ apps: [dialog()] }),
         stub({
           nodes: [
             {

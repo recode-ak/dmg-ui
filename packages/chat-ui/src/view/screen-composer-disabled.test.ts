@@ -10,8 +10,8 @@ import {
 import { testRenderContext } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import { MemoryMessenger } from '../../testing';
+import { ScreenLimits } from '../../testing/limits/screen-limits';
 import { DialogRenderer } from '../dialog/dialog-renderer';
-import { ScreenLimits } from '../graph/rules/screen-limits';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
 import { AppChatViews } from './app-chat-views';
 import { ChatViews } from './chat-views';

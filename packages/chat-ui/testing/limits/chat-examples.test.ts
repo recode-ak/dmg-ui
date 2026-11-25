@@ -20,6 +20,14 @@ import {
   UiSetDef,
 } from 'dmg-ui';
 import {
+  AppChatViews,
+  ChatViews,
+  DIALOG_CHANNEL,
+  type MessengerCapabilities,
+  NotificationPresenter,
+  ScreenPresenter,
+} from 'dmg-ui/chat-ui';
+import {
   ExampleUiSetDef,
   exampleCodes,
   TaskAssignedNotificationDef,
@@ -28,19 +36,11 @@ import {
 } from 'dmg-ui/testing';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
-import { MemoryMessenger } from '../../testing';
-import { DIALOG_CHANNEL } from '../dialog';
-import type { MessengerCapabilities } from '../messenger/messenger.types';
-import { AppChatViews } from '../view/app-chat-views';
-import { ChatViews } from '../view/chat-views';
-import { NotificationPresenter } from '../view/notification-presenter';
-import { ScreenPresenter } from '../view/screen-presenter';
-import { ChatExamples } from './chat-examples';
-import { ChatGraphProvider } from './chat-graph-provider';
+import { ChatExamples, ExampleLimits, MemoryMessenger } from '../index';
 
-// Примеры для правила лимитов собираются до графа: `check` правила
-// синхронный, а вид экрана по примеру — `Promise` (код экрана грузится
-// `import()`). Пример не по схеме пропускается — нарушение даёт UI-20.
+// Примеры для CH-01 (`ExampleLimits`) собирает тест: `check` синхронный, а
+// вид экрана по примеру — `Promise` (код экрана грузится `import()`).
+// Пример не по схеме пропускается — нарушение даёт UI-20.
 
 const LIST = 'exampleUi/todo/taskList';
 const CARD = 'exampleUi/todo/taskCard';
@@ -348,7 +348,7 @@ describe('ChatExamples.collect — граница с UI-20', () => {
       set: ProbeUiSetDef,
       codes: probeCodes(),
     });
-    const views = AppChatViews.ofSet(ProbeUiSetDef, [
+    const views = AppChatViews.of(ProbeAppDef, [
       ChatViews.of(ProbeUiModuleDef, [
         ScreenPresenter.for(ProbeScreenDef, () => 'Проба экрана'),
         NotificationPresenter.for(
@@ -363,26 +363,8 @@ describe('ChatExamples.collect — граница с UI-20', () => {
       textWithOptions: { max: 3, unit: 'codePoint' },
     };
 
-    const report = ArchReport.of(
-      UiScene.appOf(
-        ProbeUiSetDef,
-        [ProbeAppDef],
-        [
-          new ChatGraphProvider({
-            apps: [
-              {
-                app: ProbeAppDef,
-                views,
-                capabilities,
-                entryPoints: [{ entry: 'start', via: 'message', key: 'start' }],
-              },
-            ],
-            examples,
-          }),
-        ],
-      ),
-    );
-    const ch01 = report.rule('CH-01');
+    const report = ArchReport.of(UiScene.appOf(ProbeUiSetDef, [ProbeAppDef]));
+    const ch01 = new ExampleLimits(examples).check(views, capabilities);
 
     expect(
       report

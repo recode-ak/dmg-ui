@@ -7,15 +7,13 @@ import {
   type GraphProvider,
   type GraphRule,
 } from 'dmg-core/graph';
-import { ExampleUiSetDef, exampleCodes } from 'dmg-ui/testing';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import {
   ExampleDialogUiAppDef,
   ExampleWindowedUiAppDef,
-  exampleDialogViews,
   MemoryMessenger,
 } from '../../../testing';
-import { ChatExamples } from '../chat-examples';
 import { type ChatAppSpec, ChatGraphProvider } from '../chat-graph-provider';
 
 // CH-02: у каждого входа беседы приложения (`chatEntry`) есть входящее ребро
@@ -26,11 +24,6 @@ import { type ChatAppSpec, ChatGraphProvider } from '../chat-graph-provider';
 const EDITING = MemoryMessenger.editing().capabilities;
 const WINDOWED = MemoryMessenger.windowed(() => 0).capabilities;
 
-const EXAMPLES = await ChatExamples.collect({
-  set: ExampleUiSetDef,
-  codes: exampleCodes(),
-});
-
 /** Точка входа на вход `entry`. */
 const point = (entry: string, key = entry) => ({
   entry,
@@ -40,14 +33,12 @@ const point = (entry: string, key = entry) => ({
 
 const dialog = (entryPoints?: ChatAppSpec['entryPoints']): ChatAppSpec => ({
   app: ExampleDialogUiAppDef,
-  views: exampleDialogViews(),
   capabilities: EDITING,
   ...(entryPoints ? { entryPoints } : {}),
 });
 
 const windowed = (entryPoints?: ChatAppSpec['entryPoints']): ChatAppSpec => ({
   app: ExampleWindowedUiAppDef,
-  views: exampleDialogViews(),
   capabilities: WINDOWED,
   ...(entryPoints ? { entryPoints } : {}),
 });
@@ -64,7 +55,7 @@ const sceneOf = (
   UiScene.appOf(
     ExampleUiSetDef,
     apps.map((spec) => spec.app),
-    [new ChatGraphProvider({ apps, examples: EXAMPLES }), ...extra],
+    [new ChatGraphProvider({ apps }), ...extra],
   );
 
 /** Подставной поставщик сцены без своих видов: только узлы и рёбра. */

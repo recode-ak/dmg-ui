@@ -153,7 +153,7 @@ describe('UiGraphProvider: узлы', () => {
     expect(graph.node(`${SCREEN}/open`)?.visible).toBe(false);
   });
 
-  test('виды поставщика в документе: узлы и рёбра, включая presents', () => {
+  test('виды поставщика в документе: узлы и рёбра — точный список рёбер без вида показа', () => {
     const info = graph.providers.find((p) => p.name === 'dmg-ui');
 
     expect(info?.nodeKinds.map((k) => k.kind)).toEqual([
@@ -175,7 +175,6 @@ describe('UiGraphProvider: узлы', () => {
       'links',
       'notifiedBy',
       'omits',
-      'presents',
       'reads',
       'recipients',
       'redirects',

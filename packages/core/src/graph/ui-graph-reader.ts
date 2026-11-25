@@ -16,8 +16,8 @@ import { UI_PROPS } from './ui-props';
 
 /**
  * Общие запросы правил к графу: узлы видов ядра UI с разобранными свойствами,
- * состав сторис и приложений, UC экрана, покрытие `presents`. Узлы идут в
- * порядке графа (по `id`), поэтому тексты нарушений детерминированы.
+ * состав сторис и приложений, UC экрана. Узлы идут в порядке графа (по `id`),
+ * поэтому тексты нарушений детерминированы.
  */
 export class UiGraphReader {
   constructor(private readonly graph: Graph) {}
@@ -176,24 +176,6 @@ export class UiGraphReader {
       .outgoing(from, UI_EDGE_KINDS.refreshedBy)
       .find((e) => e.to === to);
     return edge ? UiGraphReader.parse(UI_PROPS.refreshedBy, edge) : undefined;
-  }
-
-  /** `id` узла лежит под корнем `rootId` или равен ему. */
-  isUnder(rootId: string, id: string): boolean {
-    return id === rootId || id.startsWith(`${rootId}/`);
-  }
-
-  /** Цели `presents` от приложения UI и узлов под ним. */
-  presentedBy(appId: string): Set<string> {
-    const targets = this.graph
-      .edges()
-      .filter(
-        (edge) =>
-          edge.kind === UI_EDGE_KINDS.presents &&
-          this.isUnder(appId, edge.from),
-      )
-      .map((edge) => edge.to);
-    return new Set(targets);
   }
 
   private appIncludes(appId: string, kind: string): string[] {

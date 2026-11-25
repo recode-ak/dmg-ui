@@ -21,7 +21,7 @@ export class AppPageViews {
     );
   }
 
-  /** Сборка набора целиком: превью и граф. */
+  /** Сборка набора целиком: превью. */
   static ofSet(set: AnyUiSetDef, modules: readonly PageViews[]): AppPageViews {
     return new AppPageViews(
       ModuleRegistries.ofSet(PageViews.completeness, set, modules),
@@ -62,16 +62,5 @@ export class AppPageViews {
     return def === undefined
       ? undefined
       : this.modules.find(def)?.notification(def);
-  }
-
-  /** `id` экранов и уведомлений модулей сборки — для рёбер `presents` графа. */
-  presented(): readonly string[] {
-    const { ids } = this.modules;
-    return this.modules
-      .registries()
-      .flatMap(({ module }) => [
-        ...module.screens.map((def) => ids.screen(def)),
-        ...module.notifications.map((def) => ids.notification(def)),
-      ]);
   }
 }

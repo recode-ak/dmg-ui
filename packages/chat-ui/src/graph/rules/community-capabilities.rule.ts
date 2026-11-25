@@ -10,7 +10,8 @@ import { CHAT_REACTION_PROPS, CHAT_SIGNAL_PROPS } from '../chat-props';
  * CH-03 (D-UI-60): сигнал `chatSignal` и реакция `chatReaction` прямо под
  * приложением UI — только если мессенджер приложения (узел `chatMessenger`
  * под ним) принимает этот сигнал или исполняет эту операцию. Свойства не по
- * схеме — молча (строку о возможностях даёт CH-01); `check` не бросает.
+ * схеме — молча: свои узлы поставщик ставит только по схеме (бросок
+ * конструктора `ChatGraphProvider`); `check` не бросает.
  */
 export class CommunityCapabilitiesRule implements GraphRule {
   readonly id = 'CH-03';

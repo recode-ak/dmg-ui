@@ -1,8 +1,6 @@
 import type { AnyUiAppDef } from 'dmg-ui';
 import type { ChatCommunitySpec } from '../community/community.types';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
-import type { AppChatViews } from '../view/app-chat-views';
-import type { ChatExamples } from './chat-examples';
 
 /**
  * Точка входа: как человек попадает на вход `entry` приложения. `via`
@@ -21,17 +19,15 @@ export type NumberedEntryPoint = {
   readonly n: number;
 };
 
-/** Приложение мессенджера в графе: Def, сборка представлений, возможности мессенджера, точки входа и манифесты сообщества. */
+/** Приложение мессенджера в графе: Def, возможности мессенджера, точки входа и манифесты сообщества. */
 export type ChatAppSpec = {
   readonly app: AnyUiAppDef;
-  readonly views: AppChatViews;
   readonly capabilities: MessengerCapabilities;
   readonly entryPoints?: readonly ChatEntryPointSpec[];
   readonly community?: ChatCommunitySpec;
 };
 
-/** Сборка поставщика графа общей части мессенджеров: все приложения мессенджеров графа и примеры их набора для CH-01. */
+/** Сборка поставщика графа общей части мессенджеров: все приложения мессенджеров графа. */
 export type ChatGraphSpec = {
   readonly apps: readonly ChatAppSpec[];
-  readonly examples: ChatExamples;
 };

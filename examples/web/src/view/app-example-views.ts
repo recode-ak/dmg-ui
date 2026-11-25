@@ -13,8 +13,7 @@ import type { AnyExampleScreen } from './example-views.types';
  * Сборка представлений примера на DOM для области — приложения UI или
  * набора целиком — из реестров модулей (`ExampleViews`): у модуля области
  * ровно один реестр (UI-06). Поиск — по `id` из `UiIds` у реестра
- * модуля-хозяина; `id` из внешних данных ищется без броска. Структурно
- * годится графу (`set`, `presented()`).
+ * модуля-хозяина; `id` из внешних данных ищется без броска.
  */
 export class AppExampleViews {
   private constructor(
@@ -31,7 +30,7 @@ export class AppExampleViews {
     );
   }
 
-  /** Сборка набора целиком: граф и кадр области. */
+  /** Сборка набора целиком: кадр области. */
   static ofSet(
     set: AnyUiSetDef,
     modules: readonly ExampleViews[],
@@ -90,14 +89,5 @@ export class AppExampleViews {
   /** Реестры модулей в порядке передачи. */
   registries(): readonly ExampleViews[] {
     return this.modules.registries();
-  }
-
-  /** `id` экранов и уведомлений модулей сборки — для рёбер `presents` графа. */
-  presented(): readonly string[] {
-    const { ids } = this.modules;
-    return this.registries().flatMap(({ module }) => [
-      ...module.screens.map((def) => ids.screen(def)),
-      ...module.notifications.map((def) => ids.notification(def)),
-    ]);
   }
 }

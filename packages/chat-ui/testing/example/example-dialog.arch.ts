@@ -1,37 +1,18 @@
 import type { ArchApp } from 'dmg-core/arch';
 import { ExampleAppDef } from 'dmg-core/testing';
-import type { RenderContext } from 'dmg-ui';
-import { ChatExamples, ChatGraphProvider } from 'dmg-ui/chat-ui';
+import { ChatGraphProvider } from 'dmg-ui/chat-ui';
 import { UiGraphProvider } from 'dmg-ui/graph';
-import { ExampleUiSetDef, exampleCodes, exampleSubject } from 'dmg-ui/testing';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { MemoryMessenger } from '../messengers/memory-messenger';
 import { ExampleDialogUiAppDef } from './example-dialog.ui-app';
-import { exampleDialogViews } from './example-dialog.views';
 import { ExampleTrimmedUiAppDef } from './example-trimmed.ui-app';
 import { ExampleWindowedUiAppDef } from './example-windowed.ui-app';
 
 /**
- * Контекст примеров: место примеров по умолчанию и субъект примеров — без
- * субъекта действия по правам скрыты, и CH-01 видит урезанный вид (D-UI-99).
- */
-const EXAMPLES_CONTEXT: RenderContext = {
-  locale: 'ru-RU',
-  timeZone: 'Asia/Oral',
-  delegate: false,
-  readOnly: false,
-  subject: exampleSubject,
-};
-
-/** Примеры учебного набора для CH-01: собираются до графа (`await` на верхнем уровне). */
-const examples = await ChatExamples.collect({
-  set: ExampleUiSetDef,
-  codes: exampleCodes(),
-  context: EXAMPLES_CONTEXT,
-});
-
-/**
  * Граф учебного примера без домена: поставщик `dmg-ui` с тремя приложениями и
  * поставщик общей части мессенджеров; у каждого входа — точка входа (CH-02).
+ * Лимиты примеров (CH-01) меряет тест сборки представлений
+ * (`example-dialog.views.test.ts`), не граф.
  * Канал — `chat`; каталогов слоёв фронта у примера пока нет: его файлы лежат
  * вне слоёв, пока раскладка примера не разделена по слоям.
  * @see ./example-dialog.arch.test.ts
@@ -62,7 +43,6 @@ export const ExampleDialogArch: ArchApp = {
       apps: [
         {
           app: ExampleDialogUiAppDef,
-          views: exampleDialogViews(),
           capabilities: MemoryMessenger.editing().capabilities,
           entryPoints: [
             { entry: 'start', via: 'message', key: 'start' },
@@ -72,7 +52,6 @@ export const ExampleDialogArch: ArchApp = {
         },
         {
           app: ExampleTrimmedUiAppDef,
-          views: exampleDialogViews(),
           capabilities: MemoryMessenger.editing().capabilities,
           entryPoints: [
             { entry: 'start', via: 'message', key: 'start' },
@@ -82,12 +61,10 @@ export const ExampleDialogArch: ArchApp = {
         },
         {
           app: ExampleWindowedUiAppDef,
-          views: exampleDialogViews(),
           capabilities: MemoryMessenger.windowed(() => 0).capabilities,
           entryPoints: [{ entry: 'start', via: 'message', key: 'start' }],
         },
       ],
-      examples,
     }),
   ],
 };

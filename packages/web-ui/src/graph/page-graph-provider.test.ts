@@ -17,16 +17,14 @@ import {
   ExamplePagesArch,
   ExamplePagesUiAppDef,
   examplePagesRoutes,
-  examplePagesViews,
 } from '../../testing';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
 import { PageRouteDef } from '../url/page-route-def';
 import { PageGraphProvider } from './page-graph-provider';
-import type { PagePresentedViews } from './page-graph-provider.types';
 
 // Второй поставщик графа — страничный канал `dmg-ui-pages` (образец —
-// `dmg-core/testing/example/screen`): свой вид узла `pageRoute`, ребро
-// `opens` и рёбра `presents` приложения к представлениям.
+// `dmg-core/testing/example/screen`): свой вид узла `pageRoute` и ребро
+// `opens` от маршрута к экрану входа.
 
 const PACKAGE_VERSION = v.parse(
   v.object({ version: v.string() }),
@@ -46,7 +44,7 @@ const SecondAppDef = UiAppDef.define({
   entries: ExamplePagesUiAppDef.entries,
 });
 
-/** Другой набор UI с одним экраном: приложение и реестр представлений «не того» набора. */
+/** Другой набор UI с одним экраном: приложение «не того» набора. */
 const OtherHomeScreenDef = ScreenDef.define({
   name: 'home',
   label: 'Главная',
@@ -84,7 +82,6 @@ const OtherAppDef = UiAppDef.define({
     },
   },
 });
-const OTHER_VIEWS = { set: OtherSetDef, presented: () => [] };
 
 const graph = () => new AppGraph(ExamplePagesArch).build();
 const TASKS = 'examplePages/tasks';
@@ -146,7 +143,6 @@ describe('PageGraphProvider: узлы', () => {
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: examplePagesViews(),
           routes: examplePagesRoutes,
         },
       ],
@@ -165,7 +161,6 @@ describe('PageGraphProvider: узлы', () => {
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: examplePagesViews(),
           routes: examplePagesRoutes,
         },
       ],
@@ -191,18 +186,6 @@ describe('PageGraphProvider: рёбра', () => {
       `${TASKS} -> exampleUi/todo/taskList`,
     ]);
   });
-
-  test('presents — от examplePages к каждому экрану и уведомлению реестра, семь рёбер', () => {
-    expect(ownEdges('presents')).toEqual([
-      'examplePages -> exampleUi/todo/assignedTasks',
-      'examplePages -> exampleUi/todo/mainMenu',
-      'examplePages -> exampleUi/todo/taskAssigned',
-      'examplePages -> exampleUi/todo/taskCard',
-      'examplePages -> exampleUi/todo/taskCompleted',
-      'examplePages -> exampleUi/todo/taskList',
-      'examplePages -> exampleUi/users/userCard',
-    ]);
-  });
 });
 
 describe('PageGraphProvider: вход не объявлен приложением', () => {
@@ -226,7 +209,6 @@ describe('PageGraphProvider: вход не объявлен приложение
           apps: [
             {
               app: ExamplePagesUiAppDef,
-              views: examplePagesViews(),
               routes: [ghost],
             },
           ],
@@ -243,12 +225,8 @@ describe('PageGraphProvider: вход не объявлен приложение
 });
 
 describe('PageGraphProvider: сборка — броски только структуры спеки', () => {
-  const spec = (
-    app: AnyUiAppDef = ExamplePagesUiAppDef,
-    views: PagePresentedViews = examplePagesViews(),
-  ) => ({
+  const spec = (app: AnyUiAppDef = ExamplePagesUiAppDef) => ({
     app,
-    views,
     routes: examplePagesRoutes,
   });
 
@@ -258,22 +236,11 @@ describe('PageGraphProvider: сборка — броски только стру
     );
   });
 
-  test('реестр представлений другого набора — бросок с именем приложения', () => {
-    expect(
-      () =>
-        new PageGraphProvider({
-          apps: [spec(ExamplePagesUiAppDef, OTHER_VIEWS)],
-        }),
-    ).toThrow(
-      'PageGraphProvider: реестр представлений приложения examplePages — не для набора приложения',
-    );
-  });
-
   test('приложения на разных наборах UI — бросок', () => {
     expect(
       () =>
         new PageGraphProvider({
-          apps: [spec(), spec(OtherAppDef, OTHER_VIEWS)],
+          apps: [spec(), spec(OtherAppDef)],
         }),
     ).toThrow('PageGraphProvider: приложения на разных наборах UI');
   });
@@ -300,7 +267,6 @@ describe('PageGraphProvider: сборка — броски только стру
           apps: [
             {
               app: ExamplePagesUiAppDef,
-              views: examplePagesViews(),
               routes: [first, second],
             },
           ],
@@ -314,7 +280,6 @@ describe('PageGraphProvider: сборка — броски только стру
         spec(),
         {
           app: SecondAppDef,
-          views: examplePagesViews(),
           routes: examplePagesRoutes,
         },
       ],
@@ -335,7 +300,7 @@ describe('PageGraphProvider: сборка — броски только стру
     ]);
   });
 
-  test('contribute: маршруты, рёбра opens и presents каждого приложения — свои', () => {
+  test('contribute: маршруты и рёбра opens каждого приложения — свои', () => {
     const only = PageRouteDef.define({
       name: 'only',
       label: 'Единственный',
@@ -343,13 +308,11 @@ describe('PageGraphProvider: сборка — броски только стру
       path: '/only',
       entry: 'assigned',
     });
-    const presented = ['exampleUi/todo/taskCard'];
     const contribution = new PageGraphProvider({
       apps: [
         spec(),
         {
           app: SecondAppDef,
-          views: { set: ExampleUiSetDef, presented: () => presented },
           routes: [only],
         },
       ],
@@ -359,9 +322,6 @@ describe('PageGraphProvider: сборка — броски только стру
       .filter((edge) => edge.kind === 'opens')
       .map((edge) => `${edge.from} -> ${edge.to}`)
       .sort();
-    const second = contribution.edges
-      .filter((edge) => edge.kind === 'presents' && edge.from === 'secondPages')
-      .map((edge) => edge.to);
 
     expect(contribution.nodes.map((node) => node.id).sort()).toEqual([
       'examplePages/assigned',
@@ -375,7 +335,9 @@ describe('PageGraphProvider: сборка — броски только стру
       'examplePages/tasks -> exampleUi/todo/taskList',
       'secondPages/only -> exampleUi/todo/assignedTasks',
     ]);
-    expect(second).toEqual(presented);
+    expect(contribution.edges.map((edge) => edge.kind)).toEqual(
+      opens.map(() => 'opens'),
+    );
   });
 });
 

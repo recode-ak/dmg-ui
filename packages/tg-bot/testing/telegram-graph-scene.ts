@@ -2,22 +2,16 @@ import type { ArchApp } from 'dmg-core/arch';
 import type { GraphContribution, GraphProvider } from 'dmg-core/graph';
 import { type AnyUiAppDef, UiAppDef } from 'dmg-ui';
 import {
-  type AppChatViews,
   type ChatAppSpec,
   type ChatEntryPointSpec,
-  ChatExamples,
   ChatGraphProvider,
   DIALOG_CHANNEL,
   type MessengerCapabilities,
 } from 'dmg-ui/chat-ui';
-import {
-  ExampleDialogUiAppDef,
-  exampleDialogViews,
-} from 'dmg-ui/chat-ui/testing';
+import { ExampleDialogUiAppDef } from 'dmg-ui/chat-ui/testing';
 import {
   AssignedTasksScreenDef,
   ExampleUiSetDef,
-  exampleCodes,
   FinishTasksStoryDef,
   FollowAssignedStoryDef,
   PlanTasksStoryDef,
@@ -27,19 +21,11 @@ import {
 } from 'dmg-ui/testing';
 import { UiScene } from 'dmg-ui/testing/fixtures';
 import { TELEGRAM_CAPABILITIES, TelegramGraphProvider } from 'dmg-ui/tg-bot';
-import { EXAMPLE_CONTEXT } from './example/example-telegram.const';
 
 // Сцены графа Telegram для тестов правил TG и поставщика (в `index.ts` не
 // экспортируются): сцена без домена, поставщик `dmg-ui`, общая часть
 // мессенджеров `ChatGraphProvider` и `TelegramGraphProvider`; приложение —
 // `exampleDialog` на возможностях Telegram.
-
-/** Примеры учебного набора для CH-01 с субъектом примеров (D-UI-99): собираются до графа (`await` на верхнем уровне). */
-const EXAMPLES = await ChatExamples.collect({
-  set: ExampleUiSetDef,
-  codes: exampleCodes(),
-  context: EXAMPLE_CONTEXT,
-});
 
 /** Сцена графа Telegram. */
 export type TelegramSceneSpec = {
@@ -48,8 +34,6 @@ export type TelegramSceneSpec = {
   readonly app?: AnyUiAppDef;
   /** Возможности мессенджера приложения; по умолчанию — `TELEGRAM_CAPABILITIES`. */
   readonly capabilities?: MessengerCapabilities;
-  /** Представления приложения; по умолчанию — сборка набора `exampleDialogViews()`. */
-  readonly views?: AppChatViews;
   readonly community?: ChatAppSpec['community'];
   /** Приложения общей части без приложения Telegram: сцена без узла `chatMessenger`. */
   readonly bare?: boolean;
@@ -65,7 +49,6 @@ export const telegramScene = (spec: TelegramSceneSpec): ArchApp => {
     : [
         {
           app,
-          views: spec.views ?? exampleDialogViews(),
           capabilities: spec.capabilities ?? TELEGRAM_CAPABILITIES,
           entryPoints: spec.entryPoints,
           ...(spec.community ? { community: spec.community } : {}),
@@ -75,7 +58,7 @@ export const telegramScene = (spec: TelegramSceneSpec): ArchApp => {
     ExampleUiSetDef,
     [app],
     [
-      new ChatGraphProvider({ apps, examples: EXAMPLES }),
+      new ChatGraphProvider({ apps }),
       new TelegramGraphProvider(),
       ...(spec.extra ?? []),
     ],

@@ -3,11 +3,12 @@ import { AppGraph } from 'dmg-core/graph';
 import { ArchReport } from 'dmg-ui/testing/fixtures';
 import { ExampleDialogArch } from './example-dialog.arch';
 
-// Граф учебного примера без домена: поставщик `dmg-ui` + представления
-// канала и точки входа трёх приложений — без нарушений (правила ядра, CH-01,
-// CH-02). Приложения без карточки пользователя отрезают её ребром `omits`.
-// Получатель `taskCompleted` —
-// системный query UC на ребре `recipients`, не чтение (UI-12, D-UI-23).
+// Граф учебного примера без домена: поставщик `dmg-ui` + возможности
+// мессенджера и точки входа трёх приложений — без нарушений (правила ядра,
+// CH-02, CH-03); лимиты примеров (CH-01) — `example-dialog.views.test.ts`.
+// Приложения без карточки пользователя отрезают её ребром `omits`.
+// Получатель `taskCompleted` — системный query UC на ребре `recipients`, не
+// чтение (UI-12, D-UI-23).
 
 const TASK_COMPLETED = 'exampleUi/todo/taskCompleted';
 const ASSIGNEE_UC = 'example/todo/getTaskAssignee';

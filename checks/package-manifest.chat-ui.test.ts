@@ -2,18 +2,18 @@ import { describe, expect, it } from 'bun:test';
 
 // Составы входов диалогового пакета и вход его общих помощников тестов
 // (D-UI-32): диалог, сообщение, помощники лимита, страж и схема возможностей
-// мессенджера, поставщик графа и примеры для его правил, узел бесед,
-// хранилище бесед в памяти, схема снимка беседы и исполнитель сообщества — в `dmg-ui/chat-ui`; привязка примера и подставной мессенджер — в
-// `dmg-ui/chat-ui/testing`; десять помощников ядра — в `dmg-ui/testing/fixtures`;
-// мессенджер Telegram — в `dmg-ui/tg-bot`, подставной порт Bot API — в
-// `dmg-ui/tg-bot/testing`.
+// мессенджера, поставщик графа, узел бесед, хранилище бесед в памяти, схема
+// снимка беседы и исполнитель сообщества — в `dmg-ui/chat-ui`; привязка
+// примера, подставной мессенджер, примеры набора и проверка лимитов примеров
+// (CH-01) — в `dmg-ui/chat-ui/testing`; девять помощников ядра — в
+// `dmg-ui/testing/fixtures`; мессенджер Telegram — в `dmg-ui/tg-bot`,
+// подставной порт Bot API — в `dmg-ui/tg-bot/testing`.
 
 const CHAT_UI = [
   'AppChatViews',
   'CHAT_EDGE_KINDS',
   'CHAT_NODE_KINDS',
   'CHAT_PROVIDER',
-  'ChatExamples',
   'ChatGraphProvider',
   'ChatViews',
   'Communities',
@@ -36,7 +36,7 @@ const CHAT_UI = [
 ];
 
 describe('вход dmg-ui/chat-ui', () => {
-  it('состав — канал, представления и их реестр с перекрытием, наблюдатели, поставщик графа, его имя и примеры для его правил, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед в памяти, схема снимка и исполнитель сообщества', async () => {
+  it('состав — канал, представления и их реестр с перекрытием, наблюдатели, поставщик графа и его имя, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед в памяти, схема снимка и исполнитель сообщества', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui')).sort()).toEqual(CHAT_UI);
   });
 
@@ -54,10 +54,12 @@ describe('вход dmg-ui/chat-ui', () => {
 });
 
 describe('вход dmg-ui/chat-ui/testing', () => {
-  it('состав — привязка учебного примера к диалогу (три приложения) и подставной мессенджер', async () => {
+  it('состав — привязка учебного примера к диалогу (три приложения), подставной мессенджер, примеры набора и проверка лимитов примеров', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui/testing')).sort()).toEqual([
+      'ChatExamples',
       'ExampleDialogArch',
       'ExampleDialogUiAppDef',
+      'ExampleLimits',
       'ExampleTrimmedUiAppDef',
       'ExampleWindowedUiAppDef',
       'MemoryMessenger',
@@ -69,13 +71,12 @@ describe('вход dmg-ui/chat-ui/testing', () => {
 });
 
 describe('вход dmg-ui/testing/fixtures', () => {
-  it('состав — ровно десять помощников тестов', async () => {
+  it('состав — ровно девять помощников тестов', async () => {
     expect(Object.keys(await import('dmg-ui/testing/fixtures')).sort()).toEqual(
       [
         'ArchReport',
         'ExampleStubUiAppDef',
         'RuntimeKit',
-        'StubViewProvider',
         'T0',
         'UiScene',
         'exampleUser',

@@ -197,14 +197,9 @@ export class CoreImportScanner {
           'dmg-ui/graph',
         ],
         // Имя канала и версию поставщика граф берёт из `page-channel.const`,
-        // реестр представлений для рёбер `presents` — из `view/`, маршрут и
-        // разбор его шаблона — из `url/`.
-        allowedPaths: [
-          PAGE_GRAPH,
-          PAGE_VIEW,
-          PAGE_URL,
-          `${PAGE}/page-channel.const`,
-        ],
+        // маршрут и разбор его шаблона — из `url/`. Представлений граф не
+        // видит: их полноту держат конструкторы реестров.
+        allowedPaths: [PAGE_GRAPH, PAGE_URL, `${PAGE}/page-channel.const`],
       },
       {
         include: [`${PAGE}/`],

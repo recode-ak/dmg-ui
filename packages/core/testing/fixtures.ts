@@ -1,10 +1,9 @@
 // Вход dmg-ui/testing/fixtures: общие помощники тестов, которыми пользуются
-// пакеты каналов. Ровно десять имён (D-UI-34, D-UI-69); остальные помощники
+// пакеты каналов. Ровно девять имён (D-UI-34, D-UI-69); остальные помощники
 // ядра внутренние.
 
 export { ExampleStubUiAppDef } from './ui-app.fixture';
 export { ArchReport, UiScene } from './ui-arch';
-export { StubViewProvider } from './ui-graph.fixture';
 export {
   RuntimeKit,
   requestTrace,

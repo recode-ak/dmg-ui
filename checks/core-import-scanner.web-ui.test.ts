@@ -192,13 +192,12 @@ describe('CoreImportScanner — представления страничног�
 });
 
 describe('CoreImportScanner — граф страничного канала (web-ui/src/graph/)', () => {
-  it('разрешены dmg-core/graph, dmg-ui/graph, соседи и тип PageViews из view/', () => {
+  it('разрешены dmg-core/graph, dmg-ui/graph и соседи', () => {
     const text = [
       "import type { GraphProvider } from 'dmg-core/graph';",
       "import { UI_EDGE_KINDS } from 'dmg-ui/graph';",
       "import { UiIds } from 'dmg-ui';",
       "import { PAGE_KINDS } from './page-kinds';",
-      "import type { PageViews } from '../view/page-views';",
     ].join('\n');
 
     expect(scan(text, GRAPH)).toEqual([]);
@@ -216,6 +215,7 @@ describe('CoreImportScanner — граф страничного канала (we
     "import { PageMessages } from '../wire/page-messages';",
     "import { PageClient } from '../client/page-client';",
     "import { a } from 'dmg-core/app';",
+    "import type { PageViews } from '../view/page-views';",
   ]) {
     it(`${text} в графе канала — нарушение`, () => {
       expect(scan(text, GRAPH)).toHaveLength(1);

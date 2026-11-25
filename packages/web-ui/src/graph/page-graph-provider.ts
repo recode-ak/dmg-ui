@@ -7,7 +7,6 @@ import type {
   GraphRule,
 } from 'dmg-core/graph';
 import { UiIds } from 'dmg-ui';
-import { UI_EDGE_KINDS } from 'dmg-ui/graph';
 import { PAGE_CHANNEL, PAGE_VERSION } from '../page-channel.const';
 import type { AnyPageRouteDef } from '../url/page-route-def.types';
 import type { PageAppSpec, PageGraphSpec } from './page-graph-provider.types';
@@ -20,18 +19,13 @@ import { RouteParamsRule } from './rules/route-params.rule';
 import { RoutePathRule } from './rules/route-path.rule';
 import { ScreenUrlRule } from './rules/screen-url.rule';
 
-export type {
-  PageAppSpec,
-  PageGraphSpec,
-  PagePresentedViews,
-} from './page-graph-provider.types';
+export type { PageAppSpec, PageGraphSpec } from './page-graph-provider.types';
 
 /**
  * Поставщик графа страничного канала (D-UI-77) — один на все приложения web:
- * узлы маршрутов под приложением UI, ребро `opens` к экрану входа, рёбра
- * `presents` к представлениям. Правила — PG-01…PG-07. Бросок конструктора —
- * только структура спеки: повтор приложения, реестр чужого набора, разные
- * наборы UI; остальное (пути, параметры) — правила.
+ * узлы маршрутов под приложением UI, ребро `opens` к экрану входа. Правила —
+ * PG-01…PG-07. Бросок конструктора — только структура спеки: повтор
+ * приложения, разные наборы UI; остальное (пути, параметры) — правила.
  */
 export class PageGraphProvider implements GraphProvider {
   readonly name = PAGE_CHANNEL;
@@ -39,18 +33,13 @@ export class PageGraphProvider implements GraphProvider {
 
   constructor(private readonly spec: PageGraphSpec) {
     const seen = new Set<string>();
-    for (const { app, views } of spec.apps) {
+    for (const { app } of spec.apps) {
       if (seen.has(app.name)) {
         throw new Error(
           `PageGraphProvider: приложение ${app.name} указано дважды`,
         );
       }
       seen.add(app.name);
-      if (views.set !== app.set) {
-        throw new Error(
-          `PageGraphProvider: реестр представлений приложения ${app.name} — не для набора приложения`,
-        );
-      }
     }
     if (new Set(spec.apps.map(({ app }) => app.set)).size > 1) {
       throw new Error('PageGraphProvider: приложения на разных наборах UI');
@@ -69,13 +58,6 @@ export class PageGraphProvider implements GraphProvider {
       nodes.push(...spec.routes.map((route) => this.node(app, route)));
       edges.push(
         ...spec.routes.flatMap((route) => this.opens(spec, app, route)),
-      );
-      edges.push(
-        ...spec.views.presented().map((to) => ({
-          kind: UI_EDGE_KINDS.presents,
-          from: app,
-          to,
-        })),
       );
     }
     return { nodes, edges };

@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ok } from 'dmg-core';
 import type { ArchApp } from 'dmg-core/arch';
 import { AppGraph, DomainIds, type Graph } from 'dmg-core/graph';
 import {
@@ -11,66 +10,32 @@ import {
   RemoveUserUcDef,
   TaskEvents,
 } from 'dmg-core/testing/example';
-import {
-  type AnyUiAppDef,
-  AppCodeLoaders,
-  CodeLoader,
-  CodeLoaders,
-  ScreenCode,
-  ScreenDef,
-  UiModuleDef,
-  UiSetDef,
-} from 'dmg-ui';
-import {
-  ExampleUiSetDef,
-  exampleCodes,
-  TaskCardScreenDef,
-  TaskListScreenDef,
-} from 'dmg-ui/testing';
-import { ArchReport, StubViewProvider, UiScene } from 'dmg-ui/testing/fixtures';
+import type { AnyUiAppDef } from 'dmg-ui';
+import { ExampleUiSetDef } from 'dmg-ui/testing';
+import { ArchReport, UiScene } from 'dmg-ui/testing/fixtures';
 import * as v from 'valibot';
 import {
   ExampleDialogArch,
   ExampleDialogUiAppDef,
   ExampleWindowedUiAppDef,
-  exampleDialogViews,
   MemoryMessenger,
-  todoChatViews,
-  usersChatViews,
 } from '../../testing';
 import type { ChatCommunitySpec } from '../community/community.types';
 import type { MessengerCapabilities } from '../messenger/messenger.types';
-import { AppChatViews } from '../view/app-chat-views';
-import { ChatViews } from '../view/chat-views';
-import { ScreenPresenter } from '../view/screen-presenter';
-import { ChatExamples } from './chat-examples';
 import { ChatGraphProvider } from './chat-graph-provider';
 import { CHAT_VERSION } from './chat-kinds';
 
 // Поставщик графа общей части мессенджеров `dmg-ui-chat` (D-UI-57): один на
 // все приложения; под каждым приложением — узел возможностей `chatMessenger`,
 // узлы входов беседы `chatEntry` с ребром `chatEnters` к экрану входа и точки
-// входа `chatEntryPoint` с ребром `chatOpens` на вход; рёбра `presents` — от
-// приложения к целям его реестра представлений. Сцены ставят точку на каждый
-// вход приложения, если точки не заданы: иначе CH-02 даёт код 1.
+// входа `chatEntryPoint` с ребром `chatOpens` на вход. Сцены ставят точку на
+// каждый вход приложения, если точки не заданы: иначе CH-02 даёт код 1.
 
 const EDITING = MemoryMessenger.editing().capabilities;
 const WINDOWED = MemoryMessenger.windowed(() => 0).capabilities;
 
 const DIALOG = 'exampleDialog';
 const WINDOWED_APP = 'exampleWindowed';
-const CARD = 'exampleUi/todo/taskCard';
-
-/** Цели `presents` учебного примера: все экраны и уведомления реестра. */
-const PRESENTED = [
-  'exampleUi/todo/assignedTasks',
-  'exampleUi/todo/mainMenu',
-  'exampleUi/todo/taskAssigned',
-  CARD,
-  'exampleUi/todo/taskCompleted',
-  'exampleUi/todo/taskList',
-  'exampleUi/users/userCard',
-];
 
 type EntryPoint = {
   readonly entry: string;
@@ -80,7 +45,6 @@ type EntryPoint = {
 
 type AppSpec = {
   readonly app: AnyUiAppDef;
-  readonly views: AppChatViews;
   readonly capabilities: MessengerCapabilities;
   readonly entryPoints?: readonly EntryPoint[];
 };
@@ -98,20 +62,12 @@ const pointsOf = (app: AnyUiAppDef): readonly EntryPoint[] =>
 
 const dialogSpec = (capabilities = EDITING): AppSpec => ({
   app: ExampleDialogUiAppDef,
-  views: exampleDialogViews(),
   capabilities,
 });
 
-const windowedSpec = (views = exampleDialogViews()): AppSpec => ({
+const windowedSpec = (): AppSpec => ({
   app: ExampleWindowedUiAppDef,
-  views,
   capabilities: WINDOWED,
-});
-
-/** Примеры учебного набора — для правила лимитов поставщика. */
-const EXAMPLES = await ChatExamples.collect({
-  set: ExampleUiSetDef,
-  codes: exampleCodes(),
 });
 
 const graph = () => new AppGraph(ExampleDialogArch).build();
@@ -138,7 +94,6 @@ const sceneOf = (apps: readonly AppSpec[]): ArchApp =>
           entryPoints: pointsOf(spec.app),
           ...spec,
         })),
-        examples: EXAMPLES,
       }),
     ],
   );
@@ -173,19 +128,6 @@ describe('ChatGraphProvider на графе примера', () => {
         props: WINDOWED,
       }),
     ]);
-  });
-
-  test('presents — от каждого приложения к каждому экрану и уведомлению, поставщик dmg-ui-chat', () => {
-    const built = graph();
-    const presents = built.edges().filter((edge) => edge.kind === 'presents');
-
-    expect(targets(built, DIALOG, 'presents')).toEqual(PRESENTED);
-    expect(targets(built, 'exampleTrimmed', 'presents')).toEqual(PRESENTED);
-    expect(targets(built, WINDOWED_APP, 'presents')).toEqual(PRESENTED);
-    expect(presents).toHaveLength(3 * PRESENTED.length);
-    expect(new Set(presents.map((edge) => edge.provider))).toEqual(
-      new Set(['dmg-ui-chat']),
-    );
   });
 
   test('узел chatEntry на каждый вход приложения: у exampleDialog — start, assigned и menu, у exampleWindowed — start', () => {
@@ -239,7 +181,7 @@ describe('ChatGraphProvider на графе примера', () => {
     );
   });
 
-  test('поставщик примера — один ChatGraphProvider dmg-ui-chat с видами chatMessenger, chatEntry, chatEntryPoint, chatEnters и chatOpens; заглушки представления нет', () => {
+  test('поставщик примера — один ChatGraphProvider dmg-ui-chat с видами chatMessenger, chatEntry, chatEntryPoint, chatEnters и chatOpens', () => {
     const providers = ExampleDialogArch.providers ?? [];
     const chat = providers.filter(
       (provider) => provider instanceof ChatGraphProvider,
@@ -253,9 +195,6 @@ describe('ChatGraphProvider на графе примера', () => {
     expect(kinds?.edges.map((kind) => kind.kind)).toEqual(
       expect.arrayContaining(['chatEnters', 'chatOpens']),
     );
-    expect(
-      providers.some((provider) => provider instanceof StubViewProvider),
-    ).toBe(false);
   });
 
   test('версия поставщика равна version из package.json', () => {
@@ -270,16 +209,6 @@ describe('ChatGraphProvider на графе примера', () => {
 
     expect(chat?.version).toBe(version);
     expect(CHAT_VERSION).toBe(version);
-  });
-
-  test('правила поставщика примера — среди них CH-01 и CH-02', () => {
-    const chat = (ExampleDialogArch.providers ?? []).find(
-      (provider) => provider instanceof ChatGraphProvider,
-    );
-
-    expect(chat?.rules?.().map((rule) => rule.id)).toEqual(
-      expect.arrayContaining(['CH-01', 'CH-02']),
-    );
   });
 
   test('граф собирается документом dmg-core graph: свойства chatMessenger — JSON', () => {
@@ -301,28 +230,6 @@ describe('ChatGraphProvider на графе примера', () => {
         .providers.map((provider) => provider.name)
         .includes('dmg-ui-chat'),
     ).toBe(true);
-  });
-});
-
-describe('ChatGraphProvider — перекрытый реестр модуля', () => {
-  test('presents у сборки с перекрытым реестром модуля (todo.over) — те же семь целей без повторов', () => {
-    const own = AppChatViews.ofSet(ExampleUiSetDef, [
-      todoChatViews.over([
-        ScreenPresenter.for(TaskCardScreenDef, () => 'Своя карточка'),
-        ScreenPresenter.for(TaskListScreenDef, () => 'Свой список'),
-      ]),
-      usersChatViews,
-    ]);
-    const built = new AppGraph(
-      sceneOf([dialogSpec(), windowedSpec(own)]),
-    ).build();
-    const windowed = built
-      .outgoing(WINDOWED_APP, 'presents')
-      .map((edge) => edge.to);
-
-    expect([...windowed].sort()).toEqual(PRESENTED);
-    expect(new Set(windowed).size).toBe(windowed.length);
-    expect(targets(built, DIALOG, 'presents')).toEqual(PRESENTED);
   });
 });
 
@@ -413,72 +320,16 @@ describe('ChatGraphProvider — точки входа', () => {
   });
 });
 
-/** Экран вне учебного набора — для реестра другого набора. */
-const StrayScreenDef = ScreenDef.define({
-  name: 'stray',
-  label: 'Чужой',
-  description: 'Экран вне учебного набора.',
-  reads: [],
-  data: v.object({}),
-});
-
-class StrayScreenCode extends ScreenCode<typeof StrayScreenDef> {
-  override async load() {
-    return ok({});
-  }
-}
-
-/** Другой набор UI поверх учебного домена. */
-const OtherUiModuleDef = UiModuleDef.define({
-  name: 'desk',
-  label: 'Стол',
-  description: 'Один экран.',
-  screens: [StrayScreenDef],
-  stories: [],
-});
-
-const OtherSetDef = UiSetDef.define({
-  name: 'otherUi',
-  label: 'Другой набор',
-  description: 'Набор, которого нет у приложений примера.',
-  app: ExampleAppDef,
-  modules: [OtherUiModuleDef],
-});
-
 describe('ChatGraphProvider — ошибки сборки', () => {
   test('два приложения с одним именем — бросок конструктора с именем приложения', () => {
     const message = thrown(
       () =>
         new ChatGraphProvider({
           apps: [dialogSpec(EDITING), dialogSpec(WINDOWED)],
-          examples: EXAMPLES,
         }),
     );
 
     expect(message).toMatch(/exampleDialog/);
-  });
-
-  test('реестр представлений другого набора, чем набор приложения, — бросок конструктора', () => {
-    const message = thrown(
-      () =>
-        new ChatGraphProvider({
-          apps: [
-            {
-              app: ExampleDialogUiAppDef,
-              views: AppChatViews.ofSet(OtherSetDef, [
-                ChatViews.of(OtherUiModuleDef, [
-                  ScreenPresenter.for(StrayScreenDef, () => 'Чужой'),
-                ]),
-              ]),
-              capabilities: EDITING,
-            },
-          ],
-          examples: EXAMPLES,
-        }),
-    );
-
-    expect(message).toMatch(/exampleDialog/);
-    expect(message).toMatch(/набор/);
   });
 
   test('возможности не по схеме (options.max: 0) — бросок конструктора без значений возможностей', () => {
@@ -491,7 +342,6 @@ describe('ChatGraphProvider — ошибки сборки', () => {
       () =>
         new ChatGraphProvider({
           apps: [dialogSpec(broken)],
-          examples: EXAMPLES,
         }),
     );
 
@@ -514,31 +364,12 @@ describe('ChatGraphProvider — ошибки сборки', () => {
               ],
             },
           ],
-          examples: EXAMPLES,
         }),
     );
 
     expect(message).toMatch(/exampleDialog/);
     expect(message).toMatch(/nowhere/);
     expect(message).not.toContain('ghostKey');
-  });
-
-  test('набор примеров другой, чем набор приложения, — бросок конструктора с именем приложения', async () => {
-    const examples = await ChatExamples.collect({
-      set: OtherSetDef,
-      codes: AppCodeLoaders.ofSet(OtherSetDef, [
-        CodeLoaders.of(OtherUiModuleDef, [
-          CodeLoader.screen(StrayScreenDef, async () => new StrayScreenCode()),
-        ]),
-      ]),
-    });
-
-    const message = thrown(
-      () => new ChatGraphProvider({ apps: [dialogSpec()], examples }),
-    );
-
-    expect(message).toMatch(/exampleDialog/);
-    expect(message).toMatch(/пример/);
   });
 });
 
@@ -621,7 +452,6 @@ describe('ChatGraphProvider — сообщество: узлы', () => {
   test('виды поставщика — среди них chatSignal и chatReaction; рёбра сообщества — виды ядра, поставщик их не объявляет', () => {
     const chat = new ChatGraphProvider({
       apps: [dialogWith(COMMUNITY)],
-      examples: EXAMPLES,
     });
     const kinds = chat.kinds();
 
@@ -634,17 +464,12 @@ describe('ChatGraphProvider — сообщество: узлы', () => {
     expect(edges).not.toContain('reads');
   });
 
-  test('правила поставщика — ровно CH-01, CH-02 и CH-03', () => {
+  test('правила поставщика — ровно CH-02 и CH-03', () => {
     const chat = new ChatGraphProvider({
       apps: [dialogSpec()],
-      examples: EXAMPLES,
     });
 
-    expect(chat.rules().map((rule) => rule.id)).toEqual([
-      'CH-01',
-      'CH-02',
-      'CH-03',
-    ]);
+    expect(chat.rules().map((rule) => rule.id)).toEqual(['CH-02', 'CH-03']);
   });
 });
 

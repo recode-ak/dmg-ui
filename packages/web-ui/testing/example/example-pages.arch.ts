@@ -5,7 +5,6 @@ import { ExampleUiSetDef } from 'dmg-ui/testing';
 import { PageGraphProvider } from 'dmg-ui/web-ui';
 import { examplePagesRoutes } from './example-pages.routes';
 import { ExamplePagesUiAppDef } from './example-pages.ui-app';
-import { examplePagesViews } from './example-pages.views';
 
 /**
  * Граф учебного примера на страницах без домена: поставщик `dmg-ui` и
@@ -35,7 +34,6 @@ export const ExamplePagesArch: ArchApp = {
       apps: [
         {
           app: ExamplePagesUiAppDef,
-          views: examplePagesViews(),
           routes: examplePagesRoutes,
         },
       ],

@@ -1,9 +1,9 @@
-import type { Message } from '../../message/message.types';
-import { MessageFit } from '../../messenger/message-fit';
-import type {
-  LimitCut,
-  MessengerCapabilities,
-} from '../../messenger/messenger.types';
+import {
+  type LimitCut,
+  type Message,
+  MessageFit,
+  type MessengerCapabilities,
+} from 'dmg-ui/chat-ui';
 import { UNLIMITED_OPTIONS } from './example-limits.const';
 
 /**

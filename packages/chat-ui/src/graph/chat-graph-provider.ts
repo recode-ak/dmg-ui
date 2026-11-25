@@ -28,7 +28,6 @@ import {
 } from './chat-kinds';
 import { CommunityCapabilitiesRule } from './rules/community-capabilities.rule';
 import { EntryPointRule } from './rules/entry-point.rule';
-import { ExampleLimitsRule } from './rules/example-limits.rule';
 
 export type {
   ChatAppSpec,
@@ -40,10 +39,8 @@ export type {
  * Поставщик графа общей части мессенджеров (D-UI-57) — один на все
  * приложения: под приложением UI узлы `chatMessenger`, `chatEntry`,
  * `chatEntryPoint`, сигналы `chatSignal` и реакции `chatReaction` сообщества;
- * рёбра `presents` — от сборки представлений; правила CH-01…CH-03. Бросок —
- * повтор приложения, сборка представлений или примеры другого набора,
- * возможности не по схеме, точка на несуществующий вход, манифест не прошёл
- * `CommunityManifest`.
+ * правила CH-02, CH-03. Бросок — повтор приложения, возможности не по схеме,
+ * точка на несуществующий вход, манифест не прошёл `CommunityManifest`.
  */
 export class ChatGraphProvider implements GraphProvider {
   readonly name = CHAT_PROVIDER;
@@ -55,7 +52,6 @@ export class ChatGraphProvider implements GraphProvider {
     const seen = new Set<string>();
     for (const {
       app,
-      views,
       capabilities,
       entryPoints = [],
       community,
@@ -66,16 +62,6 @@ export class ChatGraphProvider implements GraphProvider {
         );
       }
       seen.add(app.name);
-      if (views.set !== app.set) {
-        throw new Error(
-          `ChatGraphProvider: реестр представлений приложения ${app.name} — не для набора приложения`,
-        );
-      }
-      if (spec.examples.set !== app.set) {
-        throw new Error(
-          `ChatGraphProvider: примеры приложения ${app.name} — не для набора приложения`,
-        );
-      }
       if (!v.is(MessengerCapabilitiesSchema, capabilities)) {
         throw new Error(
           `ChatGraphProvider: возможности мессенджера приложения ${app.name} не по схеме`,
@@ -96,21 +82,9 @@ export class ChatGraphProvider implements GraphProvider {
     return CHAT_KINDS;
   }
 
-  /** CH-01: примеры в лимитах мессенджера; CH-02: у входа есть точка входа; CH-03: мессенджер умеет сигналы и реакции. */
+  /** CH-02: у входа есть точка входа; CH-03: мессенджер умеет сигналы и реакции. */
   rules(): readonly GraphRule[] {
-    return [
-      new ExampleLimitsRule({
-        examples: this.spec.examples,
-        views: new Map(
-          this.spec.apps.map(({ app, views }) => [
-            new UiIds(app.set).app(app),
-            views,
-          ]),
-        ),
-      }),
-      new EntryPointRule(),
-      new CommunityCapabilitiesRule(),
-    ];
+    return [new EntryPointRule(), new CommunityCapabilitiesRule()];
   }
 
   contribute(): GraphContribution {
@@ -167,17 +141,12 @@ export class ChatGraphProvider implements GraphProvider {
 
   /**
    * Рёбра `chatEnters` из Def приложения (`entries`), `chatOpens` — из точек
-   * входа, `presents` — из `presented()`; от сигнала `invokes` к UC, от
-   * реакции `notifiedBy` к событию и `reads` к UC — концы по `DomainIds`.
+   * входа; от сигнала `invokes` к UC, от реакции `notifiedBy` к событию и
+   * `reads` к UC — концы по `DomainIds`.
    */
-  private edges({
-    app,
-    views,
-    entryPoints = [],
-  }: ChatAppSpec): GraphEdgeInput[] {
+  private edges({ app, entryPoints = [] }: ChatAppSpec): GraphEdgeInput[] {
     const ui = new UiIds(app.set);
     const ids = new ChatIds(app.set);
-    const from = ui.app(app);
     const domain = new DomainIds(app.set.app);
     const { signals, reactions } = this.community(app);
     return [
@@ -190,11 +159,6 @@ export class ChatGraphProvider implements GraphProvider {
         kind: CHAT_EDGE_KINDS.opens,
         from: ids.point(app, point.entry, n),
         to: ids.entry(app, point.entry),
-      })),
-      ...views.presented().map((to) => ({
-        kind: UI_EDGE_KINDS.presents,
-        from,
-        to,
       })),
       ...signals.map((signal) => ({
         kind: UI_EDGE_KINDS.invokes,

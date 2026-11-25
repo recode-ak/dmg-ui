@@ -27,7 +27,7 @@ export const UI_NODE_KINDS = {
   app: 'uiApp',
 } as const;
 
-/** Имена видов рёбер; `presents` и `invokes` вправе ставить пакеты каналов. */
+/** Имена видов рёбер; `invokes`, `notifiedBy`, `reads` вправе ставить пакеты каналов. */
 export const UI_EDGE_KINDS = {
   includes: 'includes',
   entry: 'entry',
@@ -39,7 +39,6 @@ export const UI_EDGE_KINDS = {
   notifiedBy: 'notifiedBy',
   links: 'links',
   catches: 'catches',
-  presents: 'presents',
   leads: 'leads',
   requires: 'requires',
   omits: 'omits',
@@ -146,12 +145,6 @@ export const UI_KINDS: GraphKinds = {
       kind: UI_EDGE_KINDS.catches,
       label: 'Перехватывает ошибку',
       description: 'У экрана свой ответ на код отказа.',
-    },
-    {
-      kind: UI_EDGE_KINDS.presents,
-      label: 'Показывает',
-      description:
-        'Приложение UI показывает экран, уведомление или набор целиком; ставит пакет канала.',
     },
     {
       kind: UI_EDGE_KINDS.leads,
