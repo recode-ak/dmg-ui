@@ -1,6 +1,6 @@
 {
   "name": "dmg-ui",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Ядро UI на манифестах поверх dmg-core: сторис, экран, уведомление; каналы — отдельные подпути.",
   "license": "MIT",
   "author": "Nur",

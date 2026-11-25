@@ -4,7 +4,7 @@ import * as v from 'valibot';
 export const TELEGRAM_PROVIDER = 'dmg-ui-tg';
 
 /** Версия поставщика графа Telegram. */
-export const TELEGRAM_VERSION = '0.5.1';
+export const TELEGRAM_VERSION = '0.6.0';
 
 /**
  * Свойства узла `chatEntryPoint`, как их читают правила TG: вид и сверку
