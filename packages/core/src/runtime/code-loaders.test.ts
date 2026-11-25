@@ -1,24 +1,24 @@
 import { describe, expect, test } from 'bun:test';
-import * as v from 'valibot';
 import {
+  AssignedTasksScreenCode,
   AssignedTasksScreenDef,
   ExampleUiSetDef,
+  MainMenuScreenCode,
   MainMenuScreenDef,
+  TaskAssignedNotificationCode,
   TaskAssignedNotificationDef,
+  TaskCardScreenCode,
   TaskCardScreenDef,
+  TaskCompletedNotificationCode,
   TaskCompletedNotificationDef,
+  TaskListScreenCode,
   TaskListScreenDef,
   TodoUiModuleDef,
+  UserCardScreenCode,
   UserCardScreenDef,
-} from '../../testing/example';
-import { AssignedTasksScreenCode } from '../../testing/example/todo/assigned-tasks.scode';
-import { MainMenuScreenCode } from '../../testing/example/todo/main-menu.scode';
-import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.ncode';
-import { TaskCardScreenCode } from '../../testing/example/todo/task-card.scode';
-import { TaskCompletedNotificationCode } from '../../testing/example/todo/task-completed.ncode';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
-import { UserCardScreenCode } from '../../testing/example/users/user-card.scode';
-import { usersCodes } from '../../testing/example/users/users-codes';
+  usersCodes,
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import { RuntimeKit } from '../../testing/ui-runtime.fixture';
 import { ScreenDef } from '../manifest/screen-def';
 import { AppCodeLoaders } from './app-code-loaders';

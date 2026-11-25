@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { LIST_START } from '../../testing/example';
+import { LIST_START } from 'dmg-ui/example';
 import { ExampleStubUiAppDef } from '../../testing/ui-app.fixture';
 
 describe('UiAppDef', () => {

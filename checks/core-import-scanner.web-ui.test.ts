@@ -283,7 +283,7 @@ describe('CoreImportScanner — корень страничного канала
 
   for (const text of [
     "import { ScreenRuntime } from '../../core/src/runtime/screen-runtime';",
-    "import { TaskListScreenDef } from '../../core/testing/example/todo/task-list.screen';",
+    "import { TaskListScreenDef } from '../../example/src/platform/ui/todo/shared/task-list.screen';",
     "import fs from 'node:fs';",
   ]) {
     it(`${text} в корне канала — нарушение`, () => {

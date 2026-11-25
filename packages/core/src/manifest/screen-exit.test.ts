@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { TASK_A, TaskListScreenDef } from '../../testing/example';
+import { TASK_A, TaskListScreenDef } from 'dmg-ui/example';
 
 const { created, closed } = TaskListScreenDef.exits;
 

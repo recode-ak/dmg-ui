@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { TaskListScreenDef, TodoUiModuleDef } from '../../testing/example';
+import { TaskListScreenDef, TodoUiModuleDef } from 'dmg-ui/example';
 import { UiModuleDef } from './ui-module-def';
 
 describe('UiModuleDef', () => {

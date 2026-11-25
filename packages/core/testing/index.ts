@@ -29,7 +29,7 @@ export {
   UserCardScreenDef,
   UsersUiModuleDef,
   ViewUserStoryDef,
-} from './example';
+} from 'dmg-ui/example';
 export { MemoryUiObserver } from './memory-ui-observer';
 export {
   ExamplePreview,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { ExampleUiSetDef } from 'dmg-ui/example';
 import * as v from 'valibot';
-import { ExampleUiSetDef } from '../../../testing/example';
 import { ExampleMenuStubUiAppDef } from '../../../testing/ui-app.fixture';
 import { ArchReport, UiScene } from '../../../testing/ui-arch';
 

@@ -12,14 +12,14 @@ import {
 } from 'dmg-core/testing/example';
 import { ScreenProvider } from 'dmg-core/testing/example/screen/screen-provider';
 import { TasksScreenDef } from 'dmg-core/testing/example/screen/tasks.screen';
-import * as v from 'valibot';
 import {
   ExampleUiSetDef,
   LIST_START,
   StartWorkStoryDef,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from '../../testing/example';
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import {
   ExampleMenuStubUiAppDef,
   ExampleMenuTrimmedStubUiAppDef,

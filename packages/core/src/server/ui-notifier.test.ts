@@ -19,9 +19,9 @@ import {
   exampleCodes,
   OWNER,
   TASK_A,
+  TaskAssignedNotificationCode,
   TaskCardScreenDef,
-} from '../../testing/example';
-import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.ncode';
+} from 'dmg-ui/example';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
 import {
   ExampleMenuStubUiAppDef,

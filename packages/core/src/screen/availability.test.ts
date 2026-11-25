@@ -7,8 +7,7 @@ import {
   TaskPolicy,
   TaskRules,
 } from 'dmg-core/testing/example';
-import { TASK_A, TASK_B } from '../../testing/example';
-import { taskState } from '../../testing/task-state';
+import { TASK_A, TASK_B, taskState } from 'dmg-ui/example';
 import { Availability } from './availability';
 
 // Ответ «три исхода» о действии экрана: доступно, скрыто, отключено с

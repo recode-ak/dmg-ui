@@ -8,9 +8,13 @@ import {
   TodoModuleDef,
   UsersModuleDef,
 } from 'dmg-core/testing/example';
+import {
+  ExampleUiSetDef,
+  LIST_ID,
+  OWNER,
+  TodoUiModuleDef,
+} from 'dmg-ui/example';
 import * as v from 'valibot';
-import { ExampleUiSetDef, LIST_ID, OWNER } from '../../testing/example';
-import { TodoUiModuleDef } from '../../testing/example/todo/todo.ui-module';
 import {
   StubCallerSource,
   StubTransport,

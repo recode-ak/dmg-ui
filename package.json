@@ -17,6 +17,7 @@
     ".": "./packages/core/src/index.ts",
     "./chat-ui": "./packages/chat-ui/src/index.ts",
     "./chat-ui/testing": "./packages/chat-ui/testing/index.ts",
+    "./example": "./packages/example/index.ts",
     "./graph": "./packages/core/src/graph/index.ts",
     "./server": "./packages/core/src/server/index.ts",
     "./testing": "./packages/core/testing/index.ts",

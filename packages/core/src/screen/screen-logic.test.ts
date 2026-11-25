@@ -1,17 +1,17 @@
 import { describe, expect, spyOn, test } from 'bun:test';
 import type { ExampleUser } from 'dmg-core/testing/example';
-import * as v from 'valibot';
 import {
   LIST_START,
   OWNER,
   TASK_A,
   TASK_B,
+  TaskCardScreenCode,
   TaskCardScreenDef,
+  TaskListScreenCode,
   TaskListScreenDef,
-} from '../../testing/example';
-import { TaskCardScreenCode } from '../../testing/example/todo/task-card.scode';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
-import { taskState } from '../../testing/task-state';
+  taskState,
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import type { DataOf } from '../manifest/screen-def';
 import { Availability } from './availability';
 import { CodeDefect } from './code-defect';

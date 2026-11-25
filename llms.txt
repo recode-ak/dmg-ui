@@ -1,6 +1,6 @@
 # dmg-ui
 
-> Ядро UI на манифестах поверх dmg-core для TypeScript и Bun: сторис, экран и уведомление объявляются манифестами (`StoryDef`, `ScreenDef`, `NotificationDef`), из них выводятся адреса, исполнитель экранов, серверная часть, граф и правила `UI-NN`. Ядро не знает каналов: мессенджер, страница и консоль — пакеты каналов поверх тех же экранов. Документация на русском; образец — учебный набор UI `packages/core/testing/example`.
+> Ядро UI на манифестах поверх dmg-core для TypeScript и Bun: сторис, экран и уведомление объявляются манифестами (`StoryDef`, `ScreenDef`, `NotificationDef`), из них выводятся адреса, исполнитель экранов, серверная часть, граф и правила `UI-NN`. Ядро не знает каналов: мессенджер, страница и консоль — пакеты каналов поверх тех же экранов. Документация на русском; образец — учебный набор UI `packages/example/src/platform/ui`.
 
 Пути ниже — от корня пакета (`node_modules/dmg-ui/`). Документация платформы — в `node_modules/dmg-core/` (вход: `llms.txt`). Одиннадцать входов: `dmg-ui`, `dmg-ui/graph`, `dmg-ui/server`, `dmg-ui/testing`, `dmg-ui/testing/fixtures`, `dmg-ui/chat-ui`, `dmg-ui/chat-ui/testing`, `dmg-ui/tg-bot`, `dmg-ui/tg-bot/testing`, `dmg-ui/web-ui`, `dmg-ui/web-ui/testing`; что каждый даёт — в README.
 
@@ -31,7 +31,7 @@
 - [Дерево сторис приложения](docs/decisions.md): `StoryTree` (`roots()`, `omitted()`) — данные для меню канала, объявленные `access` и `rules`, не вычисленные; свойство `roots` узла `uiApp`; правила UI-26 (нет `examples` у `F.sensitive`) и UI-27 (нет ввода для `array` и `object`); D-UI-101
 - [Справка по экрану](docs/decisions.md): `ScreenHelp` (`of(view)`, `general()`) → `HelpSheet` (`title`, `hint`, `items`, `leads`) — содержание справки по виду для всех каналов; подсказка двери из ровно одной сторис-цели (`StoryDoors`); сигнал беседы `help`, резерв `/help` в Telegram (TG-04); D-UI-107
 - [Приёмка](acceptance/channels-story.test.ts): семь сценариев сторис на двух каналах (диалог и страница), нейтральность и состав; общий мир — `acceptance/support/`; D-UI-102
-- [Учебный набор UI](packages/core/testing/example/example-ui.set.ts): `ExampleUiSetDef`; привязка к диалогу — в [Пакете канала](docs/guides/channel-package.md), к страничному каналу — в [Web-канале](docs/guides/web-channel.md)
+- [Учебный набор UI](packages/example/src/platform/ui/example-ui.set.ts): `ExampleUiSetDef`; привязка к диалогу — в [Пакете канала](docs/guides/channel-package.md), к страничному каналу — в [Web-канале](docs/guides/web-channel.md)
 - [Мессенджер Telegram](docs/guides/telegram.md#2-сборка): `TelegramMessenger` поверх узкого порта Bot API, подставной порт `MemoryBotApi`
 - [Меню и граф Telegram](docs/guides/telegram.md#5-точки-входа-и-меню): `TelegramMenu`, `TelegramGraphProvider` и правила TG-01…TG-06
 - [Учебный пример под Telegram](docs/guides/telegram.md#10-тестирование-и-пример): `exampleTelegramViews`, `ExampleTelegramPreview`

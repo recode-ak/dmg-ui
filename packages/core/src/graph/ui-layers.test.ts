@@ -3,7 +3,7 @@ import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type ArchApp, ArchChecker } from 'dmg-core/arch';
 import { ExampleAppDef, useTempDir } from 'dmg-core/testing';
-import { ExampleUiSetDef } from '../../testing/example';
+import { ExampleUiSetDef } from 'dmg-ui/example';
 import { ArchReport, UiScene } from '../../testing/ui-arch';
 import { UiGraphProvider } from './ui-graph-provider';
 import type { UiChannelSpec } from './ui-graph-provider.types';

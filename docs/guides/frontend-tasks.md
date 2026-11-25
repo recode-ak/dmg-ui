@@ -6,7 +6,7 @@
 
 ## 1. Для кого и как читать
 
-Гайд для автора экранов и для того, кто сверяет, что умеет пакет, прежде чем писать своё. Все примеры — на одном учебном наборе: домен «задачи и пользователи» учебного приложения `dmg-core` и набор UI поверх него ([packages/core/testing/example](../../packages/core/testing/example/todo/task-list.screen.ts), вход `dmg-ui/testing`). Экраны и сторис набора пишутся один раз, представление экрана — один раз на общей части (D-UI-50), каналы их только показывают: беседа (`dmg-ui/chat-ui`), в ней — Telegram (`dmg-ui/tg-bot`), и страница (`dmg-ui/web-ui`).
+Гайд для автора экранов и для того, кто сверяет, что умеет пакет, прежде чем писать своё. Все примеры — на одном учебном наборе: домен «задачи и пользователи» учебного приложения `dmg-core` и набор UI поверх него ([packages/example](../../packages/example/src/platform/ui/todo/shared/task-list.screen.ts), вход `dmg-ui/example`). Экраны и сторис набора пишутся один раз, представление экрана — один раз на общей части (D-UI-50), каналы их только показывают: беседа (`dmg-ui/chat-ui`), в ней — Telegram (`dmg-ui/tg-bot`), и страница (`dmg-ui/web-ui`).
 
 Раздел 2 — девять сценариев «что хотим». В каждом: задача; как объявить (блок кода из набора); как это видит человек в беседе, в Telegram и на странице; строка проверки; решения. Раздел 3 — таблица всех известных задач фронта с состоянием. Раздел 4 — чего пакет не делает. Раздел 5 — чеклист автора экрана.
 
@@ -27,7 +27,7 @@
 **Как объявить.** Сторис объявляет, кому и когда она положена: `access` — право субъекта по Policy домена, `rules` — доменные правила. Это те же объекты, что исполняют UC: копий правил в UI нет. Ядро их пока только показывает графу и проверкам, а решает, показывать ли дверь (действие-переход в сторис), код экрана-источника тем же правилом (D-UI-94, D-UI-98, DEBT-UI-53).
 
 ```ts
-// из: packages/core/testing/example/todo/finish-tasks.story.ts
+// из: packages/example/src/platform/ui/todo/finish-tasks/finish-tasks.story.ts
 export const FinishTasksStoryDef = StoryDef.define({
   name: 'finishTasks',
   callers: ['user'],
@@ -37,7 +37,7 @@ export const FinishTasksStoryDef = StoryDef.define({
 ```
 
 ```ts
-// из: packages/core/testing/example/todo/plan-tasks.story.ts
+// из: packages/example/src/platform/ui/todo/plan-tasks/plan-tasks.story.ts
 export const PlanTasksStoryDef = StoryDef.define({
   name: 'planTasks',
   rules: [TaskRules.rules.withinOpenLimit],
@@ -47,7 +47,7 @@ export const PlanTasksStoryDef = StoryDef.define({
 Решение о двери — в коде экрана, ответом `Availability` (сценарий 3). «Карточка исполнителя» есть только у того, у кого есть субъект:
 
 ```ts
-// из: packages/core/testing/example/todo/assigned-tasks.scode.ts
+// из: packages/example/src/frontend/todo/logic/follow-assigned/assigned-tasks.scode.ts
 openAssignee: ({ data, subject }) =>
   subject === undefined
     ? Availability.hidden()
@@ -71,7 +71,7 @@ openAssignee: ({ data, subject }) =>
 **Как объявить.** Выбор — состояние экрана и локальное действие `toggle` (UC не зовёт); доступность — ответ кода экрана по Policy домена над выбранными:
 
 ```ts
-// из: packages/core/testing/example/todo/task-list.screen.ts
+// из: packages/example/src/platform/ui/todo/shared/task-list.screen.ts
 completeSelected: {
   label: 'Выполнить выбранные',
   uc: CompleteTasksUcDef,
@@ -82,7 +82,7 @@ completeSelected: {
 ```
 
 ```ts
-// из: packages/core/testing/example/todo/task-list.scode.ts
+// из: packages/example/src/frontend/todo/logic/shared/task-list.scode.ts
 completeSelected: ({ data, state, subject }) =>
   Availability.given(
     new TaskSelection(data.tasks, state.selected).openTasks(),
@@ -122,7 +122,7 @@ completeSelected: ({ data, state, subject }) =>
 Причину пишет не экран: доменное правило отвечает текстом своей ошибки, правило вида «нет прав» — скрывает.
 
 ```ts
-// из: packages/core/testing/example/todo/task-list.scode.ts
+// из: packages/example/src/frontend/todo/logic/shared/task-list.scode.ts
 create: ({ data }) =>
   Availability.rule(TaskRules.rules.withinOpenLimit, {
     ownerTasks: data.owned.map((row) => TaskAr.readonly(row)),
@@ -146,7 +146,7 @@ create: ({ data }) =>
 **Как объявить.** Связь сторис — `leads`: действие-переход ведёт на `start` связанной сторис. Состав канала — список сторис приложения UI: нет `viewUser` — нет и действия карточки, код экранов тот же (D-UI-95).
 
 ```ts
-// из: packages/core/testing/example/todo/follow-assigned.story.ts
+// из: packages/example/src/platform/ui/todo/follow-assigned/follow-assigned.story.ts
 export const FollowAssignedStoryDef = StoryDef.define({
   name: 'followAssigned',
   leads: (): readonly AnyStoryDef[] => [ViewUserStoryDef],
@@ -180,7 +180,7 @@ stories: [
 **Как объявить.** «Назад» экран не объявляет: канал добавляет его сам, когда путь не пуст. Структурный переход — обычное действие `to`, уходящая карточка попадает в путь; подпись листания — не «Назад» (так названа автокнопка).
 
 ```ts
-// из: packages/core/testing/example/users/user-card.screen.ts
+// из: packages/example/src/platform/ui/users/view-user/user-card.screen.ts
 tasks: {
   label: 'К моим задачам',
   description: 'Переход к списку своих задач.',
@@ -228,7 +228,7 @@ export const exampleWindowPlacements: readonly PagePlacement[] = [
 **Как объявить.** Всё — в схеме входа действия: `v.title` — подпись, `fieldHint` — подсказка, `v.examples` — пример, `v.minValue` и `v.maxValue` — пределы с текстом отказа. Канал узнаёт о поле только из вида экрана (`FieldDescription`, D-UI-100), второго описания нет.
 
 ```ts
-// из: packages/core/testing/example/todo/task-list.screen.ts
+// из: packages/example/src/platform/ui/todo/shared/task-list.screen.ts
 jumpTo: {
   label: 'К части',
   input: v.object({
@@ -262,7 +262,7 @@ jumpTo: {
 **Как объявить.** Подсказка — поле `hint` экрана и действий; подсказка двери берётся из сторис-цели (`leads`), поэтому у «Назначенные мне» в меню справка называет подсказку сторис «Поручения». Справку строит ядро (`ScreenHelp`), канал её только показывает (D-UI-107).
 
 ```ts
-// из: packages/core/testing/example/todo/task-list.screen.ts
+// из: packages/example/src/platform/ui/todo/shared/task-list.screen.ts
 hint: 'Отметьте задачи и выполните их разом или откройте одну',
 jumpTo: {
   label: 'К части',

@@ -14,18 +14,18 @@ import {
   ListTasksUcDef,
   TaskErrors,
 } from 'dmg-core/testing/example';
-import * as v from 'valibot';
 import {
   CARD_ID,
   exampleCodes,
   TASK_A,
   TASK_B,
+  TaskCardScreenCode,
   TaskCardScreenDef,
+  TaskListScreenCode,
   TaskListScreenDef,
-} from '../../testing/example';
-import { TaskCardScreenCode } from '../../testing/example/todo/task-card.scode';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
-import { taskState } from '../../testing/task-state';
+  taskState,
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import { UiScene } from '../../testing/ui-arch';
 import { CutKit } from '../../testing/ui-cut-scene';
 import {

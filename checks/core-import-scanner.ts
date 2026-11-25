@@ -6,8 +6,8 @@ import { PackageManifest } from './package-manifest';
 import type { SourceFile } from './source-tree';
 import type { Violation } from './violation.types';
 
-/** Учебный пример: код и манифесты — как у проекта. */
-const EXAMPLE = 'packages/core/testing/example';
+/** Учебный проект: код и манифесты — как у проекта. */
+const EXAMPLE = 'packages/example/src';
 /** Пакет страничного канала: код входа `dmg-ui/web-ui`, подкаталоги разделены границей JSON. */
 const PAGE = 'packages/web-ui/src';
 /** Тестовый вход пакета страничного канала: привязка примера. */

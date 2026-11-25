@@ -11,9 +11,9 @@ import {
   LIST_ID,
   TASK_A,
   TASK_B,
+  TaskListScreenCode,
   type TaskListScreenDef,
-} from '../../testing/example';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
+} from 'dmg-ui/example';
 import { RuntimeKit, requestTrace } from '../../testing/ui-runtime.fixture';
 import type { StateOf } from '../manifest/screen-def.types';
 import type { ScreenInstance } from './screen-instance';

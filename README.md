@@ -2,7 +2,7 @@
 
 Ядро UI на манифестах поверх `dmg-core` для TypeScript и Bun. Интерфейс описывается манифестами: сторис (кто и зачем), экран (что человек видит и делает), уведомление (что система сообщает сама). Из них ядро выводит адреса, исполнитель экранов, серверную часть, граф и проверки. Ядро о каналах не знает: мессенджер, веб-страница и консоль — отдельные пакеты каналов, а экраны и их код остаются общими.
 
-Документация на русском. Образец всех артефактов — учебный набор UI [`packages/core/testing/example`](packages/core/testing/example/example-ui.set.ts) и два канала: диалоговый (пакет `chat-ui`) и страничный (пакет `web-ui`); для мессенджеров — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md), для страницы — [Web-канал](docs/guides/web-channel.md).
+Документация на русском. Образец всех артефактов — учебный набор UI [`packages/example/src/platform/ui`](packages/example/src/platform/ui/example-ui.set.ts) и два канала: диалоговый (пакет `chat-ui`) и страничный (пакет `web-ui`); для мессенджеров — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md), для страницы — [Web-канал](docs/guides/web-channel.md).
 
 ## Цель пакета
 
@@ -63,7 +63,7 @@ bun add valibot @valibot/to-json-schema \
 
 ## Образец
 
-- [`packages/core/testing/example/`](packages/core/testing/example/example-ui.set.ts) — набор UI поверх учебного приложения `dmg-core`: экраны, сторис, уведомления, код, привязки к каналам.
+- [`packages/example/src/platform/ui/`](packages/example/src/platform/ui/example-ui.set.ts) — набор UI поверх учебного приложения `dmg-core`: экраны, сторис, уведомления, код, привязки к каналам.
 - [`packages/chat-ui/src/conversation/`](packages/chat-ui/src/conversation/conversation.ts) — беседа мессенджера (вход `dmg-ui/chat-ui`): один живой экран, сигналы по одному, таблица ссылок, сбор входа, показ на месте или новым, путь и «Назад», снимок; представления — [`packages/chat-ui/src/view/`](packages/chat-ui/src/view/screen-presenter.ts); сторис на двух подставных мессенджерах — [`conversation-story.test.ts`](packages/chat-ui/testing/conversation-story.test.ts); [`packages/chat-ui/src/graph/`](packages/chat-ui/src/graph/chat-graph-provider.ts) — поставщик графа общей части мессенджеров; [`packages/chat-ui/src/dialog/`](packages/chat-ui/src/dialog/dialog-renderer.ts) — рендерер примеров учебного диалога; [`packages/chat-ui/src/community/`](packages/chat-ui/src/community/communities.ts) — манифесты сообщества и их исполнитель; привязка примера — `packages/chat-ui/testing/`.
 - [`packages/tg-bot/`](packages/tg-bot/testing/telegram-story.test.ts) — канал Telegram: сторис на подставном порте Bot API; подробно — гайды [Пакет мессенджера](docs/guides/messenger-package.md) и [Telegram](docs/guides/telegram.md).
 - [`packages/web-ui/src/`](packages/web-ui/src/server/page-host.ts) — страничный канал: несколько областей, между клиентом и сервером только JSON; подключение — гайд [Web-канал](docs/guides/web-channel.md).

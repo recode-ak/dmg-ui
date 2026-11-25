@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { TaskPolicy } from 'dmg-core/testing/example';
-import * as v from 'valibot';
 import {
   ASSIGNED_ID,
   ExampleUiSetDef,
@@ -9,7 +8,8 @@ import {
   MainMenuScreenDef,
   StartWorkStoryDef,
   TaskListScreenDef,
-} from '../../testing/example';
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import { ExampleMenuStubUiAppDef } from '../../testing/ui-app.fixture';
 import { UiScene } from '../../testing/ui-arch';
 import { UiIds } from '../address/ui-ids';

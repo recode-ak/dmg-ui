@@ -1,18 +1,18 @@
 import { describe, expect, test } from 'bun:test';
-import * as v from 'valibot';
 import {
   ExampleUiSetDef,
   OWNER,
+  TaskAssignedNotificationCode,
   TaskAssignedNotificationDef,
   TaskListScreenDef,
+  todoCodes,
+  UserCardScreenCode,
   UserCardScreenDef,
   UsersUiModuleDef,
+  usersCodes,
   ViewUserStoryDef,
-} from '../../testing/example';
-import { TaskAssignedNotificationCode } from '../../testing/example/todo/task-assigned.ncode';
-import { todoCodes } from '../../testing/example/todo/todo-codes';
-import { UserCardScreenCode } from '../../testing/example/users/user-card.scode';
-import { usersCodes } from '../../testing/example/users/users-codes';
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import {
   ExampleMenuStubUiAppDef,
   ExampleStubUiAppDef,

@@ -1,12 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { toJsonSchema } from 'dmg-core';
 import { TaskEvents } from 'dmg-core/testing/example';
+import { TASK_A, TaskCardScreenDef, TaskListScreenDef } from 'dmg-ui/example';
 import * as v from 'valibot';
-import {
-  TASK_A,
-  TaskCardScreenDef,
-  TaskListScreenDef,
-} from '../../testing/example';
 import { UiScene } from '../../testing/ui-arch';
 import { type AnyScreenDef, ScreenDef } from './screen-def';
 

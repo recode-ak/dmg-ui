@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import { ok } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
 import { type ExampleUser, ListTasksUcDef } from 'dmg-core/testing/example';
-import * as v from 'valibot';
 import {
   ExampleUiSetDef,
   exampleCodes,
@@ -12,9 +11,10 @@ import {
   TASK_B,
   TaskAssignedNotificationDef,
   TaskCardScreenDef,
+  TaskListScreenCode,
   TaskListScreenDef,
-} from '../../testing/example';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import { ExampleStubUiAppDef } from '../../testing/ui-app.fixture';
 import { UiScene } from '../../testing/ui-arch';
 import { testRenderContext } from '../../testing/ui-runtime.fixture';

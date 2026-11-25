@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ExampleUiSetDef } from '../../testing/example';
+import { ExampleUiSetDef } from 'dmg-ui/example';
 
 describe('UiSetDef', () => {
   test('форма: доменное приложение и UI-модули — именами', () => {

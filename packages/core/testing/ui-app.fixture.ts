@@ -1,15 +1,17 @@
 import { UiAppDef } from 'dmg-ui';
-import { ExampleUiSetDef } from './example/example-ui.set';
-import { AssignedTasksScreenDef } from './example/todo/assigned-tasks.screen';
-import { FinishTasksStoryDef } from './example/todo/finish-tasks.story';
-import { FollowAssignedStoryDef } from './example/todo/follow-assigned.story';
-import { MainMenuScreenDef } from './example/todo/main-menu.screen';
-import { PlanTasksStoryDef } from './example/todo/plan-tasks.story';
-import { StartWorkStoryDef } from './example/todo/start-work.story';
-import { TaskAssignedNotificationDef } from './example/todo/task-assigned.notification';
-import { TaskCompletedNotificationDef } from './example/todo/task-completed.notification';
-import { TaskListScreenDef } from './example/todo/task-list.screen';
-import { ViewUserStoryDef } from './example/users/view-user.story';
+import {
+  AssignedTasksScreenDef,
+  ExampleUiSetDef,
+  FinishTasksStoryDef,
+  FollowAssignedStoryDef,
+  MainMenuScreenDef,
+  PlanTasksStoryDef,
+  StartWorkStoryDef,
+  TaskAssignedNotificationDef,
+  TaskCompletedNotificationDef,
+  TaskListScreenDef,
+  ViewUserStoryDef,
+} from 'dmg-ui/example';
 
 /** Приложение UI учебного примера в подставном канале: все сторис и уведомления, два входа. Внутренний помощник тестов ядра. */
 export const ExampleStubUiAppDef = UiAppDef.define({

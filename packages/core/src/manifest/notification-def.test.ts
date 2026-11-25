@@ -3,7 +3,7 @@ import { toJsonSchema } from 'dmg-core';
 import {
   TaskAssignedNotificationDef,
   TaskCompletedNotificationDef,
-} from '../../testing/example';
+} from 'dmg-ui/example';
 
 describe('NotificationDef', () => {
   test('форма: событие, получатели, чтения, данные, ссылки и примеры', () => {

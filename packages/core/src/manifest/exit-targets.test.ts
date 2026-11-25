@@ -10,7 +10,7 @@ import {
   TaskListScreenDef,
   UserCardScreenDef,
   ViewUserStoryDef,
-} from '../../testing/example';
+} from 'dmg-ui/example';
 import { UiScene } from '../../testing/ui-arch';
 import { ExitTargets } from './exit-targets';
 import { UiAppDef } from './ui-app-def';

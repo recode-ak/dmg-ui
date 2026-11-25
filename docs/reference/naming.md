@@ -1,6 +1,6 @@
 # Структура и именование UI
 
-**Назначение:** как раскладывать и называть файлы UI: набор UI, UI-модуль, сторис, экран, уведомление, код, приложение UI, представления канала, пакет канала. Общие правила кода и имён — те же, что в `dmg-core` (`node_modules/dmg-core/docs/reference/naming.md` §4, правило CODE-01): kebab-case файлов, суффикс вида, тест рядом, `<файл>.types.ts`, PascalCase, `undefined`, `private`. Здесь — только то, что добавляет UI. Образец — учебный набор [packages/core/testing/example](../../packages/core/testing/example/) и привязки каналов `packages/{chat-ui,tg-bot,web-ui}/testing/example`. Проверка имён — правило `NM-01`, класс `UiFileNames` (§7).
+**Назначение:** как раскладывать и называть файлы UI: набор UI, UI-модуль, сторис, экран, уведомление, код, приложение UI, представления канала, пакет канала. Общие правила кода и имён — те же, что в `dmg-core` (`node_modules/dmg-core/docs/reference/naming.md` §4, правило CODE-01): kebab-case файлов, суффикс вида, тест рядом, `<файл>.types.ts`, PascalCase, `undefined`, `private`. Здесь — только то, что добавляет UI. Образец — учебный набор [packages/example](../../packages/example/src/platform/ui/) и привязки каналов `packages/{chat-ui,tg-bot,web-ui}/testing/example`. Проверка имён — правило `NM-01`, класс `UiFileNames` (§7).
 
 ---
 
@@ -36,7 +36,7 @@
 
 ## 2. Набор UI
 
-У проекта набор UI — отдельный пакет; образец — [packages/core/testing/example](../../packages/core/testing/example/). `<набор>` — имя набора без `Ui`: `example` → `example-ui.set.ts`, `name: 'exampleUi'`.
+У проекта набор UI — отдельный пакет; образец — [packages/example](../../packages/example/src/platform/ui/). `<набор>` — имя набора без `Ui`: `example` → `example-ui.set.ts`, `name: 'exampleUi'`.
 
 ```
 <набор>/

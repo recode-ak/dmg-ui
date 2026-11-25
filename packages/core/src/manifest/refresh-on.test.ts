@@ -1,12 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { TaskEvents } from 'dmg-core/testing/example';
+import { OWNER, TASK_A, TASK_B, TaskCardScreenDef } from 'dmg-ui/example';
 import * as v from 'valibot';
-import {
-  OWNER,
-  TASK_A,
-  TASK_B,
-  TaskCardScreenDef,
-} from '../../testing/example';
 import { ScreenDef } from './screen-def';
 
 const OTHER = '2c3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e6f';

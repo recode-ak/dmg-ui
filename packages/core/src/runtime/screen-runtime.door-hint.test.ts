@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import { ok } from 'dmg-core';
 import { ListAssignedTasksUcDef } from 'dmg-core/testing/example';
-import * as v from 'valibot';
 import {
   AssignedTasksScreenDef,
   exampleCodes,
   FollowAssignedStoryDef,
   MainMenuScreenDef,
   ViewUserStoryDef,
-} from '../../testing/example';
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import {
   ExampleMenuStubUiAppDef,
   ExampleMenuTrimmedStubUiAppDef,

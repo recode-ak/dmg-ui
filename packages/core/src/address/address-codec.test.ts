@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { ExampleUiSetDef, TASK_A, TaskCardScreenDef } from 'dmg-ui/example';
 import * as v from 'valibot';
-import {
-  ExampleUiSetDef,
-  TASK_A,
-  TaskCardScreenDef,
-} from '../../testing/example';
 import { ScreenDef } from '../manifest/screen-def';
 import { AddressCodec } from './address-codec';
 

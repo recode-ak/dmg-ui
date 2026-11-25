@@ -9,11 +9,12 @@ const manifest = () => PackageManifest.read(ROOT);
 
 describe('PackageManifest', () => {
   describe('корневой package.json', () => {
-    it('ключи exports — вход, chat-ui (и его testing), graph, server, testing (и fixtures), tg-bot (и его testing), web-ui (и его testing)', () => {
+    it('ключи exports — вход, chat-ui (и его testing), example, graph, server, testing (и fixtures), tg-bot (и его testing), web-ui (и его testing)', () => {
       expect(Object.keys(manifest().exports()).sort()).toEqual([
         '.',
         './chat-ui',
         './chat-ui/testing',
+        './example',
         './graph',
         './server',
         './testing',

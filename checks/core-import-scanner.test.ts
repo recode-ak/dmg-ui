@@ -169,13 +169,14 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
     });
   });
 
-  describe('учебный пример — относительные только внутри example/', () => {
-    it('заглушки тестов ядра (testing/ui-*.ts) в примере — нарушение', () => {
-      const text = "import { RuntimeKit } from '../../ui-runtime.fixture';";
+  describe('учебный проект — относительные только внутри него', () => {
+    it('заглушки тестов ядра (testing/ui-*.ts) в проекте — нарушение', () => {
+      const text =
+        "import { RuntimeKit } from '../../../core/testing/ui-runtime.fixture';";
 
-      expect(
-        scan(text, 'packages/core/testing/example/todo/task-list.scode.ts'),
-      ).toHaveLength(1);
+      expect(scan(text, 'packages/example/src/platform/ui/f.ts')).toHaveLength(
+        1,
+      );
     });
   });
 

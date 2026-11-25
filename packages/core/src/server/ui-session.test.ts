@@ -14,7 +14,7 @@ import {
   OWNER,
   TASK_A,
   TASK_B,
-} from '../../testing/example';
+} from 'dmg-ui/example';
 import { requestTrace } from '../../testing/ui-runtime.fixture';
 import {
   envelopeOf,

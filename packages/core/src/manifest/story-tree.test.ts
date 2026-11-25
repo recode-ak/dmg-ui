@@ -7,7 +7,7 @@ import {
   PlanTasksStoryDef,
   StartWorkStoryDef,
   ViewUserStoryDef,
-} from '../../testing/example';
+} from 'dmg-ui/example';
 import {
   ExampleMenuStubUiAppDef,
   ExampleMenuTrimmedStubUiAppDef,

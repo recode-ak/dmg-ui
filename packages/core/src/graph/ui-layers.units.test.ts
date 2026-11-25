@@ -6,7 +6,7 @@ import {
   type FixtureManifest,
   Monorepo,
 } from 'dmg-core/testing';
-import { ExampleUiSetDef } from '../../testing/example';
+import { ExampleUiSetDef } from 'dmg-ui/example';
 import { UiGraphProvider } from './ui-graph-provider';
 
 // Мини-монорепо на изолированной установке Bun: каждый слой фронта — свой

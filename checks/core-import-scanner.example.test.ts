@@ -9,8 +9,8 @@ import { SourceFile } from './source-tree';
 const scan = (text: string, path: string) =>
   CoreImportScanner.standard().scan([SourceFile.of(path, text)]);
 
-describe('CoreImportScanner — учебный пример (packages/core/testing/example/)', () => {
-  const EXAMPLE = 'packages/core/testing/example/todo/task-list.screen.ts';
+describe('CoreImportScanner — учебный пример (packages/example/src/)', () => {
+  const EXAMPLE = 'packages/example/src/runners/example-codes.ts';
 
   for (const text of [
     "import { a } from 'dmg-core/app';",
@@ -46,9 +46,9 @@ describe('CoreImportScanner — учебный пример (packages/core/testi
   it('вход примера (example/index.ts) — привязку по относительному пути не импортирует', () => {
     const text = "export { ExampleDialogArch } from 'dmg-ui/chat-ui/testing';";
 
-    expect(scan(text, 'packages/core/testing/example/index.ts')).toHaveLength(
-      1,
-    );
+    expect(
+      scan(text, 'packages/example/src/platform/ui/index.ts'),
+    ).toHaveLength(1);
   });
 });
 

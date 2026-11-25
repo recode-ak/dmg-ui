@@ -6,7 +6,7 @@ import {
   exampleCodes,
   TASK_A,
   TaskCardScreenDef,
-} from '../../testing/example';
+} from 'dmg-ui/example';
 import {
   jsonPorts,
   RuntimeKit,

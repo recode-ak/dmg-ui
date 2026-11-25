@@ -18,9 +18,9 @@ import {
   TASK_B,
   TaskCardScreenDef,
   TaskListScreenDef,
-} from './example';
+  taskState,
+} from 'dmg-ui/example';
 import { MemoryUiObserver } from './memory-ui-observer';
-import { taskState } from './task-state';
 
 // Заглушки портов исполнителя на учебном примере — помощники тестов
 // `runtime/` (из входа `testing` не экспортируются: деталь тестов ядра).

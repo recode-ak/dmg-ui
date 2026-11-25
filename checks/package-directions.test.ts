@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { PackageDirections } from './package-directions';
 import { PackageManifest } from './package-manifest';
 import { SourceFile, SourceTree } from './source-tree';
@@ -221,6 +222,87 @@ describe('PackageDirections — направления между пакетам
       const found = scanRepo('packages/unknown/src/f.ts', 'export {};');
       expect(found).toHaveLength(1);
       expect(found[0]?.text).toContain('таблиц');
+    });
+  });
+
+  // Учебный проект `packages/example/` (D-UI-121): вход `dmg-ui/example`.
+  // Манифест репо дополняется этим входом, пока его нет в exports.
+  describe('таблица репо: учебный проект example', () => {
+    const manifest = () => {
+      const json = JSON.parse(
+        readFileSync(join(ROOT, 'package.json'), 'utf8'),
+      ) as { exports: Record<string, string> };
+      json.exports['./example'] = './packages/example/index.ts';
+      return PackageManifest.parse(JSON.stringify(json));
+    };
+    const scanRepo = (path: string, text: string) =>
+      PackageDirections.standard(manifest()).scan([SourceFile.of(path, text)]);
+
+    for (const spec of [
+      'dmg-ui',
+      'dmg-ui/testing',
+      'dmg-ui/chat-ui',
+      'dmg-ui/chat-ui/testing',
+      'dmg-ui/tg-bot',
+      'dmg-ui/tg-bot/testing',
+      'dmg-ui/web-ui',
+      'dmg-ui/web-ui/testing',
+    ]) {
+      it(`example видит «${spec}»`, () => {
+        expect(
+          scanRepo('packages/example/src/runners/f.ts', `import '${spec}';`),
+        ).toEqual([]);
+      });
+    }
+
+    it('вход учебного проекта (index.ts) видит ядро', () => {
+      expect(
+        scanRepo('packages/example/index.ts', "export * from 'dmg-ui';"),
+      ).toEqual([]);
+    });
+
+    for (const path of [
+      'packages/core/src/f.ts',
+      'packages/chat-ui/src/dialog/f.ts',
+      'packages/tg-bot/src/f.ts',
+      'packages/web-ui/src/f.ts',
+    ]) {
+      it(`${path} → «dmg-ui/example» — нарушение: пример видит только тестовый код`, () => {
+        const found = scanRepo(path, "import 'dmg-ui/example';");
+        expect(found).toMatchObject([
+          {
+            file: path,
+            line: 1,
+            text: expect.stringContaining('только из тестового кода'),
+          },
+        ]);
+      });
+    }
+
+    for (const path of [
+      'packages/core/testing/f.ts',
+      'packages/core/src/f.test.ts',
+      'packages/chat-ui/testing/example/f.ts',
+      'packages/chat-ui/src/dialog/f.test.ts',
+      'packages/tg-bot/testing/f.ts',
+      'packages/tg-bot/src/f.test.ts',
+      'packages/web-ui/testing/text-views/f.ts',
+      'packages/web-ui/src/f.test.ts',
+    ]) {
+      it(`${path} → «dmg-ui/example» разрешено: тестовый код`, () => {
+        expect(scanRepo(path, "import 'dmg-ui/example';")).toEqual([]);
+      });
+    }
+
+    it('тестовый код не выходит в каталог примера относительным путём', () => {
+      const path = 'packages/core/testing/f.ts';
+      const found = scanRepo(path, "import '../../example/src/x';");
+      expect(found).toMatchObject([{ file: path, line: 1 }]);
+    });
+
+    it('«.test.ts» не в конце имени — не тестовый код', () => {
+      const path = 'packages/core/src/f.test.ts.bak.ts';
+      expect(scanRepo(path, "import 'dmg-ui/example';")).toHaveLength(1);
     });
   });
 

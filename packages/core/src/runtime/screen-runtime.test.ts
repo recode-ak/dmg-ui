@@ -15,7 +15,6 @@ import {
   ListTasksUcDef,
   TaskErrors,
 } from 'dmg-core/testing/example';
-import * as v from 'valibot';
 import {
   CARD_ID,
   ExampleUiSetDef,
@@ -25,11 +24,12 @@ import {
   OWNER,
   TASK_A,
   TaskCardScreenDef,
+  TaskListScreenCode,
   type TaskListScreenDef,
-} from '../../testing/example';
-import { TaskListScreenCode } from '../../testing/example/todo/task-list.scode';
+  taskState,
+} from 'dmg-ui/example';
+import * as v from 'valibot';
 import { MemoryUiObserver } from '../../testing/memory-ui-observer';
-import { taskState } from '../../testing/task-state';
 import {
   ExampleMenuStubUiAppDef,
   ExampleStubUiAppDef,

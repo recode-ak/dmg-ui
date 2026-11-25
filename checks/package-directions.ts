@@ -12,17 +12,28 @@ export class PackageDirections {
     'chat-ui': ['core'],
     'tg-bot': ['core', 'chat-ui'],
     'web-ui': ['core'],
+    example: ['core', 'chat-ui', 'tg-bot', 'web-ui'],
+  };
+
+  /** Направления только из тестового кода пакета (`testing/`, `*.test.ts`): учебный проект — фикстура тестов (D-UI-121). */
+  protected static readonly TEST_TABLE: Record<string, string[]> = {
+    core: ['example'],
+    'chat-ui': ['example'],
+    'tg-bot': ['example'],
+    'web-ui': ['example'],
   };
 
   /**
    * @param directions пакет → разрешённые пакеты
    * @param entries имя входа (`dmg-ui/x`) → каталог пакета
    * @param entryDirs имя входа → каталог его цели от корня репо
+   * @param testDirections пакет → пакеты, разрешённые только из его тестового кода
    */
   constructor(
     protected readonly directions: Record<string, string[]>,
     protected readonly entries: Record<string, string>,
     protected readonly entryDirs: Record<string, string> = {},
+    protected readonly testDirections: Record<string, string[]> = {},
   ) {}
 
   /** Таблица репо и входы из `exports` корневого манифеста. */
@@ -31,6 +42,7 @@ export class PackageDirections {
       PackageDirections.TABLE,
       manifest.entries(),
       manifest.entryDirs(),
+      PackageDirections.TEST_TABLE,
     );
   }
 
@@ -77,13 +89,24 @@ export class PackageDirections {
       if (dir !== undefined && path.startsWith(`${dir}/`)) {
         return `«${specifier}» не импортируют из его же каталога: внутри входа — относительные пути`;
       }
-      return entry === pkg || allowed.includes(entry)
-        ? undefined
-        : `нет направления «${pkg}» → «${entry}» («${specifier}»)`;
+      if (entry === pkg || allowed.includes(entry)) return undefined;
+      if (this.testDirections[pkg]?.includes(entry)) {
+        return this.isTestCode(path, pkg)
+          ? undefined
+          : `«${pkg}» → «${entry}» — только из тестового кода (testing/, *.test.ts) («${specifier}»)`;
+      }
+      return `нет направления «${pkg}» → «${entry}» («${specifier}»)`;
     }
     return this.isOwnName(specifier)
       ? `«${specifier}» — не вход из exports: соседа импортируют по имени входа`
       : undefined;
+  }
+
+  /** Тестовый код пакета: каталог `packages/<пакет>/testing/` или файл `*.test.ts`. */
+  protected isTestCode(path: string, pkg: string): boolean {
+    return (
+      path.startsWith(`packages/${pkg}/testing/`) || path.endsWith('.test.ts')
+    );
   }
 
   protected isOwnName(specifier: string): boolean {

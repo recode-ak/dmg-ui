@@ -7,7 +7,7 @@ import {
   PlanTasksStoryDef,
   StartWorkStoryDef,
   UserCardScreenDef,
-} from '../../testing/example';
+} from 'dmg-ui/example';
 import { UiScene } from '../../testing/ui-arch';
 import type { StoryDef } from './story-def';
 

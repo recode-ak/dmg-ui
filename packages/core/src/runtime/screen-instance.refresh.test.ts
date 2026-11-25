@@ -5,7 +5,7 @@ import {
   ListTasksUcDef,
   TaskEvents,
 } from 'dmg-core/testing/example';
-import { LIST_ID, LIST_START } from '../../testing/example';
+import { LIST_ID, LIST_START } from 'dmg-ui/example';
 import {
   RuntimeKit,
   refreshSignal,

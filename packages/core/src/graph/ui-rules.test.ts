@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ExampleUiSetDef } from '../../testing/example';
+import { ExampleUiSetDef } from 'dmg-ui/example';
 import { UiRules } from './ui-rules';
 
 // Граф учебного примера без нарушений — `testing/example/example-dialog.arch.test.ts`.

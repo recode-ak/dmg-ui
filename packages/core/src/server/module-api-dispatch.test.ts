@@ -3,7 +3,7 @@ import { ok } from 'dmg-core';
 import { ModuleApi } from 'dmg-core/app';
 import { AwaitingBus, MemoryLogger } from 'dmg-core/testing';
 import { TodoModuleDef } from 'dmg-core/testing/example';
-import { ExampleUiSetDef, OWNER } from '../../testing/example';
+import { ExampleUiSetDef, OWNER } from 'dmg-ui/example';
 import { TASKS } from '../../testing/ui-runtime.fixture';
 import {
   StubCallerSource,

@@ -1,6 +1,6 @@
 # Сторис, экран, уведомление — гайд
 
-**Назначение:** как автор UI объявляет сторис, экран и уведомление манифестами, пишет код экрана и как всё это исполняется. Пример — учебный набор [testing/example/todo/](../../packages/core/testing/example/todo/task-card.screen.ts) (импортируется из `dmg-ui/testing`; привязка к диалоговому каналу — `dmg-ui/chat-ui/testing`). Пакет канала — в [channel-package.md](./channel-package.md). Имена и раскладка файлов — [naming.md](../reference/naming.md).
+**Назначение:** как автор UI объявляет сторис, экран и уведомление манифестами, пишет код экрана и как всё это исполняется. Пример — учебный набор [platform/ui/todo/finish-tasks/](../../packages/example/src/platform/ui/todo/finish-tasks/task-card.screen.ts) (импортируется из `dmg-ui/example`; привязка к диалоговому каналу — `dmg-ui/chat-ui/testing`). Пакет канала — в [channel-package.md](./channel-package.md). Имена и раскладка файлов — [naming.md](../reference/naming.md).
 
 ---
 
@@ -100,11 +100,11 @@ new ScreenHelp(ExampleDialogUiAppDef).of(menuView);
 
 Субъект — доменный объект «кто смотрит» (тот, что получает Policy; не `Caller`) — лежит в `context.subject` у `load`, шагов и функции доступности; тип проекта — второй параметр `ScreenCode<D, S>`. Его кладёт канал в контекст рендера; без человека субъекта нет. Ответ о доступности — только показ: сервер перепроверяет каждый вызов (D-UI-29). Приложение вправе не включать часть связанных сторис: действие-переход в отрезанную сторис исполнитель из вида убирает (`ScreenRuntimeSpec.app`, D-UI-95).
 
-Переход — `Address` (свой экран с теми же параметрами значит «остаться и перечитать») или `exits.имя.with(data)`. Образец: [task-card.scode.ts](../../packages/core/testing/example/todo/task-card.scode.ts).
+Переход — `Address` (свой экран с теми же параметрами значит «остаться и перечитать») или `exits.имя.with(data)`. Образец: [task-card.scode.ts](../../packages/example/src/frontend/todo/logic/finish-tasks/task-card.scode.ts).
 
-`NotificationCode<D>`: `load({ payload, read })` собирает данные уведомления от имени получателя, `links(data, payload)` возвращает адреса из `links()` манифеста. Образец — [task-assigned.ncode.ts](../../packages/core/testing/example/todo/task-assigned.ncode.ts).
+`NotificationCode<D>`: `load({ payload, read })` собирает данные уведомления от имени получателя, `links(data, payload)` возвращает адреса из `links()` манифеста. Образец — [task-assigned.ncode.ts](../../packages/example/src/frontend/todo/logic/shared/task-assigned.ncode.ts).
 
-Код подключает корень сборки реестром `CodeLoaders.of(set, [CodeLoader.screen(def, async () => new (await import('./x.scode')).XScreenCode()), CodeLoader.notification(def, async () => new (await import('./x.ncode')).XNotificationCode())])`; загрузчик возвращает объект кода, а не модуль, и нужен каждому экрану и уведомлению набора (образец — [example-codes.ts](../../packages/core/testing/example/example-codes.ts)).
+Код подключает корень сборки реестром `CodeLoaders.of(set, [CodeLoader.screen(def, async () => new (await import('./x.scode')).XScreenCode()), CodeLoader.notification(def, async () => new (await import('./x.ncode')).XNotificationCode())])`; загрузчик возвращает объект кода, а не модуль, и нужен каждому экрану и уведомлению набора (образец — [example-codes.ts](../../packages/example/src/runners/example-codes.ts)).
 
 ## 5. Исполнение
 
