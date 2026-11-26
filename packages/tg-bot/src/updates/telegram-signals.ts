@@ -1,7 +1,8 @@
-import type {
-  Attachment,
-  ConversationSignal,
-  SignalHead,
+import {
+  type Attachment,
+  type ConversationSignal,
+  LINK_CODE,
+  type SignalHead,
 } from 'dmg-ui/chat-ui';
 import * as v from 'valibot';
 import {
@@ -136,11 +137,8 @@ export class TelegramSignals {
 
   /**
    * Текст, начинающийся сущностью `bot_command`. Имя — в нижнем регистре;
-   * `cancel`, `back` и `help` — сигналы беседы раньше таблицы (TG-04).
-   * `/start <параметр>`: параметр в формате и среди ключей `link` — вход той
-   * точки, иначе — как `/start`. Прочее — вход точки `command`/`menu` с этим
-   * именем, нет такой — заглушка (скажет беседа). Параметр в сигнал не идёт.
-   * Иначе `undefined` — обычный текст.
+   * `cancel`, `back`, `help` и `link` — сигналы беседы раньше таблицы
+   * (TG-04). Прочее — вход (`entered`). Иначе `undefined` — обычный текст.
    */
   private command(
     head: SignalHead,
@@ -160,22 +158,36 @@ export class TelegramSignals {
         return { ...head, kind: 'back' };
       case 'help':
         return { ...head, kind: 'help' };
+      case 'link':
+        return { ...head, kind: 'link' };
       default:
-        return {
-          ...head,
-          kind: 'enter',
-          entry: this.entry(name, text.slice(entity.length).trim()),
-        };
+        return this.entered(head, name, text.slice(entity.length).trim());
     }
   }
 
-  /** Вход по команде и параметру `/start`; нет в таблице — заглушка. */
-  private entry(name: string, param: string): string {
+  /**
+   * Вход по команде (D-UI-64, D-UI-127). `/start <параметр>`: параметр среди
+   * ключей `link` — вход той точки; иначе параметр по `LINK_CODE` — код
+   * ссылки в `param` входа точки `/start`; иначе — как `/start`. Прочее — вход
+   * точки `command`/`menu` с этим именем, нет такой — заглушка без параметра
+   * (скажет беседа). Параметр не по формату в сигнал не идёт.
+   */
+  private entered(
+    head: SignalHead,
+    name: string,
+    param: string,
+  ): ConversationSignal {
+    const start = name === START_COMMAND;
     const linked =
-      name === START_COMMAND && LINK_KEY.test(param)
-        ? this.table.link(param)
-        : undefined;
-    return linked ?? this.table.command(name) ?? UNKNOWN_ENTRY;
+      start && LINK_KEY.test(param) ? this.table.link(param) : undefined;
+    if (linked !== undefined) return { ...head, kind: 'enter', entry: linked };
+    const entry = this.table.command(name);
+    if (entry === undefined) {
+      return { ...head, kind: 'enter', entry: UNKNOWN_ENTRY };
+    }
+    return start && LINK_CODE.test(param)
+      ? { ...head, kind: 'enter', entry, param }
+      : { ...head, kind: 'enter', entry };
   }
 
   /** Вложение: фото — самый крупный размер по площади; стикер, место, контакт — нет. */

@@ -13,4 +13,17 @@ export type TelegramMenuSpec = {
   readonly logger: ServerContext['logger'];
   readonly app: AnyUiAppDef;
   readonly entryPoints: readonly ChatEntryPointSpec[];
+  /**
+   * Описания зарезервированных команд беседы (D-UI-127): команда с описанием
+   * публикуется после команд точек `menu` в порядке `RESERVED_COMMANDS`, без
+   * описания — нет (D-UI-107: `/help` по умолчанию не публикуется). Описание
+   * — 1–256 знаков, с ними команд — не больше `MENU_LIMITS.commands`, иначе
+   * бросок сборки.
+   */
+  readonly reserved?: {
+    readonly cancel?: string;
+    readonly back?: string;
+    readonly help?: string;
+    readonly link?: string;
+  };
 };

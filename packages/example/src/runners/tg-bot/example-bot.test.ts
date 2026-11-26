@@ -26,6 +26,11 @@ const STRANGER = 7350006666;
 /** Совпадает с id бота в апдейтах `TestUpdates` (`my_chat_member`). */
 const BOT = 7350007777;
 const GROUP = -1001234567890;
+/** Имя бота (`getMe`): из него узел собирает ссылки `t.me/<имя>?start=<код>`. */
+const BOT_USERNAME = 'example_bot';
+const LINK_URL = new RegExp(
+  `https://t\\.me/${BOT_USERNAME}\\?start=([A-Za-z0-9_-]{22})`,
+);
 
 const tmp = useTempDir('example-bot-');
 
@@ -47,6 +52,7 @@ const world = async () => {
     const bot = new ExampleBot({
       api,
       bot: BOT,
+      username: BOT_USERNAME,
       users: [A, B],
       logger,
       bus,
@@ -464,5 +470,70 @@ describe('ExampleBot — что показывает пример: отключ�
     await s.press(UserCardScreenDef.actions.tasks.label);
 
     expect(s.place(A).text).toStartWith('Мои задачи');
+  });
+});
+
+describe('ExampleBot — ссылка на экран (/link и /start <код>)', () => {
+  /** URL из последнего сообщения чата `chat` и код ссылки. */
+  const issuedTo = (w: Awaited<ReturnType<typeof world>>, chat: number) => {
+    const text = w.sendMessages(chat).at(-1)?.text ?? '';
+    const found = LINK_URL.exec(text);
+    if (found === null || found[1] === undefined) {
+      throw new Error('в сообщении нет ссылки');
+    }
+    return { url: found[0], code: found[1], text };
+  };
+
+  test('A: /start, /link → сообщение с URL бота; без клавиатуры и без нового экрана', async () => {
+    const w = await world();
+    const { bot } = await w.launch();
+    await bot.receive(w.updates.text(A, '/start'));
+    const before = w.sendMessages(A).length;
+
+    await bot.receive(w.updates.text(A, '/link'));
+
+    const sent = w.sendMessages(A);
+    expect(sent).toHaveLength(before + 1);
+    expect(sent.at(-1)?.reply_markup?.inline_keyboard ?? []).toEqual([]);
+    expect(
+      issuedTo(w, A).url.startsWith(`https://t.me/${BOT_USERNAME}?start=`),
+    ).toBe(true);
+  });
+
+  test('выдать у A — открыть у B: по коду B получает свой список без задач A', async () => {
+    const w = await world();
+    const { bot, settle } = await w.launch();
+    await bot.receive(w.updates.text(A, '/start'));
+    await bot.receive(w.updates.text(A, 'Хлеб'));
+    await settle();
+    await bot.receive(w.updates.text(A, '/link'));
+    const { code } = issuedTo(w, A);
+
+    await bot.receive(w.updates.text(B, `/start ${code}`));
+    await settle();
+
+    const opened = w.sendMessages(B);
+    expect(opened).toHaveLength(1);
+    expect(opened[0]?.text.split('\n')[0]).toBe('Мои задачи');
+    expect(opened[0]?.text).not.toContain('Хлеб');
+  });
+
+  test('тот же код у самого A на новом /start: его список с его задачей', async () => {
+    const w = await world();
+    const { bot, settle } = await w.launch();
+    await bot.receive(w.updates.text(A, '/start'));
+    await bot.receive(w.updates.text(A, 'Хлеб'));
+    await settle();
+    await bot.receive(w.updates.text(A, '/link'));
+    const { code } = issuedTo(w, A);
+    const before = w.sendMessages(A).length;
+
+    await bot.receive(w.updates.text(A, `/start ${code}`));
+    await settle();
+
+    const after = w.sendMessages(A);
+    expect(after.length).toBeGreaterThan(before);
+    expect(after.at(-1)?.text.split('\n')[0]).toBe('Мои задачи');
+    expect(after.at(-1)?.text).toContain('Хлеб');
   });
 });

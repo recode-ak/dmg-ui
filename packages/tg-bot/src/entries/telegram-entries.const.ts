@@ -25,8 +25,11 @@ export const LINK_KEY = /^[A-Za-z0-9_-]{1,64}$/;
 /** Формат ключа ссылки — для текста нарушения TG-02. */
 export const LINK_KEY_FORMAT = '[A-Za-z0-9_-]{1,64}';
 
-/** Команды, которые приём отдаёт беседе раньше таблицы (TG-04): отмена, «Назад», справка. */
-export const RESERVED_COMMANDS = ['cancel', 'back', 'help'] as const;
+/** Команды, которые приём отдаёт беседе раньше таблицы (TG-04): отмена, «Назад», справка, ссылка на экран. */
+export const RESERVED_COMMANDS = ['cancel', 'back', 'help', 'link'] as const;
+
+/** Имя бота Bot API (`getMe`) для ссылки `t.me/<имя>`: латинские, цифры, `_`, 5–32. */
+export const BOT_USERNAME = /^[A-Za-z0-9_]{5,32}$/;
 
 /** Команда `/start` — вход новичка (кнопка «Запустить» в пустом чате). */
 export const START_COMMAND = 'start';

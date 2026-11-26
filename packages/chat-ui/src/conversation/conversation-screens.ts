@@ -1,7 +1,7 @@
 import type { Trace } from 'dmg-core';
 import {
   type Address,
-  AddressCodec,
+  type AddressCodec,
   type AddressJson,
   ExitTargets,
   type InstanceJson,
@@ -42,6 +42,8 @@ type ScreensParts = {
   readonly spec: ConversationSpec;
   /** Вид → показ представления; «Назад» в вариантах — когда путь не пуст. */
   readonly composer: ScreenComposer;
+  /** Кодек адреса набора приложения беседы — общий с ссылками на экран. */
+  readonly codec: AddressCodec;
   /** Путь переходов беседы: экраны решают, когда он растёт, снимается и сбрасывается. */
   readonly path: ConversationPath;
   readonly replies: ConversationReplies;
@@ -71,7 +73,7 @@ export class ConversationScreens {
 
   constructor(parts: ScreensParts, serial: Serial, pending?: LiveScreenJson) {
     this.parts = parts;
-    this.codec = new AddressCodec(parts.spec.app.set);
+    this.codec = parts.codec;
     this.targets = ExitTargets.of(parts.spec.app);
     this.serial = serial;
     this.pending = pending;

@@ -307,6 +307,7 @@ export class Conversations<U extends Identified>
         shown: () => this.shown(peer, conversation),
         ...(this.spec.exits === undefined ? {} : { exits: this.spec.exits }),
         ...(this.spec.texts === undefined ? {} : { texts: this.spec.texts }),
+        ...(this.spec.links === undefined ? {} : { links: this.spec.links }),
       },
       snapshot,
     );

@@ -1,5 +1,6 @@
 // Вход dmg-ui/chat-ui: узел бесед мессенджера, хранилище бесед в памяти и
-// схема снимка беседы; представления беседы — сообщения с вариантами-
+// схема снимка беседы; ссылки на экран — порт хранилища, его версия в памяти
+// и формат кода (D-UI-127); представления беседы — сообщения с вариантами-
 // намерениями, реестр модуля с перекрытием под мессенджер и сборка области;
 // сообщение, помощники лимита, порт мессенджера, его возможности и страж
 // лимитов; поставщик графа общей части мессенджеров и его имя, рендерер
@@ -18,16 +19,19 @@ export type {
   ChatSignalField,
   ChatSignalSpec,
 } from './community/community.types';
+export { LINK_CODE } from './conversation/conversation.const';
 export type {
   Attachment,
   AttachmentKind,
   ConversationExit,
   ConversationExits,
+  ConversationLinks,
   ConversationSignal,
   ConversationSnapshot,
   ConversationsSpec,
   ConversationTextOverrides,
   DraftJson,
+  LinkStore,
   LiveScreenJson,
   RefEntry,
   SignalHead,
@@ -36,6 +40,7 @@ export { ConversationSnapshotSchema } from './conversation/conversation-snapshot
 export type { ConversationStore } from './conversation/conversation-store.types';
 export { Conversations } from './conversation/conversations';
 export { MemoryConversationStore } from './conversation/memory-conversation-store';
+export { MemoryLinkStore } from './conversation/memory-link-store';
 
 export { DIALOG_CHANNEL, DialogRenderer } from './dialog';
 export {

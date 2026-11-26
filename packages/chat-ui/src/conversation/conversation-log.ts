@@ -5,7 +5,11 @@ import type {
   UndeliveredReason,
 } from '../messenger/messenger.types';
 import { CONVERSATION_TEXTS } from './conversation.const';
-import type { ConversationSignal } from './conversation.types';
+import type {
+  ConversationSignal,
+  LinkOperation,
+  LinkRejection,
+} from './conversation.types';
 
 /**
  * Записи лога беседы и узла бесед. В `meta` — только имя мессенджера, вид
@@ -19,7 +23,7 @@ export class ConversationLog {
     private readonly messenger: string,
   ) {}
 
-  /** Сигнал отвергнут по пределу длины id или текста. */
+  /** Сигнал отвергнут по пределу: собеседник, длина id, текста, параметра входа или JSON адреса. */
   rejected(
     kind: ConversationSignal['kind'],
     reason: 'peer' | 'signalId' | 'text',
@@ -94,6 +98,46 @@ export class ConversationLog {
       ...cause,
       name: ConversationLog.nameOf(error),
     });
+  }
+
+  /** Ссылка на экран выдана (`/link`, D-UI-127): ни кода, ни URL, ни адреса. */
+  linkIssued(): void {
+    this.info(CONVERSATION_TEXTS.linkIssued, { event: 'link-issued' });
+  }
+
+  /** Экран открыт по коду (`enter`) или по адресу проекта (`open`): ни кода, ни адреса. */
+  linkOpened(kind: 'enter' | 'open'): void {
+    this.info(CONVERSATION_TEXTS.linkOpened, { event: 'link-opened', kind });
+  }
+
+  /** Код или адрес не открыт — вход сигнала; причина без кода и адреса. */
+  linkRejected(kind: 'enter' | 'open', reason: LinkRejection): void {
+    this.info(CONVERSATION_TEXTS.linkRejected, {
+      event: 'link-rejected',
+      kind,
+      reason,
+    });
+  }
+
+  /** Под кодом адреса в хранилище другой адрес: ссылка не выдана, запись не тронута. */
+  linkCollision(): void {
+    this.logger.error(LOG_SOURCE, CONVERSATION_TEXTS.linkCollision, {
+      messenger: this.messenger,
+      operation: 'issue',
+    });
+  }
+
+  /** Бросок кода ссылки, хранилища ссылок или URL проекта: имя ошибки без её текста. */
+  linkFailed(operation: LinkOperation, error: unknown): void {
+    this.logger.error(LOG_SOURCE, CONVERSATION_TEXTS.linkStoreFailed, {
+      messenger: this.messenger,
+      operation,
+      name: ConversationLog.nameOf(error),
+    });
+  }
+
+  private info(text: string, meta: Record<string, string>): void {
+    this.logger.info(LOG_SOURCE, text, { messenger: this.messenger, ...meta });
   }
 
   private warn(text: string, meta: Record<string, string>): void {

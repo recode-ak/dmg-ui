@@ -1,6 +1,10 @@
 import type { ExampleUser } from 'dmg-core/testing/example';
 import { ExampleApp } from 'dmg-core/testing/example';
-import { Conversations, MemoryConversationStore } from 'dmg-ui/chat-ui';
+import {
+  Conversations,
+  MemoryConversationStore,
+  MemoryLinkStore,
+} from 'dmg-ui/chat-ui';
 import {
   ApiAppDispatch,
   type PersonPlaces,
@@ -8,6 +12,7 @@ import {
   UiServer,
 } from 'dmg-ui/server';
 import {
+  TelegramLinks,
   TelegramMenu,
   TelegramMessenger,
   TelegramUpdates,
@@ -30,9 +35,10 @@ const PLACES: PersonPlaces = {
 };
 
 /**
- * Узел примера (D-UI-68): учебное приложение, беседы в памяти, приём апдейтов,
- * меню и уведомления на порту Bot API. Не знает ни сети, ни библиотеки: порт
- * приходит параметром. Образец сборки — сторис Telegram пакета.
+ * Узел примера (D-UI-68): учебное приложение, беседы и ссылки на экран в
+ * памяти (D-UI-127), приём апдейтов, меню и уведомления на порту Bot API.
+ * Не знает ни сети, ни библиотеки: порт приходит параметром. Образец сборки —
+ * сторис Telegram пакета.
  */
 export class ExampleBot {
   private readonly conversations: Conversations<ExampleUser>;
@@ -76,6 +82,10 @@ export class ExampleBot {
       peers: async (uuid) => people.idOf(uuid),
       callers: example.callers,
       places: PLACES,
+      links: {
+        store: new MemoryLinkStore(),
+        url: TelegramLinks.url(spec.username),
+      },
     });
     this.telegram = new TelegramUpdates({
       conversations: this.conversations,

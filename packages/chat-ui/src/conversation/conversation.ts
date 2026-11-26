@@ -2,6 +2,7 @@ import type { Trace } from 'dmg-core';
 import {
   type ActionField,
   type ActionView,
+  AddressCodec,
   type AnyUiAppDef,
   type InstanceJson,
   type LocalView,
@@ -38,6 +39,7 @@ import { ConversationScreens } from './conversation-screens';
 import { ExitHandoff } from './exit-handoff';
 import { OptionLayout } from './option-layout';
 import { RefTable } from './ref-table';
+import { ScreenLinks } from './screen-links';
 import { SeenIds } from './seen-ids';
 
 /**
@@ -46,7 +48,8 @@ import { SeenIds } from './seen-ids';
  * нажатие разбирается по записи таблицы ссылок, вход действия с полями
  * собирает черновик, исходы ядра — по таблице политик (гайд
  * `channel-package.md`), «Назад» — по пути переходов беседы, справка —
- * заметкой по виду живого экрана.
+ * заметкой по виду живого экрана; ссылка на экран, вход по коду и по адресу
+ * проекта — `ScreenLinks` (D-UI-127).
  *
  * @see conversation.test.ts
  */
@@ -64,6 +67,7 @@ export class Conversation {
   private readonly input: ConversationInput;
   private readonly outcomes: ConversationOutcomes;
   private readonly help: ScreenHelp;
+  private readonly screenLinks: ScreenLinks;
   private closed = false;
 
   /** Возможности не годятся (`options.max < 3`, `options.ref < 16`) или нет входа home — бросок. */
@@ -83,6 +87,8 @@ export class Conversation {
       this.refs,
       new OptionLayout(spec.messenger.capabilities.options.max),
     );
+    // Один кодек адреса на беседу: живой экран и ссылки на экран.
+    const codec = new AddressCodec(spec.app.set);
     const composer = new ScreenComposer(
       spec.views,
       spec.messenger.capabilities,
@@ -113,6 +119,7 @@ export class Conversation {
       {
         spec,
         composer,
+        codec,
         path: this.path,
         replies: this.replies,
         output: this.output,
@@ -145,6 +152,13 @@ export class Conversation {
         log: this.log,
       }),
     });
+    this.screenLinks = new ScreenLinks({
+      ...(spec.links === undefined ? {} : { links: spec.links }),
+      screens: this.screens,
+      output: this.output,
+      log: this.log,
+      codec,
+    });
   }
 
   /** Сборка беседы с этими приложением, входом home и возможностями; не годится — бросок. */
@@ -176,16 +190,36 @@ export class Conversation {
     return peer.length > 0 && peer.length <= MAX_PEER_LENGTH;
   }
 
-  /** Предел сигнала нарушен — причина; сигнал в пределах — `undefined`. */
+  /**
+   * Предел сигнала нарушен — причина; сигнал в пределах — `undefined`. Текст
+   * `text`, параметр `enter` и JSON адреса `open` — до `MAX_SIGNAL_TEXT`
+   * знаков (`text`); адрес без JSON-представления — тоже `text`.
+   */
   static rejects(
     signal: ConversationSignal,
   ): 'peer' | 'signalId' | 'text' | undefined {
     if (!Conversation.fitsPeer(signal.peer)) return 'peer';
     if (signal.id.length > MAX_SIGNAL_ID) return 'signalId';
-    if (signal.kind === 'text' && signal.text.length > MAX_SIGNAL_TEXT) {
-      return 'text';
-    }
+    if (Conversation.textLength(signal) > MAX_SIGNAL_TEXT) return 'text';
     return undefined;
+  }
+
+  /** Длина внешнего текста сигнала: текст, параметр входа, JSON адреса; не сериализуется — сверх предела. */
+  private static textLength(signal: ConversationSignal): number {
+    switch (signal.kind) {
+      case 'text':
+        return signal.text.length;
+      case 'enter':
+        return signal.param?.length ?? 0;
+      case 'open':
+        try {
+          return JSON.stringify(signal.address)?.length ?? 0;
+        } catch {
+          return Number.POSITIVE_INFINITY;
+        }
+      default:
+        return 0;
+    }
   }
 
   /**
@@ -260,13 +294,19 @@ export class Conversation {
   private async handle(signal: ConversationSignal): Promise<void> {
     const trace = this.spec.traces.next();
     // Экран снимка не восстановлен: вход исполняется, остальное поглощает home.
-    if (!(await this.screens.wake(trace)) && signal.kind !== 'enter') {
+    const entering = signal.kind === 'enter' || signal.kind === 'open';
+    if (!(await this.screens.wake(trace)) && !entering) {
       await this.screens.home(trace);
       return;
     }
     switch (signal.kind) {
       case 'enter':
-        await this.enter(signal.entry, trace);
+        if (!(await this.screenLinks.enter(signal.param, trace))) {
+          await this.enter(signal.entry, trace);
+        }
+        return;
+      case 'open':
+        await this.screenLinks.open(signal.address, trace);
         return;
       case 'text':
         if (this.screens.current() === undefined)
@@ -291,6 +331,9 @@ export class Conversation {
         return;
       case 'help':
         await this.output.note(this.helpText());
+        return;
+      case 'link':
+        await this.screenLinks.issue();
         return;
       default: {
         const unknownKind: never = signal;

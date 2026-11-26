@@ -34,6 +34,7 @@ const me = await polling.identify().catch(() => {
 const example = new ExampleBot({
   api,
   bot: me.id,
+  username: me.username,
   users,
   logger,
   bus: new InProcEventBus(logger),

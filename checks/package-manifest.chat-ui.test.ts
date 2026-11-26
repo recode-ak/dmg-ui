@@ -2,8 +2,9 @@ import { describe, expect, it } from 'bun:test';
 
 // Составы входов диалогового пакета и вход его общих помощников тестов
 // (D-UI-32): диалог, сообщение, помощники лимита, страж и схема возможностей
-// мессенджера, поставщик графа, узел бесед, хранилище бесед в памяти, схема
-// снимка беседы и исполнитель сообщества — в `dmg-ui/chat-ui`; подставной
+// мессенджера, поставщик графа, узел бесед, хранилища бесед и ссылок в
+// памяти, формат кода ссылки, схема снимка беседы и исполнитель сообщества —
+// в `dmg-ui/chat-ui`; подставной
 // мессенджер, примеры набора и проверка лимитов примеров (CH-01) — в
 // `dmg-ui/chat-ui/testing`; девять помощников ядра — в
 // `dmg-ui/testing/fixtures`; мессенджер Telegram — в `dmg-ui/tg-bot`,
@@ -22,8 +23,10 @@ const CHAT_UI = [
   'Conversations',
   'DIALOG_CHANNEL',
   'DialogRenderer',
+  'LINK_CODE',
   'LimitedMessenger',
   'MemoryConversationStore',
+  'MemoryLinkStore',
   'MessageFit',
   'MessengerCapabilitiesSchema',
   'NotificationPresenter',
@@ -37,7 +40,7 @@ const CHAT_UI = [
 ];
 
 describe('вход dmg-ui/chat-ui', () => {
-  it('состав — канал, представления и их реестр с перекрытием, наблюдатели, поставщик графа и его имя, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед в памяти, схема снимка и исполнитель сообщества', async () => {
+  it('состав — канал, представления и их реестр с перекрытием, наблюдатели, поставщик графа и его имя, рендерер, имя канала, сообщение, помощники лимита, страж и схема возможностей, узел бесед, хранилище бесед и ссылок в памяти, формат кода ссылки, схема снимка и исполнитель сообщества', async () => {
     expect(Object.keys(await import('dmg-ui/chat-ui')).sort()).toEqual(CHAT_UI);
   });
 
@@ -83,12 +86,13 @@ describe('вход dmg-ui/testing/fixtures', () => {
 });
 
 describe('вход dmg-ui/tg-bot', () => {
-  it('состав — виды апдейтов и способы точек входа, возможности Telegram, поставщик графа, меню команд, мессенджер на порту Bot API и приём апдейтов', async () => {
+  it('состав — виды апдейтов и способы точек входа, возможности Telegram, поставщик графа, меню команд, формат ссылки на экран, мессенджер на порту Bot API и приём апдейтов', async () => {
     expect(Object.keys(await import('dmg-ui/tg-bot')).sort()).toEqual([
       'TELEGRAM_ALLOWED_UPDATES',
       'TELEGRAM_CAPABILITIES',
       'TELEGRAM_VIA',
       'TelegramGraphProvider',
+      'TelegramLinks',
       'TelegramMenu',
       'TelegramMessenger',
       'TelegramUpdates',

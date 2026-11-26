@@ -51,9 +51,22 @@ export type ConversationSignal =
   | (SignalHead & {
       readonly kind: 'enter';
       readonly entry: string;
-      /** Место под параметр точки входа; пока никуда не передаётся. */
+      /**
+       * Код ссылки на экран (D-UI-127): у узла со ссылками (`links`) код по
+       * `LINK_CODE` открывает адрес из хранилища вместо входа `entry`;
+       * отказ — заметка «Ссылка не найдена.» и вход `entry`. Нет `links` —
+       * не читается; пустая строка — как без параметра. Внешние данные: до
+       * `MAX_SIGNAL_TEXT` символов.
+       */
       readonly param?: string;
     })
+  /**
+   * Вход по адресу от проекта (D-UI-127): мост подаёт его, как сигнал
+   * `enter`; мессенджеры из апдейтов его не строят. Адрес проходит
+   * `AddressCodec.decode`, путь сброшен; не декодировался — заметка «Ссылка
+   * не найдена.» и вход home. JSON адреса — до `MAX_SIGNAL_TEXT` знаков.
+   */
+  | (SignalHead & { readonly kind: 'open'; readonly address: AddressJson })
   | (SignalHead & { readonly kind: 'text'; readonly text: string })
   | (SignalHead & {
       readonly kind: 'press';
@@ -73,7 +86,14 @@ export type ConversationSignal =
    * сигнал. Ответ — заметка со справкой живого экрана (без него — общая);
    * состояние беседы не меняется.
    */
-  | (SignalHead & { readonly kind: 'help' });
+  | (SignalHead & { readonly kind: 'help' })
+  /**
+   * Ссылка на живой экран (D-UI-127): ответ — заметка с URL кода адреса
+   * экрана (без состояния и пути); состояние беседы не меняется, как у
+   * справки. Нет экрана — «Здесь нет экрана для ссылки.», нет `links` —
+   * «Ссылки здесь не выдаются.».
+   */
+  | (SignalHead & { readonly kind: 'link' });
 
 /** Номер экрана или черновика беседы: растёт с каждым открытым экраном и начатым черновиком, хранится в снимке. */
 export type Serial = number;
@@ -367,6 +387,32 @@ export type ConversationTextOverrides = {
   readonly unknownRef?: string;
 };
 
+/**
+ * Порт проекта: хранилище ссылок на экран, код ↔ адрес (D-UI-127). Формат
+ * кода `LINK_CODE` гарантирует только беседа: хранилище, которое держит код
+ * именем файла или ключом, само проверяет `LINK_CODE` в `get` и `put` — его
+ * могут звать и мимо беседы. `get` — данные JSON, как после круга через JSON
+ * (беседа снова проверяет их `AddressCodec.decode`); нет записи —
+ * `undefined`. `put` — новая запись: беседа зовёт его, только когда под
+ * кодом записи нет. Бросок — отказ ссылки, не беседы.
+ */
+export type LinkStore = {
+  get(code: string): Promise<AddressJson | undefined>;
+  put(code: string, address: AddressJson): Promise<void>;
+};
+
+/** Почему код или адрес не открыт: формат кода, нет записи, адрес не декодирован, сбой порта. */
+export type LinkRejection = 'format' | 'unknown' | 'address' | 'port';
+
+/** Шаг выдачи ссылки, на котором случился бросок: код адреса, чтение и запись хранилища, URL проекта. */
+export type LinkOperation = 'code' | 'get' | 'put' | 'url';
+
+/** Ссылки на экран у узла бесед (D-UI-127): хранилище кодов и URL кода — его строит пакет мессенджера (D-UI-100). */
+export type ConversationLinks = {
+  readonly store: LinkStore;
+  readonly url: (code: string) => string;
+};
+
 /** Всё, что нужно одной беседе одного собеседника; собирает узел бесед. */
 export type ConversationSpec = {
   readonly app: AnyUiAppDef;
@@ -391,6 +437,8 @@ export type ConversationSpec = {
   readonly exits?: ConversationExits;
   /** Замена текстов устаревшей кнопки собеседнику; нет — тексты беседы. */
   readonly texts?: ConversationTextOverrides;
+  /** Ссылки на экран; нет — `/link` отвечает «Ссылки здесь не выдаются.», `enter.param` не читается. */
+  readonly links?: ConversationLinks;
 };
 
 /** Узел бесед одного приложения мессенджера. */
@@ -423,4 +471,6 @@ export type ConversationsSpec<U extends Identified> = {
   readonly exits?: ConversationExits;
   /** Замена текстов устаревшей кнопки собеседнику (D-UI-92); нет — «Эта кнопка устарела.». */
   readonly texts?: ConversationTextOverrides;
+  /** Ссылки на экран (D-UI-127): `/link` и вход по коду; нет — ссылки не выдаются, `enter.param` не читается. */
+  readonly links?: ConversationLinks;
 };

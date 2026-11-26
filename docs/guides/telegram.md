@@ -22,10 +22,11 @@
 |---|---|
 | `TelegramMessenger` | исполняет `MessengerPort` поверх `BotApi`; спека `{ api, logger, now? }`; `messenger.community` — порт сообщества на том же `api` |
 | `TelegramUpdates` | `receive(update: unknown)`: апдейт Bot API → сигнал беседы или сообщества; не бросает |
-| `TelegramMenu` | `publish()` — один `setMyCommands` по точкам `menu` |
+| `TelegramMenu` | `publish()` — один `setMyCommands` по точкам `menu` и описанным `reserved` |
+| `TelegramLinks` | `url(username)` → URL ссылки на экран `https://t.me/<username>?start=<код>` для `ConversationsSpec.links.url`; `username` не по `^[A-Za-z0-9_]{5,32}$` — бросок сборки |
 | `TelegramGraphProvider` | поставщик графа Telegram: правила `TG-01…06` |
 
-Порядок: один массив точек входа (раздел 5) идёт и в `ChatAppSpec.entryPoints`, и в `TelegramUpdatesSpec.entryPoints`; `Conversations` получает `messenger`, `people`, `peers` (общая часть — [messenger-package.md](./messenger-package.md)); `TelegramUpdates` — `conversations`, `messenger`, `logger`, `entryPoints`, `bot` и, если есть сообщество, `communities`; при старте — `UiNotifier.start()` и `menu.publish()`.
+Порядок: один массив точек входа (раздел 5) идёт и в `ChatAppSpec.entryPoints`, и в `TelegramUpdatesSpec.entryPoints`; `Conversations` получает `messenger`, `people`, `peers` (общая часть — [messenger-package.md](./messenger-package.md)) и для ссылок на экран — `links: { store, url: TelegramLinks.url(me.username) }` ([channel-package.md](./channel-package.md#4-политики-по-исходам), D-UI-127); `TelegramUpdates` — `conversations`, `messenger`, `logger`, `entryPoints`, `bot` и, если есть сообщество, `communities`; при старте — `UiNotifier.start()` и `menu.publish()`.
 
 **Образец — [packages/example/src/runners/tg-bot](../../packages/example/src/runners/tg-bot/README.md)**: `ExampleBot` ([example-bot.ts](../../packages/example/src/runners/tg-bot/example-bot.ts)) собирает всё на порте `BotApi`, не зная сети и библиотеки; `GrammyBotApi` и `GrammyPolling` — адаптер порта и опрос на `grammy`, их проект пишет под свою библиотеку (D-UI-68).
 
@@ -65,9 +66,10 @@
 | `link` | параметр `[A-Za-z0-9_-]{1,64}` | `t.me/<бот>?start=<key>` |
 
 - **Один массив на два читателя:** `ChatAppSpec.entryPoints` (граф) и `TelegramUpdatesSpec.entryPoints` (приём) — расхождения «граф знает точку, приём нет» нет. `command` и `menu` делят пространство ключей, `link` — своё.
-- **`cancel`, `back` и `help`** — команды беседы, занимают имя раньше таблицы (TG-04); `/help` — сигнал `help`, ответ — справка живого экрана отдельным сообщением без кнопок (D-UI-107). В меню команд (`setMyCommands`) пакет их не публикует: при нужде проект зовёт `setMyCommands` сам. Команды нет в таблице — «Такого входа нет.». Имя команды приводится к нижнему регистру. Параметр `/start <параметр>` выбирает вход точки `link` и в сигнал не идёт.
-- **Меню.** `TelegramMenu.publish()` — один `setMyCommands` (область `all_private_chats`, описание — название входа); точек `menu` нет — вызова нет, список владельца не затирается. Вызывает проект при старте: пакет сам не публикует. Отказ — недоставка и `warn`, бросок порта — `unavailable`; `publish` не бросает.
-- **Правила графа.** TG-01 (способ известен), TG-02 (формат ключа), TG-03 (ключ ведёт на один вход; узлы называются в порядке `id`, не таблицы), TG-04 (не `cancel`/`back`/`help`), TG-05 (есть точка `start`: кнопка «Запустить» в пустом чате шлёт `/start`), TG-06 (до 100 команд, описание 1–256 знаков UTF-16). Полный текст — [rules.md](../reference/rules.md); `TelegramGraphProvider` — поставщик правил, своих узлов не вносит.
+- **`cancel`, `back`, `help` и `link`** — команды беседы, занимают имя раньше таблицы (TG-04); `/help` — сигнал `help`, ответ — справка живого экрана отдельным сообщением без кнопок (D-UI-107); `/link` — сигнал `link`, ответ — сообщение с `t.me/<бот>?start=<код>` на живой экран (D-UI-127). В меню команд их публикует только описание проекта (`TelegramMenuSpec.reserved`, ниже). Команды нет в таблице — «Такого входа нет.». Имя команды приводится к нижнему регистру.
+- **`/start <параметр>`.** Ключ точки `link` — вход той точки (главнее кода); иначе параметр по `LINK_CODE` (22 знака `[A-Za-z0-9_-]`) — код ссылки: `param` сигнала `enter` входа точки `/start`, беседа открывает экран по адресу из хранилища или отвечает «Ссылка не найдена.» и входом `/start`; иначе — как `/start`, параметр в сигнал не идёт. Сигнал `open` (вход по адресу) из апдейта не строится никогда — его подаёт проект.
+- **Меню.** `TelegramMenu.publish()` — один `setMyCommands` (область `all_private_chats`, описание — название входа); затем зарезервированные команды, которым проект дал описание: `reserved: { cancel?, back?, help?, link? }`, в порядке `RESERVED_COMMANDS` — cancel, back, help, link (описание 1–256 знаков, с ними команд не больше 100 — иначе бросок сборки); команд нет — вызова нет, список владельца не затирается. Вызывает проект при старте: пакет сам не публикует. Отказ — недоставка и `warn`, бросок порта — `unavailable`; `publish` не бросает.
+- **Правила графа.** TG-01 (способ известен), TG-02 (формат ключа), TG-03 (ключ ведёт на один вход; узлы называются в порядке `id`, не таблицы), TG-04 (не `cancel`/`back`/`help`/`link`), TG-05 (есть точка `start`: кнопка «Запустить» в пустом чате шлёт `/start`), TG-06 (до 100 команд, описание 1–256 знаков UTF-16). Полный текст — [rules.md](../reference/rules.md); `TelegramGraphProvider` — поставщик правил, своих узлов не вносит.
 
 ## 12. Чеклист проекта
 
@@ -76,7 +78,7 @@
 - ERR-07 — в логе нет токена, id людей, текстов; порт `BotApi` проекта не пишет в журнал тела вызовов.
 - Порт `BotApi` проекта — все восемь методов; отказ библиотеки — значение `{ ok: false, ... }`, не бросок.
 - Подача апдейтов: только от Telegram (`getUpdates` или вебхук с секретом); `allowed_updates` = `TELEGRAM_ALLOWED_UPDATES`; один исполнитель на токен.
-- `bot` — из `getMe`; `people` — регистрация человека до `receive`; `peers` отдаёт личный чат.
+- `bot` и `username` (для `TelegramLinks.url`) — из `getMe`; `people` — регистрация человека до `receive`; `peers` отдаёт личный чат.
 - Один массив точек входа в `ChatAppSpec` и `TelegramUpdatesSpec`; есть точка `start` (TG-05); `menu.publish()` при старте.
 - Сообщество, если нужно: бот — администратор; `chat_member` в `allowed_updates`; часы сервера синхронны.
 - Тесты на `MemoryBotApi` и `TestUpdates`; пример и пробу запустить на тестовом боте, не боевом; пункты [раздела 11](./telegram-checks.md#11-что-не-проверено-на-живом-telegram) пройти на домене проекта.
