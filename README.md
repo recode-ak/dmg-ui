@@ -37,13 +37,13 @@
 
 ```sh
 bun add valibot @valibot/to-json-schema \
-  git+ssh://git@github.com/recode-ak/dmg-core.git#v0.8.0 \
-  git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.6.0
+  git+ssh://git@github.com/recode-ak/dmg-core.git#v0.9.0 \
+  git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.7.0
 ```
 
 Почему одной. `dmg-core` у `dmg-ui` — peer-зависимость, а Bun ищет peer в реестре npm и получает 404. Если `dmg-core` назван в той же команде, Bun берёт его из git и peer удовлетворён. `@valibot/to-json-schema` — peer самого `dmg-core`.
 
-Версия пакета — тег. Обновление — правка тега в `package.json` проекта и `bun install`. Диапазоны peer-зависимостей: `dmg-core ^0.8.0`, `valibot ^1.5.0`. Репо ставится целиком: поле `files` при установке из git не действует ([D-UI-2](docs/decisions.md)).
+Версия пакета — тег. Обновление — правка тега в `package.json` проекта и `bun install`. Диапазоны peer-зависимостей: `dmg-core ^0.9.0`, `valibot ^1.5.0`. Репо ставится целиком: поле `files` при установке из git не действует ([D-UI-2](docs/decisions.md)).
 
 ## Входы
 
@@ -55,6 +55,7 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui/testing` | помощник рендера примеров `ExamplePreview`, наблюдатель `MemoryUiObserver`, проверка имён файлов UI `UiFileNames` | [Структура и именование UI](docs/reference/naming.md#7-проверка) |
 | `dmg-ui/testing/fixtures` | девять помощников тестов ядра для пакетов каналов | [Пакет канала](docs/guides/channel-package.md) |
 | `dmg-ui/example` | учебный проект: описание, код и представления модулей, сборки реестров, приложения UI и сборки `arch:check` оболочек (`ExampleDialogArch`, `ExampleWebArch`) | [Слои фронта](docs/concepts/frontend-layers.md) |
+| `dmg-ui/dmg-core` | виды генератора `dmg-core gen` — `ui-module`, `story`, `screen`, `notification`: поставщик подключается в `providers` `.dmg/config.json`, места слоёв — в `layers` ([D-UI-123](docs/decisions.md)); тот же вход доставляет роль `dmg-ui-author` (`dmg-core sync`) | [Виды генератора](docs/guides/gen-kinds.md) |
 | `dmg-ui/chat-ui` | общая часть мессенджеров: беседы, представления, сообщество, граф и правила `CH-NN`, порт мессенджера | [Пакет мессенджера](docs/guides/messenger-package.md) |
 | `dmg-ui/chat-ui/testing` | подставной мессенджер `MemoryMessenger`, примеры набора `ChatExamples` и проверка лимитов `ExampleLimits` (CH-01) | [Пакет мессенджера](docs/guides/messenger-package.md#9-как-тестировать) |
 | `dmg-ui/tg-bot` | мессенджер Telegram поверх порта Bot API, приём апдейтов, меню, правила `TG-NN` | [Telegram](docs/guides/telegram.md) |
@@ -86,6 +87,7 @@ bun add valibot @valibot/to-json-schema \
 | [Web-канал](docs/guides/web-channel.md) | подключение `dmg-ui/web-ui`: состав, контракт представления, провод и привязка к `Bun.serve`, URL и маршруты, области, история, форма и жест, показ до ответа, граф и правила `PG-NN`, безопасность, решения без реализации, тесты, чеклист проекта |
 | [Пакет мессенджера](docs/guides/messenger-package.md) | общая часть мессенджеров `chat-ui` и что обязан дать пакет конкретного мессенджера: беседа, лимиты, сообщество, граф, тесты, чеклист |
 | [Telegram](docs/guides/telegram.md) | подключение `dmg-ui/tg-bot`: сборка, апдейты, тексты и кнопки, меню, сообщество, возможности, отказы, что не проверено на живом Telegram |
+| [Виды генератора](docs/guides/gen-kinds.md) | `dmg-core gen ui-module`, `story`, `screen`, `notification`: подключение поставщика, аргументы, что создаёт и правит каждый вид, отказы, что остаётся руками, тест вида |
 | [Структура и именование UI](docs/reference/naming.md) | суффиксы видов UI, папки трёх деревьев и точки регистрации, дерево проекта, пакеты `monorepo`, пакет канала, место тестов и фикстур, проверка `NM-01` |
 | [Каталог правил](docs/reference/rules.md) | правила графа `UI-NN`, `CH-NN`, `TG-NN` и `PG-NN`, слои фронта UI-28…UI-34, проверки единицы UI-06 и CH-01, правило имён файлов `NM-01`, ограничения правил, проверки репозитория |
 | [Решения](docs/decisions.md) | реестр `D-UI-N`: что решено и почему |
@@ -97,14 +99,14 @@ bun add valibot @valibot/to-json-schema \
 
 ## Разработка пакета
 
-Репо — монорепо с одним устанавливаемым пакетом `dmg-ui`: код в `packages/core` (`src/` — ядро, `testing/` — входы `dmg-ui/testing` и `dmg-ui/testing/fixtures`), `packages/chat-ui`, `packages/tg-bot` и `packages/web-ui` (пакеты каналов), `packages/example` (учебный проект, вход `dmg-ui/example`), приёмочные тесты поверх нескольких пакетов — в `acceptance/`, проверки разработчика пакета — в `checks/`. Направление импортов: ядро ← `chat-ui` ← `tg-bot`, ядро ← `web-ui`, только по имени входа ([D-UI-34](docs/decisions.md)); учебный проект видит все четыре, а к нему обращается только тестовый код пакетов ([D-UI-121](docs/decisions.md)).
+Репо — монорепо с одним устанавливаемым пакетом `dmg-ui`: код в `packages/core` (`src/` — ядро, `testing/` — входы `dmg-ui/testing` и `dmg-ui/testing/fixtures`), `packages/chat-ui`, `packages/tg-bot` и `packages/web-ui` (пакеты каналов), `packages/example` (учебный проект, вход `dmg-ui/example`), `packages/gen` (виды генератора, вход `dmg-ui/dmg-core`; без своего `package.json`), `agents/roles/` (роль `dmg-ui-author`, её доставляет `dmg-core sync`), приёмочные тесты поверх нескольких пакетов — в `acceptance/`, проверки разработчика пакета — в `checks/`. Направление импортов: ядро ← `chat-ui` ← `tg-bot`, ядро ← `web-ui`, только по имени входа ([D-UI-34](docs/decisions.md)); учебный проект видит все четыре, а к нему обращается только тестовый код пакетов ([D-UI-121](docs/decisions.md)).
 
 ```sh
 bun install
 bun run check
 ```
 
-`check` запускает biome, `tsc --noEmit` и `bun test` (файлы `*.browser.test.ts` обычный `bun test` пропускает). Браузерные тесты — отдельно, `bun run browser`: запуск, Chrome и когда они нужны — [Web-канал, раздел 15](docs/guides/web-channel.md#15-как-тестировать). Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.6.0`), сверяет их с `exports` установленного пакета, импортирует двенадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
+`check` запускает biome, `tsc --noEmit` и `bun test` (файлы `*.browser.test.ts` обычный `bun test` пропускает). Браузерные тесты — отдельно, `bun run browser`: запуск, Chrome и когда они нужны — [Web-канал, раздел 15](docs/guides/web-channel.md#15-как-тестировать). Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.7.0`), сверяет их с `exports` установленного пакета, импортирует тринадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
 Запускаемый пример на живом Telegram — [`packages/example/src/runners/tg-bot`](packages/example/src/runners/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
 
@@ -112,7 +114,7 @@ bun run check
 
 ## Статус
 
-Версия `0.6.0` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Что сломано для потребителя: в `0.6.0` (с `0.5.x`) — раскладка фронта, реестры на модуль, граф без представлений, учебный проект — [D-UI-122](docs/decisions.md); в `0.5.1` (с `0.5.0`) — ничего, патч примера `examples/web` ([D-UI-115](docs/decisions.md)); в `0.5.0` (с `0.4.0`) — [D-UI-114](docs/decisions.md), в `0.4.0` (с `0.3.2`) — [D-UI-109](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
+Версия `0.7.0` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Что сломано для потребителя: в `0.7.0` (с `0.6.x`) — опора `dmg-core ^0.9.0` и файлы `dmg-core` проекта в `.dmg/` — [D-UI-124](docs/decisions.md); в `0.6.0` (с `0.5.x`) — раскладка фронта, реестры на модуль, граф без представлений, учебный проект — [D-UI-122](docs/decisions.md); в `0.5.1` (с `0.5.0`) — ничего, патч примера `examples/web` ([D-UI-115](docs/decisions.md)); в `0.5.0` (с `0.4.0`) — [D-UI-114](docs/decisions.md), в `0.4.0` (с `0.3.2`) — [D-UI-109](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
 
 ## Лицензия
 
