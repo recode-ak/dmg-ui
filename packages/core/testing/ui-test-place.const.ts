@@ -1,4 +1,4 @@
-/** Каталоги сквозных тестов: тест прямо в них не требует своего файла рядом (`naming.md` §5). */
+/** Каталоги сквозных тестов: тест прямо в них не требует своего файла рядом (`naming-package.md` §5). */
 export const THROUGH_TEST_DIRS: readonly string[] = [
   'testing',
   'acceptance',

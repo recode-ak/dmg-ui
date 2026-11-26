@@ -10,10 +10,12 @@ import type { ProbeCase } from './example-probe.types';
 // README примера и `.env.example` согласованы с кодом: переменные окружения,
 // uuid учебных пользователей, пробы группы Е. Ссылки на трек, токен и живые
 // относительные ссылки README уже проверяют `track-references.test.ts`,
-// `bot-token-scanner.test.ts` и `docs-links.test.ts` на реальном репо (TST-08).
+// `bot-token-scanner.test.ts` и `docs --check` на реальном репо (TST-08).
 
 const ROOT = import.meta.dir;
+// Переменные, uuid и «Что не проверяет» — в README, пункты чек-листа — в checklist.md.
 const readme = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
+const checklist = readFileSync(resolve(ROOT, 'checklist.md'), 'utf8');
 
 /** Строка таблицы README целиком по началу: `| id. look | expected |` (Е1 не засчитывается за Е10). */
 const hasRow = (text: string, probeCase: ProbeCase): boolean =>
@@ -50,7 +52,7 @@ describe('README примера и .env.example', () => {
     for (const probeCase of PROBE_CASES) {
       expect({
         id: probeCase.id,
-        found: hasRow(readme, probeCase),
+        found: hasRow(checklist, probeCase),
       }).toEqual({ id: probeCase.id, found: true });
     }
   });
@@ -61,7 +63,9 @@ const GROUP_Ж = ['Ж1', 'Ж2', 'Ж3', 'Ж4', 'Ж5', 'Ж6', 'Ж7', 'Ж8'];
 
 /** Ячейки строки таблицы README, чья первая ячейка начинается с `<id>.`; нет строки — `undefined`. */
 const rowOf = (id: string): string[] | undefined => {
-  const line = readme.split('\n').find((text) => text.startsWith(`| ${id}.`));
+  const line = checklist
+    .split('\n')
+    .find((text) => text.startsWith(`| ${id}.`));
   return line
     ?.split('|')
     .slice(1, -1)
@@ -70,7 +74,7 @@ const rowOf = (id: string): string[] | undefined => {
 
 describe('README примера — группа Ж и подписи из Def', () => {
   test('есть заголовок группы «### Ж. »', () => {
-    expect(readme).toMatch(/^### Ж\. /m);
+    expect(checklist).toMatch(/^### Ж\. /m);
   });
 
   test.each(GROUP_Ж)(
@@ -86,8 +90,8 @@ describe('README примера — группа Ж и подписи из Def',
   );
 
   test('подписи из Def: «Предыдущая страница» и «К моим задачам» названы в README', () => {
-    expect(readme).toContain(TaskListScreenDef.actions.prev.label);
-    expect(readme).toContain(UserCardScreenDef.actions.tasks.label);
+    expect(checklist).toContain(TaskListScreenDef.actions.prev.label);
+    expect(checklist).toContain(UserCardScreenDef.actions.tasks.label);
   });
 
   test('Ж4 называет /help, Ж1 — ответ на нажатие без show_alert', () => {

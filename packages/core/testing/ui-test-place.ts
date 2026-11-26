@@ -1,7 +1,7 @@
 import { NOT_TOPIC_HEAD, THROUGH_TEST_DIRS } from './ui-test-place.const';
 
 /**
- * Форма теста рядом по `naming.md` §5 (`NM-01`, проверка `тест`): `<файл>.test.ts`,
+ * Форма теста рядом по `naming-package.md` §5 (`NM-01`, проверка `тест`): `<файл>.test.ts`,
  * `<файл>.<грань>.test.ts`, `<тема>-<что>.test.ts`, `readme.test.ts`, сквозной тест прямо
  * в `testing/`, `acceptance/`, `browser/`, `checks/`; `<имя>.story.test.ts` — только при
  * `<имя>.story.ts`. Соседей знает по списку файлов каталога, диск не читает.
@@ -20,7 +20,7 @@ export class UiTestPlace {
     if (stem.endsWith('.story')) {
       return near.has(`${stem}.ts`)
         ? undefined
-        : `${lost}: нужен ${stem}.ts — <имя>.story.test.ts тестирует только сторис <имя>.story.ts (naming.md §5)`;
+        : `${lost}: нужен ${stem}.ts — <имя>.story.test.ts тестирует только сторис <имя>.story.ts (naming-package.md §5)`;
     }
     const placed =
       stem === 'readme' ||
@@ -28,7 +28,9 @@ export class UiTestPlace {
       this.hasFacetHead(stem, near) ||
       this.hasTopicHead(stem, near) ||
       THROUGH_TEST_DIRS.includes(dir.slice(dir.lastIndexOf('/') + 1));
-    return placed ? undefined : `${lost}: ${this.hint(stem)} (naming.md §5)`;
+    return placed
+      ? undefined
+      : `${lost}: ${this.hint(stem)} (naming-package.md §5)`;
   }
 
   /** Что положить рядом: для грани — её голову, для имени без точки — файл или голову темы. */

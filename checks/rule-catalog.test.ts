@@ -5,7 +5,6 @@ import { SourceFile } from './source-tree';
 import { TextTree } from './text-tree';
 
 const ROOT = resolve(import.meta.dir, '..');
-const SELF = ['checks/rule-catalog.test.ts', 'checks/rule-catalog.ts'];
 
 const file = (path: string, text: string) => SourceFile.of(path, text);
 const catalog = new RuleCatalog();
@@ -113,137 +112,12 @@ describe('RuleCatalog.checkRules — все префиксы репо', () => {
   });
 });
 
-describe('RuleCatalog.checkDecisions — D-UI в decisions.md', () => {
-  const decisions = file(
-    'docs/decisions.md',
-    '**D-UI-1. Первое.** Причина.\n\n**D-UI-12. Второе.** Причина.\n',
-  );
-
-  it('определённые ссылки проходят', () => {
-    const src = [file('a.ts', '// D-UI-1 и D-UI-12')];
-    expect(catalog.checkDecisions(src, decisions)).toEqual([]);
-  });
-
-  it('неопределённая ссылка — нарушение с файлом и строкой', () => {
-    const src = [file('a.ts', 'x\n// D-UI-99')];
-    expect(catalog.checkDecisions(src, decisions)).toEqual([
-      {
-        file: 'a.ts',
-        line: 2,
-        text: 'D-UI-99: решения нет в docs/decisions.md',
-      },
-    ]);
-  });
-
-  it('D-UI-1 не считается определением D-UI-12 и наоборот', () => {
-    const only12 = file('d.md', '**D-UI-12. Одно.**\n');
-    expect(
-      catalog.checkDecisions([file('a.ts', 'D-UI-1')], only12),
-    ).toHaveLength(1);
-  });
-
-  it('упоминание в тексте записи не определяет решение', () => {
-    const d = file('d.md', '**D-UI-1. Одно.** см. D-UI-2\n');
-    expect(catalog.checkDecisions([file('a.ts', 'D-UI-2')], d)).toHaveLength(1);
-  });
-});
-
-describe('RuleCatalog.checkDebt — нумерация debt.md', () => {
-  const debt = (last: number, ids: number[]) =>
-    file(
-      'debt.md',
-      `**Последний выданный ID:** DEBT-UI-${last}\n\n${ids
-        .map((n) => `### DEBT-UI-${n}: запись`)
-        .join('\n')}\n`,
-    );
-
-  it('шапка равна максимуму — нарушений нет', () => {
-    expect(catalog.checkDebt(debt(5, [1, 3, 5]))).toEqual([]);
-  });
-
-  it('максимум выше шапки — нарушение', () => {
-    const found = catalog.checkDebt(debt(3, [1, 5]));
-    expect(found).toEqual([
-      {
-        file: 'debt.md',
-        line: 1,
-        text: 'последний выданный DEBT-UI-3, максимум в записях DEBT-UI-5',
-      },
-    ]);
-  });
-
-  it('шапка выше максимума — нарушение', () => {
-    expect(catalog.checkDebt(debt(9, [1, 5]))).toHaveLength(1);
-  });
-
-  it('нет строки «Последний выданный ID» — нарушение', () => {
-    const found = catalog.checkDebt(file('debt.md', '### DEBT-UI-1: х\n'));
-    expect(found).toHaveLength(1);
-  });
-
-  it('число сравнивается как число, а не строка', () => {
-    expect(catalog.checkDebt(debt(10, [2, 10]))).toEqual([]);
-  });
-});
-
-describe('RuleCatalog.checkScenarios — GR-UI в реестре сценариев', () => {
-  const registry = file(
-    'docs/concepts/frontend-layers.md',
-    [
-      '| ID | Сценарий | Что требует | Статус |',
-      '|---|---|---|---|',
-      '| GR-UI-01 | Фронт-модуль уходит | пакет | предусмотрен |',
-      '| `GR-UI-02` | Канал уходит | оболочка | предусмотрен |',
-    ].join('\n'),
-  );
-
-  it('объявленные в таблице реестра сценарии проходят', () => {
-    const src = [file('docs/decisions.md', 'Сценарии: GR-UI-01, GR-UI-02.')];
-    expect(catalog.checkScenarios(src, registry)).toEqual([]);
-  });
-
-  it('необъявленный GR-UI-99 — нарушение с файлом и строкой', () => {
-    const src = [file('docs/guides/a.md', 'строка\nсм. GR-UI-99 и GR-UI-01')];
-    expect(catalog.checkScenarios(src, registry)).toEqual([
-      {
-        file: 'docs/guides/a.md',
-        line: 2,
-        text: 'GR-UI-99: сценария нет в docs/concepts/frontend-layers.md',
-      },
-    ]);
-  });
-
-  it('упоминание в прозе реестра сценарий не объявляет', () => {
-    const prose = file('r.md', 'GR-UI-03 — разделы на разных фреймворках\n');
-    const src = [file('a.ts', '// GR-UI-03')];
-    expect(catalog.checkScenarios(src, prose)).toHaveLength(1);
-  });
-
-  it('GR-UI-1 не считается объявлением GR-UI-10, заготовка GR-UI-NN — не ссылка', () => {
-    const one = file('r.md', '| GR-UI-01 | х | у | предусмотрен |\n');
-    expect(
-      catalog.checkScenarios([file('a.md', 'GR-UI-10')], one),
-    ).toHaveLength(1);
-    expect(
-      catalog.checkScenarios([file('a.md', 'серия GR-UI-NN')], one),
-    ).toEqual([]);
-  });
-
-  it('сценарии бэка GR-NN dmg-core — не сценарии пакета', () => {
-    expect(
-      catalog.checkScenarios([file('a.md', 'GR-01, GR-02')], registry),
-    ).toEqual([]);
-  });
-});
-
-describe('каталог правил и решения репо', () => {
+describe('каталог правил репо', () => {
   const read = (path: string) => {
     const found = TextTree.file(ROOT, path);
     expect(found).toBeDefined();
     return found ?? file(path, '');
   };
-  const notSelf = (files: SourceFile[]) =>
-    files.filter((f) => !SELF.includes(f.path));
 
   it('правила UI-NN, PG-NN, CH-NN, TG-NN и NM-NN в коде и в docs/reference/rules.md совпадают', () => {
     const code = TextTree.read(ROOT, 'packages', ['.ts']).filter(
@@ -251,39 +125,5 @@ describe('каталог правил и решения репо', () => {
     );
     const rules = read('docs/reference/rules.md');
     expect(format(catalog.checkRules(code, rules))).toEqual([]);
-  });
-
-  it('каждое D-UI-<n> из кода и документов определено в docs/decisions.md', () => {
-    const optional = ['README.md', 'llms.txt', 'debt.md'].flatMap((path) => {
-      const f = TextTree.file(ROOT, path);
-      return f ? [f] : [];
-    });
-    const sources = notSelf([
-      ...TextTree.read(ROOT, 'packages', ['.ts', '.snap']),
-      ...TextTree.read(ROOT, 'checks', ['.ts']),
-      ...TextTree.read(ROOT, 'docs', ['.md']),
-      ...optional,
-    ]);
-    const decisions = read('docs/decisions.md');
-    expect(format(catalog.checkDecisions(sources, decisions))).toEqual([]);
-  });
-
-  it('каждое GR-UI-NN из кода и документов объявлено в реестре docs/concepts/frontend-layers.md', () => {
-    const optional = ['README.md', 'llms.txt', 'debt.md'].flatMap((path) => {
-      const f = TextTree.file(ROOT, path);
-      return f ? [f] : [];
-    });
-    const sources = notSelf([
-      ...TextTree.read(ROOT, 'packages', ['.ts']),
-      ...TextTree.read(ROOT, 'checks', ['.ts']),
-      ...TextTree.read(ROOT, 'docs', ['.md']),
-      ...optional,
-    ]);
-    const registry = read('docs/concepts/frontend-layers.md');
-    expect(format(catalog.checkScenarios(sources, registry))).toEqual([]);
-  });
-
-  it('debt.md: последний выданный ID равен максимуму', () => {
-    expect(format(catalog.checkDebt(read('debt.md')))).toEqual([]);
   });
 });

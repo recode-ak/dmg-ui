@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { useTempDir } from 'dmg-core/testing';
 import { GuideTaskChecker } from './guide-tasks';
@@ -262,15 +262,29 @@ describe('GuideTaskChecker — блоки кода «// из:»', () => {
 });
 
 describe('гайд репо', () => {
-  const guide = TextTree.file(ROOT, GUIDE);
+  /** Оглавление гайда «Задачи фронта»: сценариев и таблицы в нём нет. */
+  const HUB = 'docs/guides/frontend-tasks.md';
+  /** Листы сценариев и состояния — каждый под проверкой. */
+  const LEAVES = [
+    'docs/guides/frontend-tasks-menu.md',
+    'docs/guides/frontend-tasks-navigation.md',
+    'docs/guides/frontend-tasks-fields.md',
+    'docs/guides/frontend-tasks-status.md',
+  ];
 
-  it('гайд «Задачи фронта» существует', () => {
-    expect(guide).toBeDefined();
+  it('список листов — все frontend-tasks*.md в docs/guides', () => {
+    const found = readdirSync(resolve(ROOT, 'docs/guides'))
+      .filter((name) => /^frontend-tasks(-.+)?\.md$/.test(name))
+      .map((name) => `docs/guides/${name}`);
+    expect(found.sort()).toEqual([HUB, ...LEAVES].sort());
   });
 
   it('все «Проверено:» живы, блоки «// из:» совпадают с образцом', () => {
-    if (!guide) throw new Error(`${GUIDE}: нет файла`);
-    const found = new GuideTaskChecker(ROOT).check(guide);
+    const found = LEAVES.flatMap((path) => {
+      const leaf = TextTree.file(ROOT, path);
+      if (!leaf) throw new Error(`${path}: нет файла`);
+      return new GuideTaskChecker(ROOT).check(leaf);
+    });
     expect(found.map((v) => `${v.file}:${v.line} ${v.text}`)).toEqual([]);
   });
 });

@@ -8,7 +8,7 @@
 
 **Цель:** база для проектов, которые начинают одним фронтом в монорепо и дёшево уходят в микрофронтенды — фронт-модуль канала уходит в свой репозиторий и команду, раздел web пишется на своём фреймворке (сценарии роста `GR-UI-NN`, [Слои фронта](docs/concepts/frontend-layers.md#сценарии-роста)). Решение пакета пересматривается, если мешает цели: новая запись решения, а не обход ([D-UI-116](docs/decisions.md)). Вынос предусмотрен решениями и раскладкой, но вживую пока не проверен.
 
-**Раскладка фронта проекта:** описание `platform/ui` (набор UI, модули, сторис, экраны, уведомления; нейтрально к каналу, из него строится граф), реализации модуля `frontend/<m>/logic` (код экранов) и `frontend/<m>/<канал>` (представления), общее `frontend/app` и `frontend/<канал>-kit`, оболочка канала — раннер `runners/<r>`. Почему так — [Слои фронта](docs/concepts/frontend-layers.md); куда положить файл и где зарегистрировать — [naming.md](docs/reference/naming.md) и памятка [«Добавить вид»](docs/guides/story-screen-notification.md#10-добавить-вид-в-учебный-проект).
+**Раскладка фронта проекта:** описание `platform/ui` (набор UI, модули, сторис, экраны, уведомления; нейтрально к каналу, из него строится граф), реализации модуля `frontend/<m>/logic` (код экранов) и `frontend/<m>/<канал>` (представления), общее `frontend/app` и `frontend/<канал>-kit`, оболочка канала — раннер `runners/<r>`. Почему так — [Слои фронта](docs/concepts/frontend-layers.md); куда положить файл и где зарегистрировать — [naming.md](docs/reference/naming.md) и памятка [«Добавить вид»](docs/guides/story-screen-notification-project.md#10-добавить-вид-в-учебный-проект).
 
 ## Кому что даёт
 
@@ -52,16 +52,16 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui` | манифесты, адрес, код экрана и уведомления, исполнитель `ScreenRuntime`, место личности; работает и в браузере | [Сторис, экран, уведомление](docs/guides/story-screen-notification.md) |
 | `dmg-ui/graph` | поставщик графа `UiGraphProvider`, виды узлов и рёбер, префикс правил | [Каталог правил](docs/reference/rules.md) |
 | `dmg-ui/server` | `UiServer`, `UiSession`, уведомитель `UiNotifier`, привязки к `ApiApp` и `ModuleApi`, контекст рендера | [Пакет канала](docs/guides/channel-package.md) |
-| `dmg-ui/testing` | помощник рендера примеров `ExamplePreview`, наблюдатель `MemoryUiObserver`, проверка имён файлов UI `UiFileNames` | [Структура и именование UI](docs/reference/naming.md#7-проверка) |
+| `dmg-ui/testing` | помощник рендера примеров `ExamplePreview`, наблюдатель `MemoryUiObserver`, проверка имён файлов UI `UiFileNames` | [Структура и именование UI](docs/reference/naming-check.md#7-проверка) |
 | `dmg-ui/testing/fixtures` | девять помощников тестов ядра для пакетов каналов | [Пакет канала](docs/guides/channel-package.md) |
 | `dmg-ui/example` | учебный проект: описание, код и представления модулей, сборки реестров, приложения UI и сборки `arch:check` оболочек (`ExampleDialogArch`, `ExampleWebArch`) | [Слои фронта](docs/concepts/frontend-layers.md) |
 | `dmg-ui/dmg-core` | виды генератора `dmg-core gen` — `ui-module`, `story`, `screen`, `notification`: поставщик подключается в `providers` `.dmg/config.json`, места слоёв — в `layers` ([D-UI-123](docs/decisions.md)); тот же вход доставляет роль `dmg-ui-author` (`dmg-core sync`) | [Виды генератора](docs/guides/gen-kinds.md) |
 | `dmg-ui/chat-ui` | общая часть мессенджеров: беседы, представления, сообщество, граф и правила `CH-NN`, порт мессенджера | [Пакет мессенджера](docs/guides/messenger-package.md) |
 | `dmg-ui/chat-ui/testing` | подставной мессенджер `MemoryMessenger`, примеры набора `ChatExamples` и проверка лимитов `ExampleLimits` (CH-01) | [Пакет мессенджера](docs/guides/messenger-package.md#9-как-тестировать) |
 | `dmg-ui/tg-bot` | мессенджер Telegram поверх порта Bot API, приём апдейтов, меню, правила `TG-NN` | [Telegram](docs/guides/telegram.md) |
-| `dmg-ui/tg-bot/testing` | подставной порт Bot API `MemoryBotApi`, построитель апдейтов `TestUpdates` | [Telegram](docs/guides/telegram.md#10-тестирование-и-пример) |
+| `dmg-ui/tg-bot/testing` | подставной порт Bot API `MemoryBotApi`, построитель апдейтов `TestUpdates` | [Telegram](docs/guides/telegram-checks.md#10-тестирование-и-пример) |
 | `dmg-ui/web-ui` | страничный канал: клиент `PageClient`, сервер `PageHost`, провод в памяти `PageWire`, мост сокета `PageSockets`, ворота `PageGate`, конец сокета `PageSocketEnd` и адаптер `PageBrowserSocket`, переподключатель `PageReconnector`, поставщик графа и правила `PG-NN`, контракт представления (`ViewSource`, `PageViewState`, `PageRegionPresenter`), текстовая страница `PageText`, часы `PageSystemClock`, ворота и переподключение, история `PageBrowserHistory`, форма `PageFormModel`, реестр представлений `PageViews`, кодек адреса в URL `PageUrls`, пределы `MAX_CLIENT_TEXT` и `MAX_SERVER_TEXT` | [Web-канал](docs/guides/web-channel.md) |
-| `dmg-ui/web-ui/testing` | подставные часы `ManualPageClock` и история `MemoryPageHistory` | [Web-канал](docs/guides/web-channel.md#15-как-тестировать) |
+| `dmg-ui/web-ui/testing` | подставные часы `ManualPageClock` и история `MemoryPageHistory` | [Web-канал](docs/guides/web-channel-checks.md#15-как-тестировать) |
 
 Полный список имён — в файлах входов; причины деления на входы — [D-UI-4](docs/decisions.md), [D-UI-34](docs/decisions.md) и [D-UI-63](docs/decisions.md).
 
@@ -76,26 +76,7 @@ bun add valibot @valibot/to-json-schema \
 
 ## Документы
 
-| Документ | Что в нём |
-|---|---|
-| [Слои фронта](docs/concepts/frontend-layers.md) | почему фронт разложен на описание, реализации модулей и оболочку; между модулями, раздел и вспомогательный модуль, экран / сторис / модуль; сценарии роста `GR-UI-NN` |
-| [Сторис, экран, уведомление](docs/guides/story-screen-notification.md) | как объявить манифесты, написать код экрана, как всё исполняется, чеклист правил, ловушки, тесты, памятка «добавить вид в учебный проект» |
-| [Вынести фронт-модуль](docs/guides/extract-frontend-module.md) | пара «модуль × канал» или канал целиком в свой репозиторий: что держит проверка, что руками (вживую не проверено) |
-| [Общий кирпич](docs/guides/shared-brick.md) | `kit`, публичный вход `public.ts`, карточка, веб-компонент для разделов на разных фреймворках, отступление UI-32 |
-| [Пакет канала](docs/guides/channel-package.md) | что должен дать канал, сборка, политики по исходам, граф, граница JSON, безопасность, доставка уведомлений |
-| [Задачи фронта](docs/guides/frontend-tasks.md) | какие задачи фронта закрыты ядром и каналами, чем (манифест, класс, решение) и чем проверено: меню по роли, право и отключённое, карточка из другой сторис, «Назад», поля, справка, смена человека |
-| [Web-канал](docs/guides/web-channel.md) | подключение `dmg-ui/web-ui`: состав, контракт представления, провод и привязка к `Bun.serve`, URL и маршруты, области, история, форма и жест, показ до ответа, граф и правила `PG-NN`, безопасность, решения без реализации, тесты, чеклист проекта |
-| [Пакет мессенджера](docs/guides/messenger-package.md) | общая часть мессенджеров `chat-ui` и что обязан дать пакет конкретного мессенджера: беседа, лимиты, сообщество, граф, тесты, чеклист |
-| [Telegram](docs/guides/telegram.md) | подключение `dmg-ui/tg-bot`: сборка, апдейты, тексты и кнопки, меню, сообщество, возможности, отказы, что не проверено на живом Telegram |
-| [Виды генератора](docs/guides/gen-kinds.md) | `dmg-core gen ui-module`, `story`, `screen`, `notification`: подключение поставщика, аргументы, что создаёт и правит каждый вид, отказы, что остаётся руками, тест вида |
-| [Структура и именование UI](docs/reference/naming.md) | суффиксы видов UI, папки трёх деревьев и точки регистрации, дерево проекта, пакеты `monorepo`, пакет канала, место тестов и фикстур, проверка `NM-01` |
-| [Каталог правил](docs/reference/rules.md) | правила графа `UI-NN`, `CH-NN`, `TG-NN` и `PG-NN`, слои фронта UI-28…UI-34, проверки единицы UI-06 и CH-01, правило имён файлов `NM-01`, ограничения правил, проверки репозитория |
-| [Решения](docs/decisions.md) | реестр `D-UI-N`: что решено и почему |
-| [Технический долг](debt.md) | открытое в пакете, `DEBT-UI-N` |
-| [К обсуждению](discussion.md) | пожелания и идеи, по которым ещё нет решения |
-| [`llms.txt`](llms.txt) | вход для агентов |
-
-Что куда писать. Куда положить файл фронта и почему — «Слои фронта» и «Структура и именование UI». Как объявить экран, сторис, уведомление — гайд «Сторис, экран, уведомление». Какая задача фронта чем закрыта — «Задачи фронта». Как сделать канал — «Пакет канала», как подключить страничный канал — «Web-канал». Как сделать мессенджер — «Пакет мессенджера», как подключить Telegram — «Telegram». Новое правило графа — строка в каталоге правил. Почему выбрано так, а не иначе, — запись в решениях. Отступление, которое не исправлено, — запись в долге. Знание из `dmg-core` не повторяется: на него ссылаются путём `node_modules/dmg-core/docs/…`.
+Вход — [`llms.txt`](llms.txt): оглавление документации, роль агента и реестры. Агентам: роль [`dmg-ui-author`](agents/roles/dmg-ui-author.md) — пишет UI среза на `dmg-ui`.
 
 ## Разработка пакета
 
@@ -106,7 +87,7 @@ bun install
 bun run check
 ```
 
-`check` запускает biome, `tsc --noEmit` и `bun test` (файлы `*.browser.test.ts` обычный `bun test` пропускает). Браузерные тесты — отдельно, `bun run browser`: запуск, Chrome и когда они нужны — [Web-канал, раздел 15](docs/guides/web-channel.md#15-как-тестировать). Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.7.1`), сверяет их с `exports` установленного пакета, импортирует тринадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
+`check` запускает biome, `tsc --noEmit`, `bun test` и `dmg-core docs --check` (файлы `*.browser.test.ts` обычный `bun test` пропускает). Браузерные тесты — отдельно, `bun run browser`: запуск, Chrome и когда они нужны — [Web-канал, раздел 15](docs/guides/web-channel-checks.md#15-как-тестировать). Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.7.1`), сверяет их с `exports` установленного пакета, импортирует тринадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
 Запускаемый пример на живом Telegram — [`packages/example/src/runners/tg-bot`](packages/example/src/runners/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
 

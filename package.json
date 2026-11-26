@@ -42,7 +42,8 @@
     "example:web": "bun packages/example/src/runners/web/server/main.ts",
     "smoke": "bash scripts/consumer-smoke.sh",
     "browser": "bun browser/run.ts",
-    "check": "bun run lint && bun run tslint && bun test"
+    "docs:check": "dmg-core docs --check",
+    "check": "bun run lint && bun run tslint && bun test && bun run docs:check"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

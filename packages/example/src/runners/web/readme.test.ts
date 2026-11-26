@@ -5,11 +5,13 @@ import { EXAMPLE_PEOPLE } from './common/example-people.const';
 
 // README примера и `.env.example` согласованы с кодом: переменные окружения,
 // люди примера, структура чек-листа ручной проверки (группы и пункты, колонка
-// «Итог» пустая). Ссылки на процесс, токены по форме и живые относительные
-// ссылки README проверяют проверки репо (`checks/`) на реальном репо.
+// «Итог» пустая). Ссылки на процесс и токены по форме проверяют проверки репо
+// (`checks/`), живые относительные ссылки — `docs --check`.
 
 const ROOT = import.meta.dir;
+// Переменные, uuid и «Что не проверяет» — в README, пункты чек-листа — в checklist.md.
 const readme = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
+const checklist = readFileSync(resolve(ROOT, 'checklist.md'), 'utf8');
 
 const VARIABLES = [
   'EXAMPLE_WEB_PORT',
@@ -34,7 +36,9 @@ const GROUPS: [string, string[]][] = [
 
 /** Ячейки строки таблицы README, начинающейся с `| <id> |`; нет строки — `undefined`. */
 const rowOf = (id: string): string[] | undefined => {
-  const line = readme.split('\n').find((text) => text.startsWith(`| ${id} |`));
+  const line = checklist
+    .split('\n')
+    .find((text) => text.startsWith(`| ${id} |`));
   return line
     ?.split('|')
     .slice(1, -1)
@@ -73,7 +77,7 @@ describe('README примера и .env.example', () => {
   });
 
   test('правило «Назначенные мне»: «Выполнить выбранные» исполняется, только если задачи назначены вам самим', () => {
-    expect(readme).toContain('только если задачи назначены вам самим');
+    expect(checklist).toContain('только если задачи назначены вам самим');
   });
 
   test('есть раздел «Что пример не проверяет»', () => {
@@ -84,7 +88,7 @@ describe('README примера и .env.example', () => {
 describe('README — чек-лист ручной проверки', () => {
   for (const [group, ids] of GROUPS) {
     test(`группа «${group}» — заголовок раздела`, () => {
-      expect(readme).toMatch(new RegExp(`^### ${group}\\. `, 'm'));
+      expect(checklist).toMatch(new RegExp(`^### ${group}\\. `, 'm'));
     });
 
     for (const id of ids) {
@@ -101,7 +105,7 @@ describe('README — чек-лист ручной проверки', () => {
   }
 
   test('пунктов ровно 43: лишних идентификаторов в таблицах нет', () => {
-    const rows = readme
+    const rows = checklist
       .split('\n')
       .filter((line) => /^\| (0\.\d|[А-Я]\d) \|/.test(line));
 
@@ -109,7 +113,7 @@ describe('README — чек-лист ручной проверки', () => {
   });
 
   test('заголовок таблицы называет колонку «Итог»', () => {
-    expect(readme).toMatch(
+    expect(checklist).toMatch(
       /^\| № \| Шаг \| Что должно быть видно \| Итог \|$/m,
     );
   });
