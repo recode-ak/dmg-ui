@@ -101,13 +101,15 @@ describe('ссылки на трек в репо', () => {
     expect(format(new TrackReferenceScanner().scanCode(files))).toEqual([]);
   });
 
-  it('в README, docs, llms.txt, debt.md нет ссылок на трек, conductor/ и u7-school', () => {
+  it('в README, docs, agents, skills, llms.txt, debt.md нет ссылок на трек, conductor/ и u7-school', () => {
     const files = [
       ...['README.md', 'llms.txt', 'debt.md'].flatMap((path) => {
         const file = TextTree.file(ROOT, path);
         return file ? [file] : [];
       }),
       ...TextTree.read(ROOT, 'docs', ['.md']),
+      ...TextTree.read(ROOT, 'agents', ['.md']),
+      ...TextTree.read(ROOT, 'skills', ['.md']),
       ...TextTree.read(ROOT, 'packages/example', ['.md']),
     ];
     expect(format(new TrackReferenceScanner().scanDocuments(files))).toEqual(

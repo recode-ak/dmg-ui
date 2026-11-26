@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Проверка установки dmg-ui глазами потребителя: пустой проект, установка по
-# спецификатору, импорт тринадцати входов и сверка их с `exports`, запуск и tsc.
+# спецификатору, импорт тринадцати входов и сверка их с `exports`, запуск и tsc;
+# шаг `dmg-core sync` и проверка, что роли и скил `dmg-ui` доставлены в проект.
 # Сеть и ssh нужны, поэтому в `bun run check` скрипт не входит.
 #
 #   bun run smoke git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.0
@@ -122,6 +123,19 @@ if (expected !== '' && manifest.version !== expected) {
   process.exit(1);
 }
 TS
+
+echo "smoke: dmg-core sync (скил и роли поставщика)"
+mkdir -p .dmg
+cat >.dmg/config.json <<'JSON'
+{ "providers": ["dmg-ui"] }
+JSON
+bunx dmg-core sync >/dev/null
+for delivered in .claude/skills/dmg-ui/SKILL.md .claude/agents/dmg-ui-author.md .claude/agents/dmg-ux.md; do
+  if [ ! -s "$delivered" ]; then
+    echo "smoke: sync не доставил $delivered" >&2
+    exit 1
+  fi
+done
 
 echo "smoke: bun run"
 bun run smoke.ts

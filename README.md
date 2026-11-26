@@ -55,7 +55,7 @@ bun add valibot @valibot/to-json-schema \
 | `dmg-ui/testing` | помощник рендера примеров `ExamplePreview`, наблюдатель `MemoryUiObserver`, проверка имён файлов UI `UiFileNames` | [Структура и именование UI](docs/reference/naming-check.md#7-проверка) |
 | `dmg-ui/testing/fixtures` | девять помощников тестов ядра для пакетов каналов | [Пакет канала](docs/guides/channel-package.md) |
 | `dmg-ui/example` | учебный проект: описание, код и представления модулей, сборки реестров, приложения UI и сборки `arch:check` оболочек (`ExampleDialogArch`, `ExampleWebArch`) | [Слои фронта](docs/concepts/frontend-layers.md) |
-| `dmg-ui/dmg-core` | виды генератора `dmg-core gen` — `ui-module`, `story`, `screen`, `notification`: поставщик подключается в `providers` `.dmg/config.json`, места слоёв — в `layers` ([D-UI-123](docs/decisions.md)); тот же вход доставляет роль `dmg-ui-author` (`dmg-core sync`) | [Виды генератора](docs/guides/gen-kinds.md) |
+| `dmg-ui/dmg-core` | виды генератора `dmg-core gen` — `ui-module`, `story`, `screen`, `notification`: поставщик подключается в `providers` `.dmg/config.json`, места слоёв — в `layers` ([D-UI-123](docs/decisions.md)); тот же вход доставляет роли `dmg-ui-author`, `dmg-ux` и скил `dmg-ui` (`dmg-core sync`) | [Виды генератора](docs/guides/gen-kinds.md) |
 | `dmg-ui/chat-ui` | общая часть мессенджеров: беседы, представления, сообщество, граф и правила `CH-NN`, порт мессенджера | [Пакет мессенджера](docs/guides/messenger-package.md) |
 | `dmg-ui/chat-ui/testing` | подставной мессенджер `MemoryMessenger`, примеры набора `ChatExamples` и проверка лимитов `ExampleLimits` (CH-01) | [Пакет мессенджера](docs/guides/messenger-package.md#9-как-тестировать) |
 | `dmg-ui/tg-bot` | мессенджер Telegram поверх порта Bot API, приём апдейтов, меню, правила `TG-NN` | [Telegram](docs/guides/telegram.md) |
@@ -76,11 +76,11 @@ bun add valibot @valibot/to-json-schema \
 
 ## Документы
 
-Вход — [`llms.txt`](llms.txt): оглавление документации, роль агента и реестры. Агентам: роль [`dmg-ui-author`](agents/roles/dmg-ui-author.md) — пишет UI среза на `dmg-ui`.
+Вход — [`llms.txt`](llms.txt): оглавление документации, роль агента и реестры. Агентам: скил `dmg-ui` — маршрут по задаче, роли [`dmg-ui-author`](agents/roles/dmg-ui-author.md) — пишет UI среза, и [`dmg-ux`](agents/roles/dmg-ux.md) — предлагает путь человека в постановке; процесс слоя UI — [docs/process.md](docs/process.md).
 
 ## Разработка пакета
 
-Репо — монорепо с одним устанавливаемым пакетом `dmg-ui`: код в `packages/core` (`src/` — ядро, `testing/` — входы `dmg-ui/testing` и `dmg-ui/testing/fixtures`), `packages/chat-ui`, `packages/tg-bot` и `packages/web-ui` (пакеты каналов), `packages/example` (учебный проект, вход `dmg-ui/example`), `packages/gen` (виды генератора, вход `dmg-ui/dmg-core`; без своего `package.json`), `agents/roles/` (роль `dmg-ui-author`, её доставляет `dmg-core sync`), приёмочные тесты поверх нескольких пакетов — в `acceptance/`, проверки разработчика пакета — в `checks/`. Направление импортов: ядро ← `chat-ui` ← `tg-bot`, ядро ← `web-ui`, только по имени входа ([D-UI-34](docs/decisions.md)); учебный проект видит все четыре, а к нему обращается только тестовый код пакетов ([D-UI-121](docs/decisions.md)).
+Репо — монорепо с одним устанавливаемым пакетом `dmg-ui`: код в `packages/core` (`src/` — ядро, `testing/` — входы `dmg-ui/testing` и `dmg-ui/testing/fixtures`), `packages/chat-ui`, `packages/tg-bot` и `packages/web-ui` (пакеты каналов), `packages/example` (учебный проект, вход `dmg-ui/example`), `packages/gen` (виды генератора, вход `dmg-ui/dmg-core`; без своего `package.json`), `agents/roles/` (роли `dmg-ui-author` и `dmg-ux`, их доставляет `dmg-core sync`), приёмочные тесты поверх нескольких пакетов — в `acceptance/`, проверки разработчика пакета — в `checks/`. Направление импортов: ядро ← `chat-ui` ← `tg-bot`, ядро ← `web-ui`, только по имени входа ([D-UI-34](docs/decisions.md)); учебный проект видит все четыре, а к нему обращается только тестовый код пакетов ([D-UI-121](docs/decisions.md)).
 
 ```sh
 bun install

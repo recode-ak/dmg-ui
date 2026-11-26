@@ -29,7 +29,7 @@
 }
 ```
 
-- `providers: ["dmg-ui"]` — `dmg-core` находит вход `dmg-ui/dmg-core` (D-113 `dmg-core`) и берёт из него виды; тот же список доставляет роль `dmg-ui-author` (`dmg-core sync`).
+- `providers: ["dmg-ui"]` — `dmg-core` находит вход `dmg-ui/dmg-core` (D-113 `dmg-core`) и берёт из него виды; тот же список доставляет роли `dmg-ui-author`, `dmg-ux` и скил `dmg-ui` (`dmg-core sync`).
 - `layers` — места слоёв: `dir` с `{m}` (имя модуля) и, по желанию, `package` с `{m}`. Те же каталоги проект отдаёт проверке слоёв в `ArchApp.layers`.
 - Нужные слои:
 
