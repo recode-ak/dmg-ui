@@ -28,7 +28,7 @@
     "./web-ui/testing": "./packages/web-ui/testing/index.ts"
   },
   "peerDependencies": {
-    "dmg-core": "^0.8.0",
+    "dmg-core": "^0.9.0",
     "valibot": "^1.5.0"
   },
   "scripts": {
@@ -47,7 +47,7 @@
     "@biomejs/biome": "2.5.13",
     "@types/bun": "latest",
     "@valibot/to-json-schema": "^1.7.1",
-    "dmg-core": "git+ssh://git@github.com/recode-ak/dmg-core.git#v0.8.0",
+    "dmg-core": "git+ssh://git@github.com/recode-ak/dmg-core.git#v0.9.0",
     "grammy": "1.46.0",
     "typescript": "^7.0.2",
     "valibot": "^1.5.0"
