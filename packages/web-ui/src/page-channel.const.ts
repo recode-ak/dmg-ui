@@ -2,4 +2,4 @@
 export const PAGE_CHANNEL = 'dmg-ui-pages';
 
 /** Версия поставщика графа страничного канала. */
-export const PAGE_VERSION = '0.7.1';
+export const PAGE_VERSION = '0.8.0';
