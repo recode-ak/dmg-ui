@@ -298,6 +298,7 @@ describe('CoreImportScanner — ядро не берёт node:, bun: и тест
     'packages/chat-ui',
     'packages/tg-bot',
     'packages/web-ui',
+    'packages/gen',
     'packages/example',
     'acceptance',
   ]) {

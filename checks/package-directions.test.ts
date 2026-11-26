@@ -217,6 +217,19 @@ describe('PackageDirections — направления между пакетам
       });
     }
 
+    it('packages/gen/src/f.ts → «dmg-ui» — нарушение: нет направления gen → core', () => {
+      const found = scanRepo('packages/gen/src/f.ts', "import 'dmg-ui';");
+
+      expect(found).toHaveLength(1);
+      expect(found[0]?.text).toContain('нет направления «gen» → «core»');
+    });
+
+    it('packages/gen/src/f.test.ts → «dmg-ui/testing» разрешено: ядро в тестовом коде gen', () => {
+      expect(
+        scanRepo('packages/gen/src/f.test.ts', "import 'dmg-ui/testing';"),
+      ).toEqual([]);
+    });
+
     it('пакет вне таблицы репо — «обнови таблицу»', () => {
       const found = scanRepo('packages/unknown/src/f.ts', 'export {};');
       expect(found).toHaveLength(1);

@@ -42,6 +42,8 @@ const CHAT_UI_TESTING = 'packages/chat-ui/testing';
 const TG_BOT = 'packages/tg-bot/src';
 /** Пакет канала Telegram: тестовый вход `dmg-ui/tg-bot/testing` (зарезервирован). */
 const TG_BOT_TESTING = 'packages/tg-bot/testing';
+/** Пакет видов генератора: код входа `dmg-ui/dmg-core`, работает с текстом и файлами. */
+const GEN = 'packages/gen/src';
 /** Пакеты каналов: каждый файл лежит в каталоге с зоной (`src/` или `testing/`). */
 const CHANNEL_PACKAGES = [
   'packages/chat-ui',
@@ -145,6 +147,10 @@ export class CoreImportScanner {
     // входов платформы; учебный домен и тестовые входы пакета — разрешены.
     const browserForbidden = forbidden.filter(
       (spec) => spec !== 'dmg-core/testing/*' && spec !== 'dmg-ui/testing',
+    );
+    // Вид генератора: файлы и пути среды и контракт `dmg-core/gen`.
+    const genForbidden = forbidden.filter(
+      (spec) => spec !== 'node:*' && spec !== 'dmg-core/gen',
     );
     const browserAllowed = [
       'valibot',
@@ -554,6 +560,14 @@ export class CoreImportScanner {
         forbidden: testingForbidden,
         allowed: [...tgTestingAllowed, 'dmg-ui/example'],
         allowedPaths: [TG_BOT_TESTING],
+      },
+      {
+        include: [`${GEN}/`],
+        exclude: ['.test.ts'],
+        // Рантайм UI и входы каналов в процесс `gen` не попадают.
+        forbidden: genForbidden,
+        allowed: ['node:fs', 'node:path', 'dmg-core/gen'],
+        allowedPaths: [GEN],
       },
       {
         include: [`${BROWSER}/`],

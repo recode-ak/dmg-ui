@@ -32,6 +32,7 @@ const LAYOUT: UiNamesLayout = {
     'packages/core/testing',
     'packages/chat-ui/src',
     'packages/chat-ui/testing',
+    'packages/gen/src',
     'packages/tg-bot/src',
     'packages/tg-bot/testing',
     'packages/web-ui/src',

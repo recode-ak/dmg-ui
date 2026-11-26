@@ -13,14 +13,16 @@ export class PackageDirections {
     'tg-bot': ['core', 'chat-ui'],
     'web-ui': ['core'],
     example: ['core', 'chat-ui', 'tg-bot', 'web-ui'],
+    gen: [],
   };
 
-  /** Направления только из тестового кода пакета (`testing/`, `*.test.ts`): учебный проект — фикстура тестов (D-UI-121). */
+  /** Направления только из тестового кода пакета (`testing/`, `*.test.ts`): учебный проект — фикстура тестов (D-UI-121). Тесты вида генератора берут проверки ядра. */
   protected static readonly TEST_TABLE: Record<string, string[]> = {
     core: ['example'],
     'chat-ui': ['example'],
     'tg-bot': ['example'],
     'web-ui': ['example'],
+    gen: ['core'],
   };
 
   /**
@@ -93,7 +95,7 @@ export class PackageDirections {
       if (this.testDirections[pkg]?.includes(entry)) {
         return this.isTestCode(path, pkg)
           ? undefined
-          : `«${pkg}» → «${entry}» — только из тестового кода (testing/, *.test.ts) («${specifier}»)`;
+          : `нет направления «${pkg}» → «${entry}» — только из тестового кода (testing/, *.test.ts) («${specifier}»)`;
       }
       return `нет направления «${pkg}» → «${entry}» («${specifier}»)`;
     }

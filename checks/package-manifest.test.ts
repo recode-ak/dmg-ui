@@ -9,11 +9,12 @@ const manifest = () => PackageManifest.read(ROOT);
 
 describe('PackageManifest', () => {
   describe('корневой package.json', () => {
-    it('ключи exports — вход, chat-ui (и его testing), example, graph, server, testing (и fixtures), tg-bot (и его testing), web-ui (и его testing)', () => {
+    it('ключи exports — вход, chat-ui (и его testing), dmg-core (виды gen), example, graph, server, testing (и fixtures), tg-bot (и его testing), web-ui (и его testing)', () => {
       expect(Object.keys(manifest().exports()).sort()).toEqual([
         '.',
         './chat-ui',
         './chat-ui/testing',
+        './dmg-core',
         './example',
         './graph',
         './server',
@@ -88,6 +89,13 @@ describe('PackageManifest', () => {
         'UiSetDef',
         'fieldHint',
       ]);
+    });
+
+    it('состав входа dmg-ui/dmg-core — поставщик видов gen с видом ui-module', async () => {
+      const entry = await import('dmg-ui/dmg-core');
+
+      expect(Object.keys(entry)).toEqual(['gen']);
+      expect(entry.gen.kinds.map((kind) => kind.name)).toEqual(['ui-module']);
     });
 
     it('состав входа dmg-ui/graph — поставщик графа и его виды', async () => {

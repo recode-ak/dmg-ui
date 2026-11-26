@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Проверка установки dmg-ui глазами потребителя: пустой проект, установка по
-# спецификатору, импорт двенадцати входов и сверка их с `exports`, запуск и tsc.
+# спецификатору, импорт тринадцати входов и сверка их с `exports`, запуск и tsc.
 # Сеть и ssh нужны, поэтому в `bun run check` скрипт не входит.
 #
 #   bun run smoke git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.3.0
@@ -70,6 +70,7 @@ import * as testing from 'dmg-ui/testing';
 import * as fixtures from 'dmg-ui/testing/fixtures';
 import * as chatUi from 'dmg-ui/chat-ui';
 import * as chatUiTesting from 'dmg-ui/chat-ui/testing';
+import * as dmgCore from 'dmg-ui/dmg-core';
 import * as example from 'dmg-ui/example';
 import * as tgBot from 'dmg-ui/tg-bot';
 import * as tgBotTesting from 'dmg-ui/tg-bot/testing';
@@ -84,6 +85,7 @@ const entries: Record<string, object> = {
   'dmg-ui/testing/fixtures': fixtures,
   'dmg-ui/chat-ui': chatUi,
   'dmg-ui/chat-ui/testing': chatUiTesting,
+  'dmg-ui/dmg-core': dmgCore,
   'dmg-ui/example': example,
   'dmg-ui/tg-bot': tgBot,
   'dmg-ui/tg-bot/testing': tgBotTesting,
