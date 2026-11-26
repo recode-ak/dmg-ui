@@ -57,7 +57,7 @@
 Порядок работы над модулем: `ui-module` → `story` (экран `start` вместе с ней) → `screen` и `notification` по надобности. Имена сторис и экранов в примерах ниже — учебные.
 
 ```
-bunx dmg-core gen ui-module courses runners/bot
+bunx dmg-core gen ui-module courses runners/bot --write
 bunx dmg-core gen story courses browse course-list --write
 bunx dmg-core gen screen courses browse course-card --write
 bunx dmg-core gen notification courses shared course-opened --write
@@ -74,7 +74,7 @@ bunx dmg-core gen notification courses shared course-opened --write
 
 Правки: строка экспорта `Def` модуля в `<ui>/index.ts` (маркер `// gen:exports`). Зависимости: если указан раннер — каждый пакет единицы дописывается в `package.json` раннера как `workspace:*`.
 
-Заметки (печатаются всегда): подключить `Def` модуля в `modules` набора UI; подключить реестры к сборкам оболочки (`AppCodeLoaders`, реестры представлений канала); канал без шаблона — реестр не создан; каталоги пакетов вне `workspaces` корня — «Добавь … в workspaces»; затем `bun install`; раннер не указан — объяви пакеты в `package.json` оболочки.
+Заметки всегда: подключить `Def` модуля в `modules` набора UI; подключить реестры к сборкам оболочки (`AppCodeLoaders`, реестры представлений канала). По условию: канал без шаблона — реестр не создан; если у слоёв есть `package` — каталоги пакетов вне `workspaces` корня («Добавь … в workspaces»), затем `bun install`, а при неуказанном раннере — объяви пакеты в `package.json` оболочки.
 
 ### 3.2. `story`
 
@@ -127,6 +127,8 @@ bunx dmg-core gen notification courses shared course-opened --write
 - **Набор UI, приложение UI, оболочка раннера** — руками: вид `set` и вид оболочки пакет не даёт.
 - **Достижимость и связи.** `to`, `leads`, подключение сторис к приложению — руками; заметки напоминают, правило — UI-07, UI-24.
 - **Каналов в `layers` нет** (для `story`, `screen`, `notification`) — не отказ: описание и код создаются, представлений нет, заметка об этом.
+- **Модуля или сторис ещё нет** (для `story`, `screen`, `notification`) — не отказ: свои файлы вид создаёт, а правки в несуществующие файлы модуля (`<m>.ui-module.ts`, реестры, файл сторис) уходят в «Вставь вручную» с путями этих файлов. Порядок — `ui-module --write`, затем `story --write`, затем экраны сторис ([DEBT-UI-63](../../debt.md)).
+- **Канал у существующего модуля** — `ui-module` для уже созданного модуля отказывает коллизией файлов, и с `--adopt` тоже: пакет и реестр нового канала — руками по `channel-package.md` ([DEBT-UI-64](../../debt.md)).
 
 ## 6. Форма созданного кода
 
