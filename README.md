@@ -38,7 +38,7 @@
 ```sh
 bun add valibot @valibot/to-json-schema \
   git+ssh://git@github.com/recode-ak/dmg-core.git#v0.9.0 \
-  git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.7.0
+  git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.7.1
 ```
 
 Почему одной. `dmg-core` у `dmg-ui` — peer-зависимость, а Bun ищет peer в реестре npm и получает 404. Если `dmg-core` назван в той же команде, Bun берёт его из git и peer удовлетворён. `@valibot/to-json-schema` — peer самого `dmg-core`.
@@ -106,7 +106,7 @@ bun install
 bun run check
 ```
 
-`check` запускает biome, `tsc --noEmit` и `bun test` (файлы `*.browser.test.ts` обычный `bun test` пропускает). Браузерные тесты — отдельно, `bun run browser`: запуск, Chrome и когда они нужны — [Web-канал, раздел 15](docs/guides/web-channel.md#15-как-тестировать). Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.7.0`), сверяет их с `exports` установленного пакета, импортирует тринадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
+`check` запускает biome, `tsc --noEmit` и `bun test` (файлы `*.browser.test.ts` обычный `bun test` пропускает). Браузерные тесты — отдельно, `bun run browser`: запуск, Chrome и когда они нужны — [Web-канал, раздел 15](docs/guides/web-channel.md#15-как-тестировать). Отдельно `bun run smoke <спецификатор>` ставит пакет во временный проект у потребителя (например, `git+ssh://git@github.com/recode-ak/dmg-ui.git#v0.7.1`), сверяет их с `exports` установленного пакета, импортирует тринадцать входов и прогоняет `tsc`; нужны сеть и ssh, поэтому в `check` он не входит.
 
 Запускаемый пример на живом Telegram — [`packages/example/src/runners/tg-bot`](packages/example/src/runners/tg-bot/README.md) ([D-UI-68](docs/decisions.md)): `bun run example:tg` (опрос `getUpdates`, нужен токен тестового бота в `.env`), `bun run example:tg:probe <chat_id>` (проба Bot API); чек-лист ручной проверки — в README примера. `grammy` — зависимость разработки только для него.
 
@@ -114,7 +114,7 @@ bun run check
 
 ## Статус
 
-Версия `0.7.0` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Что сломано для потребителя: в `0.7.0` (с `0.6.x`) — опора `dmg-core ^0.9.0` и файлы `dmg-core` проекта в `.dmg/` — [D-UI-124](docs/decisions.md); в `0.6.0` (с `0.5.x`) — раскладка фронта, реестры на модуль, граф без представлений, учебный проект — [D-UI-122](docs/decisions.md); в `0.5.1` (с `0.5.0`) — ничего, патч примера `examples/web` ([D-UI-115](docs/decisions.md)); в `0.5.0` (с `0.4.0`) — [D-UI-114](docs/decisions.md), в `0.4.0` (с `0.3.2`) — [D-UI-109](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
+Версия `0.7.1` не замораживает контракт между ядром и каналами: пока его определяют мессенджеры и страничный канал. Что в страничном канале не проверено без фреймворка — [D-UI-89](docs/decisions.md). Что сломано для потребителя: в `0.7.1` (с `0.7.0`) — ничего: документы, роль `dmg-ui-author`, опора разработки `dmg-core` `v0.9.1`; в `0.7.0` (с `0.6.x`) — опора `dmg-core ^0.9.0` и файлы `dmg-core` проекта в `.dmg/` — [D-UI-124](docs/decisions.md); в `0.6.0` (с `0.5.x`) — раскладка фронта, реестры на модуль, граф без представлений, учебный проект — [D-UI-122](docs/decisions.md); в `0.5.1` (с `0.5.0`) — ничего, патч примера `examples/web` ([D-UI-115](docs/decisions.md)); в `0.5.0` (с `0.4.0`) — [D-UI-114](docs/decisions.md), в `0.4.0` (с `0.3.2`) — [D-UI-109](docs/decisions.md). Контракт правится релизом с записью в [decisions.md](docs/decisions.md) ([D-UI-5](docs/decisions.md)). Открытое — в [debt.md](debt.md).
 
 ## Лицензия
 
