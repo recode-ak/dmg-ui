@@ -11,7 +11,7 @@ import {
 export const CHAT_PROVIDER = 'dmg-ui-chat';
 
 /** Версия поставщика графа общей части мессенджеров. */
-export const CHAT_VERSION = '0.6.0';
+export const CHAT_VERSION = '0.7.0';
 
 /** Имена видов узлов поставщика `dmg-ui-chat`. */
 export const CHAT_NODE_KINDS = {

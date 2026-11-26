@@ -8,7 +8,7 @@ export const UI_PROVIDER = 'dmg-ui';
  * Версия поставщика; равна `version` пакета (тест сверяет): импорт
  * `package.json` из `src` запрещён проверкой направлений.
  */
-export const UI_VERSION = '0.6.0';
+export const UI_VERSION = '0.7.0';
 
 /** Префикс правил графа ядра UI: у каждого пакета канала свой. */
 export const UI_RULE_PREFIX = 'UI';
