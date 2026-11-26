@@ -19,10 +19,22 @@ export const TAKEN_CHANNELS: readonly string[] = ['app', 'logic'];
 export const CHANNEL_TECHS: ReadonlyMap<string, ChannelTech> = new Map([
   [
     'chat',
-    { factory: 'ChatViews', entry: 'dmg-ui/chat-ui', shell: 'AppChatViews' },
+    {
+      factory: 'ChatViews',
+      entry: 'dmg-ui/chat-ui',
+      shell: 'AppChatViews',
+      screen: 'ScreenPresenter',
+      notification: 'NotificationPresenter',
+    },
   ],
   [
     'web',
-    { factory: 'PageViews', entry: 'dmg-ui/web-ui', shell: 'AppPageViews' },
+    {
+      factory: 'PageViews',
+      entry: 'dmg-ui/web-ui',
+      shell: 'AppPageViews',
+      screen: 'PagePresenter',
+      notification: 'PageNotePresenter',
+    },
   ],
 ]);

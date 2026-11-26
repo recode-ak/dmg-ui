@@ -10,6 +10,14 @@ export class UiName {
     return UiName.KEBAB.test(value);
   }
 
+  /** «a, b и c» */
+  static listed(items: readonly string[]): string {
+    const last = items.at(-1) ?? '';
+    return items.length < 2
+      ? last
+      : `${items.slice(0, -1).join(', ')} и ${last}`;
+  }
+
   constructor(readonly kebab: string) {}
 
   /** `my-courses` → `MyCourses` */

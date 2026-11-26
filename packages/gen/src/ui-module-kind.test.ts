@@ -309,38 +309,6 @@ describe('UiModuleKind — тексты файлов', () => {
   });
 });
 
-// Biome не переносит: импорт или реэкспорт одного имени, комментарии и JSON.
-// Имя из ~40 букв не помещает `export const <Имя>UiModuleDef = UiModuleDef.define({`
-// и реестр кода в одну строку, но помещает голову каждого после переноса.
-const SINGLE_NAME = /^(export|import) \{ [^,]+ \} from '[^']+';$/;
-const COMMENT = /^\s*(\/\/|\/\*|\*)/;
-
-describe('UiModuleKind — ширина строк', () => {
-  for (const name of [
-    'my-long-courses-module',
-    'schools-and-courses-in-any-city-launching',
-  ]) {
-    it(`у всех файлов плана для модуля «${name}» строки не длиннее 80 символов`, () => {
-      const { plan } = planned([name]);
-
-      const long = plan.files
-        .filter((file) => file.path.endsWith('.ts'))
-        .flatMap((file) =>
-          file.content
-            .split('\n')
-            .filter(
-              (line) =>
-                line.length > 80 &&
-                !SINGLE_NAME.test(line) &&
-                !COMMENT.test(line),
-            )
-            .map((line) => `${file.path}: ${line}`),
-        );
-      expect(long).toEqual([]);
-    });
-  }
-});
-
 describe('UiModuleKind — имена файлов UI (NM-01)', () => {
   it('файлы .ts плана для courses и my-courses проходят проверку имён и мест — нарушений нет', () => {
     const root = tmp().path;

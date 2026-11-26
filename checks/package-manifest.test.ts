@@ -91,11 +91,16 @@ describe('PackageManifest', () => {
       ]);
     });
 
-    it('состав входа dmg-ui/dmg-core — поставщик видов gen с видом ui-module', async () => {
+    it('состав входа dmg-ui/dmg-core — поставщик видов gen с видами ui-module, story, screen и notification', async () => {
       const entry = await import('dmg-ui/dmg-core');
 
       expect(Object.keys(entry)).toEqual(['gen']);
-      expect(entry.gen.kinds.map((kind) => kind.name)).toEqual(['ui-module']);
+      expect(entry.gen.kinds.map((kind) => kind.name)).toEqual([
+        'ui-module',
+        'story',
+        'screen',
+        'notification',
+      ]);
     });
 
     it('состав входа dmg-ui/graph — поставщик графа и его виды', async () => {

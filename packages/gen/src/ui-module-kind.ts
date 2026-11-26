@@ -191,7 +191,7 @@ export class UiModuleKind implements GenProviderKind {
       ...templated.map(({ name }) => sources.viewsName(name)),
     ];
     const shells = [CODE_SHELL, ...templated.map(({ tech }) => tech.shell)];
-    const known = this.listed(
+    const known = UiName.listed(
       [...CHANNEL_TECHS].map(([name, tech]) => `${name} (${tech.factory})`),
     );
     return [
@@ -226,13 +226,5 @@ export class UiModuleKind implements GenProviderKind {
       );
     }
     return notes;
-  }
-
-  /** «a, b и c» */
-  private listed(items: string[]): string {
-    const last = items.at(-1) ?? '';
-    return items.length < 2
-      ? last
-      : `${items.slice(0, -1).join(', ')} и ${last}`;
   }
 }

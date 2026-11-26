@@ -6,9 +6,9 @@
 export class LineWidth {
   private static readonly MAX = 80;
 
-  /** Импорт одного имени — всегда одной строкой: biome не переносит одно имя */
-  importOf(name: string, from: string): string {
-    return this.named('import {', name, from);
+  /** Импорт одного имени (`type` — только тип) — всегда одной строкой: biome не переносит одно имя */
+  importOf(name: string, from: string, type = false): string {
+    return this.named(type ? 'import type {' : 'import {', name, from);
   }
 
   /** Реэкспорт одного имени — всегда одной строкой, как импорт */
@@ -85,11 +85,43 @@ export class LineWidth {
     ];
   }
 
-  private named(open: string, name: string, from: string): string {
-    return `${open} ${name} } from '${from}';`;
+  /**
+   * Вызов `declaration call(args…);`: помещается — одной строкой; иначе
+   * аргументы по строкам, а не помещается `declaration call(` — перенос после `=`.
+   */
+  invoke(declaration: string, call: string, args: string[]): string {
+    const line = `${declaration} ${call}(${args.join(', ')});`;
+    if (this.fits(line)) return `${line}\n`;
+    const rows = (pad: string) => args.map((arg) => `${pad}${arg},`);
+    const lines = this.fits(`${declaration} ${call}(`)
+      ? [`${declaration} ${call}(`, ...rows('  '), ');']
+      : [declaration, `  ${call}(`, ...rows('    '), '  );'];
+    return `${lines.join('\n')}\n`;
   }
 
-  private fits(line: string): boolean {
+  /**
+   * Класс `declaration extends base<arg> { … }`: не помещается заголовок —
+   * аргумент типа на своей строке; body — строки тела без отступа.
+   */
+  extend(
+    declaration: string,
+    base: string,
+    arg: string,
+    body: string[],
+  ): string {
+    const head = `${declaration} extends ${base}<${arg}> {`;
+    const open = this.fits(head)
+      ? [head]
+      : [`${declaration} extends ${base}<`, `  ${arg}`, '> {'];
+    return `${[...open, ...body.map((row) => `  ${row}`), '}'].join('\n')}\n`;
+  }
+
+  /** Строка помещается в ширину biome */
+  fits(line: string): boolean {
     return line.length <= LineWidth.MAX;
+  }
+
+  private named(open: string, name: string, from: string): string {
+    return `${open} ${name} } from '${from}';`;
   }
 }

@@ -1,4 +1,4 @@
-/** Технология канала: фабрика реестра представлений, её вход и сборка оболочки */
+/** Технология канала: фабрики представлений, вход пакета с ними и сборка оболочки */
 export type ChannelTech = {
   /** Фабрика реестра представлений модуля: `ChatViews` */
   readonly factory: string;
@@ -6,6 +6,10 @@ export type ChannelTech = {
   readonly entry: string;
   /** Сборка реестров канала в оболочке: `AppChatViews` */
   readonly shell: string;
+  /** Фабрика представления экрана: `ScreenPresenter` */
+  readonly screen: string;
+  /** Фабрика представления уведомления: `NotificationPresenter` */
+  readonly notification: string;
 };
 
 /** Канал модуля — слой `fe-<канал>` из `layers` проекта */

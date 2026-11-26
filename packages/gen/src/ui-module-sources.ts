@@ -1,6 +1,7 @@
 import type { LayerPackage } from 'dmg-core/gen';
 import { DMG_UI } from './dmg-ui.const';
 import type { ChannelTech } from './front-layout.types';
+import { ImportLines } from './import-lines';
 import { LineWidth } from './line-width';
 import { PACKAGE_TEST } from './ui-module-sources.const';
 import { UiName } from './ui-name';
@@ -13,6 +14,7 @@ import { UiName } from './ui-name';
 export class UiModuleSources {
   private readonly name: UiName;
   private readonly width = new LineWidth();
+  private readonly imports = new ImportLines();
 
   constructor(readonly module: string) {
     this.name = new UiName(module);
@@ -46,7 +48,7 @@ export class UiModuleSources {
   /** `<m>.ui-module.ts` — описание модуля, списки пусты */
   uiModule(): string {
     const m = this.module;
-    return `${this.imports([['UiModuleDef', DMG_UI]])}
+    return `${this.imports.of([{ name: 'UiModuleDef', from: DMG_UI }])}
 // gen:imports
 
 /** UI-модуль \`${m}\`: его экраны, сторис и уведомления. */
@@ -75,9 +77,9 @@ ${this.width.exportOf(this.codesName(), `./${m}-codes`)}
   /** `<m>-codes.ts` — реестр кода модуля; uiImport — спецификатор описания */
   codes(uiImport: string): string {
     const def = this.defName();
-    return `${this.imports([
-      ['CodeLoaders', DMG_UI],
-      [def, uiImport],
+    return `${this.imports.of([
+      { name: 'CodeLoaders', from: DMG_UI },
+      { name: def, from: uiImport },
     ])}
 // gen:imports
 
@@ -106,9 +108,9 @@ ${this.width.exportOf(
   /** `<m>-<канал>.views.ts` — реестр представлений модуля в канале */
   views(channel: string, tech: ChannelTech, uiImport: string): string {
     const def = this.defName();
-    return `${this.imports([
-      [tech.factory, tech.entry],
-      [def, uiImport],
+    return `${this.imports.of([
+      { name: tech.factory, from: tech.entry },
+      { name: def, from: uiImport },
     ])}
 // gen:imports
 
@@ -141,14 +143,5 @@ ${this.width.registry(
   "include": ["src"]
 }
 `;
-  }
-
-  /** Импорты по одному имени из модуля в порядке biome: пакеты по спецификатору, относительные — в конце */
-  private imports(entries: [name: string, from: string][]): string {
-    const rank = (from: string) => (from.startsWith('.') ? 1 : 0);
-    return [...entries]
-      .sort(([, a], [, b]) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0))
-      .map(([name, from]) => this.width.importOf(name, from))
-      .join('\n');
   }
 }
