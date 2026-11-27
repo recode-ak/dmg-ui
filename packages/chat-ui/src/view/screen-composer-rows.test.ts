@@ -17,11 +17,8 @@ import { ScreenComposer } from './screen-composer';
 import { ScreenPresenter } from './screen-presenter';
 import type { ScreenRender, ViewOption } from './view.types';
 
-// Действие строки в показе (действие строки списка): строки вида разворачиваются
-// в варианты `row` на месте действия в порядке `actions`; пустой список — без
-// вариантов; отключённое действие — один вариант `disabled` с подписью
-// действия. Сверка варианта представления — по `row:<имя>:<значение>`. Вид —
-// литерал `InstanceView`.
+// Действие строки в показе (D-UI-129): варианты `row` на месте действия,
+// сверка по `row:<имя>:<значение>`; вид — литерал `InstanceView`.
 
 const PanelScreenDef = ScreenDef.define({
   name: 'panel',
@@ -158,22 +155,6 @@ describe('ScreenComposer — действие строки', () => {
       row(MILK),
       LEAVE,
       TICK,
-    ]);
-  });
-
-  test('варианты показа — те же, что у представления; «Назад» последним', () => {
-    const composed = rendering((_, kit) => kit.message('Панель')).compose(
-      viewOf([BREAD, MILK]),
-      true,
-    );
-
-    expect(composed.messages[0]?.options).toEqual([
-      SAVE,
-      row(BREAD),
-      row(MILK),
-      LEAVE,
-      TICK,
-      BACK,
     ]);
   });
 

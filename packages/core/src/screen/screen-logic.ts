@@ -48,7 +48,8 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
     for (const action of Object.values(def.actions)) {
       if (action.row === undefined) continue;
       const where = `Экран ${def.name}, действие ${action.name}`;
-      rows.set(action.name, new ActionRows(action.row, where));
+      const fields = Object.keys(action.input?.entries ?? {});
+      rows.set(action.name, new ActionRows(action.row, fields, where));
     }
     this.actionRows = rows;
     if (def.state !== undefined && code.initialState === undefined) {
@@ -189,30 +190,12 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
     const checked = this.inputOf(this.actionInput(name), raw);
     const rows = this.actionRows.get(name);
     if (checked.ok && rows !== undefined) {
-      const listed = this.listed(rows, checked.value, data);
+      const listed = rows.check(checked.value, data);
       if (!listed.ok) return listed;
     }
     // Проверка шла по схеме `input` действия `name`, её выход — ровно
     // `InputOf` этой схемы; по имени-строке TS этой связи не выводит.
     return checked as Result<InputOf<D['actions'][K]['input']>, InputRejection>;
-  }
-
-  /** Поле входа действия строки — ключ строки текущих данных. */
-  private listed(
-    rows: ActionRows,
-    input: unknown,
-    data: DataOf<D>,
-  ): Result<undefined, InputRejection> {
-    const values =
-      typeof input === 'object' && input !== null ? Object.entries(input) : [];
-    for (const [field, value] of values) {
-      if (!rows.has(data, value)) {
-        return err({
-          issues: [{ field, text: ActionRows.NOT_LISTED_TEXT }],
-        });
-      }
-    }
-    return ok(undefined);
   }
 
   /** Вход действия по имени; неизвестное имя — ошибка программиста. */

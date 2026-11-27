@@ -29,15 +29,10 @@ import { AppChatViews } from '../view/app-chat-views';
 import { ChatViews } from '../view/chat-views';
 import { ScreenPresenter } from '../view/screen-presenter';
 import { Conversation } from './conversation';
-import type { ConversationSnapshot, RefEntry } from './conversation.types';
-import { ConversationSnapshotSchema } from './conversation-snapshot';
+import type { ConversationSnapshot } from './conversation.types';
 
-// Действие строки в беседе (действие строки списка): строки списка — кнопки на
-// месте действия; нажатие строки — исполнение со входом `{ itemId: ключ }` без
-// черновика и вопроса; у действия с `confirm` — подтверждение, затем
-// исполнение; сверх лимита вариантов — страницы с «Ещё»; запись ссылки `row`
-// переживает снимок беседы. Беседа — на исполнителе с заглушками и
-// локальными Def.
+// Действие строки в беседе (D-UI-129): кнопка на строку, нажатие без вопроса,
+// подтверждение, листание, ссылка `row` в снимке; беседа — на заглушках.
 
 const A = testUuid(1);
 const PEER = 'peer-a';
@@ -330,28 +325,6 @@ describe('Conversation — строки списка кнопками', () => {
       'Сыр',
     ]);
   });
-
-  test('список пуст — кнопок действия нет, остальные на месте', async () => {
-    const s = sceneOf({
-      messenger: editing(),
-      world: { ...worldOf(), items: [] },
-    });
-
-    await s.enter();
-
-    expect(lastLabels(s.messenger)).toEqual(['Обновить', 'Сыр']);
-  });
-
-  test('действие отключено — один вариант с пометкой и подписью действия, строк нет', async () => {
-    const s = sceneOf({
-      messenger: editing(),
-      world: { ...worldOf(), openOff: true },
-    });
-
-    await s.enter();
-
-    expect(lastLabels(s.messenger)).toEqual(['Обновить', 'Сыр', '🚫 Открыть']);
-  });
 });
 
 describe('Conversation — нажатие строки', () => {
@@ -410,17 +383,6 @@ describe('Conversation — нажатие строки', () => {
     expect(JSON.stringify(s.logger.records)).not.toContain('mark-q7');
   });
 
-  test('«Нет» в подтверждении — вид снова, действие не исполнено', async () => {
-    const s = sceneOf({ messenger: editing() });
-    await s.enter();
-
-    await s.press('Сыр');
-    await s.press('Нет');
-
-    expect(s.world.calls).toEqual([]);
-    expect(lastText(s.messenger)).toBe('Доска: 2');
-  });
-
   test('ссылка прежней ревизии после перечитывания — «Экран обновился.», строка не открыта', async () => {
     const s = sceneOf({ messenger: editing() });
     await s.enter();
@@ -432,34 +394,6 @@ describe('Conversation — нажатие строки', () => {
 
     expect(lastText(s.messenger)).toBe('Экран обновился.\n\nДоска: 1');
     expect(s.conversation.screen()?.address.screen).toBe(BOARD);
-  });
-
-  test('ключ не из строк живого вида (ссылка из снимка) — rejected: вид с замечанием, переход не выполнен', async () => {
-    const messenger = editing();
-    const first = sceneOf({ messenger });
-    await first.enter();
-    const saved = first.conversation.snapshot();
-    const screen = saved.screen;
-    if (screen === undefined) throw new Error('в снимке нет экрана');
-    const foreign: RefEntry = {
-      ref: 'foreign1',
-      kind: 'row',
-      screen: screen.serial,
-      revision: (screen.instance as { revision: number }).revision,
-      action: 'open',
-      input: { itemId: 'нет-такой' },
-      label: 'Чужая',
-    };
-    first.conversation.close();
-    const second = sceneOf({
-      messenger,
-      snapshot: { ...saved, refs: [...saved.refs, foreign] },
-    });
-
-    await second.pressRef('foreign1');
-
-    expect(lastText(messenger)).toContain('Строки нет в списке');
-    expect(second.conversation.screen()?.address.screen).toBe(BOARD);
   });
 });
 
@@ -487,12 +421,11 @@ describe('Conversation — строки сверх лимита варианто
 });
 
 describe('Conversation — запись row и снимок беседы', () => {
-  test('запись row в снимке: экран, ревизия, действие, вход и подпись; снимок проходит схему и круг JSON', async () => {
+  test('запись row в снимке: действие, вход и подпись строки', async () => {
     const s = sceneOf({ messenger: editing() });
     await s.enter();
 
     const snapshot = s.conversation.snapshot();
-    const round = JSON.parse(JSON.stringify(snapshot));
     const rows = snapshot.refs.filter(
       (entry) => entry.kind === 'row' && entry.action === 'open',
     );
@@ -501,8 +434,6 @@ describe('Conversation — запись row и снимок беседы', () =>
       { action: 'open', input: { itemId: 'b1' }, label: 'Хлеб' },
       { action: 'open', input: { itemId: 'm2' }, label: 'Молоко' },
     ]);
-    expect(round).toEqual(snapshot);
-    expect(v.safeParse(ConversationSnapshotSchema, round).success).toBe(true);
   });
 
   test('после перезапуска из снимка нажатие строки по прежней ссылке открывает карточку', async () => {

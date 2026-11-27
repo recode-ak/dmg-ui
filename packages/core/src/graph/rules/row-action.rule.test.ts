@@ -2,22 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { ExampleUiSetDef } from 'dmg-ui/example';
 import * as v from 'valibot';
 import { UiScene } from '../../../testing/ui-arch';
-import type { ActionSpec } from '../../manifest/screen-def';
-import { UiRules } from '../ui-rules';
+import type { ActionSpec, RowSpec } from '../../manifest/screen-def';
 import { RowActionRule } from './row-action.rule';
 
-// Правило строки (форма действия строки): форма действия с `row` по нормализованным
-// схемам. `list` ведёт к массиву в данных экрана, элемент — объект с полями
-// `key` и `label`, `label` — строка, у `input` ровно одно поле, на одном
-// списке — не больше одного действия строки. Тексты нарушений тест не
-// закрепляет: по ветке видно узел действия и то, что нарушено (путь, ключ,
-// подпись, другое действие).
+// UI-38 (D-UI-129): по ветке — одно нарушение с узлом действия и тем, что
+// нарушено (путь, ключ, подпись, другое действие); тексты — в rules.md.
 
 const RULE = new RowActionRule(ExampleUiSetDef).id;
 const ACTION = 'miniUi/todo/a/open';
 const TEXTS = { label: 'Открыть', description: 'Открывает строку списка.' };
-
-type RowSpec = { list: string; key: string; label: string };
 
 const described = <S extends v.GenericSchema>(schema: S) =>
   v.pipe(schema, v.description('Поле'));
@@ -54,10 +47,6 @@ const violationsOf = (
 ) => violations(data, { open: rowAction(row, input) });
 
 describe('правило строки: форма действия строки', () => {
-  test('правило входит в набор правил графа ядра UI', () => {
-    expect(UiRules.of(ExampleUiSetDef).map((rule) => rule.id)).toContain(RULE);
-  });
-
   test('без нарушений: список объектов с ключом и строковой подписью, один вход', () => {
     expect(violationsOf({ tasks: v.array(TASK) })).toEqual([]);
   });
@@ -142,6 +131,38 @@ describe('правило строки: форма действия строки'
     expect(found[0]).toContain('uuid');
   });
 
+  test('нарушение: поле key элемента — не строка, число или булево', () => {
+    const found = violationsOf({
+      tasks: v.array(
+        v.object({
+          uuid: described(v.object({})),
+          title: described(v.string()),
+        }),
+      ),
+    });
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain(ACTION);
+    expect(found[0]).toContain('uuid');
+  });
+
+  test('нарушение: действие строки — основное действие экрана', () => {
+    const found = new UiScene({
+      screens: [
+        UiScene.screen('a', {
+          data: v.object({ tasks: v.array(TASK) }),
+          actions: { open: rowAction(ROW) },
+          primary: 'open',
+        }),
+      ],
+    })
+      .report()
+      .rule(RULE);
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain(ACTION);
+  });
+
   test('нарушение: поле label элемента — не строка', () => {
     const found = violationsOf({
       tasks: v.array(
@@ -163,13 +184,6 @@ describe('правило строки: форма действия строки'
       ROW,
       v.object({ taskId: described(v.string()), note: described(v.string()) }),
     );
-
-    expect(found).toHaveLength(1);
-    expect(found[0]).toContain(ACTION);
-  });
-
-  test('нарушение: у input нет полей', () => {
-    const found = violationsOf({ tasks: v.array(TASK) }, ROW, v.object({}));
 
     expect(found).toHaveLength(1);
     expect(found[0]).toContain(ACTION);

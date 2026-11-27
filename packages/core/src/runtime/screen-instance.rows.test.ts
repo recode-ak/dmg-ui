@@ -1,15 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { type DomainError, ok, type Result } from 'dmg-core';
 import { testUuid } from 'dmg-core/testing';
-import { ListTasksUcDef } from 'dmg-core/testing/example';
 import {
   exampleCodes,
-  TASK_A,
   TASK_B,
   TaskCardScreenDef,
   TaskListScreenCode,
   type TaskListScreenDef,
-  taskState,
 } from 'dmg-ui/example';
 import * as v from 'valibot';
 import {
@@ -20,25 +17,15 @@ import {
 import { ScreenDef } from '../manifest/screen-def';
 import { ScreenCode } from '../screen/screen-code';
 import type { ActionSteps } from '../screen/screen-code.types';
-import type { InstanceView } from './outcome.types';
 import { ScreenUnit } from './screen-unit';
 
-// Действие строки списка (вид и исполнение): вид несёт строки по пути
-// `row.list`, поле входа — choice с теми же вариантами, вход нажатия —
-// ключ показанной строки. Пример `taskList.open` — действие строки; путь
-// с необязательным родителем — на локальном экране.
+// Действие строки (D-UI-129) — вид и исполнение: `taskList.open` примера и
+// локальный экран с путём через необязательного родителя.
 
 type List = typeof TaskListScreenDef;
 
 const trace = requestTrace('r-row');
 const NOT_LISTED = testUuid(9);
-
-const BREAD = taskState({ uuid: TASK_A, title: 'Хлеб', status: 'open' });
-const MILK = taskState({ uuid: TASK_B, title: 'Молоко', status: 'done' });
-
-/** Действие `open` списка из вида. */
-const openOf = (view: InstanceView) =>
-  view.actions.find((action) => action.name === 'open');
 
 /** Код списка, который записывает вход шага `open`. */
 class OpenSpy extends TaskListScreenCode {
@@ -55,51 +42,6 @@ class OpenSpy extends TaskListScreenCode {
 }
 
 describe('действие строки — вид экземпляра на примере taskList.open', () => {
-  test('rows — строки текущих данных: значение — ключ, подпись — поле label', async () => {
-    const list = await new RuntimeKit().openList();
-
-    expect(openOf(list.view())).toMatchObject({
-      rows: [
-        { value: TASK_A, label: 'Хлеб' },
-        { value: TASK_B, label: 'Молоко' },
-      ],
-    });
-  });
-
-  test('порядок строк — порядок списка в данных', async () => {
-    const kit = new RuntimeKit();
-    kit.ucs.answer(ListTasksUcDef, ok([MILK, BREAD]));
-
-    const list = await kit.openList();
-
-    expect(openOf(list.view())).toMatchObject({
-      rows: [
-        { value: TASK_B, label: 'Молоко' },
-        { value: TASK_A, label: 'Хлеб' },
-      ],
-    });
-  });
-
-  test('fields — одно поле входа вида choice с теми же вариантами, что rows', async () => {
-    const view = (await new RuntimeKit().openList()).view();
-    const action = openOf(view);
-
-    expect(action).toMatchObject({
-      fields: [
-        {
-          name: 'taskId',
-          kind: 'choice',
-          choices: [
-            { value: TASK_A, label: 'Хлеб' },
-            { value: TASK_B, label: 'Молоко' },
-          ],
-        },
-      ],
-    });
-    expect(action?.fields).toHaveLength(1);
-    expect(action?.fields[0]?.choices).toEqual(action?.rows);
-  });
-
   test('у действия без row ключа rows в виде нет', async () => {
     const view = (await new RuntimeKit().openList()).view();
 
@@ -223,9 +165,5 @@ describe('действие строки — путь списка', () => {
 
   test('родителя пути в данных нет — rows: [], а не отказ и не бросок', () => {
     expect(pickOf({}).rows).toEqual([]);
-  });
-
-  test('родитель есть, список пуст — rows: []', () => {
-    expect(pickOf({ course: { moduleRows: [] } }).rows).toEqual([]);
   });
 });

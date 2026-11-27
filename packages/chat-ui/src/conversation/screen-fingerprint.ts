@@ -11,6 +11,7 @@ import { Sha256 } from './sha256';
  * прежние отпечатки сохранённых бесед остаются прежними (D-UI-105). У
  * строки (`row`) в конце — значение ключа: строки с одной подписью
  * различаются (D-UI-129).
+ * @see screen-fingerprint.test.ts
  */
 export class ScreenFingerprint {
   private constructor(private readonly messages: readonly ViewMessage[]) {}

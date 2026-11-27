@@ -9,15 +9,21 @@ import type { AnyUiSetDef } from '../../manifest/ui-set-def.types';
 type SchemaNode = Readonly<Record<string, unknown>>;
 
 /**
- * UI-38: форма действия строки. Путь `list` ведёт к массиву в данных экрана
- * (через `properties`, необязательные родители допустимы), элемент — объект
- * (не `anyOf`) с полями `key` и `label`, `label` — строка; у `input` ровно
- * одно поле; на одном списке экрана — не больше одного действия строки.
- * Правило по Def, как UI-20: схемы данных экрана в `props` графа нет, она
- * нормализуется здесь (`toJsonSchema`).
+ * UI-38: форма действия строки. Правило по Def, как UI-20: схемы данных
+ * экрана в `props` графа нет — она нормализуется здесь и только у экранов с
+ * действием строки.
+ * @see ../../../../../docs/reference/rules.md
  */
 export class RowActionRule implements GraphRule {
   readonly id = 'UI-38';
+
+  /** Виды JSON Schema, значение которых годится в ключ строки. */
+  private static readonly SCALARS: readonly string[] = [
+    'string',
+    'number',
+    'integer',
+    'boolean',
+  ];
 
   constructor(private readonly set: AnyUiSetDef) {}
 
@@ -35,13 +41,19 @@ export class RowActionRule implements GraphRule {
   private screenLines(ids: UiIds, screen: AnyScreenDef): string[] {
     const found: string[] = [];
     const byList = new Map<string, string[]>();
+    const rowActions = Object.values<ScreenAction>(screen.actions).flatMap(
+      (action) =>
+        action.row === undefined ? [] : [{ action, row: action.row }],
+    );
+    if (rowActions.length === 0) return found;
     const data = toJsonSchema(screen.data) as SchemaNode;
-    for (const action of Object.values<ScreenAction>(screen.actions)) {
-      const { row } = action;
-      if (row === undefined) continue;
+    for (const { action, row } of rowActions) {
       const head = `действие ${ids.action(screen, action.name)}`;
       const shape = RowActionRule.shapeIssue(data, row);
       if (shape !== undefined) found.push(`${head}: ${shape}`);
+      if (screen.primary === action.name) {
+        found.push(`${head}: действие строки не может быть основным`);
+      }
       const fields = Object.keys(action.input?.entries ?? {}).length;
       if (fields !== 1) {
         found.push(
@@ -74,8 +86,12 @@ export class RowActionRule implements GraphRule {
     if (item === undefined || item.type !== 'object') {
       return `элемент списка ${row.list} не объект`;
     }
-    if (RowActionRule.child(item, row.key) === undefined) {
+    const key = RowActionRule.child(item, row.key);
+    if (key === undefined) {
       return `у элемента списка ${row.list} нет поля ключа ${row.key}`;
+    }
+    if (!RowActionRule.SCALARS.includes(String(key.type))) {
+      return `поле ключа ${row.key} элемента списка ${row.list} не строка, число или булево`;
     }
     if (RowActionRule.child(item, row.label)?.type !== 'string') {
       return `поле подписи ${row.label} элемента списка ${row.list} не строка`;
