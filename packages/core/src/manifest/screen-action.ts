@@ -5,10 +5,12 @@ import type {
   InputSchema,
   ItemTexts,
   NormalizedAction,
+  RowSpec,
 } from './screen-def.types';
 
 /**
- * Действие экрана: тексты, подсказка, вход, вызов command UC, переходы и подтверждение.
+ * Действие экрана: тексты, подсказка, вход, вызов command UC, переходы,
+ * подтверждение и строки списка (действие строки).
  * Узел графа под экраном; имя — ключ в `actions` спеки. `U` — Def UC
  * действия: по нему типизируются шаги кода (`ActionStep`).
  */
@@ -24,6 +26,8 @@ export class ScreenAction<
   readonly input: I;
   readonly uc: U;
   readonly confirm: ItemTexts | undefined;
+  /** Строки действия строки; у прочих — `undefined`. */
+  readonly row: RowSpec | undefined;
   private readonly to: (() => readonly AnyScreenDef[]) | undefined;
 
   constructor(name: string, spec: ActionSpec) {
@@ -38,6 +42,7 @@ export class ScreenAction<
     // То же для `U` (`UcOf`): без `uc` в спеке — `undefined`.
     this.uc = spec.uc as U;
     this.confirm = spec.confirm;
+    this.row = spec.row;
     this.to = spec.to;
   }
 
@@ -57,6 +62,7 @@ export class ScreenAction<
       uc: this.uc?.name,
       to: this.targets().map((screen) => screen.name),
       confirm: this.confirm,
+      ...(this.row === undefined ? {} : { row: this.row }),
     };
   }
 }

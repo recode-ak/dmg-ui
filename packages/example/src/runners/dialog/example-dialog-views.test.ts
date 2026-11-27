@@ -57,6 +57,13 @@ describe('ExamplePreview через DialogRenderer — снимки пример
     ).toMatchSnapshot();
   });
 
+  test('taskList full — задачи кнопками на месте «Открыть задачу»', async () => {
+    const text = await previewOf().screen(TaskListScreenDef, 'full');
+
+    expect(text).toContain('[Хлеб] [Молоко] [Создать задачу]');
+    expect(text).not.toContain('Открыть задачу');
+  });
+
   test('taskCard done — «Выполнить» недоступно по данным', async () => {
     const text = await previewOf().screen(TaskCardScreenDef, 'done');
 

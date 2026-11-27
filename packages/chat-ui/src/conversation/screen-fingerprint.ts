@@ -8,7 +8,9 @@ import { Sha256 } from './sha256';
  * цели, подпись) массивами без ключей. Момент и акцент добавляются в конец,
  * только если есть, — прежние отпечатки не меняются (D-UI-66). Отключённые
  * варианты (`disabled`) в отпечаток не входят: ревизии их ссылки не несут, а
- * прежние отпечатки сохранённых бесед остаются прежними (D-UI-105).
+ * прежние отпечатки сохранённых бесед остаются прежними (D-UI-105). У
+ * строки (`row`) в конце — значение ключа: строки с одной подписью
+ * различаются (D-UI-129).
  */
 export class ScreenFingerprint {
   private constructor(private readonly messages: readonly ViewMessage[]) {}
@@ -38,6 +40,7 @@ export class ScreenFingerprint {
               ScreenComposer.target(option) ?? null,
               option.label,
               ...(accent === undefined ? [] : [accent]),
+              ...(option.kind === 'row' ? [option.value] : []),
             ];
           }),
       ]),

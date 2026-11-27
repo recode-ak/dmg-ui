@@ -138,13 +138,12 @@ const world = () => {
 
 type World = ReturnType<typeof world>;
 
-/** Владелец A открыл карточку «Хлеб»: «/start», «Открыть задачу», «Хлеб». */
+/** Владелец A открыл карточку «Хлеб»: «/start», кнопка задачи «Хлеб». */
 const onCard = async (): Promise<World> => {
   const w = world();
   await w.create(TITLE);
   await w.say('/start');
   await w.settle();
-  await w.press('Открыть задачу');
   await w.press(TITLE);
   await w.settle();
   return w;

@@ -26,9 +26,10 @@ describe('ScreenDef — форма', () => {
         {
           name: 'open',
           label: 'Открыть задачу',
-          description: 'Карточка выбранной задачи.',
+          description: list.actions.open.description,
           visible: false,
           input: json(list.actions.open.input!),
+          row: { list: 'tasks', key: 'uuid', label: 'title' },
           uc: undefined,
           to: ['taskCard'],
           confirm: undefined,

@@ -160,6 +160,20 @@ export type RefEntry =
       readonly label: string;
     }
   /**
+   * Строка действия строки живого экрана `screen` (D-UI-129): нажатие
+   * исполняет `action` с входом строки. Вход — данные собеседника: только в
+   * снимке, не в логе.
+   */
+  | {
+      readonly ref: string;
+      readonly kind: 'row';
+      readonly screen: Serial;
+      readonly revision: number;
+      readonly action: string;
+      readonly input: unknown;
+      readonly label: string;
+    }
+  /**
    * Отключённое действие или локальное действие живого экрана `screen`
    * (D-UI-105): без ревизии и без причины — причину на нажатие беседа берёт
    * из живого вида.
@@ -254,6 +268,14 @@ export type RefTarget =
   | {
       readonly kind: 'open';
       readonly address: AddressJson;
+      readonly label: string;
+    }
+  | {
+      readonly kind: 'row';
+      readonly screen: Serial;
+      readonly revision: number;
+      readonly action: string;
+      readonly input: unknown;
       readonly label: string;
     }
   | {

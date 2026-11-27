@@ -18,7 +18,12 @@ import { type ComposedScreen, ScreenComposer } from '../view/screen-composer';
 import { VIEW_TEXTS } from '../view/view.const';
 import type { ViewOption } from '../view/view.types';
 import { CONVERSATION_TEXTS } from './conversation.const';
-import type { Layout, RefTarget, Serial } from './conversation.types';
+import type {
+  ChoiceValue,
+  Layout,
+  RefTarget,
+  Serial,
+} from './conversation.types';
 import type { InputDraft } from './input-draft';
 import type { OptionLayout } from './option-layout';
 import type { RefTable } from './ref-table';
@@ -212,6 +217,15 @@ export class ConversationReplies {
           local: option.name,
           label: option.label,
         };
+      case 'row':
+        return {
+          kind: 'row',
+          screen,
+          revision,
+          action: option.name,
+          input: this.rowInput(view, option.name, option.value),
+          label: option.label,
+        };
       case 'disabled':
         return {
           kind: 'disabled',
@@ -232,6 +246,21 @@ export class ConversationReplies {
         );
       }
     }
+  }
+
+  /** Вход нажатия строки: единственное поле входа действия — ключ строки. */
+  private rowInput(
+    view: InstanceView,
+    action: string,
+    value: ChoiceValue,
+  ): Readonly<Record<string, ChoiceValue>> {
+    const field = view.actions.find((item) => item.name === action)?.fields[0];
+    if (field === undefined) {
+      throw new Error(
+        `ConversationReplies: у действия строки ${action} экрана ${view.screen} нет поля входа`,
+      );
+    }
+    return { [field.name]: value };
   }
 
   private skip(draft: InputDraft, field: ActionField): MessageOption {

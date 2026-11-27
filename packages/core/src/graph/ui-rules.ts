@@ -16,6 +16,7 @@ import { PrimaryActionRule } from './rules/primary-action.rule';
 import { ReadsOnlyQueryRule } from './rules/reads-only-query.rule';
 import { RecipientFieldsRule } from './rules/recipient-fields.rule';
 import { RefreshRecordRule } from './rules/refresh-record.rule';
+import { RowActionRule } from './rules/row-action.rule';
 import { SchemaFieldTextsRule } from './rules/schema-field-texts.rule';
 import { ScreenUsesHiddenRule } from './rules/screen-uses-hidden.rule';
 import { ScreenWithoutStoryRule } from './rules/screen-without-story.rule';
@@ -37,8 +38,8 @@ export class UiRules {
   /**
    * Правила по порядку ID: UI-01…UI-27, кроме UI-06 — полноту реестров
    * держат их конструкторы (`UiCompleteness`), затем граница модулей
-   * UI-35…UI-37. Набор нужен только UI-20 (примеры проверяются схемами
-   * valibot); `UiIds` здесь не строится и не бросает.
+   * UI-35…UI-37, затем форма действия строки UI-38. Набор нужен UI-20 и
+   * UI-38 (правила по Def: схемы valibot); `UiIds` здесь не строится и не бросает.
    */
   static of(set: AnyUiSetDef): readonly GraphRule[] {
     return new UiRules(set).list();
@@ -75,6 +76,7 @@ export class UiRules {
       new ModuleScreensRule(),
       new ForeignTargetRule(),
       new AuxiliaryModuleRule(),
+      new RowActionRule(this.set),
     ];
   }
 }

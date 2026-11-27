@@ -92,6 +92,15 @@ const RefEntrySchema = v.variant('kind', [
   }),
   v.object({
     ref: Ref,
+    kind: v.literal('row'),
+    screen: Count,
+    revision: Count,
+    action: Name,
+    input: v.unknown(),
+    label: Label,
+  }),
+  v.object({
+    ref: Ref,
     kind: v.literal('choice'),
     draft: Count,
     field: Name,

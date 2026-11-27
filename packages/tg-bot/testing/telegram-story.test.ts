@@ -334,7 +334,6 @@ describe('сторис на Telegram', () => {
     expect(labelsOf(a.place())).toContain('🚫 Выполнить выбранные');
 
     // 8. Карточка задачи со знаками разметки; «Назначить» — исполнитель B.
-    await a.press('Открыть задачу');
     await a.press(TITLE);
     await a.press('Назначить');
     await a.say(B);
@@ -386,7 +385,6 @@ describe('сторис на Telegram', () => {
     const { a } = w;
     await firstSteps(w);
     await a.press('Дальше');
-    await a.press('Открыть задачу');
     await a.press(TITLE);
     await a.press('Назначить');
     await a.say(B);
@@ -561,7 +559,6 @@ describe('сторис на Telegram — личность непрозрачна
     const { a } = w;
     await firstSteps(w);
     await a.press('Дальше');
-    await a.press('Открыть задачу');
     await a.press(TITLE);
     await a.press('Назначить');
     await a.say(B);

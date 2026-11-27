@@ -845,7 +845,6 @@ describe('Conversations — независимость, лог и settled', () =
     await pressFor('Отметить задачу');
     await pressFor('text-mark-q7');
     const closedRef = refFor('Отметить задачу');
-    await pressFor('Открыть задачу');
     await pressFor('text-mark-q7');
     const stored = await snapshotOf(w.store, who.peer);
     const card = v.parse(

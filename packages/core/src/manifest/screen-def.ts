@@ -35,6 +35,7 @@ export type {
   ParamsOf,
   ParamsSchemaOf,
   RefreshSpec,
+  RowSpec,
   ScreenActions,
   ScreenExampleSpec,
   ScreenExits,

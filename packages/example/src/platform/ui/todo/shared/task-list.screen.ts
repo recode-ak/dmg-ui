@@ -15,8 +15,8 @@ import { exampleTask, TASK_A, TASK_B, taskRow } from './example-tasks';
 // обоих экранов (TS7022, цикл вывода).
 
 /**
- * Список задач вызывающего по страницам: выбор задач (состояние и локальное
- * действие), выполнение выбранных с подтверждением, создание — основное
+ * Список задач вызывающего по страницам: задача — кнопкой строки (действие
+ * строки `open`), выбор задач (состояние и локальное действие), выполнение выбранных с подтверждением, создание — основное
  * действие, выходы сторис, перечитывание по своим событиям.
  */
 export const TaskListScreenDef = ScreenDef.define({
@@ -53,8 +53,9 @@ export const TaskListScreenDef = ScreenDef.define({
   actions: {
     open: {
       label: 'Открыть задачу',
-      description: 'Карточка выбранной задачи.',
+      description: 'Карточка задачи из строки списка.',
       input: v.object({ taskId: F.uuid('задачи') }),
+      row: { list: 'tasks', key: 'uuid', label: 'title' },
       to: (): readonly AnyScreenDef[] => [TaskCardScreenDef],
     },
     create: {

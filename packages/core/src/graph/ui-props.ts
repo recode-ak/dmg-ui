@@ -65,6 +65,9 @@ export const UI_PROPS = {
     hint: v.optional(v.string()),
     input: v.optional(nested),
     confirm: v.optional(v.strictObject(item)),
+    row: v.optional(
+      v.strictObject({ list: v.string(), key: v.string(), label: v.string() }),
+    ),
   }),
   notification: v.strictObject({
     recipients: v.variant('from', [

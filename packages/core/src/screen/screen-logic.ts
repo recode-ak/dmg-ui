@@ -7,10 +7,11 @@ import type {
 } from '../manifest/screen-def.types';
 import { ActionInput } from './action-input';
 import type { ActionField, InputRejection } from './action-input.types';
+import { ActionRows } from './action-rows';
 import type { Availability } from './availability';
 import { CodeDefect } from './code-defect';
 import type { ScreenCode } from './screen-code';
-import type { AvailabilityContext, InputOf } from './screen-code.types';
+import type { AvailabilityContext, Choice, InputOf } from './screen-code.types';
 import type {
   ActionName,
   CheckedLocalFn,
@@ -31,6 +32,7 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
   readonly code: ScreenCode<D, S>;
   private readonly actionInputs: ReadonlyMap<string, ActionInput | undefined>;
   private readonly localInputs: ReadonlyMap<string, ActionInput | undefined>;
+  private readonly actionRows: ReadonlyMap<string, ActionRows>;
   private readonly localFns: ReadonlyMap<string, CheckedLocalFn<D>>;
 
   /**
@@ -42,6 +44,13 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
     this.code = code;
     this.actionInputs = ScreenLogic.inputsOf(def.actions);
     this.localInputs = ScreenLogic.inputsOf(def.locals);
+    const rows = new Map<string, ActionRows>();
+    for (const action of Object.values(def.actions)) {
+      if (action.row === undefined) continue;
+      const where = `Экран ${def.name}, действие ${action.name}`;
+      rows.set(action.name, new ActionRows(action.row, where));
+    }
+    this.actionRows = rows;
     if (def.state !== undefined && code.initialState === undefined) {
       throw new CodeDefect(
         `Экран ${def.name}: у экрана есть состояние, а код экрана не задал initialState`,
@@ -116,9 +125,19 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
   }
 
   /**
+   * Строки действия строки по текущим данным; у действия без `row` —
+   * `undefined`. Неизвестное имя — бросок.
+   */
+  rows(name: ActionName<D>, data: DataOf<D>): readonly Choice[] | undefined {
+    this.actionInput(name);
+    return this.actionRows.get(name)?.of(data);
+  }
+
+  /**
    * Поля входа действия или локального действия: описание поля — из схемы,
    * варианты и начальные значения — из кода; поле с вариантами кода — вида
-   * `choice`. Начальное значение не по схеме поля — бросок.
+   * `choice`. У действия строки варианты поля — его строки, `choices` кода
+   * не спрашивается. Начальное значение не по схеме поля — бросок.
    */
   fields(
     name: ActionName<D> | LocalName<D>,
@@ -129,7 +148,11 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
       ? this.localInputs.get(name)
       : this.actionInput(name);
     if (input === undefined) return [];
-    const choices = this.code.choices?.(name, data, state) ?? {};
+    const rows = this.actionRows.get(name)?.of(data);
+    const choices =
+      rows === undefined
+        ? (this.code.choices?.(name, data, state) ?? {})
+        : Object.fromEntries(input.fields().map((field) => [field.name, rows]));
     const defaults = input.checkFields(
       this.code.defaults?.(name, data, state) ?? {},
     );
@@ -153,17 +176,43 @@ export class ScreenLogic<D extends AnyScreenDef, S = unknown> {
     });
   }
 
-  /** Сырой вход действия по его схеме; действие без входа — `undefined`. */
+  /**
+   * Сырой вход действия по его схеме; действие без входа — `undefined`. У
+   * действия строки значение поля входа ещё и должно быть ключом строки
+   * текущих данных, иначе — отказ «Строки нет в списке».
+   */
   checkInput<K extends ActionName<D>>(
     name: K,
     raw: unknown,
+    data: DataOf<D>,
   ): Result<InputOf<D['actions'][K]['input']>, InputRejection> {
+    const checked = this.inputOf(this.actionInput(name), raw);
+    const rows = this.actionRows.get(name);
+    if (checked.ok && rows !== undefined) {
+      const listed = this.listed(rows, checked.value, data);
+      if (!listed.ok) return listed;
+    }
     // Проверка шла по схеме `input` действия `name`, её выход — ровно
     // `InputOf` этой схемы; по имени-строке TS этой связи не выводит.
-    return this.inputOf(this.actionInput(name), raw) as Result<
-      InputOf<D['actions'][K]['input']>,
-      InputRejection
-    >;
+    return checked as Result<InputOf<D['actions'][K]['input']>, InputRejection>;
+  }
+
+  /** Поле входа действия строки — ключ строки текущих данных. */
+  private listed(
+    rows: ActionRows,
+    input: unknown,
+    data: DataOf<D>,
+  ): Result<undefined, InputRejection> {
+    const values =
+      typeof input === 'object' && input !== null ? Object.entries(input) : [];
+    for (const [field, value] of values) {
+      if (!rows.has(data, value)) {
+        return err({
+          issues: [{ field, text: ActionRows.NOT_LISTED_TEXT }],
+        });
+      }
+    }
+    return ok(undefined);
   }
 
   /** Вход действия по имени; неизвестное имя — ошибка программиста. */

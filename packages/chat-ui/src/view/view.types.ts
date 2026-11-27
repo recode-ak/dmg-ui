@@ -1,6 +1,7 @@
 import type {
   AnyNotificationDef,
   AnyScreenDef,
+  Choice,
   InstanceView,
   NotificationDataOf,
   ScreenViewOf,
@@ -25,6 +26,17 @@ export type ViewOption =
       readonly name: string;
       readonly label: string;
       readonly accent?: Accent;
+    }
+  /**
+   * Строка действия строки (D-UI-129): нажатие исполняет действие `name` со
+   * входом из ключа строки `value`; на экране уникальна парой имени и
+   * значения, подпись — из строки.
+   */
+  | {
+      readonly kind: 'row';
+      readonly name: string;
+      readonly value: Choice['value'];
+      readonly label: string;
     }
   /**
    * Отключённое действие или локальное действие (D-UI-105): имя уникально на

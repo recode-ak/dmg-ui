@@ -207,6 +207,7 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
         availability: answer,
         fields: this.logic.fields(name, data, state),
         ...(action.confirm === undefined ? {} : { confirm: action.confirm }),
+        ...this.rowsOf(name, data),
       });
     }
     const locals: LocalView[] = [];
@@ -236,9 +237,23 @@ export class ScreenUnit<D extends AnyScreenDef = AnyScreenDef> {
     return this.logic.availability(known, this.judged(frame, context));
   }
 
-  /** Сырой вход действия манифеста по его схеме. */
-  checkInput(name: string, raw: unknown): Result<unknown, InputRejection> {
-    return this.logic.checkInput(this.actionName(name), raw);
+  /** Сырой вход действия манифеста по его схеме; у действия строки — и по строкам кадра. */
+  checkInput(
+    name: string,
+    raw: unknown,
+    frame: ScreenFrame,
+  ): Result<unknown, InputRejection> {
+    const { data } = this.typed(frame);
+    return this.logic.checkInput(this.actionName(name), raw, data);
+  }
+
+  /** Строки действия строки для вида; у прочих действий ключа нет. */
+  private rowsOf(
+    name: ActionName<D>,
+    data: DataOf<D>,
+  ): Pick<ActionView, 'rows'> {
+    const rows = this.logic.rows(name, data);
+    return rows === undefined ? {} : { rows };
   }
 
   /** Локальное действие: новое состояние или отказ на вход. */

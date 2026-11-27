@@ -117,7 +117,7 @@ export class TaskListScreenCode extends ScreenCode<List, ExampleUser> {
   }
 
   override choices(name: string, data: ListData): FieldChoices {
-    if (name !== 'open' && name !== 'toggle') return {};
+    if (name !== 'toggle') return {};
     return {
       taskId: data.tasks.map((task) => ({
         value: task.uuid,

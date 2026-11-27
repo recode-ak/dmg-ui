@@ -377,7 +377,6 @@ describe.each(MESSENGERS)('сторис на беседе (%s)', (name, make) =>
     expect(afterAll).toContain('🚫 Выполнить выбранные');
 
     // 8. Карточка «Сыр»; «Назначить» — текстовый ввод исполнителя B.
-    await a.press('Открыть задачу');
     await a.press('Сыр');
     expect((await a.screen()).address.screen).toBe(CARD);
     await a.press('Назначить');

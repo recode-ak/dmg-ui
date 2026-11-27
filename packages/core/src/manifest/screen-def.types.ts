@@ -48,6 +48,17 @@ export type HintText = {
 };
 
 /**
+ * Строки действия строки: `list` — путь к массиву в `data` через точку,
+ * `key` — поле элемента, чьё значение идёт в единственное поле входа,
+ * `label` — поле элемента с подписью (строка). Форму сверяет правило графа.
+ */
+export type RowSpec = {
+  readonly list: string;
+  readonly key: string;
+  readonly label: string;
+};
+
+/**
  * Действие экрана. Без `uc` — действие-переход (меню, листание). `to` — thunk: взаимные
  * ссылки экранов иначе падают при импорте. Свой экран в `to` не
  * объявляется — переход на него разрешён неявно.
@@ -61,6 +72,11 @@ export type ActionSpec = ItemTexts &
     readonly to?: () => readonly AnyScreenDef[];
     /** Подтверждение; тексты статичны, данные рисует представление. */
     readonly confirm?: ItemTexts;
+    /**
+     * Действие строки: объявлено один раз над элементом списка данных, вход —
+     * ключ нажатой строки, подпись варианта — из строки.
+     */
+    readonly row?: RowSpec;
   };
 
 /** Локальное действие: меняет состояние экрана, UC не вызывает. */
@@ -197,6 +213,8 @@ export type NormalizedAction = DefTexts &
     readonly uc: string | undefined;
     readonly to: readonly string[];
     readonly confirm: ItemTexts | undefined;
+    /** Строки действия строки; у прочих действий ключа нет. */
+    readonly row?: RowSpec;
   };
 
 /** Сериализуемая форма локального действия. */

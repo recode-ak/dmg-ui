@@ -76,7 +76,7 @@ export class ActionRun {
       return this.end({ kind: 'confirm', label, description });
     }
     this.stage = 'вход';
-    const input = unit.checkInput(action.name, request.input);
+    const input = unit.checkInput(action.name, request.input, frame);
     if (!input.ok)
       return this.end({ kind: 'rejected', issues: input.error.issues });
     const ctx: ErasedStepContext = {

@@ -159,7 +159,6 @@ const sceneOf = (
   /** Живой экран открыт, начат ввод на карточке: есть экран, путь и черновик. */
   const busy = async (): Promise<void> => {
     await enter('start');
-    await press('Открыть задачу');
     await press('Хлеб');
     await press('Назначить');
   };

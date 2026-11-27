@@ -585,7 +585,6 @@ describe('сценарий 4 — createTask закрыт правилом лим
       await a.enter('start');
       const before = a.labels();
 
-      await a.press('Открыть задачу');
       await a.press('Хлеб');
       await a.press('Выполнить');
       await a.settle();
@@ -864,7 +863,6 @@ describe('сценарий 5 — поле входа: подпись, подск
       await w.ownTask(TITLE);
       const a = w.person(A);
       await a.enter('start');
-      await a.press('Открыть задачу');
       await a.press(TITLE);
       return { w, a };
     };
@@ -1027,14 +1025,13 @@ describe('сценарий 6 — меню → «Мои задачи» → окн
     ...exampleWindowPlacements,
   ];
 
-  /** Меню → «Мои задачи» → задача → «Открыть задачу» → «Выполнить» → «К списку». */
+  /** Меню → «Мои задачи» → задача → кнопка задачи → «Выполнить» → «К списку». */
   const completedFromMenu = async () => {
     const w = worldOf('dialog-menu-path');
     const a = w.person(A);
     await a.enter('menu');
     await a.press('Мои задачи');
     await a.say(TITLE);
-    await a.press('Открыть задачу');
     await a.press(TITLE);
     await a.press('Выполнить');
     await w.bus.delivered();
@@ -1359,7 +1356,6 @@ describe('нейтральность — один код экранов на д�
     const a = w.person(A);
     await a.enter('start');
     await a.say(TITLE);
-    await a.press('Открыть задачу');
     await a.press(TITLE);
     await a.press('Выполнить');
     await a.settle();
@@ -1505,7 +1501,6 @@ describe('подписи вариантов на живых экранах бе�
     await a.enter('menu');
     await a.press('Мои задачи');
     await a.say(TITLE);
-    await a.press('Открыть задачу');
     await a.press(TITLE);
     expectDistinct(a.labels());
 

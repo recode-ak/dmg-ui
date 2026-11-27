@@ -87,6 +87,15 @@ export type UiActionProps = {
   readonly hint?: string;
   readonly input?: NormalizedSchema;
   readonly confirm?: UiItemProps;
+  /** Строки действия строки (`RowSpec`); у прочих действий ключа нет. */
+  readonly row?: UiRowProps;
+};
+
+/** Строки действия строки в `props`: путь к списку в данных, поля ключа и подписи. */
+export type UiRowProps = {
+  readonly list: string;
+  readonly key: string;
+  readonly label: string;
 };
 
 /** Получатели в `props` уведомления; UC варианта `query` — ребро `recipients`. */

@@ -100,7 +100,8 @@ export class ScreenComposer {
   }
 
   /**
-   * Варианты по умолчанию: доступные действия, доступные локальные, затем
+   * Варианты по умолчанию: доступные действия (действие строки — вариантом
+   * на каждую строку, на своём месте), доступные локальные, затем
    * отключённые (действия, затем локальные) с пометкой в подписи, «Назад»
    * при `back`. Причина в вариант не идёт.
    */
@@ -118,13 +119,24 @@ export class ScreenComposer {
       label: `${VIEW_TEXTS.disabledMark} ${label}`,
     });
     return [
-      ...view.actions.filter(available).map(
-        (action): ViewOption => ({
-          kind: 'action',
-          name: action.name,
-          label: actionLabel(action.name),
-        }),
-      ),
+      ...view.actions
+        .filter(available)
+        .flatMap((action): readonly ViewOption[] =>
+          action.rows === undefined
+            ? [
+                {
+                  kind: 'action',
+                  name: action.name,
+                  label: actionLabel(action.name),
+                },
+              ]
+            : action.rows.map((row) => ({
+                kind: 'row',
+                name: action.name,
+                value: row.value,
+                label: row.label,
+              })),
+        ),
       ...view.locals.filter(available).map(
         (local): ViewOption => ({
           kind: 'local',
@@ -176,6 +188,7 @@ export class ScreenComposer {
     switch (option.kind) {
       case 'action':
       case 'local':
+      case 'row':
       case 'disabled':
         return option.name;
       case 'back':
@@ -198,8 +211,14 @@ export class ScreenComposer {
       : undefined;
   }
 
-  /** Сверка варианта: вид и имя цели (`disabled:<имя>`); подпись не входит. */
+  /**
+   * Сверка варианта: вид и имя цели (`disabled:<имя>`), у строки — ещё и
+   * значение (`row:<имя>:<значение>`); подпись не входит.
+   */
   private static key(option: ViewOption): string {
+    if (option.kind === 'row') {
+      return `row:${option.name}:${JSON.stringify(option.value)}`;
+    }
     const target = ScreenComposer.target(option);
     return target === undefined ? option.kind : `${option.kind}:${target}`;
   }

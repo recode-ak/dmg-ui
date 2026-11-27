@@ -145,6 +145,17 @@ const openRef = (ref: string) => ({
 /** Запись «Назад» живого экрана. */
 const BACK = { ref: 'abcde9', kind: 'back', screen: 2, label: 'Назад' };
 
+/** Запись действия строки живого экрана: вход строки — только в снимке. */
+const ROW: RefEntry = {
+  ref: 'abcdea',
+  kind: 'row',
+  screen: 2,
+  revision: 4,
+  action: 'open',
+  input: { itemId: 'task-1' },
+  label: 'Хлеб',
+};
+
 /** Путь из `count` снимков экземпляров разных экранов, старые первыми. */
 const steps = (count: number) =>
   Array.from({ length: count }, (_, i) => ({
@@ -254,6 +265,16 @@ describe('ConversationSnapshotSchema', () => {
     );
   });
 
+  test('снимок с записью row проходит схему и круг JSON без изменений', () => {
+    const value = { ...SNAPSHOT, refs: [...REFS, ROW] };
+    const round = JSON.parse(JSON.stringify(value));
+
+    expect(round).toStrictEqual(value);
+    expect<unknown>(v.parse(ConversationSnapshotSchema, round)).toStrictEqual(
+      value,
+    );
+  });
+
   test('снимок без экрана и черновика — по схеме', () => {
     expect(v.parse(ConversationSnapshotSchema, BARE)).toStrictEqual(BARE);
   });
@@ -319,6 +340,22 @@ describe('ConversationSnapshotSchema', () => {
     [
       'запись back без номера экрана',
       { ...BARE, refs: [{ ref: 'abcde1', kind: 'back', label: 'Назад' }] },
+    ],
+    [
+      'запись row без номера экрана',
+      {
+        ...BARE,
+        refs: [
+          {
+            ref: 'abcde1',
+            kind: 'row',
+            revision: 4,
+            action: 'open',
+            input: { itemId: 'task-1' },
+            label: 'Хлеб',
+          },
+        ],
+      },
     ],
     [
       'запись неизвестного вида',

@@ -77,6 +77,7 @@ export class RefTable {
       case 'action':
       case 'local':
       case 'confirm':
+      case 'row':
         return entry.screen === screen && entry.revision === from
           ? { ...entry, revision: to }
           : entry;

@@ -230,7 +230,6 @@ describe('ExampleBot — меню и уведомления', () => {
     await bot.receive(w.updates.text(A, '/start'));
     await bot.receive(w.updates.text(A, 'Хлеб'));
     await settle();
-    await press('Открыть задачу');
     await press('Хлеб');
     await press('Назначить');
     await bot.receive(w.updates.text(A, EXAMPLE_USER_B));
@@ -383,7 +382,6 @@ describe('ExampleBot — что показывает пример: отключ�
   const openCard = async (s: Awaited<ReturnType<typeof session>>) => {
     await s.say('/start');
     await s.say('Хлеб');
-    await s.press('Открыть задачу');
     await s.press('Хлеб');
   };
 

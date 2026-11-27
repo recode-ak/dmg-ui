@@ -8,6 +8,7 @@ import type {
 import type { FieldIssue } from '../schema/schema-check.types';
 import type { ActionField } from '../screen/action-input.types';
 import type { ViewAvailability } from '../screen/availability.types';
+import type { Choice } from '../screen/screen-code.types';
 import type { ViewContext } from './context.types';
 
 /**
@@ -48,6 +49,9 @@ export type LocalOutcome =
 /**
  * Действие в виде экземпляра: доступность (доступно или отключено с
  * причиной; скрытого в виде нет), подсказка, поля входа, подтверждение.
+ * `rows` — только у действия строки: строки текущих данных в порядке
+ * списка, значение — ключ строки; канал без строк собирает тот же вход
+ * полем `choice` из `fields`.
  */
 export type ActionView = {
   readonly name: string;
@@ -55,6 +59,7 @@ export type ActionView = {
   readonly availability: ViewAvailability;
   readonly fields: readonly ActionField[];
   readonly confirm?: ItemTexts;
+  readonly rows?: readonly Choice[];
 };
 
 /** Локальное действие в виде экземпляра; скрытого в виде нет. */

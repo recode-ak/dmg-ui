@@ -247,6 +247,13 @@ describe('UiGraphProvider: свойства узлов', () => {
     expect(props(`${SCREEN}/next`)).toEqual({});
   });
 
+  test('действие строки: row — в props узла рядом со схемой входа', () => {
+    expect(props(`${SCREEN}/open`)).toEqual({
+      input: toJsonSchema(TaskListScreenDef.actions.open.input!),
+      row: { list: 'tasks', key: 'uuid', label: 'title' },
+    });
+  });
+
   test('сторис: вызывающие, цель, старт и исходы с { screen, exit }', () => {
     expect(props('exampleUi/todo/planTasks')).toEqual({
       callers: ['user'],

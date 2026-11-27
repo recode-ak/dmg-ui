@@ -20,7 +20,19 @@ const NEXT: RefTarget = {
 
 const OPEN: RefTarget = { kind: 'open', address: LIST, label: 'К списку' };
 
-/** Цель каждого из семи видов. */
+/** Цель действия строки экрана `screen` на ревизии `revision`: вход — только в снимке. */
+const rowOf = (screen: number, revision: number): RefTarget => ({
+  kind: 'row',
+  screen,
+  revision,
+  action: 'open',
+  input: { itemId: 'task-1' },
+  label: 'Хлеб',
+});
+
+const ROW = rowOf(1, 3);
+
+/** Цель каждого из восьми видов. */
 const ALL_KINDS: readonly RefTarget[] = [
   NEXT,
   { kind: 'local', screen: 1, revision: 1, local: 'toggle', label: 'Свернуть' },
@@ -37,6 +49,7 @@ const ALL_KINDS: readonly RefTarget[] = [
   { kind: 'skip', draft: 2, field: 'note', label: 'Пропустить' },
   { kind: 'page', of: 'field', owner: 2, page: 1, label: 'Ещё' },
   OPEN,
+  ROW,
 ];
 
 /** Цель действия, отличимая по ревизии. */
@@ -189,6 +202,9 @@ describe('RefTable', () => {
         input: { id: 'task-1' },
         label: 'Нет',
       },
+      ROW,
+      rowOf(1, 2),
+      rowOf(2, 3),
       {
         kind: 'action',
         screen: 1,
@@ -221,11 +237,14 @@ describe('RefTable', () => {
       { ref: issued[0], ...targets[0], revision: 4 },
       { ref: issued[1], ...targets[1], revision: 4 },
       { ref: issued[2], ...targets[2], revision: 4 },
-      { ref: issued[3], ...targets[3] },
+      { ref: issued[3], ...targets[3], revision: 4 },
       { ref: issued[4], ...targets[4] },
       { ref: issued[5], ...targets[5] },
       { ref: issued[6], ...targets[6] },
       { ref: issued[7], ...targets[7] },
+      { ref: issued[8], ...targets[8] },
+      { ref: issued[9], ...targets[9] },
+      { ref: issued[10], ...targets[10] },
     ]);
     expect(refs.entry(issued[0] ?? '')).toMatchObject({ revision: 4 });
   });

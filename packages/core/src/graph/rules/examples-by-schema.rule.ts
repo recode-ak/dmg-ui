@@ -7,8 +7,8 @@ import { UI_NODE_KINDS } from '../ui-kinds';
 import type { ExampleSample } from './examples-by-schema.types';
 
 /**
- * UI-20: примеры проходят схемы своего экрана или уведомления. Единственное
- * правило по Def, а не по графу: схемы valibot в `props` не попадают (там
+ * UI-20: примеры проходят схемы своего экрана или уведомления. Правило по
+ * Def, а не по графу (как и UI-38): схемы valibot в `props` не попадают (там
  * JSON Schema). `UiIds` строится внутри `check`, когда граф уже собран.
  */
 export class ExamplesBySchemaRule implements GraphRule {

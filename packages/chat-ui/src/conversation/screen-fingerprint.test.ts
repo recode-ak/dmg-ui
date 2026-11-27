@@ -124,6 +124,21 @@ describe('ScreenFingerprint', () => {
     expect(await fingerprint(other)).not.toBe(await fingerprint(SHOWN));
   });
 
+  test('строки с одной подписью и разными значениями — разные отпечатки; то же значение — тот же', async () => {
+    const rowed = (value: string) =>
+      changed({
+        options: [
+          { kind: 'row', name: 'open', value, label: 'Хлеб' },
+          ...MESSAGE.options.slice(1),
+        ],
+      });
+
+    const first = await fingerprint(rowed('b1'));
+
+    expect(first).not.toBe(await fingerprint(rowed('b2')));
+    expect(first).toBe(await fingerprint(rowed('b1')));
+  });
+
   test('ссылки и заметка перед видом в отпечаток не входят', async () => {
     const withRefsAndNote = [
       {

@@ -140,6 +140,24 @@ describe('Telegram: перекрытые экраны — ключевые по�
     }
   });
 
+  test('taskList full: кнопка на каждую задачу вместо «Открыть задачу», по кнопке на ряд, без цвета', async () => {
+    const request = await preview().screen(TaskListScreenDef, 'full');
+    const rows = request.reply_markup?.inline_keyboard ?? [];
+    const taskRows = rows.slice(0, 2);
+
+    expect(taskRows.map((row) => row.map((button) => button.text))).toEqual([
+      ['Хлеб'],
+      ['Молоко'],
+    ]);
+    expect(
+      buttons(request.reply_markup).map((button) => button.text),
+    ).not.toContain('Открыть задачу');
+    for (const button of taskRows.flat()) {
+      expect(button).toHaveProperty('callback_data');
+      expect(button).not.toHaveProperty('style');
+    }
+  });
+
   test('taskList empty: без выбора кнопка помечена «🚫 Выполнить выбранные» (callback_data, без disabled), обычной нет, цвета нет совсем', async () => {
     const request = await preview().screen(TaskListScreenDef, 'empty');
     const all = buttons(request.reply_markup);

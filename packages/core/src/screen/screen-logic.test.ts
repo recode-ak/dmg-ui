@@ -235,8 +235,10 @@ describe('ScreenLogic.availability', () => {
 });
 
 describe('ScreenLogic.fields и checkInput', () => {
-  test('варианты поля — из данных, подпись — из схемы', () => {
-    expect(logicOf().fields('open', data, { selected: [] })).toEqual([
+  test('поле действия строки — одно поле choice: варианты — строки данных, подпись поля — из схемы; код choices не задавал', () => {
+    const logic = new ScreenLogic(TaskListScreenDef, new BareListCode());
+
+    expect(logic.fields('open', data, { selected: [] })).toEqual([
       {
         name: 'taskId',
         label: 'Идентификатор задачи',
@@ -247,6 +249,30 @@ describe('ScreenLogic.fields и checkInput', () => {
           { value: TASK_B, label: 'Молоко' },
         ],
       },
+    ]);
+  });
+
+  test('choices() кода для поля действия строки не вызывается: варианты — строки, а не ответ кода', () => {
+    class Foreign extends TaskListScreenCode {
+      readonly asked: string[] = [];
+
+      override choices(name: string) {
+        this.asked.push(name);
+        return { taskId: [{ value: 'чужой', label: 'Чужой вариант' }] };
+      }
+    }
+    const code = new Foreign();
+
+    const [field] = new ScreenLogic(TaskListScreenDef, code).fields(
+      'open',
+      data,
+      { selected: [] },
+    );
+
+    expect(code.asked).toEqual([]);
+    expect(field?.choices).toEqual([
+      { value: TASK_A, label: 'Хлеб' },
+      { value: TASK_B, label: 'Молоко' },
     ]);
   });
 
@@ -267,14 +293,6 @@ describe('ScreenLogic.fields и checkInput', () => {
 
   test('без choices и defaults в коде — у полей нет вариантов и начальных значений', () => {
     const logic = new ScreenLogic(TaskListScreenDef, new BareListCode());
-    expect(logic.fields('open', data, { selected: [] })).toEqual([
-      {
-        name: 'taskId',
-        label: 'Идентификатор задачи',
-        kind: 'string',
-        optional: false,
-      },
-    ]);
     expect(logic.fields('create', data, { selected: [] })).toEqual([
       {
         name: 'title',
@@ -316,7 +334,7 @@ describe('ScreenLogic.fields и checkInput', () => {
   });
 
   test('checkInput проверяет вход по схеме своего действия', () => {
-    expect(logicOf().checkInput('create', { title: 'Хлеб' })).toEqual({
+    expect(logicOf().checkInput('create', { title: 'Хлеб' }, data)).toEqual({
       ok: true,
       value: { title: 'Хлеб' },
     });
@@ -324,12 +342,6 @@ describe('ScreenLogic.fields и checkInput', () => {
 });
 
 describe('ScreenLogic.fields — вид, подсказка и пределы поля', () => {
-  test('choices кода повышают вид поля до choice', () => {
-    const [field] = logicOf().fields('open', data, { selected: [] });
-
-    expect(field).toMatchObject({ name: 'taskId', kind: 'choice' });
-  });
-
   test('choices кода у строкового поля — вид choice, прочие части описания остаются', () => {
     class TitleChoices extends TaskListScreenCode {
       override choices(name: string) {
@@ -381,20 +393,20 @@ describe('ScreenLogic.fields — вид, подсказка и пределы п
   });
 
   test('checkInput jumpTo: номер вне пределов — замечание схемы её текстом', () => {
-    expect(logicOf().checkInput('jumpTo', { part: 0 })).toEqual({
+    expect(logicOf().checkInput('jumpTo', { part: 0 }, data)).toEqual({
       ok: false,
       error: {
         issues: [{ field: 'part', text: 'Части начинаются с первой' }],
       },
     });
-    expect(logicOf().checkInput('jumpTo', { part: 100 })).toEqual({
+    expect(logicOf().checkInput('jumpTo', { part: 100 }, data)).toEqual({
       ok: false,
       error: { issues: [{ field: 'part', text: 'Не больше 99' }] },
     });
   });
 
   test('checkInput jumpTo: строка вместо числа — замечание схемы', () => {
-    expect(logicOf().checkInput('jumpTo', { part: 'abc' })).toEqual({
+    expect(logicOf().checkInput('jumpTo', { part: 'abc' }, data)).toEqual({
       ok: false,
       error: { issues: [{ field: 'part', text: 'Введите номер части' }] },
     });

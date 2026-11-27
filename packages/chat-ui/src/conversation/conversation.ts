@@ -407,6 +407,17 @@ export class Conversation {
         );
         return;
       }
+      case 'row': {
+        const on = await this.screens.onScreen(entry.screen);
+        if (on === undefined) return;
+        const { action, revision, input } = entry;
+        await this.outcomes.act(
+          on,
+          { action, revision, input, confirmed: false },
+          trace,
+        );
+        return;
+      }
       case 'local': {
         const on = await this.screens.onScreen(entry.screen);
         if (on === undefined) return;

@@ -150,6 +150,7 @@ export class UiNodes {
           ? {}
           : { input: toJsonSchema(action.input) }),
         ...(action.confirm === undefined ? {} : { confirm: action.confirm }),
+        ...(action.row === undefined ? {} : { row: action.row }),
       };
       return {
         kind: UI_NODE_KINDS.action,

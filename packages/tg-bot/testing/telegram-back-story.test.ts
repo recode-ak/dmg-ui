@@ -178,11 +178,10 @@ const world = (name = 'one') => {
 
 type World = ReturnType<typeof world>;
 
-/** Список «Мои задачи» → «Хлеб» → «Открыть задачу» → карточка «Хлеб». */
+/** Список «Мои задачи» → «Хлеб» → кнопка задачи «Хлеб» → карточка «Хлеб». */
 const onCard = async (w: World) => {
   await w.a.say('/start');
   await w.a.say('Хлеб');
-  await w.a.press('Открыть задачу');
   await w.a.press('Хлеб');
 };
 
