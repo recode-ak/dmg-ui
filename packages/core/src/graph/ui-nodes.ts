@@ -29,6 +29,7 @@ import type {
   UiStoryProps,
 } from './ui-props.types';
 import { UiSections } from './ui-sections';
+import { UiStoryEntries } from './ui-story-entries';
 
 /**
  * Узлы графа по Def набора UI и приложений UI. `id` — только через `UiIds`;
@@ -36,6 +37,7 @@ import { UiSections } from './ui-sections';
  */
 export class UiNodes {
   private readonly sections: UiSections;
+  private readonly entries: UiStoryEntries;
 
   constructor(
     private readonly set: AnyUiSetDef,
@@ -43,6 +45,7 @@ export class UiNodes {
     private readonly ids: UiIds,
   ) {
     this.sections = UiSections.ofSet(set, ids);
+    this.entries = new UiStoryEntries(set, apps, ids);
   }
 
   list(): GraphNodeInput[] {
@@ -102,6 +105,7 @@ export class UiNodes {
         })),
         after: this.afterOf(outcome),
       })),
+      startsFrom: this.entries.of(story),
       ...(story.access === undefined
         ? {}
         : { access: story.access.normalize() }),

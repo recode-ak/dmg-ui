@@ -15,6 +15,7 @@ import { TasksScreenDef } from 'dmg-core/testing/example/screen/tasks.screen';
 import {
   ExampleUiSetDef,
   LIST_START,
+  PlanTasksStoryDef,
   StartWorkStoryDef,
   TaskCardScreenDef,
   TaskListScreenDef,
@@ -26,6 +27,7 @@ import {
   ExampleStubUiAppDef,
 } from '../../testing/ui-app.fixture';
 import { ArchReport, UiScene } from '../../testing/ui-arch';
+import { UiIds } from '../address/ui-ids';
 import { type AnyScreenDef, ScreenDef } from '../manifest/screen-def';
 import { StoryTree } from '../manifest/story-tree';
 import type { StoryBranch } from '../manifest/story-tree.types';
@@ -33,6 +35,7 @@ import { UiModuleDef } from '../manifest/ui-module-def';
 import { UiSetDef } from '../manifest/ui-set-def';
 import { UiGraphProvider } from './ui-graph-provider';
 import { UI_VERSION } from './ui-kinds';
+import { UiStoryEntries } from './ui-story-entries';
 
 const provider = () =>
   new UiGraphProvider({
@@ -254,7 +257,7 @@ describe('UiGraphProvider: свойства узлов', () => {
     });
   });
 
-  test('сторис: вызывающие, цель, старт и исходы с { screen, exit }', () => {
+  test('сторис: вызывающие, цель, старт, исходы с { screen, exit } и входы', () => {
     expect(props('exampleUi/todo/planTasks')).toEqual({
       callers: ['user'],
       goal: 'чтобы не забыть дела',
@@ -275,6 +278,11 @@ describe('UiGraphProvider: свойства узлов', () => {
           after: 'back',
         },
       ],
+      startsFrom: new UiStoryEntries(
+        ExampleUiSetDef,
+        [ExampleStubUiAppDef],
+        new UiIds(ExampleUiSetDef),
+      ).of(PlanTasksStoryDef),
     });
   });
 

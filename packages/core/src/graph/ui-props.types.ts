@@ -45,6 +45,32 @@ export type UiEntryProps = UiItemProps & {
   readonly params: unknown;
 };
 
+/**
+ * Вход сторис в `props`: с какого узла (`id` источника) пользователь попадает
+ * на её экран (`id` экрана). Вид задаёт источник: приложение UI,
+ * уведомление, действие экрана вне сторис или исход другой сторис.
+ */
+export type UiStartsFromProps =
+  | {
+      readonly via: 'entry';
+      readonly from: string;
+      readonly screen: string;
+      /** Имя входа в `entries` приложения UI. */
+      readonly name: string;
+    }
+  | {
+      readonly via: 'notification';
+      readonly from: string;
+      readonly screen: string;
+      /** `id` события уведомления — тот же, что у ребра `notifiedBy`. */
+      readonly event: string;
+    }
+  | {
+      readonly via: 'action' | 'redirect';
+      readonly from: string;
+      readonly screen: string;
+    };
+
 /** `props` узла `uiSet`. */
 export type UiSetProps = {
   readonly app: string;
@@ -65,6 +91,11 @@ export type UiStoryProps = {
   /** `id` экрана старта. */
   readonly start: string;
   readonly outcomes: readonly UiOutcomeProps[];
+  /**
+   * Входы снаружи на любой экран сторис; переход между её экранами входом не
+   * считается. Ключ есть всегда, без входов — пусто; порядок — `UiStoryEntries`.
+   */
+  readonly startsFrom: readonly UiStartsFromProps[];
   /** Правило доступа, свёрнутое, как `policy` UC; без доступа ключа нет. */
   readonly access?: NormalizedRule;
 };

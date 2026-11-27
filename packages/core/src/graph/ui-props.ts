@@ -37,6 +37,16 @@ const entry = v.strictObject({
   params: v.unknown(),
 });
 
+const via = { from: v.string(), screen: v.string() };
+
+// Вход сторис: набор ключей задаёт вид (`via`), лишний ключ — отказ.
+const startsFrom = v.variant('via', [
+  v.strictObject({ via: v.literal('entry'), ...via, name: v.string() }),
+  v.strictObject({ via: v.literal('notification'), ...via, event: v.string() }),
+  v.strictObject({ via: v.literal('action'), ...via }),
+  v.strictObject({ via: v.literal('redirect'), ...via }),
+]);
+
 /**
  * Схемы `props` видов поставщика `dmg-ui`: данные, как `DOMAIN_KINDS`.
  * Порядок ключей — как в `UiNodes` и `UiEdges`. У видов без свойств схемы нет.
@@ -50,6 +60,7 @@ export const UI_PROPS = {
     goal: v.string(),
     start: v.string(),
     outcomes: v.array(outcome),
+    startsFrom: v.array(startsFrom),
     access: v.optional(nested),
   }),
   screen: v.strictObject({
