@@ -1,5 +1,6 @@
 import type { Graph, GraphNode } from 'dmg-core/graph';
 import * as v from 'valibot';
+import { JsonSchemaView } from './json-schema-view';
 import { EVENT_KIND, EVENT_VIEW, UC_KIND, UC_VIEW } from './ui-domain-props';
 import type {
   ActionView,
@@ -189,18 +190,16 @@ export class UiGraphReader {
       : undefined;
   }
 
-  /** Имена полей payload события; события нет в графе — `undefined`. */
+  /**
+   * Имена полей payload события, которые есть у любого его значения (у
+   * варианта — общие для всех веток); события нет в графе — `undefined`.
+   */
   payloadFields(eventId: string): Set<string> | undefined {
     const node = this.graph.node(eventId);
     if (node?.kind !== EVENT_KIND) return undefined;
     const view = UiGraphReader.parse(EVENT_VIEW, node);
     if (!view) return undefined;
-    const properties = view.payload.properties;
-    const names =
-      typeof properties === 'object' && properties !== null
-        ? Object.keys(properties)
-        : [];
-    return new Set(names);
+    return new Set(new JsonSchemaView(view.payload).commonFields());
   }
 
   /** Записи перечитывания ребра `refreshedBy`; свойства не по схеме — `undefined`. */

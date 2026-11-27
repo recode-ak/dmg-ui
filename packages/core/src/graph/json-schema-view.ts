@@ -24,6 +24,22 @@ export class JsonSchemaView {
   }
 
   /**
+   * Поля первого уровня, которые есть у любого значения схемы: у объекта —
+   * его поля, у `anyOf` / `oneOf` (вариант, объединение) — общие для всех
+   * веток, в порядке первой.
+   */
+  commonFields(): string[] {
+    const branches = this.schema.anyOf ?? this.schema.oneOf;
+    if (!Array.isArray(branches)) return this.fields();
+    const [first, ...rest] = branches.map((branch) =>
+      new JsonSchemaView(JsonSchemaView.record(branch)).commonFields(),
+    );
+    return (first ?? []).filter((name) =>
+      rest.every((fields) => fields.includes(name)),
+    );
+  }
+
+  /**
    * Пути полей без `description`: обход `properties` и `items` рекурсивно,
    * путь — имена через точку, элемент массива — `[]`.
    */
