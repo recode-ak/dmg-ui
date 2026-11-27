@@ -64,7 +64,8 @@ export const UI_KINDS: GraphKinds = {
     {
       kind: UI_NODE_KINDS.story,
       label: 'Сторис',
-      description: 'Путь пользователя по экранам модуля к исходам.',
+      description:
+        'Путь пользователя по экранам модуля к исходам; входы — свойство `startsFrom`.',
       props: UI_PROPS.story,
     },
     {
