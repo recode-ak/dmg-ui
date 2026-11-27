@@ -51,7 +51,8 @@ export class ScreenLinks {
       return;
     }
     const live = screens.current();
-    if (live === undefined) {
+    // Экран с отказом чтения домену не открыт: ссылки на него нет.
+    if (live === undefined || live.instance.view().status === 'refused') {
       await output.note(CONVERSATION_TEXTS.noLinkScreen);
       return;
     }

@@ -466,6 +466,23 @@ describe('Ссылки — /link: выдача', () => {
     expect(w.links.puts).toEqual([]);
   });
 
+  test('экран с отказом чтения: «Здесь нет экрана для ссылки.», запись не создана', async () => {
+    const w = world();
+    const a = w.node();
+    const missing = {
+      screen: 'exampleUi/todo/taskCard',
+      params: { taskId: B },
+    };
+    await a.conversations.receive(w.signals.open(missing, WHO_A));
+    const before = texts(a, WHO_A).length;
+
+    await a.conversations.receive(w.signals.link(WHO_A));
+
+    expect(texts(a, WHO_A)).toHaveLength(before + 1);
+    expect(lastText(a, WHO_A)).toBe(CONVERSATION_TEXTS.noLinkScreen);
+    expect(w.links.puts).toEqual([]);
+  });
+
   test('узел без links: «Ссылки здесь не выдаются.», экран и снимок прежние', async () => {
     const w = world();
     const a = w.node({ links: false });

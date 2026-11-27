@@ -23,7 +23,13 @@ const setup = (first: AddressJson) => {
   const logger = new MemoryLogger();
   let address = first;
   const screens = {
-    current: () => ({ serial: 1, instance: { snapshot: () => ({ address }) } }),
+    current: () => ({
+      serial: 1,
+      instance: {
+        snapshot: () => ({ address }),
+        view: () => ({ status: 'ready' }),
+      },
+    }),
   } as unknown as ConversationScreens;
   const output = {
     note: async (text: string) => {
